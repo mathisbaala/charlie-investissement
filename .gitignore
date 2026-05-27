@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Données brutes et crawl (trop lourdes pour git)
+crawl_data/
+data/raw/
+data/cache/
+logs/
+
+# Secrets et config locale
+.env
+.env.local
+.env.*.local
+*.env
+config/secrets.yaml
+config/credentials.yaml
+
+# Node (pour le frontend Next.js qui viendra)
+node_modules/
+.next/
+out/
+.vercel/
+
+# Système
+.DS_Store
+*.swp
+*.swo
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.iml
