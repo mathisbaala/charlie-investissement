@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   let q = supabase
     .from("investissement_funds_cgp")
     .select(
-      "isin,name,product_type,management_company,sfdr_article,sri,ongoing_charges,performance_1y,performance_3y,performance_5y,volatility_1y,sharpe_1y,aum_eur,morningstar_rating,is_pea_eligible,is_av_eligible,is_per_eligible,is_av_lux_eligible,inception_date,data_completeness"
+      "isin,name,product_type,gestionnaire,sfdr_article,risk_score,ongoing_charges,performance_1y,performance_3y,performance_5y,volatility_1y,volatility_3y,sharpe_1y,sharpe_3y,aum_eur,morningstar_rating,pea_eligible,per_eligible,av_lux_eligible,inception_date,data_completeness"
     )
     .gte("data_completeness", 50)
     .order("data_completeness", { ascending: false })
@@ -31,14 +31,13 @@ export async function POST(req: NextRequest) {
   if (filters.sfdr_article?.length) {
     q = q.in("sfdr_article", filters.sfdr_article);
   }
-  if (filters.sri_min != null) q = q.gte("sri", filters.sri_min);
-  if (filters.sri_max != null) q = q.lte("sri", filters.sri_max);
+  if (filters.sri_min != null) q = q.gte("risk_score", filters.sri_min);
+  if (filters.sri_max != null) q = q.lte("risk_score", filters.sri_max);
   if (filters.ter_max != null) q = q.lte("ongoing_charges", filters.ter_max);
   if (filters.perf_1y_min != null) q = q.gte("performance_1y", filters.perf_1y_min);
-  if (filters.is_pea_eligible === true) q = q.eq("is_pea_eligible", true);
-  if (filters.is_av_eligible === true) q = q.eq("is_av_eligible", true);
-  if (filters.is_per_eligible === true) q = q.eq("is_per_eligible", true);
-  if (filters.is_av_lux_eligible === true) q = q.eq("is_av_lux_eligible", true);
+  if (filters.pea_eligible === true) q = q.eq("pea_eligible", true);
+  if (filters.per_eligible === true) q = q.eq("per_eligible", true);
+  if (filters.av_lux_eligible === true) q = q.eq("av_lux_eligible", true);
   if (filters.product_type?.length) q = q.in("product_type", filters.product_type);
   if (filters.name_search?.trim()) {
     q = q.ilike("name", `%${filters.name_search.trim()}%`);

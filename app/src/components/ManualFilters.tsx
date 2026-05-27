@@ -16,7 +16,6 @@ export default function ManualFilters({ onSearch }: Props) {
   const [terMax, setTerMax] = useState("");
   const [perf1yMin, setPerf1yMin] = useState("");
   const [pea, setPea] = useState(false);
-  const [av, setAv] = useState(false);
   const [per, setPer] = useState(false);
   const [avLux, setAvLux] = useState(false);
 
@@ -31,10 +30,9 @@ export default function ManualFilters({ onSearch }: Props) {
     if (sriMax) f.sri_max = Number(sriMax);
     if (terMax) f.ter_max = Number(terMax);
     if (perf1yMin) f.perf_1y_min = Number(perf1yMin);
-    if (pea) f.is_pea_eligible = true;
-    if (av) f.is_av_eligible = true;
-    if (per) f.is_per_eligible = true;
-    if (avLux) f.is_av_lux_eligible = true;
+    if (pea) f.pea_eligible = true;
+    if (per) f.per_eligible = true;
+    if (avLux) f.av_lux_eligible = true;
     onSearch(f);
   }
 
@@ -89,7 +87,7 @@ export default function ManualFilters({ onSearch }: Props) {
           <div className="mt-4">
             <label className="block text-xs font-medium text-gray-600 mb-2">Éligibilités</label>
             <div className="flex gap-3">
-              {[["PEA", pea, setPea], ["AV FR", av, setAv], ["PER", per, setPer], ["AV Lux", avLux, setAvLux]].map(([label, val, setter]) => (
+              {[["PEA", pea, setPea], ["PER", per, setPer], ["AV Lux", avLux, setAvLux]].map(([label, val, setter]) => (
                 <label key={label as string} className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={val as boolean} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} className="rounded" />
                   <span className="text-xs text-gray-700">{label as string}</span>

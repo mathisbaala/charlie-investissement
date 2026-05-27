@@ -1,0 +1,1 @@
+-- Migration initiale (déjà appliquée sur remote)

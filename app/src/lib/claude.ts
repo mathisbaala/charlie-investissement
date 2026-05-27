@@ -8,10 +8,9 @@ export type ScreenerFilters = {
   sri_max?: number;
   ter_max?: number;
   perf_1y_min?: number;
-  is_pea_eligible?: boolean;
-  is_av_eligible?: boolean;
-  is_per_eligible?: boolean;
-  is_av_lux_eligible?: boolean;
+  pea_eligible?: boolean;
+  per_eligible?: boolean;
+  av_lux_eligible?: boolean;
   product_type?: string[];
   name_search?: string;
   limit?: number;
@@ -24,7 +23,7 @@ Colonnes disponibles :
 - sri : Indicateur de risque 1 à 7 (1=très faible, 7=très élevé)
 - ongoing_charges / ter : Frais courants en % (ex: 0.85 = 0.85%)
 - performance_1y, performance_3y, performance_5y : Performances en % (ex: 12.5 = 12.5%)
-- is_pea_eligible, is_av_eligible, is_per_eligible, is_av_lux_eligible : booléens
+- pea_eligible, per_eligible, av_lux_eligible : booléens (PEA, PER, Assurance-Vie Luxembourg)
 - product_type : "opcvm", "etf", "scpi", "action", "crypto", "fonds_euros", "livret"
 - morningstar_rating : 1 à 5
 
@@ -35,10 +34,9 @@ Retourne UNIQUEMENT un objet JSON valide avec ces champs optionnels :
   "sri_max": 4,
   "ter_max": 1.0,
   "perf_1y_min": 5,
-  "is_pea_eligible": true,
-  "is_av_eligible": true,
-  "is_per_eligible": true,
-  "is_av_lux_eligible": false,
+  "pea_eligible": true,
+  "per_eligible": true,
+  "av_lux_eligible": false,
   "product_type": ["opcvm", "etf"],
   "name_search": "amundi",
   "limit": 50

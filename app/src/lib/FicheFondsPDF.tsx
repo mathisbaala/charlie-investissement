@@ -42,7 +42,7 @@ export default function FicheFondsPDF({ fund }: { fund: Record<string, any> }) {
 
         <View style={styles.badgeRow}>
           {fund.sfdr_article && <Text style={styles.badge}>SFDR Art.{fund.sfdr_article}</Text>}
-          {fund.sri && <Text style={styles.badge}>SRI {fund.sri}/7</Text>}
+          {(fund.sri ?? fund.risk_score) && <Text style={styles.badge}>SRI {fund.sri ?? fund.risk_score}/7</Text>}
           {fund.morningstar_rating && <Text style={styles.badge}>Morningstar {fund.morningstar_rating}/5</Text>}
         </View>
 
@@ -67,10 +67,9 @@ export default function FicheFondsPDF({ fund }: { fund: Record<string, any> }) {
 
         <Text style={styles.sectionTitle}>Éligibilités</Text>
         <View style={styles.badgeRow}>
-          {fund.is_pea_eligible && <Text style={styles.badge}>PEA</Text>}
-          {fund.is_av_eligible && <Text style={styles.badge}>AV France</Text>}
-          {fund.is_per_eligible && <Text style={styles.badge}>PER</Text>}
-          {fund.is_av_lux_eligible && <Text style={styles.badge}>AV Luxembourg</Text>}
+          {fund.pea_eligible && <Text style={styles.badge}>PEA</Text>}
+          {fund.per_eligible && <Text style={styles.badge}>PER</Text>}
+          {fund.av_lux_eligible && <Text style={styles.badge}>AV Luxembourg</Text>}
         </View>
 
         <Text style={styles.disclaimer}>

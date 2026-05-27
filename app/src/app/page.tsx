@@ -44,6 +44,9 @@ export default function ScreenerPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Charlie CGP</h1>
           <p className="text-gray-500">18 203 fonds CGP-compatibles · OPCVM, ETF, SCPI</p>
+          <a href="/matching" className="inline-block mt-2 text-sm text-blue-600 hover:underline">
+            → Matching client (profil investisseur)
+          </a>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
