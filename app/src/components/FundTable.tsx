@@ -20,12 +20,20 @@ function SfdrBadge({ article }: { article: number | null }) {
   return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colors[article] ?? "bg-gray-100 text-gray-700"}`}>Art.{article}</span>;
 }
 
-export default function FundTable({ funds }: { funds: Fund[] }) {
+interface Props {
+  funds: Fund[];
+  selectedIsins?: Set<string>;
+  onToggle?: (isin: string) => void;
+}
+
+export default function FundTable({ funds, selectedIsins, onToggle }: Props) {
+  const selectable = !!onToggle;
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
+            {selectable && <th className="px-4 py-3 w-8"></th>}
             <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Fonds</th>
             <th className="text-center px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">SFDR</th>
             <th className="text-center px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Risque</th>
@@ -38,7 +46,17 @@ export default function FundTable({ funds }: { funds: Fund[] }) {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {funds.map((f) => (
-            <tr key={f.isin} className="hover:bg-gray-50 transition-colors">
+            <tr key={f.isin} className={`hover:bg-gray-50 transition-colors ${selectedIsins?.has(f.isin) ? "bg-blue-50" : ""}`}>
+              {selectable && (
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIsins?.has(f.isin) ?? false}
+                    onChange={() => onToggle!(f.isin)}
+                    className="rounded border-gray-300 text-blue-600"
+                  />
+                </td>
+              )}
               <td className="px-4 py-3">
                 <div className="font-medium text-gray-900 truncate max-w-xs" title={f.name}>{f.name}</div>
                 <div className="text-xs text-gray-400">{f.isin} · {f.gestionnaire ?? f.management_company ?? "—"}</div>

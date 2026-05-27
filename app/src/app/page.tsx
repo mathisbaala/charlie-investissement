@@ -13,6 +13,15 @@ export default function ScreenerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [selectedIsins, setSelectedIsins] = useState<Set<string>>(new Set());
+
+  function toggleFund(isin: string) {
+    setSelectedIsins((prev) => {
+      const next = new Set(prev);
+      next.has(isin) ? next.delete(isin) : next.add(isin);
+      return next;
+    });
+  }
 
   async function search(overrideFilters?: ScreenerFilters) {
     setLoading(true);
@@ -31,6 +40,7 @@ export default function ScreenerPage() {
       setFunds(data.funds);
       setFilters(data.filters);
       setSearched(true);
+      setSelectedIsins(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
@@ -92,11 +102,27 @@ export default function ScreenerPage() {
                 <p className="text-sm text-gray-400 mt-1">Essayez d'assouplir les filtres.</p>
               </div>
             ) : (
-              <FundTable funds={funds} />
+              <FundTable funds={funds} selectedIsins={selectedIsins} onToggle={toggleFund} />
             )}
           </div>
         )}
       </div>
+
+      {/* Bouton rapport PDF flottant */}
+      {selectedIsins.size >= 2 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <a
+            href={`/api/rapport/pdf?isins=${Array.from(selectedIsins).join(",")}`}
+            target="_blank"
+            className="flex items-center gap-2 px-5 py-3 bg-gray-900 text-white rounded-xl shadow-lg hover:bg-gray-700 text-sm font-medium"
+          >
+            <span>Rapport PDF</span>
+            <span className="bg-white text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">
+              {selectedIsins.size}
+            </span>
+          </a>
+        </div>
+      )}
     </main>
   );
 }

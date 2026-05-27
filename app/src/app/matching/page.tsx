@@ -53,6 +53,15 @@ export default function MatchingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [selectedIsins, setSelectedIsins] = useState<Set<string>>(new Set());
+
+  function toggleFund(isin: string) {
+    setSelectedIsins((prev) => {
+      const next = new Set(prev);
+      next.has(isin) ? next.delete(isin) : next.add(isin);
+      return next;
+    });
+  }
 
   function toggleEnvelope(v: Envelope) {
     setEnvelopes((prev) =>
@@ -85,6 +94,7 @@ export default function MatchingPage() {
       if (data.error) throw new Error(data.error);
       setResults(data.results);
       setSearched(true);
+      setSelectedIsins(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
     } finally {
@@ -232,6 +242,7 @@ export default function MatchingPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
+                      <th className="px-4 py-3 w-8"></th>
                       <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Score</th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Fonds</th>
                       <th className="text-center px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">SFDR</th>
@@ -245,7 +256,15 @@ export default function MatchingPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {results.map((f) => (
-                      <tr key={f.isin} className="hover:bg-gray-50 transition-colors">
+                      <tr key={f.isin} className={`hover:bg-gray-50 transition-colors ${selectedIsins.has(f.isin) ? "bg-blue-50" : ""}`}>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIsins.has(f.isin)}
+                            onChange={() => toggleFund(f.isin)}
+                            className="rounded border-gray-300 text-blue-600"
+                          />
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <ScoreBadge score={f.match_score} label={f.match_label} />
                         </td>
@@ -291,6 +310,22 @@ export default function MatchingPage() {
           </div>
         )}
       </div>
+
+      {/* Bouton rapport PDF flottant */}
+      {selectedIsins.size >= 2 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <a
+            href={`/api/rapport/pdf?isins=${Array.from(selectedIsins).join(",")}`}
+            target="_blank"
+            className="flex items-center gap-2 px-5 py-3 bg-gray-900 text-white rounded-xl shadow-lg hover:bg-gray-700 text-sm font-medium"
+          >
+            <span>Rapport PDF</span>
+            <span className="bg-white text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full">
+              {selectedIsins.size}
+            </span>
+          </a>
+        </div>
+      )}
     </main>
   );
 }
