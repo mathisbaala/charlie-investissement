@@ -37,6 +37,7 @@ import concurrent.futures
 from datetime import datetime, timezone
 from pathlib import Path
 
+import requests as _requests
 from scrapling.fetchers import FetcherSession
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -107,22 +108,24 @@ KID_PATTERNS_FR = {
         r"investissement\s+(?:durable|responsable)\s+comme\s+objectif",
     ],
     "ter": [
-        # Ligne "Coûts récurrents" dans la table de composition (texte espacé)
+        # PRIORITÉ 1 : "Incidence des coûts annuels" = TER total PRIIPS (1ère valeur = 1 an)
+        # Format table : "Incidence des coûts annuels | 1,99% | 2,11%"
+        r"incidence\s+des\s+co[uû]ts\s+annuels[^|]*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
+        # Format texte inline : "Incidence des coûts annuels (*) 0,33% 0,32%"
+        r"incidence\s+des\s+co[uû]ts\s+annuels[^\d]{0,40}(\d+[.,]\d+)\s*%",
+        # Format avec "Coûts totaux" sur la ligne précédente
+        r"co[uû]ts\s+totaux[^\n]+\n[^\n]*incidence[^\d]{0,30}(\d+[.,]\d+)\s*%",
+        # PRIORITÉ 2 : Tableau "Coûts récurrents" ligne totale (pas les sous-lignes individuelles)
         r"co[uû]ts\s+r[eé]currents\s*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
-        r"co[uû]ts\s+r[eé]currents[^\d]*(\d+[.,]\d+)\s*%",
         r"frais\s+courants[^\d]*(\d+[.,]\d+)\s*%",
         r"charges\s+courantes[^\d]*(\d+[.,]\d+)\s*%",
         r"ratio\s+des\s+frais[^\d]*(\d+[.,]\d+)\s*%",
         r"total\s+des\s+co[uû]ts[^\d]*(\d+[.,]\d+)\s*%",
-        # PDFs concatenés : "0,33%delavaleurdevotreinvestissement" dans section coûts récurrents
+        # PDFs concatenés : "0,33%delavaleurdevotreinvestissement"
         r"co[uû]ts\s*r[eé]currents[^€\n]{0,200}?(\d+[.,]\d+)\s*%\s*de\s*la\s*valeur",
         r"(\d+[.,]\d{2})\s*%\s*de\s*la\s*valeur\s*de\s*votre\s*investissement\s*par\s*an",
-        # Fallback PRIIPS : "Incidence des coûts annuels" — prendre la 2e valeur (multi-ans)
-        r"incidence\s+des\s+co[uû]ts\s+annuels[^|]*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
-        # PRIIPs-v2 : "Incidence des coûts annuels (*) 1,99% 2,11%" — 1ère valeur = 1 an
-        r"incidence\s+des\s+co[uû]ts\s+annuels[^\d]{0,30}(\d+[.,]\d+)\s*%",
-        # PRIIPs-v2 alternatif : "Coûts totaux X€ ... Incidence des coûts annuels Y%"
-        r"co[uû]ts\s+totaux[^\n]+\n[^\n]*incidence[^\d]{0,30}(\d+[.,]\d+)\s*%",
+        # PRIORITÉ 3 : Sous-ligne frais de gestion (moins précis mais mieux que rien)
+        r"co[uû]ts\s+r[eé]currents[^\d]*(\d+[.,]\d+)\s*%",
     ],
     "entry_fee_max": [
         r"co[uû]ts\s+d.entr[eé]e.*?jusqu.[aà].*?(\d+[.,]\d+)\s*%",
@@ -223,12 +226,12 @@ def parse_kid_text(text: str) -> dict:
                     elif "caract" in pat:
                         r["sfdr_article"] = 8
                     break
-        # TER
+        # TER — stocké en % dans la DB (0.33 = 0.33%), pas en fraction
         raw = try_patterns(text, pats["ter"])
         val = extract_number(raw) if raw else None
         if val is not None and 0 < val < 10:
-            r["ter"] = round(val / 100, 6)
-            r["ongoing_charges"] = round(val / 100, 6)
+            r["ter"] = round(val, 4)
+            r["ongoing_charges"] = round(val, 4)
             conf += 25
         # Entry fee
         raw = try_patterns(text, pats["entry_fee_max"])
@@ -375,7 +378,24 @@ def download_document(session: FetcherSession, url: str) -> tuple[bytes, str] | 
 
     try:
         page = session.get(url, stealthy_headers=True, timeout=PAGE_FETCH_TIMEOUT)
-        return _parse_page(page)
+        result = _parse_page(page)
+        if result[0] is not None:
+            return result
+        # Scrapling returned HTML (e.g. Morningstar viewer) — fallback to raw requests
+        try:
+            r = _requests.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0", "Accept": "application/pdf,*/*"},
+                timeout=PAGE_FETCH_TIMEOUT,
+                verify=True,
+            )
+            if r.status_code == 200:
+                data = r.content
+                if data[:4] == b"%PDF" and len(data) < MAX_PDF_SIZE_MB * 1_000_000:
+                    return data, "pdf"
+        except Exception:
+            pass
+        return None, None
     except Exception as e:
         # Retry sans vérification SSL (certificat expiré chez certains hébergeurs SGP)
         err = str(e).lower()
@@ -460,7 +480,8 @@ def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool
 
 
 def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: int | None,
-                             geco_only: bool = False) -> list[dict]:
+                             geco_only: bool = False, ter_null: bool = False,
+                             amfinesoft_only: bool = False) -> list[dict]:
     """Récupère les fonds avec kid_url depuis Supabase (pagination complète)."""
     PAGE = 1000
     all_funds: list[dict] = []
@@ -472,10 +493,15 @@ def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: in
             .not_.is_("kid_url", "null") \
             .neq("kid_url", "")
 
-        if not force:
+        if not force and not ter_null:
             q = q.is_("kid_parsed_at", "null")
+        if ter_null:
+            q = q.is_("ter", "null")
         if geco_only:
             q = q.like("kid_url", "https://geco.amf-france.org/%")
+        if amfinesoft_only:
+            # Exclut les kid-security (actions/obligations), garde les vrai KIDs fonds
+            q = q.like("kid_url", "%amfinesoft.com%/kid/%").not_.like("kid_url", "%-security%")
         if min_aum:
             q = q.gte("aum_eur", min_aum)
 
@@ -495,7 +521,8 @@ def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: in
 
 
 def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force: bool,
-        use_llm: bool, geco_only: bool = False):
+        use_llm: bool, geco_only: bool = False, ter_null: bool = False,
+        amfinesoft_only: bool = False):
     print("=" * 60)
     print("  KID Bulk Parser — Extraction TER + SRI depuis PDFs")
     print("=" * 60)
@@ -506,6 +533,10 @@ def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force
     print(f"  LLM       : {'OUI (Claude Haiku)' if use_llm else 'NON'}")
     if geco_only:
         print("  Filtre    : GECO uniquement (geco.amf-france.org)")
+    if amfinesoft_only:
+        print("  Filtre    : Amfinesoft /kid/ uniquement (OPCVM FR)")
+    if ter_null:
+        print("  Filtre    : TER null uniquement")
     if limit:
         print(f"  Limite    : {limit}")
     print()
@@ -513,7 +544,8 @@ def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force
     started = datetime.now(timezone.utc)
     client  = get_client()
 
-    funds = fetch_funds_with_kid_url(client, min_aum, force, limit, geco_only=geco_only)
+    funds = fetch_funds_with_kid_url(client, min_aum, force, limit, geco_only=geco_only,
+                                     ter_null=ter_null, amfinesoft_only=amfinesoft_only)
     print(f"  {len(funds)} fonds avec kid_url à traiter")
     print()
 
@@ -576,6 +608,10 @@ if __name__ == "__main__":
     parser.add_argument("--llm",       action="store_true", help="Activer fallback Claude Haiku")
     parser.add_argument("--geco-only", action="store_true",
                         help="Traiter uniquement les URLs GECO (geco.amf-france.org)")
+    parser.add_argument("--amfinesoft-only", action="store_true",
+                        help="Traiter uniquement les KIDs OPCVM amfinesoft (/kid/ sans -security)")
+    parser.add_argument("--ter-null", action="store_true",
+                        help="Traiter uniquement les fonds sans TER (ter IS NULL)")
     args = parser.parse_args()
     run(
         apply=args.apply,
@@ -585,4 +621,6 @@ if __name__ == "__main__":
         force=args.force,
         use_llm=args.llm,
         geco_only=args.geco_only,
+        ter_null=args.ter_null,
+        amfinesoft_only=args.amfinesoft_only,
     )

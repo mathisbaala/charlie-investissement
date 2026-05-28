@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { scoreFunds, ClientProfile } from "@/lib/matching";
+import type { MatchingResponse } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const profile = (await req.json()) as ClientProfile;
@@ -42,5 +43,6 @@ export async function POST(req: NextRequest) {
 
   const ranked = scoreFunds(data ?? [], profile).slice(0, 20);
 
-  return NextResponse.json({ results: ranked, profile });
+  const response: MatchingResponse = { results: ranked, profile };
+  return NextResponse.json(response);
 }

@@ -201,8 +201,12 @@ def fetch_fund(sess: FetcherSession, fund_id: int) -> dict:
 
 # ─── Requêtes cibles ──────────────────────────────────────────────────────────
 
-def fetch_target_funds(client, ter_only: bool, limit: int | None) -> list[dict]:
-    """Retourne les OPCVM/ETF sans perf_1y ou sans TER (triés par AUM desc)."""
+def fetch_target_funds(
+    client, ter_only: bool, limit: int | None,
+    score_min: int | None = None, score_max: int | None = None
+) -> list[dict]:
+    """Retourne les OPCVM/ETF sans perf_1y ou sans TER (triés par AUM desc).
+    score_min/score_max filtrent par data_completeness pour cibler les near-80."""
     funds: list[dict] = []
     seen: set[str] = set()
     page_size = 1000
@@ -216,6 +220,10 @@ def fetch_target_funds(client, ter_only: bool, limit: int | None) -> list[dict]:
                 .in_("product_type", ["opcvm", "etf"])
                 .is_(null_field, "null")
             )
+            if score_min is not None:
+                q = q.gte("data_completeness", score_min)
+            if score_max is not None:
+                q = q.lte("data_completeness", score_max)
             if with_aum:
                 q = q.not_.is_("aum_eur", "null").order("aum_eur", desc=True)
             else:
@@ -245,12 +253,17 @@ def fetch_target_funds(client, ter_only: bool, limit: int | None) -> list[dict]:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run(apply: bool, limit: int | None, ter_only: bool) -> None:
+def run(
+    apply: bool, limit: int | None, ter_only: bool,
+    score_min: int | None = None, score_max: int | None = None
+) -> None:
     print("=" * 60)
     print("  Quantalys Direct Enricher — TER + Perf + SRI")
     print("=" * 60)
     print(f"  Mode       : {'APPLY' if apply else 'DRY-RUN'}")
     print(f"  TER seulement : {ter_only}")
+    if score_min is not None or score_max is not None:
+        print(f"  Score cible   : {score_min or '?'} – {score_max or '?'}")
     if limit:
         print(f"  Limite     : {limit}")
     print()
@@ -266,7 +279,7 @@ def run(apply: bool, limit: int | None, ter_only: bool) -> None:
     print(f"{len(isin_to_id):,} entrées")
     print()
 
-    funds = fetch_target_funds(client, ter_only, limit)
+    funds = fetch_target_funds(client, ter_only, limit, score_min, score_max)
     # Filtrer uniquement les fonds présents dans le catalogue Quantalys
     funds_with_id = [(f, isin_to_id[f["isin"]]) for f in funds if f["isin"] in isin_to_id]
 
@@ -316,8 +329,11 @@ def run(apply: bool, limit: int | None, ter_only: bool) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quantalys Direct Enricher (ISIN→ID lookup)")
-    parser.add_argument("--apply",    action="store_true", help="Écrire dans Supabase")
-    parser.add_argument("--limit",    type=int,            help="Limiter à N fonds")
-    parser.add_argument("--ter-only", action="store_true", help="Ne cibler que les fonds sans TER")
+    parser.add_argument("--apply",     action="store_true", help="Écrire dans Supabase")
+    parser.add_argument("--limit",     type=int,            help="Limiter à N fonds")
+    parser.add_argument("--ter-only",  action="store_true", help="Ne cibler que les fonds sans TER")
+    parser.add_argument("--score-min", type=int, default=None, help="Score completeness minimum")
+    parser.add_argument("--score-max", type=int, default=None, help="Score completeness maximum")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit, ter_only=args.ter_only)
+    run(apply=args.apply, limit=args.limit, ter_only=args.ter_only,
+        score_min=args.score_min, score_max=args.score_max)

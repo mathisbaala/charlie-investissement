@@ -57,11 +57,28 @@ def run(apply: bool):
         total_updates += n
 
         if apply:
-            # Un seul UPDATE WHERE — évite les 20k+ requêtes HTTP/2 individuelles
-            client.table("investissement_funds") \
-                .update({"currency": canonical}) \
-                .eq("currency", variant) \
-                .execute()
+            # Paginated batch updates to avoid statement timeout on large tables
+            now = datetime.now(timezone.utc).isoformat()
+            offset = 0
+            batch_ok = 0
+            while True:
+                batch = client.table("investissement_funds") \
+                    .select("isin") \
+                    .eq("currency", variant) \
+                    .range(offset, offset + 499) \
+                    .execute().data or []
+                if not batch:
+                    break
+                isins = [r["isin"] for r in batch]
+                client.table("investissement_funds") \
+                    .update({"currency": canonical, "updated_at": now}) \
+                    .in_("isin", isins) \
+                    .execute()
+                batch_ok += len(batch)
+                if len(batch) < 500:
+                    break
+                offset += 500
+            print(f"    → {batch_ok} mis à jour")
 
     print(f"\n  Total : {total_updates} fonds à normaliser")
 
