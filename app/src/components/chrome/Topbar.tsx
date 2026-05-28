@@ -70,7 +70,7 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
       {/* Chat trigger */}
       <button
         onClick={onChatToggle}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors text-[15px] cursor-pointer ${
+        className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors text-[15px] cursor-pointer ${
           chatOpen ? "bg-accent-soft text-accent-ink" : "bg-brown text-paper hover:bg-brown-2"
         }`}
         style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
