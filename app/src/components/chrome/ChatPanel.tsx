@@ -65,10 +65,12 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
         });
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Une erreur s'est produite. Réessayez." },
-      ]);
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        const withoutBlank =
+          last?.role === "assistant" && last.content === "" ? prev.slice(0, -1) : prev;
+        return [...withoutBlank, { role: "assistant", content: "Une erreur s'est produite. Réessayez." }];
+      });
     } finally {
       setStreaming(false);
     }
