@@ -1,5 +1,5 @@
 import React from "react";
-import { pct } from "@/lib/format";
+import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
 function SriScale({ value }: { value: number }) {
@@ -76,13 +76,13 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
           {fund.sharpe_1y != null && (
             <tr className="border-b border-line-soft">
               <td className="py-2.5 text-[12px] text-muted pr-4">Sharpe 1A</td>
-              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fund.sharpe_1y.toFixed(2)}</td>
+              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fmtSharpe(fund.sharpe_1y)}</td>
             </tr>
           )}
           {fund.sharpe_3y != null && (
             <tr>
               <td className="py-2.5 text-[12px] text-muted pr-4">Sharpe 3A</td>
-              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fund.sharpe_3y.toFixed(2)}</td>
+              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fmtSharpe(fund.sharpe_3y)}</td>
             </tr>
           )}
         </tbody>

@@ -95,11 +95,21 @@ export function FundSheetClient({ fund }: Props) {
                 <SfdrBadge article={fund.sfdr_article} />
                 <SriBadge sri={fund.risk_score} />
                 <MorningstarBadge rating={fund.morningstar_rating} />
-                {fund.labels && fund.labels.slice(0, 3).map(l => (
-                  <span key={l} className="text-[10px] bg-ok-soft text-ok border border-ok/20 px-2 py-0.5 rounded-full font-medium">
-                    {l}
-                  </span>
-                ))}
+                {fund.labels && fund.labels.slice(0, 3).map(l => {
+                  const isNeg = /cost|fee|institutional/i.test(l);
+                  return (
+                    <span
+                      key={l}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
+                        isNeg
+                          ? "bg-warn/10 text-warn border-warn/20"
+                          : "bg-ok-soft text-ok border-ok/20"
+                      }`}
+                    >
+                      {l}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             {/* Actions */}
@@ -131,14 +141,14 @@ export function FundSheetClient({ fund }: Props) {
               <span className="text-muted">Encours</span>
               <span className="font-mono text-ink-2 font-medium">
                 {fund.aum_eur >= 1_000_000_000
-                  ? `${(fund.aum_eur / 1_000_000_000).toFixed(1)} Md€`
+                  ? `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(fund.aum_eur / 1_000_000_000)} Md€`
                   : `${Math.round(fund.aum_eur / 1_000_000).toLocaleString("fr-FR")} M€`
                 }
               </span>
               {fund.track_record_years != null && (
                 <>
                   <span className="text-muted">Ancienneté</span>
-                  <span className="font-mono text-ink-2 font-medium">{fund.track_record_years} ans</span>
+                  <span className="font-mono text-ink-2 font-medium">{new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(fund.track_record_years)} ans</span>
                 </>
               )}
               {fund.inception_date && (

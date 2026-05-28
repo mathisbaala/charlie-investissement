@@ -1,5 +1,5 @@
 import React from "react";
-import { dt } from "@/lib/format";
+import { dt, productTypeLabel, capitalize, fmtYears } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
 function Row({ label, value }: { label: string; value: string | null }) {
@@ -18,14 +18,14 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
       <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-4">Caractéristiques</h3>
       <table className="w-full">
         <tbody>
-          <Row label="Type" value={fund.product_type} />
-          <Row label="Classe d'actif" value={fund.asset_class} />
-          <Row label="Catégorie" value={fund.category_normalized} />
-          <Row label="Zone géographique" value={fund.region_normalized} />
+          <Row label="Type" value={productTypeLabel(fund.product_type)} />
+          <Row label="Classe d'actif" value={capitalize(fund.asset_class)} />
+          <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
+          <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
           <Row label="Gestionnaire" value={fund.gestionnaire ?? fund.management_company} />
           <Row label="Création" value={fund.inception_date ? dt(fund.inception_date) : null} />
-          <Row label="Ancienneté" value={fund.track_record_years ? `${fund.track_record_years} ans` : null} />
+          <Row label="Ancienneté" value={fmtYears(fund.track_record_years)} />
         </tbody>
       </table>
     </div>

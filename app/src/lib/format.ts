@@ -3,6 +3,10 @@ export const nf1 = new Intl.NumberFormat("fr-FR", {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1,
 });
+export const nf2 = new Intl.NumberFormat("fr-FR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 export function pct(v: number | null | undefined, sign = false): string {
   if (v == null) return "—";
@@ -30,4 +34,29 @@ export function dt(iso: string | null | undefined): string {
 export function dtYear(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).getFullYear().toString();
+}
+
+export function fmtSharpe(v: number | null | undefined): string {
+  if (v == null) return "—";
+  return nf2.format(v);
+}
+
+export function fmtYears(v: number | null | undefined): string | null {
+  if (v == null) return null;
+  return nf1.format(v) + " ans";
+}
+
+const PRODUCT_TYPE_LABELS: Record<string, string> = {
+  opcvm: "OPCVM", etf: "ETF", scpi: "SCPI", fps: "FPS",
+  "fonds-euros": "Fonds euros", opci: "OPCI", "fcp": "FCP", "sicav": "SICAV",
+};
+
+export function productTypeLabel(v: string | null | undefined): string | null {
+  if (!v) return null;
+  return PRODUCT_TYPE_LABELS[v.toLowerCase()] ?? (v.charAt(0).toUpperCase() + v.slice(1));
+}
+
+export function capitalize(v: string | null | undefined): string | null {
+  if (!v) return null;
+  return v.charAt(0).toUpperCase() + v.slice(1);
 }
