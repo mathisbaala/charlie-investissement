@@ -1,0 +1,795 @@
+openapi: "3.0.3"
+info:
+  title: Charlie Investissement API
+  version: "1.0.0"
+  description: |
+    API CGP — screener de 35 000+ instruments financiers (OPCVM, ETF, SCPI, FPS…).
+    Toutes les routes sont read-only sauf `/api/matching` (POST) et `/api/rapport/pdf` (GET).
+    Cache HTTP activé sur les routes screener (s-maxage=300).
+  contact:
+    name: Charlie Investissement
+  license:
+    name: Propriétaire
+
+servers:
+  - url: /api
+    description: Serveur courant
+
+tags:
+  - name: screener
+    description: Recherche et filtrage de fonds
+  - name: fonds
+    description: Fiches fonds, historique VL, similarité
+  - name: matching
+    description: Recommandation par profil client
+  - name: rapport
+    description: Génération de rapports PDF
+  - name: health
+    description: Santé et fraîcheur des données
+
+# ─── Composants réutilisables ──────────────────────────────────────────────────
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+    Fund:
+      type: object
+      description: Ligne de la vue investissement_funds_cgp (screener)
+      properties:
+        isin:                  { type: string, example: "FR0010135103" }
+        name:                  { type: string }
+        product_type:          { type: string, example: "opcvm" }
+        asset_class_broad:     { type: string, nullable: true }
+        asset_class:           { type: string, nullable: true }
+        category_normalized:   { type: string, nullable: true }
+        region_normalized:     { type: string, nullable: true }
+        sector:                { type: string, nullable: true }
+        management_style:      { type: string, nullable: true, enum: [passif, actif, smart_beta, alternatif] }
+        gestionnaire:          { type: string, nullable: true }
+        ter:                   { type: number, nullable: true, description: "Frais totaux en % (ex: 1.5)" }
+        ongoing_charges:       { type: number, nullable: true }
+        performance_1y:        { type: number, nullable: true, description: "Performance annualisée 1 an (%)" }
+        performance_3y:        { type: number, nullable: true }
+        performance_5y:        { type: number, nullable: true }
+        average_performance:   { type: number, nullable: true }
+        volatility_1y:         { type: number, nullable: true }
+        volatility_3y:         { type: number, nullable: true }
+        sharpe_1y:             { type: number, nullable: true }
+        sharpe_3y:             { type: number, nullable: true }
+        max_drawdown_1y:       { type: number, nullable: true }
+        max_drawdown_3y:       { type: number, nullable: true }
+        risk_score:            { type: integer, nullable: true, minimum: 1, maximum: 7, description: "SRI PRIIPs (1=très faible, 7=très élevé)" }
+        sfdr_article:          { type: integer, nullable: true, enum: [6, 8, 9] }
+        aum_eur:               { type: number, nullable: true, description: "Encours en EUR" }
+        morningstar_rating:    { type: integer, nullable: true, minimum: 1, maximum: 5 }
+        currency:              { type: string, nullable: true }
+        inception_date:        { type: string, format: date, nullable: true }
+        track_record_years:    { type: number, nullable: true }
+        pea_eligible:          { type: boolean, nullable: true }
+        per_eligible:          { type: boolean, nullable: true }
+        av_lux_eligible:       { type: boolean, nullable: true }
+        ucits_compliant:       { type: boolean, nullable: true }
+        is_institutional:      { type: boolean, nullable: true }
+        accessible_retail:     { type: boolean, nullable: true }
+        hedged:                { type: boolean, nullable: true }
+        labels:                { type: array, items: { type: string }, nullable: true }
+        kid_url:               { type: string, format: uri, nullable: true }
+        kid_parsed_at:         { type: string, format: date-time, nullable: true }
+        share_class_group_id:  { type: string, nullable: true }
+        data_completeness:     { type: number, minimum: 0, maximum: 100 }
+        data_source:           { type: string, nullable: true }
+        field_sources:         { type: object, nullable: true }
+        updated_at:            { type: string, format: date-time, nullable: true }
+
+    FundDetail:
+      allOf:
+        - $ref: "#/components/schemas/Fund"
+        - type: object
+          description: Fiche complète avec champs bruts et percentiles peer-group
+          properties:
+            management_company:           { type: string, nullable: true }
+            category:                     { type: string, nullable: true, description: "Catégorie brute non normalisée" }
+            region_exposure:              { type: string, nullable: true }
+            srri:                         { type: integer, nullable: true, minimum: 1, maximum: 7 }
+            distributor_france:           { type: boolean, nullable: true }
+            min_subscription_eur:         { type: number, nullable: true }
+            created_at:                   { type: string, format: date-time, nullable: true }
+            ter_percentile_in_category:   { type: number, nullable: true, minimum: 0, maximum: 100 }
+            perf3y_percentile_in_category: { type: number, nullable: true, minimum: 0, maximum: 100 }
+
+    SimilarFund:
+      type: object
+      properties:
+        isin:                { type: string }
+        name:                { type: string }
+        gestionnaire:        { type: string, nullable: true }
+        product_type:        { type: string }
+        category_normalized: { type: string, nullable: true }
+        region_normalized:   { type: string, nullable: true }
+        sfdr_article:        { type: integer, nullable: true }
+        risk_score:          { type: integer, nullable: true }
+        ter:                 { type: number, nullable: true }
+        performance_1y:      { type: number, nullable: true }
+        performance_3y:      { type: number, nullable: true }
+        morningstar_rating:  { type: integer, nullable: true }
+        data_completeness:   { type: number }
+        similarity_score:    { type: number, description: "Score de similarité 0-1" }
+
+    NavPoint:
+      type: object
+      properties:
+        isin:      { type: string }
+        nav_date:  { type: string, format: date }
+        nav_value: { type: number }
+        currency:  { type: string }
+        source:    { type: string, nullable: true }
+
+    ScreenerResponse:
+      type: object
+      properties:
+        data:        { type: array, items: { $ref: "#/components/schemas/Fund" } }
+        total:       { type: integer }
+        page:        { type: integer }
+        per_page:    { type: integer }
+        total_pages: { type: integer }
+
+    FundStats:
+      type: object
+      properties:
+        total_funds:       { type: integer }
+        exploitable_funds: { type: integer, description: "data_completeness >= 60" }
+        by_type:           { type: object, additionalProperties: { type: integer } }
+        by_sfdr:           { type: object, additionalProperties: { type: integer } }
+        avg_ter:           { type: number, nullable: true }
+        avg_perf_3y:       { type: number, nullable: true }
+
+    ClientProfile:
+      type: object
+      required: [risk_profile, envelopes, esg_preference]
+      properties:
+        risk_profile:
+          type: string
+          enum: [prudent, equilibre, dynamique, offensif]
+        envelopes:
+          type: array
+          items: { type: string, enum: [pea, per, av_lux, cto] }
+        esg_preference:
+          type: string
+          enum: [none, art8, art9]
+        horizon_years:
+          type: integer
+          minimum: 1
+        excluded_sectors:
+          type: array
+          items: { type: string }
+
+    MatchResult:
+      type: object
+      properties:
+        isin:           { type: string }
+        name:           { type: string }
+        score:          { type: number, description: "Score de matching 0-100" }
+        product_type:   { type: string }
+        gestionnaire:   { type: string, nullable: true }
+        performance_3y: { type: number, nullable: true }
+        risk_score:     { type: integer, nullable: true }
+        ter:            { type: number, nullable: true }
+
+    HealthSummary:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        summary:
+          type: object
+          properties:
+            total_funds:      { type: integer }
+            exploitables:     { type: integer, description: "data_completeness >= 80" }
+            exploitables_pct: { type: integer }
+            updated_last_24h: { type: integer }
+            updated_last_7d:  { type: integer }
+            last_updated_at:  { type: string, format: date-time, nullable: true }
+        by_type:
+          type: array
+          items:
+            type: object
+            properties:
+              product_type:     { type: string }
+              total:            { type: integer }
+              exploitables:     { type: integer }
+              avg_completeness: { type: number }
+              last_updated_at:  { type: string, format: date-time, nullable: true }
+              updated_last_24h: { type: integer }
+              updated_last_7d:  { type: integer }
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Health ─────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      tags: [health]
+      summary: Santé et fraîcheur des données
+      description: |
+        Statistiques de complétude et d'enrichissement par type de fonds.
+        Indique `status: degraded` si aucun enrichissement dans les 7 derniers jours.
+      responses:
+        "200":
+          description: Statistiques de fraîcheur
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthSummary" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Screener ───────────────────────────────────────────────────────────────
+
+  /screener/funds:
+    get:
+      tags: [screener]
+      summary: Screener paginé — liste de fonds filtrée et triée
+      description: |
+        Retourne une page de fonds depuis la vue `investissement_funds_cgp`.
+        Déduplication des classes de parts activée par défaut (deduplicate=true).
+        Pagination par offset. Cache HTTP : non (dynamic).
+      parameters:
+        - name: types
+          in: query
+          description: "Types de produits (virgule-séparés) : opcvm,etf,scpi,fps…"
+          schema: { type: string, example: "opcvm,etf" }
+        - name: sfdr
+          in: query
+          description: "Articles SFDR (virgule-séparés) : 6,8,9"
+          schema: { type: string, example: "8,9" }
+        - name: sri_min
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 7 }
+        - name: sri_max
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 7 }
+        - name: ter_max
+          in: query
+          description: "TER maximum en % (ex: 1.5)"
+          schema: { type: number }
+        - name: perf_3y_min
+          in: query
+          description: "Performance 3 ans minimum en %"
+          schema: { type: number }
+        - name: pea
+          in: query
+          schema: { type: boolean }
+        - name: per
+          in: query
+          schema: { type: boolean }
+        - name: av_lux
+          in: query
+          schema: { type: boolean }
+        - name: asset_class
+          in: query
+          description: "Classes d'actifs (virgule-séparées)"
+          schema: { type: string }
+        - name: region
+          in: query
+          description: "Régions normalisées (virgule-séparées)"
+          schema: { type: string, example: "europe,north_america" }
+        - name: category
+          in: query
+          description: "Catégories normalisées (virgule-séparées)"
+          schema: { type: string }
+        - name: sectors
+          in: query
+          description: "Secteurs (virgule-séparés)"
+          schema: { type: string }
+        - name: management_style
+          in: query
+          description: "Style de gestion (virgule-séparé)"
+          schema: { type: string, example: "passif,actif" }
+        - name: gestionnaire
+          in: query
+          description: "Recherche partielle sur le gestionnaire"
+          schema: { type: string }
+        - name: search
+          in: query
+          description: "Recherche texte sur nom + gestionnaire (trigramme GIN)"
+          schema: { type: string }
+        - name: min_completeness
+          in: query
+          description: "Score de complétude minimum (défaut 60)"
+          schema: { type: integer, minimum: 0, maximum: 100, default: 60 }
+        - name: deduplicate
+          in: query
+          description: "Dédupliquer les classes de parts (défaut true)"
+          schema: { type: boolean, default: true }
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: data_completeness
+            enum:
+              - performance_3y
+              - performance_1y
+              - performance_5y
+              - average_performance
+              - ter
+              - aum_eur
+              - sharpe_1y
+              - sharpe_3y
+              - volatility_1y
+              - max_drawdown_3y
+              - morningstar_rating
+              - track_record_years
+              - data_completeness
+        - name: sort_dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Page de fonds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenerResponse" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /screener/funds/{isin}:
+    get:
+      tags: [screener]
+      summary: Ligne screener d'un fonds (vue CGP)
+      description: Retourne la ligne complète de la vue `investissement_funds_cgp` pour un ISIN.
+      parameters:
+        - name: isin
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{12}$", example: "FR0010135103" }
+      responses:
+        "200":
+          description: Fonds trouvé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Fund" }
+        "400":
+          description: ISIN invalide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Fonds non trouvé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /screener/filters:
+    get:
+      tags: [screener]
+      summary: Valeurs disponibles pour les filtres (avec comptages)
+      description: |
+        Retourne les valeurs distinctes et leur nombre pour chaque dimension de filtre.
+        Idéal pour alimenter des dropdowns ou des facettes dynamiques.
+        Cache HTTP : 5 minutes.
+      responses:
+        "200":
+          description: Options de filtres avec comptages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product_types:      { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  regions:            { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  categories:         { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  sectors:            { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  management_styles:  { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  gestionnaires:      { type: array, items: { type: object, properties: { value: { type: string }, count: { type: integer } } } }
+                  sfdr_articles:      { type: array, items: { type: object, properties: { value: { type: integer }, count: { type: integer } } } }
+                  ter_range:          { type: object, properties: { min: { type: number, nullable: true }, max: { type: number, nullable: true } } }
+                  perf_3y_range:      { type: object, properties: { min: { type: number, nullable: true }, max: { type: number, nullable: true } } }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /screener/stats:
+    get:
+      tags: [screener]
+      summary: KPI agrégés du catalogue
+      description: |
+        Nombre total de fonds, répartition par type et article SFDR,
+        TER moyen, performance 3Y moyenne. Cache HTTP : 5 minutes.
+      responses:
+        "200":
+          description: Statistiques globales
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FundStats" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /screener/search:
+    get:
+      tags: [screener]
+      summary: Autocomplete — recherche par nom ou gestionnaire
+      description: |
+        Recherche trigramme GIN via `search_funds_v2` RPC.
+        Conçu pour les dropdowns typeahead. Cache HTTP : 5 secondes.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: "Terme de recherche (min 2 caractères)"
+          schema: { type: string, minLength: 2 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        - name: min_completeness
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 100, default: 60 }
+      responses:
+        "200":
+          description: Résultats autocomplete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        isin:            { type: string }
+                        name:            { type: string }
+                        product_type:    { type: string }
+                        gestionnaire:    { type: string, nullable: true }
+                        ter:             { type: number, nullable: true }
+                        risk_score:      { type: integer, nullable: true }
+                        relevance_score: { type: number }
+                  count: { type: integer }
+        "400":
+          description: Paramètre q manquant ou trop court
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /screener/top-performers:
+    get:
+      tags: [screener]
+      summary: Top fonds par critère de performance
+      description: |
+        Widget "meilleurs fonds" — retourne les N meilleurs fonds pour un critère donné,
+        filtrés sur le type, la catégorie, la région et un encours minimum.
+        Les performances > 150% sont exclues (valeurs aberrantes).
+        Cache HTTP : 5 minutes.
+      parameters:
+        - name: type
+          in: query
+          description: "Filtre product_type (ex: opcvm)"
+          schema: { type: string }
+        - name: category
+          in: query
+          description: "Filtre category_normalized"
+          schema: { type: string }
+        - name: region
+          in: query
+          description: "Filtre region_normalized"
+          schema: { type: string }
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: performance_3y
+            enum: [performance_3y, performance_1y, average_performance, sharpe_3y, aum_eur]
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: min_completeness
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 100, default: 70 }
+        - name: min_aum
+          in: query
+          description: "Encours minimum en EUR"
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Top fonds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:    { type: array, items: { $ref: "#/components/schemas/Fund" } }
+                  sort_by: { type: string }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Fonds ──────────────────────────────────────────────────────────────────
+
+  /fonds/{isin}:
+    get:
+      tags: [fonds]
+      summary: Fiche complète d'un fonds (RPC)
+      description: |
+        Retourne la fiche enrichie via `get_fund_detail` RPC, incluant :
+        - Tous les champs de la vue + champs bruts non exposés
+        - Percentiles TER et perf_3y dans la catégorie normalisée du fonds
+        Cache HTTP : 5 minutes.
+      parameters:
+        - name: isin
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{12}$", example: "FR0010135103" }
+      responses:
+        "200":
+          description: Fiche complète
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/FundDetail" }
+        "400":
+          description: ISIN invalide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Fonds non trouvé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /fonds/{isin}/similar:
+    get:
+      tags: [fonds]
+      summary: Fonds similaires à un ISIN donné
+      description: |
+        Retourne les fonds les plus proches via `get_similar_funds` RPC.
+        Similarité calculée sur : product_type, category_normalized, region_normalized,
+        risk_score, data_completeness >= 60. Cache HTTP : 5 minutes.
+      parameters:
+        - name: isin
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{12}$" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 6 }
+      responses:
+        "200":
+          description: Fonds similaires
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:     { type: array, items: { $ref: "#/components/schemas/SimilarFund" } }
+                  ref_isin: { type: string }
+        "400":
+          description: ISIN invalide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /fonds/{isin}/nav:
+    get:
+      tags: [fonds]
+      summary: Historique de valeur liquidative (VL)
+      description: |
+        Retourne les points de VL depuis `investissement_fund_prices`.
+        Triés par date croissante, prêts pour un graphique temps-réel.
+        Cache HTTP : 1 minute.
+      parameters:
+        - name: isin
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[A-Z0-9]{12}$" }
+        - name: from
+          in: query
+          description: "Date de début (YYYY-MM-DD)"
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: "Date de fin (YYYY-MM-DD)"
+          schema: { type: string, format: date }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 2000, default: 500 }
+      responses:
+        "200":
+          description: Historique VL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:  { type: array, items: { $ref: "#/components/schemas/NavPoint" } }
+                  isin:  { type: string }
+                  count: { type: integer }
+        "400":
+          description: ISIN invalide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /fonds/compare:
+    get:
+      tags: [fonds]
+      summary: Comparaison côte-à-côte de plusieurs fonds
+      description: |
+        Retourne les fiches complètes (via `get_fund_detail`) pour jusqu'à 5 ISINs en parallèle.
+        Les erreurs par ISIN sont isolées dans le champ `errors` — un échec n'annule pas les autres.
+        Cache HTTP : 5 minutes.
+      parameters:
+        - name: isins
+          in: query
+          required: true
+          description: "ISINs séparés par virgule (max 5)"
+          schema: { type: string, example: "FR0010135103,FR0010149120,LU0552385295" }
+      responses:
+        "200":
+          description: Fiches comparées
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    description: "Dictionnaire ISIN → FundDetail (null si non trouvé)"
+                    additionalProperties:
+                      oneOf:
+                        - { $ref: "#/components/schemas/FundDetail" }
+                        - { type: "null" }
+                  errors:
+                    type: object
+                    description: "Dictionnaire ISIN → message d'erreur (présent uniquement si au moins un échec)"
+                    additionalProperties: { type: string }
+        "400":
+          description: Paramètre isins manquant ou vide
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Matching ───────────────────────────────────────────────────────────────
+
+  /matching:
+    post:
+      tags: [matching]
+      summary: Recommandation de fonds par profil client
+      description: |
+        Analyse un profil client (risque, enveloppes, ESG) et retourne les 20 fonds
+        les plus adaptés, scorés par l'algorithme de matching.
+        Fonds candidats : data_completeness >= 60, correspondant aux enveloppes choisies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientProfile" }
+            example:
+              risk_profile: "dynamique"
+              envelopes: ["pea", "per"]
+              esg_preference: "art8"
+              horizon_years: 8
+      responses:
+        "200":
+          description: Fonds recommandés
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    maxItems: 20
+                    items: { $ref: "#/components/schemas/MatchResult" }
+                  profile: { $ref: "#/components/schemas/ClientProfile" }
+        "400":
+          description: Profil incomplet (risk_profile, envelopes ou esg_preference manquant)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur base de données
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Rapport PDF ────────────────────────────────────────────────────────────
+
+  /rapport/pdf:
+    get:
+      tags: [rapport]
+      summary: Génération d'un rapport PDF multi-fonds
+      description: |
+        Génère et retourne un rapport PDF de comparaison pour 2 à 20 fonds.
+        Le PDF est rendu côté serveur via @react-pdf/renderer.
+        L'ordre des fonds dans le rapport suit l'ordre des ISINs passés.
+      parameters:
+        - name: isins
+          in: query
+          required: true
+          description: "ISINs séparés par virgule (2 minimum, 20 maximum)"
+          schema: { type: string, example: "FR0010135103,FR0010149120" }
+      responses:
+        "200":
+          description: Rapport PDF généré
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Moins de 2 ISINs fournis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Fonds introuvables
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "500":
+          description: Erreur de rendu PDF
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
