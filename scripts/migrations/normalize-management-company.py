@@ -180,21 +180,31 @@ def run(apply: bool):
         print("\n  DRY-RUN — pas d'écriture.")
         return
 
-    print("\n  Application en base...")
+    print("\n  Application en base (UPDATE par valeur canonique)...")
     ok = fail = 0
-    for i, u in enumerate(updates, 1):
-        try:
-            client.table("investissement_funds") \
-                .update({"management_company_normalized": u["management_company_normalized"]}) \
-                .eq("isin", u["isin"]) \
-                .execute()
-            ok += 1
-        except Exception as e:
-            fail += 1
-            if fail <= 5:
-                print(f"    ✗ {u['isin']} : {e}")
-        if i % 1000 == 0:
-            print(f"    [{i:>5}/{len(updates)}] {100*i/len(updates):.0f}% ok={ok} fail={fail}")
+    now_ts = datetime.now(timezone.utc).isoformat()
+
+    # Grouper par valeur canonique → un UPDATE IN(...) par groupe
+    from collections import defaultdict
+    by_canonical: dict[str, list[str]] = defaultdict(list)
+    for u in updates:
+        by_canonical[u["management_company_normalized"]].append(u["isin"])
+
+    for canonical, isins in by_canonical.items():
+        # Traiter par sous-lots de 400 ISINs (limite URL Supabase)
+        for i in range(0, len(isins), 400):
+            sub = isins[i:i + 400]
+            try:
+                client.table("investissement_funds") \
+                    .update({"management_company_normalized": canonical, "updated_at": now_ts}) \
+                    .in_("isin", sub) \
+                    .execute()
+                ok += len(sub)
+            except Exception as e:
+                fail += len(sub)
+                print(f"    ✗ [{canonical}] : {e}")
+
+    print(f"\n  ✓ {ok} mis à jour, {fail} échecs")
 
     print(f"\n  ✓ {ok} mis à jour, {fail} échecs")
 

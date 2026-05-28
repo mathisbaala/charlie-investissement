@@ -91,7 +91,7 @@ def compute_etf(fund: dict) -> tuple[int, dict]:
     d["perf_3y"]    = 10 if _has(fund, "performance_3y") else 0
     d["sfdr"]       = 8  if _has(fund, "sfdr_article") else 0
     d["aum"]        = 12 if _has(fund, "aum_eur") else 0
-    d["kid"]        = 14 if _has(fund, "kid_parsed_at") else 0
+    d["kid"]        = 14 if _has(fund, "kid_parsed_at", "kid_url") else 0
     d["volatility"] = 8  if _has(fund, "volatility_1y") else 0
     d["track_rec"]  = 4  if _has(fund, "inception_date", "track_record_years") else 0
     d["mngmt"]      = 4  if _has(fund, "management_company") else 0
@@ -110,7 +110,7 @@ def compute_opcvm(fund: dict) -> tuple[int, dict]:
     d["perf_3y"]    = 10 if _has(fund, "performance_3y") else 0
     d["sfdr"]       = 8  if _has(fund, "sfdr_article") else 0
     d["aum"]        = 10 if _has(fund, "aum_eur") else 0
-    d["kid"]        = 14 if _has(fund, "kid_parsed_at") else 0
+    d["kid"]        = 14 if _has(fund, "kid_parsed_at", "kid_url") else 0
     d["volatility"] = 8  if _has(fund, "volatility_1y") else 0
     d["track_rec"]  = 6  if _has(fund, "inception_date", "track_record_years") else 0
     d["mngmt"]      = 4  if _has(fund, "management_company") else 0

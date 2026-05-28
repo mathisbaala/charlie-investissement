@@ -281,13 +281,21 @@ def fetch_ms_details(session: FetcherSession, ms_id: str) -> dict | None:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run(apply: bool, limit: int | None, isin_filter: str | None):
+def run(
+    apply: bool, limit: int | None, isin_filter: str | None,
+    score_min: int | None = None, score_max: int | None = None,
+    ter_only: bool = False,
+):
     print("=" * 60)
     print("  Morningstar LT Enricher — Performance + TER + Sharpe + KID")
     print("=" * 60)
     print(f"  Mode    : {'APPLY' if apply else 'DRY-RUN'}")
     if limit:
         print(f"  Limite  : {limit}")
+    if score_min is not None or score_max is not None:
+        print(f"  Score   : {score_min or '?'} – {score_max or '?'}")
+    if ter_only:
+        print("  TER only: oui")
     print()
 
     started = datetime.now(timezone.utc)
@@ -305,12 +313,14 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
         SKIP_PATTERNS = ("fonds dédié", "***", "fcpe ", "ficpv ")
 
         # Préfixes ISIN non-standard → absents de Morningstar
-        SKIP_PREFIXES = ("CS", "QS", "QUA", "XS", "OT", "AM", "SC", "GF", "SU", "MS", "XF")
+        SKIP_PREFIXES = ("CS", "QS", "QUA", "XS", "OT", "AM", "SC", "GF", "SU", "MS", "XF", "US", "JP")
+
+        null_fields = ("ter",) if ter_only else ("morningstar_rating", "performance_1y", "management_company", "category", "inception_date", "ter")
 
         # Phase 1 : fonds avec AUM connu → triés par AUM desc (meilleure couverture Morningstar)
         # Phase 2 : fonds sans AUM (peuvent quand même être sur Morningstar)
         for phase, aum_filter in [(1, True), (2, False)]:
-            for null_field in ("morningstar_rating", "performance_1y", "management_company", "category", "inception_date"):
+            for null_field in null_fields:
                 offset = 0
                 while True:
                     q = (
@@ -319,6 +329,10 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
                         .in_("product_type", ["opcvm", "etf"])
                         .is_(null_field, "null")
                     )
+                    if score_min is not None:
+                        q = q.gte("data_completeness", score_min)
+                    if score_max is not None:
+                        q = q.lte("data_completeness", score_max)
                     if aum_filter:
                         q = q.not_.is_("aum_eur", "null").order("aum_eur", desc=True)
                     else:
@@ -420,8 +434,14 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Morningstar LT Enricher")
-    parser.add_argument("--apply",  action="store_true", help="Écrire dans Supabase")
-    parser.add_argument("--limit",  type=int,            help="Limiter à N fonds")
-    parser.add_argument("--isin",   type=str,            help="Un seul ISIN (test)")
+    parser.add_argument("--apply",     action="store_true", help="Écrire dans Supabase")
+    parser.add_argument("--limit",     type=int,            help="Limiter à N fonds")
+    parser.add_argument("--isin",      type=str,            help="Un seul ISIN (test)")
+    parser.add_argument("--score-min", type=int, default=None, help="Score completeness minimum")
+    parser.add_argument("--score-max", type=int, default=None, help="Score completeness maximum")
+    parser.add_argument("--ter-only",  action="store_true",  help="Ne cibler que les fonds sans TER")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit, isin_filter=args.isin)
+    run(
+        apply=args.apply, limit=args.limit, isin_filter=args.isin,
+        score_min=args.score_min, score_max=args.score_max, ter_only=args.ter_only,
+    )

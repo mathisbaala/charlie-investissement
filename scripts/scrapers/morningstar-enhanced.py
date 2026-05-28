@@ -347,6 +347,7 @@ def run(apply: bool, limit: int | None):
             .select("isin, name, management_company, aum_eur") \
             .in_("product_type", ["opcvm", "etf"]) \
             .is_("morningstar_rating", "null") \
+            .not_.is_("aum_eur", "null") \
             .order("aum_eur", desc=True) \
             .range(offset, offset + page_size - 1)
         resp = q.execute()
@@ -374,7 +375,7 @@ def run(apply: bool, limit: int | None):
     not_found = 0
     updates = []
 
-    with FetcherSession(impersonate="chrome").__enter__() as session:
+    with FetcherSession(impersonate="chrome") as session:
         for i, fund in enumerate(all_funds, 1):
             isin = fund["isin"]
             name = (fund.get("name") or "")[:40]

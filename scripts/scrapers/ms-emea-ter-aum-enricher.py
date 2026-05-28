@@ -86,13 +86,23 @@ def fetch_ter_aum_from_universe(token: str, universe: str, target: set[str]) -> 
         if len(rows) < PAGE_SIZE or (page - 1) * PAGE_SIZE >= total:
             break
         params["page"] = page
-        r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
-        r.raise_for_status()
+        for attempt in range(4):
+            try:
+                r = requests.get(SCREENER, params=params, headers=headers, timeout=45)
+                r.raise_for_status()
+                break
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code in (429, 503, 504):
+                    wait = 2 ** attempt * 5
+                    print(f"  {universe} Page {page} : {e.response.status_code} — retry in {wait}s", flush=True)
+                    time.sleep(wait)
+                else:
+                    raise
         rows = r.json().get("rows", [])
         if page % 10 == 0:
             print(f"  {universe} Page {page} : ~{(page-1)*PAGE_SIZE}/{total}", flush=True)
         page += 1
-        time.sleep(0.15)
+        time.sleep(0.2)
 
     return result
 
