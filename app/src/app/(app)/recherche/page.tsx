@@ -77,6 +77,7 @@ function RechercheInner() {
   // Core state
   const [query,          setQuery]          = useState(initialQ);
   const [filters,        setFilters]        = useState<ParsedFilters>({});
+  const [nlpFailed,      setNlpFailed]      = useState(false);
   const [showFilters,    setShowFilters]    = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
@@ -102,6 +103,8 @@ function RechercheInner() {
       setQuery(initialQ);
       parseQuery(initialQ).then((parsed) => {
         setFilters(parsed);
+        const hasFilters = Object.keys(parsed).length > 0;
+        setNlpFailed(!hasFilters);
       });
     }
   }, [initialized, initialQ]);
@@ -131,6 +134,7 @@ function RechercheInner() {
     if (!query.trim()) return;
     const parsed = await parseQuery(query.trim());
     setFilters(parsed);
+    setNlpFailed(Object.keys(parsed).length === 0);
     setPage(1);
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
   }, [query, router]);
@@ -216,6 +220,18 @@ function RechercheInner() {
             </div>
           </div>
           <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
+          {nlpFailed && query.trim() && (
+            <p className="text-[11px] text-muted px-1">
+              Filtres intelligents indisponibles — résultats non filtrés. Utilisez les{" "}
+              <button
+                onClick={() => setShowFilters(true)}
+                className="underline hover:text-ink-2 transition-colors"
+              >
+                filtres manuels
+              </button>{" "}
+              pour affiner.
+            </p>
+          )}
         </div>
 
         {/* Results toolbar */}
