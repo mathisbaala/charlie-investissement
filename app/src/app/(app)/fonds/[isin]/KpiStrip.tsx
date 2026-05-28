@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { pct } from "@/lib/format";
+import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
 function KpiTile({ label, value, ok }: { label: string; value: string; ok?: boolean | null }) {
@@ -27,7 +27,7 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
     fund.performance_5y != null ? { label: "Perf 5A ann.", value: pct(fund.performance_5y, true), ok: fund.performance_5y >= 0 } : null,
     { label: "Frais courants", value: pct(fund.ongoing_charges ?? fund.ter), ok: null },
     { label: "Volatilité 1A", value: pct(fund.volatility_1y), ok: null },
-    fund.sharpe_1y != null ? { label: "Sharpe 1A", value: fund.sharpe_1y.toFixed(2), ok: null } : null,
+    fund.sharpe_1y != null ? { label: "Sharpe 1A", value: fmtSharpe(fund.sharpe_1y), ok: null } : null,
   ].filter(Boolean) as { label: string; value: string; ok: boolean | null }[];
 
   if (tiles.length === 0) return null;
