@@ -3,11 +3,81 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Btn } from "@/components/ui/Btn";
-import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
-import { Star, X } from "@/components/ui/icons";
+import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
+import { Star, X, Download } from "@/components/ui/icons";
 import { getFavorites, removeFavorite } from "@/lib/favorites";
 import type { FavoriteEntry } from "@/lib/favorites";
 import { pct } from "@/lib/format";
+import { useSelection, type SelectedFund } from "@/components/SelectionProvider";
+import { SelectionBar } from "@/components/screener/SelectionBar";
+import { ComparisonModal } from "@/components/screener/ComparisonModal";
+
+function fmtBool(v: boolean | null | undefined): string {
+  return v == null ? "" : v ? "oui" : "non";
+}
+
+function exportCsv(funds: FavoriteEntry[]) {
+  const HEADERS = [
+    "ISIN", "Nom", "Gestionnaire", "SFDR", "SRI", "Morningstar",
+    "Perf 3A (%)", "TER (%)",
+    "PEA", "PEA-PME", "PER", "AV France", "AV Luxembourg", "CTO",
+    "Ajouté le",
+  ];
+  const rows = funds.map((f) => [
+    f.isin,
+    f.name.replace(/"/g, '""'),
+    (f.gestionnaire ?? "").replace(/"/g, '""'),
+    f.sfdr_article ?? "",
+    f.risk_score ?? "",
+    f.morningstar_rating ?? "",
+    f.performance_3y != null ? f.performance_3y.toFixed(2) + "%" : "",
+    f.ongoing_charges != null ? f.ongoing_charges.toFixed(2) + "%" : "",
+    fmtBool(f.pea_eligible),
+    fmtBool(f.pea_pme_eligible),
+    fmtBool(f.per_eligible),
+    fmtBool(f.av_fr_eligible),
+    fmtBool(f.av_lux_eligible),
+    fmtBool(f.cto_eligible),
+    f.added_at ? new Date(f.added_at).toLocaleDateString("fr-FR") : "",
+  ]);
+  const csv = [HEADERS, ...rows]
+    .map((row) => row.map((v) => `"${v}"`).join(";"))
+    .join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `favoris-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toSelectedFund(f: FavoriteEntry): SelectedFund {
+  return {
+    isin: f.isin,
+    name: f.name,
+    gestionnaire: f.gestionnaire,
+    sfdr_article: f.sfdr_article,
+    risk_score: f.risk_score,
+    performance_1y: null,
+    performance_3y: f.performance_3y,
+    performance_5y: null,
+    ongoing_charges: f.ongoing_charges,
+    volatility_1y: null,
+    sharpe_1y: null,
+    max_drawdown_3y: null,
+    morningstar_rating: f.morningstar_rating,
+    track_record_years: null,
+    aum_eur: null,
+    retrocession_cgp: null,
+    pea_eligible: f.pea_eligible,
+    pea_pme_eligible: f.pea_pme_eligible,
+    per_eligible: f.per_eligible,
+    av_fr_eligible: f.av_fr_eligible,
+    av_lux_eligible: f.av_lux_eligible,
+    cto_eligible: f.cto_eligible,
+  };
+}
 
 function FavCard({
   f,
@@ -16,8 +86,15 @@ function FavCard({
   f: FavoriteEntry;
   onRemove: () => void;
 }) {
+  const { toggle, isSelected } = useSelection();
+  const sel = isSelected(f.isin);
+
   return (
-    <div className="bg-paper rounded-xl border border-line p-4 flex flex-col gap-3 hover:shadow-sm transition-all group">
+    <div
+      className={`bg-paper rounded-xl border transition-all group flex flex-col gap-3 p-4 ${
+        sel ? "border-accent/40 bg-accent-soft/10" : "border-line hover:shadow-sm"
+      }`}
+    >
       {/* Top row */}
       <div className="flex items-start justify-between gap-2">
         <p
@@ -42,10 +119,7 @@ function FavCard({
       )}
 
       {/* ISIN */}
-      <p
-        className="text-[10px] text-muted-2"
-        style={{ fontFamily: "var(--font-mono)" }}
-      >
+      <p className="text-[10px] text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
         {f.isin}
       </p>
 
@@ -53,6 +127,7 @@ function FavCard({
       <div className="flex items-center gap-2 flex-wrap">
         <SfdrBadge article={f.sfdr_article} />
         <SriBadge sri={f.risk_score} />
+        {f.morningstar_rating && <MorningstarBadge rating={f.morningstar_rating} />}
       </div>
 
       {/* Metrics */}
@@ -60,26 +135,16 @@ function FavCard({
         <div>
           <p className="text-[10px] text-muted mb-0.5">Perf. 3A</p>
           <p
-            className={`text-[12px] font-medium ${
-              f.performance_3y == null
-                ? "text-muted"
-                : f.performance_3y >= 0
-                ? "text-ok"
-                : "text-warn"
+            className={`text-[12px] font-medium font-mono ${
+              f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
             }`}
-            style={{ fontFamily: "var(--font-mono)" }}
           >
             {pct(f.performance_3y, true)}
           </p>
         </div>
         <div>
           <p className="text-[10px] text-muted mb-0.5">TER</p>
-          <p
-            className="text-[12px] text-ink-2"
-            style={{ fontFamily: "var(--font-mono)" }}
-          >
-            {pct(f.ongoing_charges)}
-          </p>
+          <p className="text-[12px] text-ink-2 font-mono">{pct(f.ongoing_charges)}</p>
         </div>
       </div>
 
@@ -93,19 +158,29 @@ function FavCard({
         {f.cto_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">CTO</span>}
       </div>
 
-      {/* Footer link */}
-      <Link
-        href={`/fonds/${f.isin}`}
-        className="text-accent text-[11px] hover:underline mt-auto"
-      >
-        Voir la fiche →
-      </Link>
+      {/* Footer */}
+      <div className="flex items-center gap-2 mt-auto pt-1">
+        <Link href={`/fonds/${f.isin}`} className="text-accent text-[11px] hover:underline flex-1">
+          Voir la fiche →
+        </Link>
+        <button
+          onClick={() => toggle(toSelectedFund(f))}
+          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
+            sel
+              ? "bg-accent-soft text-accent-ink border-accent/20"
+              : "border-line text-muted hover:border-accent/30 hover:text-ink-2"
+          }`}
+        >
+          {sel ? "Sélectionné" : "Comparer"}
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function FavorisPage() {
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     setFavorites(getFavorites());
@@ -119,16 +194,17 @@ export default function FavorisPage() {
   return (
     <div className="h-full overflow-y-auto bg-cream px-8 py-8">
       {/* Header */}
-      <div className="mb-2">
-        <h1
-          className="text-[26px] text-ink inline"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-[26px] text-ink inline" style={{ fontFamily: "var(--font-serif)" }}>
           Favoris
-          <span className="ml-2 text-[13px] text-muted font-sans">
-            ({favorites.length})
-          </span>
+          <span className="ml-2 text-[13px] text-muted font-sans">({favorites.length})</span>
         </h1>
+        {favorites.length > 0 && (
+          <Btn variant="outline" size="sm" onClick={() => exportCsv(favorites)}>
+            <Download size={13} />
+            Exporter CSV
+          </Btn>
+        )}
       </div>
 
       {/* Grid or empty state */}
@@ -136,26 +212,21 @@ export default function FavorisPage() {
         <div className="flex flex-col items-center justify-center h-64 text-muted">
           <Star size={32} strokeWidth={1} className="mb-4 text-muted-2" />
           <p className="text-[14px]">Aucun favori enregistré</p>
-          <p className="text-[12px] mt-1">
-            Ajoutez des fonds depuis la recherche ou les fiches
-          </p>
+          <p className="text-[12px] mt-1">Ajoutez des fonds depuis la recherche ou les fiches</p>
           <Link href="/recherche" className="mt-4">
-            <Btn variant="primary" size="sm">
-              Rechercher des fonds
-            </Btn>
+            <Btn variant="primary" size="sm">Rechercher des fonds</Btn>
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-3 gap-4 max-[900px]:grid-cols-2">
+        <div className="mt-6 grid grid-cols-3 gap-4 max-[900px]:grid-cols-2 pb-24">
           {favorites.map((f) => (
-            <FavCard
-              key={f.isin}
-              f={f}
-              onRemove={() => handleRemove(f.isin)}
-            />
+            <FavCard key={f.isin} f={f} onRemove={() => handleRemove(f.isin)} />
           ))}
         </div>
       )}
+
+      <SelectionBar onCompare={() => setShowComparison(true)} />
+      {showComparison && <ComparisonModal onClose={() => setShowComparison(false)} />}
     </div>
   );
 }
