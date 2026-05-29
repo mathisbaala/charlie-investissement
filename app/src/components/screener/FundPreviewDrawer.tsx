@@ -67,8 +67,11 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
         performance_3y: fund.performance_3y,
         ongoing_charges: fund.ongoing_charges,
         pea_eligible: fund.pea_eligible,
+        pea_pme_eligible: fund.pea_pme_eligible,
         per_eligible: fund.per_eligible,
+        av_fr_eligible: fund.av_fr_eligible,
         av_lux_eligible: fund.av_lux_eligible,
+        cto_eligible: fund.cto_eligible,
         morningstar_rating: fund.morningstar_rating,
         added_at: new Date().toISOString(),
       });

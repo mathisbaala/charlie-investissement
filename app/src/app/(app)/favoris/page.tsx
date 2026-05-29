@@ -85,21 +85,12 @@ function FavCard({
 
       {/* Eligibility pills */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {f.pea_eligible && (
-          <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">
-            PEA
-          </span>
-        )}
-        {f.per_eligible && (
-          <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">
-            PER
-          </span>
-        )}
-        {f.av_lux_eligible && (
-          <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">
-            AV Lux
-          </span>
-        )}
+        {f.pea_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA</span>}
+        {f.pea_pme_eligible && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA-PME</span>}
+        {f.per_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PER</span>}
+        {f.av_fr_eligible   && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV FR</span>}
+        {f.av_lux_eligible  && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV Lux</span>}
+        {f.cto_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">CTO</span>}
       </div>
 
       {/* Footer link */}

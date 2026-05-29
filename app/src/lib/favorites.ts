@@ -9,8 +9,11 @@ export type FavoriteEntry = {
   performance_3y: number | null;
   ongoing_charges: number | null;
   pea_eligible: boolean | null;
+  pea_pme_eligible: boolean | null;
   per_eligible: boolean | null;
+  av_fr_eligible: boolean | null;
   av_lux_eligible: boolean | null;
+  cto_eligible: boolean | null;
   morningstar_rating: number | null;
   added_at: string;
 };
