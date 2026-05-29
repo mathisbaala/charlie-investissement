@@ -19,6 +19,8 @@ const VALID_SORT_FIELDS = new Set([
   "morningstar_rating",
   "track_record_years",
   "data_completeness",
+  "retrocession_cgp",
+  "entry_fee_max",
 ]);
 
 const VIEW = "investissement_funds_cgp";
@@ -71,6 +73,10 @@ const SELECT_COLUMNS = [
   "data_source",
   "field_sources",
   "updated_at",
+  "retrocession_cgp",
+  "entry_fee_max",
+  "exit_fee_max",
+  "performance_fee",
 ].join(",");
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ export interface SelectedFund {
   morningstar_rating: number | null;
   track_record_years: number | null;
   aum_eur: number | null;
+  retrocession_cgp: number | null;
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;

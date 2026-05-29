@@ -84,6 +84,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
                       morningstar_rating: f.morningstar_rating ?? null,
                       track_record_years: f.track_record_years ?? null,
                       aum_eur: f.aum_eur ?? null,
+                      retrocession_cgp: f.retrocession_cgp ?? null,
                       pea_eligible: f.pea_eligible ?? null,
                       per_eligible: f.per_eligible ?? null,
                       av_lux_eligible: f.av_lux_eligible ?? null,
