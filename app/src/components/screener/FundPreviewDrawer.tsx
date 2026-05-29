@@ -215,7 +215,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
               {fund.av_fr_eligible   && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV France</span>}
               {fund.av_lux_eligible  && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV Lux</span>}
               {fund.cto_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ CTO</span>}
-              {!fund.pea_eligible && !fund.per_eligible && !fund.av_lux_eligible && !fund.av_fr_eligible && (
+              {!fund.pea_eligible && !fund.pea_pme_eligible && !fund.per_eligible && !fund.av_fr_eligible && !fund.av_lux_eligible && !fund.cto_eligible && (
                 <span className="text-[11px] text-muted">Aucune éligibilité confirmée</span>
               )}
             </div>

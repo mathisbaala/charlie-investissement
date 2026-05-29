@@ -169,6 +169,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const morningstarMin = parseInt_(sp.get("morningstar_min"));
   const aumMin = parseFloat_(sp.get("aum_min"));
   const retrocessionMin = parseFloat_(sp.get("retrocession_min"));
+  const hasKid = sp.get("has_kid") === "true";
   const pea    = sp.get("pea")     === "true";
   const peaPme = sp.get("pea_pme") === "true";
   const per    = sp.get("per")     === "true";
@@ -239,6 +240,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Rétrocession CGP minimum (stocké en fraction dans la vue)
   if (retrocessionMin != null) q = q.gte("retrocession_cgp", retrocessionMin / 100);
+
+  // DICI disponible
+  if (hasKid) q = q.not("kid_url", "is", null);
 
   // Eligibility flags
   if (pea)    q = q.eq("pea_eligible",     true);
