@@ -188,10 +188,13 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
           <div>
             <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">Éligibilités</p>
             <div className="flex gap-2 flex-wrap">
-              {fund.pea_eligible && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA</span>}
-              {fund.per_eligible && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PER</span>}
-              {fund.av_lux_eligible && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV Lux</span>}
-              {!fund.pea_eligible && !fund.per_eligible && !fund.av_lux_eligible && (
+              {fund.pea_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA</span>}
+              {fund.pea_pme_eligible && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA-PME</span>}
+              {fund.per_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PER</span>}
+              {fund.av_fr_eligible   && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV France</span>}
+              {fund.av_lux_eligible  && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV Lux</span>}
+              {fund.cto_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ CTO</span>}
+              {!fund.pea_eligible && !fund.per_eligible && !fund.av_lux_eligible && !fund.av_fr_eligible && (
                 <span className="text-[11px] text-muted">Aucune éligibilité confirmée</span>
               )}
             </div>

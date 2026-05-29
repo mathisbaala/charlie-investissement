@@ -12,7 +12,8 @@ const COLS = [
   "gestionnaire","ter","ongoing_charges","performance_1y","performance_3y",
   "performance_5y","average_performance","volatility_1y","volatility_3y",
   "sharpe_1y","sharpe_3y","max_drawdown_1y","max_drawdown_3y","risk_score",
-  "sfdr_article","labels","pea_eligible","av_lux_eligible","per_eligible",
+  "sfdr_article","labels","pea_eligible","pea_pme_eligible","per_eligible",
+  "av_fr_eligible","av_lux_eligible","cto_eligible",
   "ucits_compliant","is_institutional","accessible_retail","hedged",
   "aum_eur","morningstar_rating","currency","inception_date",
   "track_record_years","kid_url","data_completeness","updated_at",
@@ -83,9 +84,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (mstarMin != null) q = q.gte("morningstar_rating", mstarMin);
 
   // Enveloppes
-  if (envelopes.includes("PEA"))    q = q.eq("pea_eligible", true);
-  if (envelopes.includes("PER"))    q = q.eq("per_eligible", true);
-  if (envelopes.includes("AV-LUX")) q = q.eq("av_lux_eligible", true);
+  if (envelopes.includes("PEA"))     q = q.eq("pea_eligible",     true);
+  if (envelopes.includes("PEA-PME")) q = q.eq("pea_pme_eligible", true);
+  if (envelopes.includes("PER"))     q = q.eq("per_eligible",     true);
+  if (envelopes.includes("AV-FR"))   q = q.eq("av_fr_eligible",   true);
+  if (envelopes.includes("AV-LUX"))  q = q.eq("av_lux_eligible",  true);
+  if (envelopes.includes("CTO"))     q = q.eq("cto_eligible",     true);
 
   // Univers → product_type / asset_class
   if (universe.length) {
