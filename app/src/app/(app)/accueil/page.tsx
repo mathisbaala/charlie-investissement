@@ -175,14 +175,6 @@ export default function AccueilPage() {
           </div>
         </div>
 
-        {/* Section 3 — Bottom stat strip */}
-        <div className="mt-12 border-t border-line-soft pt-6 flex items-center gap-8 text-muted">
-          <span className="text-[12px]">35 988 instruments indexés</span>
-          <span className="text-[12px] text-muted-2">·</span>
-          <span className="text-[12px]">
-            OPCVM · ETF · SCPI · FPS · Fonds euros
-          </span>
-        </div>
       </div>
     </div>
   );
