@@ -150,7 +150,14 @@ export type ScreenerFilters = {
   sri_min?: number;
   sri_max?: number;
   ter_max?: number;
+  perf_1y_min?: number;
   perf_3y_min?: number;
+  vol_max?: number;
+  sharpe_min?: number;
+  track_record_min?: number;
+  morningstar_min?: number;
+  aum_min?: number;
+  retrocession_min?: number;
   gestionnaire?: string;
   search?: string;
   min_completeness?: number;
@@ -182,8 +189,6 @@ export type ScreenerFilters = {
   asset_class?: string[];
   region?: string[];
   category?: string[];
-  aum_min?: number;
-  perf_1y_min?: number;
   ter_min?: number;
   labels?: string[];
 };
@@ -286,6 +291,7 @@ export type ParsedFilters = {
   sharpe_min?: number;
   aum_min?: number;
   track_record_min?: number;
+  retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
   universe?: string[];
   currency?: string[];

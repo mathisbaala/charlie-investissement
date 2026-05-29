@@ -313,6 +313,23 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Rétrocession CGP */}
+        <Section title="Rétrocession CGP min">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.1"
+              value={String(f.retrocession_min ?? "")}
+              onChange={(e) => set("retrocession_min", e.target.value ? +e.target.value : undefined)}
+              placeholder="0,5"
+              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-[12px] font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+            />
+            <span className="text-[12px] text-muted">%</span>
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Gestionnaire */}
         <Section title="Gestionnaire">
           <input
