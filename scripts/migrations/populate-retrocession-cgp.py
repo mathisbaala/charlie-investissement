@@ -171,20 +171,29 @@ def run(apply: bool, limit: int | None, only_geco: bool) -> None:
     client = get_client()
     now = datetime.now(timezone.utc)
 
-    q = (
-        client.table("investissement_funds")
-        .select("isin, name, kid_url, ongoing_charges, ter")
-        .is_("retrocession_cgp", "null")
-        .not_.is_("kid_url", "null")
-        .in_("product_type", ["opcvm", "fcp", "sicav", "etf"])
-        .order("aum_eur", desc=True)
-    )
-    if only_geco:
-        q = q.like("kid_url", "%geco.amf-france%")
-    if limit:
-        q = q.limit(limit)
+    funds = []
+    offset = 0
+    while True:
+        q = (
+            client.table("investissement_funds")
+            .select("isin, name, kid_url, ongoing_charges, ter")
+            .is_("retrocession_cgp", "null")
+            .not_.is_("kid_url", "null")
+            .in_("product_type", ["opcvm", "fcp", "sicav", "etf"])
+            .order("aum_eur", desc=True)
+            .range(offset, offset + BATCH_SIZE - 1)
+        )
+        if only_geco:
+            q = q.like("kid_url", "%geco.amf-france%")
+        batch = q.execute().data or []
+        if not batch:
+            break
+        funds.extend(batch)
+        if limit and len(funds) >= limit:
+            funds = funds[:limit]
+            break
+        offset += BATCH_SIZE
 
-    funds = q.execute().data or []
     print(f"  {len(funds)} fonds avec kid_url sans retrocession_cgp")
 
     stats = Counter()
