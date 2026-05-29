@@ -280,8 +280,8 @@ function RechercheInner() {
           />
         )}
 
-        {/* Table scroll area */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        {/* Table scroll area — overflow-x-hidden sur l'outer pour que l'inner gère le scroll H */}
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
           {loading ? (
             <div className="flex items-center justify-center h-40 text-muted">
               <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
