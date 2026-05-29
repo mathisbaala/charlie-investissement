@@ -57,6 +57,9 @@ export type Fund = {
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;
+  av_fr_eligible: boolean | null;
+  pea_pme_eligible: boolean | null;
+  cto_eligible: boolean | null;
   ucits_compliant: boolean | null;
   is_institutional: boolean | null;
   accessible_retail: boolean | null;
@@ -133,8 +136,11 @@ export type ScreenerFilters = {
   management_style?: string[];
   sfdr?: number[];
   pea?: boolean;
+  pea_pme?: boolean;
   per?: boolean;
+  av_fr?: boolean;
   av_lux?: boolean;
+  cto?: boolean;
   sri_min?: number;
   sri_max?: number;
   ter_max?: number;
@@ -315,10 +321,37 @@ export type FundDetailHF = {
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;
+  av_fr_eligible: boolean | null;
+  pea_pme_eligible: boolean | null;
+  cto_eligible: boolean | null;
+  // Frais détaillés (migration 20260529000004)
+  entry_fee_max: number | null;
+  exit_fee_max: number | null;
+  performance_fee: number | null;
+  retrocession_cgp: number | null;
+  holding_period_years: number | null;
   aum_eur: number | null;
   morningstar_rating: number | null;
   labels: string[] | null;
   kid_url: string | null;
   data_completeness: number;
   nav_history: NavPointHF[];
+  holdings: FundHoldingHF[];
+  sectors: FundBreakdownHF[];
+  geos: FundBreakdownHF[];
+};
+
+export type FundHoldingHF = {
+  rank: number;
+  position_name: string;
+  ticker: string | null;
+  asset_type: string | null;
+  sector: string | null;
+  country: string | null;
+  weight: number;
+};
+
+export type FundBreakdownHF = {
+  label: string;
+  weight: number;
 };
