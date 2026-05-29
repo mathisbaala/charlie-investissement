@@ -82,7 +82,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
   const sel = isin ? isSelected(isin) : false;
 
   return (
-    <div className="c-slide-in flex flex-col h-full w-[380px] bg-paper border-l border-line overflow-y-auto">
+    <div className="c-slide-in flex flex-col w-[380px] shrink-0 bg-paper border border-line rounded-xl overflow-y-auto">
       {/* Head */}
       <div className="flex items-start gap-3 px-4 pt-4 pb-3 border-b border-line shrink-0">
         <div className="flex-1 min-w-0">

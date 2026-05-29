@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo, ChevronRight } from "@/components/ui/icons";
 
+
 function breadcrumb(pathname: string): { label: string; href: string }[] {
   const map: Record<string, string> = {
     "/accueil":    "Accueil",
@@ -36,9 +37,8 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
       className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center gap-4 px-5 border-b border-line bg-paper"
       style={{ marginLeft: "60px" }}
     >
-      {/* Brand */}
-      <Link href="/accueil" className="flex items-center gap-2.5 shrink-0">
-        <Logo size={26} />
+      {/* Brand — no logo mark here, just wordmark */}
+      <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
         <span
           className="text-ink text-[19px] leading-none"
           style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
@@ -67,16 +67,15 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
 
       <div className="flex-1" />
 
-      {/* Chat trigger */}
+      {/* Chat trigger — logo mark */}
       <button
         onClick={onChatToggle}
-        className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors text-[15px] cursor-pointer ${
-          chatOpen ? "bg-accent-soft text-accent-ink" : "bg-brown text-paper hover:bg-brown-2"
+        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+          chatOpen ? "bg-accent-soft ring-1 ring-accent/30" : "hover:bg-paper-2"
         }`}
-        style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
         aria-label="Ouvrir Charlie"
       >
-        C
+        <Logo size={28} />
       </button>
     </header>
   );

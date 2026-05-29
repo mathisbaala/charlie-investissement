@@ -138,9 +138,6 @@ export default function FavorisPage() {
             ({favorites.length})
           </span>
         </h1>
-        <p className="text-[13px] text-muted mt-1">
-          Gérez vos supports suivis
-        </p>
       </div>
 
       {/* Grid or empty state */}

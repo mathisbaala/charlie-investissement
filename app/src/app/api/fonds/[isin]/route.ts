@@ -4,7 +4,8 @@ import type { FundDetail, FundDetailResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const ISIN_RE = /^[A-Z0-9]{12}$/i;
+// Standard ISIN (12 chars) OR internal identifiers (FE_*, CRYPTO_*)
+const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
 
 // GET /api/fonds/[isin]
 // Retourne la fiche complète d'un fonds via RPC get_fund_detail.
