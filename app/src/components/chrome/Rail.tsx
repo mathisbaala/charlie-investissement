@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Logo, Search, Star, FileText, LayoutGrid, BarChart2 } from "@/components/ui/icons";
+import { Logo, Search, Star, FileText, LayoutGrid } from "@/components/ui/icons";
 
 const NAV = [
   { href: "/accueil",   icon: LayoutGrid, label: "Accueil" },
   { href: "/recherche", icon: Search,     label: "Recherche" },
-  { href: "/matching",  icon: BarChart2,  label: "Matching client" },
   { href: "/favoris",   icon: Star,       label: "Favoris" },
   { href: "/documents", icon: FileText,   label: "Documents" },
 ];

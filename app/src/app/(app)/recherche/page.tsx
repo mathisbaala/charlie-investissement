@@ -10,8 +10,33 @@ import { FundPreviewDrawer } from "@/components/screener/FundPreviewDrawer";
 import { SelectionBar } from "@/components/screener/SelectionBar";
 import { ComparisonModal } from "@/components/screener/ComparisonModal";
 import { Btn } from "@/components/ui/Btn";
-import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown } from "@/components/ui/icons";
+import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
+
+// ─── Client profile ────────────────────────────────────────────────────────────
+
+type LocalProfile = {
+  risk: "prudent" | "equilibre" | "dynamique" | "offensif" | null;
+  envelopes: string[];
+  esg: "indifferent" | "art8" | "art9";
+};
+
+const EMPTY_PROFILE: LocalProfile = { risk: null, envelopes: [], esg: "indifferent" };
+
+function serializeProfile(p: LocalProfile): string {
+  const parts: string[] = [];
+  const riskLabels: Record<string, string> = {
+    prudent: "prudent (SRI 1-3)",
+    equilibre: "équilibré (SRI 3-4)",
+    dynamique: "dynamique (SRI 4-6)",
+    offensif: "offensif (SRI 5-7)",
+  };
+  if (p.risk) parts.push(`profil de risque ${riskLabels[p.risk]}`);
+  if (p.envelopes.length) parts.push(`enveloppes disponibles: ${p.envelopes.join(", ")}`);
+  if (p.esg === "art8") parts.push("ESG: SFDR article 8 minimum");
+  if (p.esg === "art9") parts.push("ESG: SFDR article 9 uniquement");
+  return parts.join(", ");
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +107,14 @@ function RechercheInner() {
   const [showComparison, setShowComparison] = useState(false);
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
 
+  // Client profile state
+  const [clientProfile,    setClientProfile]    = useState<LocalProfile>(EMPTY_PROFILE);
+  const [showClientPanel,  setShowClientPanel]  = useState(false);
+
+  const isProfileActive = clientProfile.risk !== null
+    || clientProfile.envelopes.length > 0
+    || clientProfile.esg !== "indifferent";
+
   // Results state
   const [funds,      setFunds]      = useState<Fund[]>([]);
   const [total,      setTotal]      = useState(0);
@@ -102,8 +135,8 @@ function RechercheInner() {
     if (initialQ) {
       setQuery(initialQ);
       parseQuery(initialQ).then((parsed) => {
-        setFilters(parsed);
         const hasFilters = Object.keys(parsed).length > 0;
+        setFilters(hasFilters ? parsed : { free_text: initialQ });
         setNlpFailed(!hasFilters);
       });
     }
@@ -132,12 +165,26 @@ function RechercheInner() {
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
-    const parsed = await parseQuery(query.trim());
-    setFilters(parsed);
-    setNlpFailed(Object.keys(parsed).length === 0);
+
+    // Build enriched query with client profile context
+    const profileCtx = isProfileActive ? serializeProfile(clientProfile) : null;
+    const fullQuery = profileCtx
+      ? `${query.trim()} — contexte client: ${profileCtx}`
+      : query.trim();
+
+    const parsed = await parseQuery(fullQuery);
+    const hasFilters = Object.keys(parsed).length > 0;
+    if (hasFilters) {
+      setFilters(parsed);
+      setNlpFailed(false);
+    } else {
+      // Fallback: use the raw query as free-text name search
+      setFilters({ free_text: query.trim() });
+      setNlpFailed(true);
+    }
     setPage(1);
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
-  }, [query, router]);
+  }, [query, router, clientProfile, isProfileActive]);
 
   const handleFiltersApply = useCallback(() => {
     setPage(1);
@@ -200,15 +247,172 @@ function RechercheInner() {
               onSubmit={handleSearch}
               className="flex-1"
             />
+
+            {/* Client profile toggle */}
+            {isProfileActive ? (
+              <button
+                onClick={() => setShowClientPanel((v) => !v)}
+                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-[11px] font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
+              >
+                <span>Profil actif</span>
+                <X
+                  size={10}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setClientProfile(EMPTY_PROFILE);
+                    setShowClientPanel(false);
+                  }}
+                />
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowClientPanel((v) => !v)}
+                title="Importer un profil client"
+                className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+                  showClientPanel
+                    ? "bg-accent-soft text-accent-ink border-accent/20"
+                    : "border-line text-muted hover:bg-paper hover:text-ink-2"
+                }`}
+              >
+                <Plus size={13} />
+              </button>
+            )}
+
             <Btn variant="primary" size="sm" onClick={handleSearch}>
               Rechercher
             </Btn>
           </div>
         </div>
+
+        {/* ── Client profile panel ── */}
+        {showClientPanel && (
+          <div className="bg-paper-2 rounded-xl border border-line px-4 py-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-ink-2 uppercase tracking-wider">
+                Profil client
+              </p>
+              <button
+                onClick={() => setShowClientPanel(false)}
+                className="text-muted hover:text-ink-2 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Profil de risque */}
+            <div>
+              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
+                Profil de risque
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                {(
+                  [
+                    ["prudent", "Prudent"],
+                    ["equilibre", "Équilibré"],
+                    ["dynamique", "Dynamique"],
+                    ["offensif", "Offensif"],
+                  ] as const
+                ).map(([v, l]) => (
+                  <button
+                    key={v}
+                    onClick={() =>
+                      setClientProfile((p) => ({ ...p, risk: p.risk === v ? null : v }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                      clientProfile.risk === v
+                        ? "bg-accent-soft text-accent-ink border-accent/20"
+                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Enveloppes */}
+            <div>
+              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
+                Enveloppes disponibles
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                {(["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() =>
+                      setClientProfile((p) => ({
+                        ...p,
+                        envelopes: p.envelopes.includes(v)
+                          ? p.envelopes.filter((e) => e !== v)
+                          : [...p.envelopes, v],
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                      clientProfile.envelopes.includes(v)
+                        ? "bg-accent-soft text-accent-ink border-accent/20"
+                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ESG */}
+            <div>
+              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
+                Préférence ESG
+              </p>
+              <div className="flex gap-1.5 flex-wrap">
+                {(
+                  [
+                    ["indifferent", "Indifférent"],
+                    ["art8", "Art.8+"],
+                    ["art9", "Art.9 uniquement"],
+                  ] as const
+                ).map(([v, l]) => (
+                  <button
+                    key={v}
+                    onClick={() => setClientProfile((p) => ({ ...p, esg: v }))}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                      clientProfile.esg === v
+                        ? "bg-accent-soft text-accent-ink border-accent/20"
+                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-0.5">
+              <button
+                onClick={() => setClientProfile(EMPTY_PROFILE)}
+                className="text-[11px] text-muted hover:text-ink-2 transition-colors"
+              >
+                Effacer le profil
+              </button>
+              <Btn
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setShowClientPanel(false);
+                  handleSearch();
+                }}
+              >
+                Rechercher avec ce profil
+              </Btn>
+            </div>
+          </div>
+        )}
+
         <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
         {nlpFailed && query.trim() && (
           <p className="text-[11px] text-muted px-1">
-            Filtres intelligents indisponibles — résultats non filtrés. Utilisez les{" "}
+            Filtres intelligents indisponibles — recherche par nom. Utilisez les{" "}
             <button
               onClick={() => setShowFilters(true)}
               className="underline hover:text-ink-2 transition-colors"
