@@ -265,7 +265,7 @@ export function FilterPanel({
         {/* Enveloppes */}
         <Section title="Enveloppes">
           <div className="flex gap-2 flex-wrap">
-            {["PEA", "PER", "AV-LUX"].map((env) => (
+            {["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"].map((env) => (
               <SfdrPill
                 key={env}
                 label={env}
