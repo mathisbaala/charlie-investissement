@@ -10,7 +10,7 @@ import { FundPreviewDrawer } from "@/components/screener/FundPreviewDrawer";
 import { SelectionBar } from "@/components/screener/SelectionBar";
 import { ComparisonModal } from "@/components/screener/ComparisonModal";
 import { Btn } from "@/components/ui/Btn";
-import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight } from "@/components/ui/icons";
+import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -220,56 +220,10 @@ function RechercheInner() {
         )}
       </div>
 
-      {/* ── Toolbar — transparent, just buttons on cream bg ── */}
-      <div className="shrink-0 flex items-center justify-between px-5 py-2.5 text-[11px] text-muted">
-        <span className="text-[12px] font-medium text-ink-2">
-          {loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
-        </span>
-        <div className="flex items-center gap-2">
-          <select
-            value={sortBy}
-            onChange={(e) => handleSortByChange(e.target.value)}
-            className="flex items-center px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none focus:border-accent/40 transition-colors hover:bg-paper-2"
-          >
-            <option value="data_completeness">Complétude</option>
-            <option value="performance_3y">Perf 3A</option>
-            <option value="performance_1y">Perf 1A</option>
-            <option value="performance_5y">Perf 5A</option>
-            <option value="aum_eur">Encours</option>
-            <option value="sharpe_1y">Sharpe 1A</option>
-            <option value="volatility_1y">Volatilité 1A</option>
-            <option value="ter">TER</option>
-            <option value="morningstar_rating">Morningstar</option>
-            <option value="track_record_years">Ancienneté</option>
-          </select>
-
-          <button
-            onClick={handleSortDirToggle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
-            title={sortDir === "desc" ? "Décroissant" : "Croissant"}
-          >
-            <ArrowUpDown size={12} />
-            {sortDir === "desc" ? "Déc." : "Crois."}
-          </button>
-
-          <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
-              showFilters
-                ? "bg-accent-soft text-accent-ink border-accent/20"
-                : "bg-paper text-ink-2 border-line hover:bg-paper-2"
-            }`}
-          >
-            <SlidersHorizontal size={12} />
-            Filtres
-          </button>
-        </div>
-      </div>
-
-      {/* ── Three-pane area: [FilterCard] [Table] [DrawerCard] ── */}
+      {/* ── Three-pane area: [FilterCard] [Toolbar+Table] [DrawerCard] ── */}
       <div className="flex-1 overflow-hidden flex gap-3 px-3 pb-3 min-h-0">
 
-        {/* Filter panel — card, starts at table level */}
+        {/* Filter panel */}
         {showFilters && (
           <FilterPanel
             filters={filters}
@@ -281,53 +235,106 @@ function RechercheInner() {
           />
         )}
 
-        {/* Table scroll area — overflow-x-hidden sur l'outer pour que l'inner gère le scroll H */}
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center h-40 text-muted">
-              <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : funds.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-muted text-sm gap-2">
-              <p>Aucun fonds ne correspond à votre recherche.</p>
-              <button onClick={handleFiltersReset} className="text-accent text-xs hover:underline">
-                Réinitialiser les filtres
+        {/* Table column — toolbar + scroll area */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+
+          {/* Toolbar */}
+          <div className="shrink-0 flex items-center justify-between py-2.5 text-[11px] text-muted">
+            <span className="text-[12px] font-medium text-ink-2">
+              {loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
+            </span>
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center">
+                <select
+                  value={sortBy}
+                  onChange={(e) => handleSortByChange(e.target.value)}
+                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none transition-colors hover:bg-paper-2"
+                >
+                  <option value="data_completeness">Complétude</option>
+                  <option value="performance_3y">Perf 3A</option>
+                  <option value="performance_1y">Perf 1A</option>
+                  <option value="performance_5y">Perf 5A</option>
+                  <option value="aum_eur">Encours</option>
+                  <option value="sharpe_1y">Sharpe 1A</option>
+                  <option value="volatility_1y">Volatilité 1A</option>
+                  <option value="ter">TER</option>
+                  <option value="morningstar_rating">Morningstar</option>
+                  <option value="track_record_years">Ancienneté</option>
+                </select>
+                <ChevronDown size={11} className="absolute right-2 pointer-events-none text-ink-2" />
+              </div>
+
+              <button
+                onClick={handleSortDirToggle}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
+                title={sortDir === "desc" ? "Décroissant" : "Croissant"}
+              >
+                <ArrowUpDown size={12} />
+                {sortDir === "desc" ? "Déc." : "Crois."}
+              </button>
+
+              <button
+                onClick={() => setShowFilters((v) => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
+                  showFilters
+                    ? "bg-accent-soft text-accent-ink border-accent/20"
+                    : "bg-paper text-ink-2 border-line hover:bg-paper-2"
+                }`}
+              >
+                <SlidersHorizontal size={12} />
+                Filtres
               </button>
             </div>
-          ) : (
-            <div className="border border-line rounded-xl overflow-x-auto">
-              <FundTable
-                funds={funds}
-                onRowClick={handleRowClick}
-                activeFundIsin={activeFund}
-              />
-            </div>
-          )}
+          </div>
 
-          {/* Pagination */}
-          {!loading && totalPages > 1 && (
-            <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
-              <span>Page {page} / {totalPages}</span>
-              <div className="flex gap-1">
-                <button
-                  disabled={page <= 1}
-                  onClick={goToPrevPage}
-                  className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                  aria-label="Page précédente"
-                >
-                  <ArrowLeft size={13} />
-                </button>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={goToNextPage}
-                  className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                  aria-label="Page suivante"
-                >
-                  <ChevronRight size={13} />
+          {/* Table scroll area */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center h-40 text-muted">
+                <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : funds.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted text-sm gap-2">
+                <p>Aucun fonds ne correspond à votre recherche.</p>
+                <button onClick={handleFiltersReset} className="text-accent text-xs hover:underline">
+                  Réinitialiser les filtres
                 </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="border border-line rounded-xl overflow-x-auto">
+                <FundTable
+                  funds={funds}
+                  onRowClick={handleRowClick}
+                  activeFundIsin={activeFund}
+                />
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && totalPages > 1 && (
+              <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
+                <span>Page {page} / {totalPages}</span>
+                <div className="flex gap-1">
+                  <button
+                    disabled={page <= 1}
+                    onClick={goToPrevPage}
+                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
+                    aria-label="Page précédente"
+                  >
+                    <ArrowLeft size={13} />
+                  </button>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={goToNextPage}
+                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
+                    aria-label="Page suivante"
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Preview drawer — card aligned with table */}
