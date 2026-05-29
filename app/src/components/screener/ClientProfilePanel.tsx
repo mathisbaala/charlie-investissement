@@ -176,7 +176,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-paper-2 rounded-xl border border-line px-5 py-4 space-y-4">
+    <div className="bg-paper-2 rounded-xl border border-line px-5 py-4 space-y-4 max-h-[80vh] overflow-y-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between">
