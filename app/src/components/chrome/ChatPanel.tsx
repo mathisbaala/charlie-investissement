@@ -64,6 +64,8 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           return next;
         });
       }
+
+      if (!reply.trim()) throw new Error("Réponse vide");
     } catch {
       setMessages((prev) => {
         const last = prev[prev.length - 1];
