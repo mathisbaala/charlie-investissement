@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
   const isinsParam = url.searchParams.get("isins") ?? "";
   const isins = isinsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
 
-  if (isins.length < 2) {
-    return NextResponse.json({ error: "Au moins 2 ISINs requis" }, { status: 400 });
+  if (isins.length < 1) {
+    return NextResponse.json({ error: "Au moins 1 ISIN requis" }, { status: 400 });
   }
 
   const { data: funds, error } = await supabase
