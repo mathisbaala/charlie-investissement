@@ -51,6 +51,7 @@ function buildParams(
   if (f.currency?.length)            sp.set("currency",          f.currency.join(","));
   if (f.manager_search)              sp.set("manager_search",    f.manager_search);
   if (f.free_text)                   sp.set("search",            f.free_text);
+  if (f.has_kid)                     sp.set("has_kid",           "true");
   sp.set("sort_by",  sortBy);
   sp.set("sort_dir", sortDir);
   sp.set("page",     String(page));

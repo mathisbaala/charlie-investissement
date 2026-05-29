@@ -371,6 +371,21 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* DICI */}
+        <Section title="Document DICI">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div
+              onClick={() => set("has_kid", f.has_kid ? undefined : true)}
+              className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.has_kid ? "bg-brown" : "bg-paper-3 border border-line"}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.has_kid ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+            <span className="text-[12px] text-ink-2 group-hover:text-ink">DICI disponible uniquement</span>
+          </label>
+        </Section>
+
+        <Divider />
+
         {/* Gestionnaire */}
         <Section title="Gestionnaire">
           <input

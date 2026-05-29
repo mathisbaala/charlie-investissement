@@ -300,6 +300,7 @@ export type ParsedFilters = {
   morningstar_min?: number;
   manager_search?: string;
   free_text?: string;
+  has_kid?: boolean;
   chips?: string[];
 };
 
