@@ -1,12 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { useSelection } from "@/components/SelectionProvider";
+import { useSelection, SelectedFund } from "@/components/SelectionProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X, Download } from "@/components/ui/icons";
 
 interface SelectionBarProps {
   onCompare: () => void;
+}
+
+function fmt(v: number | null | undefined): string {
+  return v == null ? "" : String(v);
+}
+
+function fmtPct(v: number | null | undefined): string {
+  return v == null ? "" : v.toFixed(2) + "%";
+}
+
+function fmtBool(v: boolean | null | undefined): string {
+  return v == null ? "" : v ? "oui" : "non";
+}
+
+function exportCsv(funds: SelectedFund[]) {
+  const HEADERS = [
+    "ISIN","Nom","Gestionnaire","SFDR","SRI","Morningstar",
+    "Perf 1A (%)","Perf 3A (%)","Perf 5A (%)","TER (%)","Vol 1A (%)","Sharpe 1A",
+    "Max DD 3A (%)","Rétrocession CGP (%)","Encours (€)","Track record (ans)",
+    "PEA","PEA-PME","PER","AV France","AV Luxembourg","CTO",
+  ];
+
+  const rows = funds.map((f) => [
+    f.isin,
+    f.name.replace(/"/g, '""'),
+    (f.gestionnaire ?? "").replace(/"/g, '""'),
+    f.sfdr_article ?? "",
+    f.risk_score ?? "",
+    f.morningstar_rating ?? "",
+    fmtPct(f.performance_1y),
+    fmtPct(f.performance_3y),
+    fmtPct(f.performance_5y),
+    fmtPct(f.ongoing_charges),
+    fmtPct(f.volatility_1y),
+    f.sharpe_1y != null ? f.sharpe_1y.toFixed(2) : "",
+    fmtPct(f.max_drawdown_3y),
+    f.retrocession_cgp != null ? (f.retrocession_cgp * 100).toFixed(2) + "%" : "",
+    f.aum_eur != null ? Math.round(f.aum_eur) : "",
+    fmt(f.track_record_years),
+    fmtBool(f.pea_eligible),
+    fmtBool(f.pea_pme_eligible),
+    fmtBool(f.per_eligible),
+    fmtBool(f.av_fr_eligible),
+    fmtBool(f.av_lux_eligible),
+    fmtBool(f.cto_eligible),
+  ]);
+
+  const csv = [HEADERS, ...rows]
+    .map((row) => row.map((v) => `"${v}"`).join(";"))
+    .join("\r\n");
+
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `fonds-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function SelectionBar({ onCompare }: SelectionBarProps) {
@@ -31,11 +89,15 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
         <X size={13} />
         Vider
       </Btn>
+      <Btn variant="outline" size="sm" onClick={() => exportCsv(selected)} className="shrink-0">
+        <Download size={13} />
+        CSV
+      </Btn>
       {selected.length >= 2 && (
         <Link href={pdfHref} target="_blank" className="shrink-0">
           <Btn variant="outline" size="sm">
             <Download size={13} />
-            Rapport PDF
+            PDF
           </Btn>
         </Link>
       )}
