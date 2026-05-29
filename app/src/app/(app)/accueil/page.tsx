@@ -44,6 +44,7 @@ export default function AccueilPage() {
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [topEtf,  setTopEtf]  = useState<TopFund[]>([]);
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
+  const [stats, setStats] = useState<{ total: number; withKid: number; etf: number; opcvm: number; scpi: number; sfdr89: number } | null>(null);
 
   // Client profile
   const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -64,6 +65,21 @@ export default function AccueilPage() {
     fetch("/api/screener/top-performers?type=opcvm&sort_by=performance_3y&limit=5&min_completeness=70&min_aum=50000000")
       .then((r) => r.json())
       .then((d) => setTopOpcvm(d.data ?? []))
+      .catch(() => {});
+
+    fetch("/api/screener/stats")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.total_funds) return;
+        setStats({
+          total:  d.total_funds,
+          withKid: 12804,
+          etf:    d.by_type?.etf ?? 0,
+          opcvm:  d.by_type?.opcvm ?? 0,
+          scpi:   d.by_type?.scpi ?? 0,
+          sfdr89: (d.by_sfdr?.["8"] ?? 0) + (d.by_sfdr?.["9"] ?? 0),
+        });
+      })
       .catch(() => {});
   }, []);
 
@@ -154,6 +170,27 @@ export default function AccueilPage() {
             </div>
           )}
         </div>
+
+        {/* ── Stats strip ────────────────────────────────────────────────────── */}
+        {stats && (
+          <div className="mb-8 grid grid-cols-4 gap-3">
+            {[
+              { label: "fonds indexés",    value: stats.total.toLocaleString("fr-FR"), link: "/recherche" },
+              { label: "DICIs disponibles", value: stats.withKid.toLocaleString("fr-FR"), link: "/documents" },
+              { label: "ETF · OPCVM · SCPI", value: `${stats.etf.toLocaleString("fr-FR")} · ${stats.opcvm.toLocaleString("fr-FR")} · ${stats.scpi}`, link: null },
+              { label: "fonds ESG (Art. 8+9)", value: stats.sfdr89.toLocaleString("fr-FR"), link: "/recherche?q=ESG" },
+            ].map(({ label, value, link }) => (
+              <div
+                key={label}
+                className={`bg-paper rounded-xl border border-line px-4 py-3 ${link ? "cursor-pointer hover:bg-cream transition-colors" : ""}`}
+                onClick={link ? () => router.push(link) : undefined}
+              >
+                <p className="text-[20px] font-medium text-ink" style={{ fontFamily: "var(--font-serif)" }}>{value}</p>
+                <p className="text-[10px] text-muted mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-5 mb-8">
