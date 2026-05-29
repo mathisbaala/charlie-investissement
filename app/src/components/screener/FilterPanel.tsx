@@ -278,6 +278,26 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Secteur */}
+        <Section title="Secteur">
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              "Technologie", "Santé", "Finance", "Consommation",
+              "Industrie", "Énergie", "Immobilier", "Environnement",
+              "Communication", "Matériaux",
+            ].map((s) => (
+              <SfdrPill
+                key={s}
+                label={s}
+                active={(f.sector ?? []).includes(s)}
+                onToggle={() => set("sector", toggleArr(f.sector, s))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Univers */}
         <Section title="Univers">
           <div className="flex gap-2 flex-wrap">

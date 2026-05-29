@@ -53,6 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const retroMin= num(p(sp, "retrocession_min")); // en % → diviser par 100 pour fraction DB
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
+  const sectors   = arr(p(sp, "sector"));
   const currency  = arr(p(sp, "currency"));
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
   const search  = p(sp, "search")?.trim() ?? "";
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (productTypes.length) q = q.in("product_type", productTypes);
   }
 
+  if (sectors.length)   q = q.in("sector", sectors);
   if (currency.length)  q = q.in("currency", currency);
   if (mgr)              q = q.ilike("gestionnaire", `%${mgr}%`);
 

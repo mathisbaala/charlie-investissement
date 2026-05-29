@@ -294,6 +294,7 @@ export type ParsedFilters = {
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
   universe?: string[];
+  sector?: string[];
   currency?: string[];
   morningstar_min?: number;
   manager_search?: string;
