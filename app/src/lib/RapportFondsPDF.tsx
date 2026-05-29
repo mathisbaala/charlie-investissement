@@ -63,8 +63,11 @@ function FundPage({ fund, index, total }: { fund: Record<string, any>; index: nu
         {(fund.sri ?? fund.risk_score) && <Text style={S.badge}>SRI {fund.sri ?? fund.risk_score}/7</Text>}
         {fund.morningstar_rating && <Text style={S.badge}>★ Morningstar {fund.morningstar_rating}/5</Text>}
         {fund.pea_eligible && <Text style={S.badge}>PEA</Text>}
+        {fund.pea_pme_eligible && <Text style={S.badge}>PEA-PME</Text>}
         {fund.per_eligible && <Text style={S.badge}>PER</Text>}
+        {fund.av_fr_eligible && <Text style={S.badge}>AV France</Text>}
         {fund.av_lux_eligible && <Text style={S.badge}>AV Luxembourg</Text>}
+        {fund.cto_eligible && <Text style={S.badge}>CTO</Text>}
       </View>
 
       <View style={S.grid}>
@@ -77,8 +80,10 @@ function FundPage({ fund, index, total }: { fund: Record<string, any>; index: nu
           <View style={S.row}><Text style={S.label}>Sharpe 1Y</Text><Text style={S.value}>{fmt(fund.sharpe_1y, "", 2)}</Text></View>
         </View>
         <View style={S.col}>
-          <Text style={S.sectionTitle}>Caractéristiques</Text>
-          <View style={S.row}><Text style={S.label}>TER / Frais</Text><Text style={S.value}>{fmt(fund.ongoing_charges)}</Text></View>
+          <Text style={S.sectionTitle}>Frais</Text>
+          <View style={S.row}><Text style={S.label}>Frais courants (TER)</Text><Text style={S.value}>{fmt(fund.ongoing_charges ?? fund.ter)}</Text></View>
+          <View style={S.row}><Text style={S.label}>Frais d'entrée max</Text><Text style={S.value}>{fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "—"}</Text></View>
+          <View style={S.row}><Text style={S.label}>Rétrocession CGP</Text><Text style={S.value}>{fund.retrocession_cgp != null ? fmt(fund.retrocession_cgp * 100) : "—"}</Text></View>
           <View style={S.row}><Text style={S.label}>Encours</Text><Text style={S.value}>{fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "—"}</Text></View>
           <View style={S.row}><Text style={S.label}>Création</Text><Text style={S.value}>{fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "—"}</Text></View>
           <View style={S.row}><Text style={S.label}>Track record</Text><Text style={S.value}>{trackRecord ? `${trackRecord} ans` : "—"}</Text></View>
