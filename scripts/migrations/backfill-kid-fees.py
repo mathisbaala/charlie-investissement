@@ -168,12 +168,13 @@ def fetch_pdf_text(url: str) -> str | None:
         return None
 
 
-def run(apply: bool, limit: int | None, only_geco: bool) -> None:
+def run(apply: bool, limit: int | None, only_geco: bool, only_amfinesoft: bool = False) -> None:
     print("=" * 64)
     print("  Backfill frais détaillés depuis KIDs")
     print("=" * 64)
     print(f"  Mode      : {'APPLY' if apply else 'DRY-RUN'}")
-    print(f"  Only GECO : {only_geco}")
+    source = "GECO" if only_geco else ("Amfinesoft" if only_amfinesoft else "Tous")
+    print(f"  Source    : {source}")
     if limit:
         print(f"  Limite    : {limit}")
     print()
@@ -193,6 +194,8 @@ def run(apply: bool, limit: int | None, only_geco: bool) -> None:
             .is_("entry_fee_max", "null")
         if only_geco:
             q = q.ilike("kid_url", "%geco.amf-france.org%")
+        elif only_amfinesoft:
+            q = q.ilike("kid_url", "%amfinesoft%")
         batch = q.range(offset, offset + BATCH_SIZE - 1).execute().data
         if not batch:
             break
@@ -254,6 +257,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply",     action="store_true")
     parser.add_argument("--limit",     type=int, default=None)
-    parser.add_argument("--only-geco", action="store_true", dest="only_geco")
+    parser.add_argument("--only-geco",       action="store_true", dest="only_geco")
+    parser.add_argument("--only-amfinesoft", action="store_true", dest="only_amfinesoft")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit, only_geco=args.only_geco)
+    run(apply=args.apply, limit=args.limit, only_geco=args.only_geco, only_amfinesoft=args.only_amfinesoft)
