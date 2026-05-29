@@ -31,17 +31,17 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
       <table className="w-full text-[12.5px] border-collapse min-w-[900px]">
         <thead>
           <tr className="border-b border-line">
-            <th className="w-8 px-3 py-3" />
-            <th className="text-left px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold">Fonds</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center">SFDR</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center">SRI</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right">TER</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right">Perf 1A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right">Perf 3A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right">Vol 1A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right">Sharpe</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold">Enveloppes</th>
-            <th className="w-8" />
+            <th className="w-8 px-3 py-3 whitespace-nowrap" />
+            <th className="text-left px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Fonds</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SFDR</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SRI</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">TER</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 1A</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 3A</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Vol 1A</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Sharpe</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
+            <th className="w-8 whitespace-nowrap" />
           </tr>
         </thead>
         <tbody>
@@ -52,20 +52,19 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
               <tr
                 key={f.isin}
                 onClick={() => onRowClick?.(f)}
-                className={`border-b border-dashed border-line-soft cursor-pointer transition-colors relative ${
+                className={`border-b border-dashed border-line-soft cursor-pointer transition-colors ${
                   active
                     ? "bg-accent-soft/40"
                     : sel
                     ? "bg-ok-soft/20"
-                    : "bg-cream hover:bg-paper"
+                    : "bg-paper hover:bg-cream"
                 }`}
               >
-                {/* Active stripe */}
-                {active && (
-                  <td className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent rounded-r" />
-                )}
-                {/* Checkbox */}
-                <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                {/* Checkbox — stripe is inside this td to avoid ghost column */}
+                <td className="px-3 py-3 relative" onClick={(e) => e.stopPropagation()}>
+                  {active && (
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent rounded-r pointer-events-none" />
+                  )}
                   <input
                     type="checkbox"
                     checked={sel}
