@@ -319,9 +319,11 @@ export type FundDetailHF = {
   sfdr_article: number | null;
   risk_score: number | null;
   srri: number | null;
+  management_style: string | null;
   performance_1y: number | null;
   performance_3y: number | null;
   performance_5y: number | null;
+  average_performance: number | null;
   volatility_1y: number | null;
   volatility_3y: number | null;
   sharpe_1y: number | null;
