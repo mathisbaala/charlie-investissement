@@ -7,6 +7,9 @@ import { FundSheetClient } from "./FundSheetClient";
 // Standard ISIN (12 chars) OR internal identifiers (FE_*, CRYPTO_*)
 const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
 
+const normTer = (v: number | null | undefined): number | null =>
+  v != null && v > 0 && v < 0.1 ? parseFloat((v * 100).toFixed(4)) : v ?? null;
+
 export default async function FondPage({
   params,
 }: {
@@ -125,8 +128,8 @@ export default async function FondPage({
     sharpe_3y: fund.sharpe_3y,
     max_drawdown_1y: fund.max_drawdown_1y,
     max_drawdown_3y: fund.max_drawdown_3y,
-    ongoing_charges: fund.ongoing_charges,
-    ter: fund.ter,
+    ongoing_charges: normTer(fund.ongoing_charges),
+    ter: normTer(fund.ter),
     entry_fee_max: fund.entry_fee_max ?? null,
     exit_fee_max: fund.exit_fee_max ?? null,
     performance_fee: fund.performance_fee ?? null,

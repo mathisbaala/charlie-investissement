@@ -161,7 +161,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const sriMin = parseInt_(sp.get("sri_min"));
   const sriMax = parseInt_(sp.get("sri_max"));
   const terMax = parseFloat_(sp.get("ter_max"));
+  const perf1yMin = parseFloat_(sp.get("perf_1y_min"));
   const perf3yMin = parseFloat_(sp.get("perf_3y_min"));
+  const volMax = parseFloat_(sp.get("vol_max"));
+  const sharpeMin = parseFloat_(sp.get("sharpe_min"));
+  const trackRecordMin = parseFloat_(sp.get("track_record_min"));
+  const morningstarMin = parseInt_(sp.get("morningstar_min"));
+  const aumMin = parseFloat_(sp.get("aum_min"));
+  const retrocessionMin = parseFloat_(sp.get("retrocession_min"));
   const pea    = sp.get("pea")     === "true";
   const peaPme = sp.get("pea_pme") === "true";
   const per    = sp.get("per")     === "true";
@@ -211,10 +218,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     q = (q as any).or(`ter.lte.${terMax},ongoing_charges.lte.${terMax}`);
   }
 
-  // Performance 3y minimum
-  if (perf3yMin != null) {
-    q = q.gte("performance_3y", perf3yMin);
-  }
+  // Performance minimums
+  if (perf1yMin != null) q = q.gte("performance_1y", perf1yMin);
+  if (perf3yMin != null) q = q.gte("performance_3y", perf3yMin);
+
+  // Volatilité maximale
+  if (volMax != null) q = q.lte("volatility_1y", volMax);
+
+  // Sharpe minimum
+  if (sharpeMin != null) q = q.gte("sharpe_1y", sharpeMin);
+
+  // Track record minimum (années)
+  if (trackRecordMin != null) q = q.gte("track_record_years", trackRecordMin);
+
+  // Rating Morningstar minimum
+  if (morningstarMin != null) q = q.gte("morningstar_rating", morningstarMin);
+
+  // Encours minimum (UI envoie des M€ → convertir en €)
+  if (aumMin != null) q = q.gte("aum_eur", aumMin * 1_000_000);
+
+  // Rétrocession CGP minimum (stocké en fraction dans la vue)
+  if (retrocessionMin != null) q = q.gte("retrocession_cgp", retrocessionMin / 100);
 
   // Eligibility flags
   if (pea)    q = q.eq("pea_eligible",     true);

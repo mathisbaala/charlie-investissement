@@ -43,6 +43,7 @@ function buildParams(
   if (f.aum_min        != null)      sp.set("aum_min",           String(f.aum_min));
   if (f.track_record_min != null)    sp.set("track_record_min",  String(f.track_record_min));
   if (f.morningstar_min  != null)    sp.set("morningstar_min",   String(f.morningstar_min));
+  if (f.retrocession_min != null)    sp.set("retrocession_min",  String(f.retrocession_min));
   if (f.envelopes?.length)           sp.set("envelopes",         f.envelopes.join(","));
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
   if (f.currency?.length)            sp.set("currency",          f.currency.join(","));

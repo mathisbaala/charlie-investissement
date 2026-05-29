@@ -285,6 +285,7 @@ def run(
     apply: bool, limit: int | None, isin_filter: str | None,
     score_min: int | None = None, score_max: int | None = None,
     ter_only: bool = False,
+    vol_only: bool = False,
 ):
     print("=" * 60)
     print("  Morningstar LT Enricher — Performance + TER + Sharpe + KID")
@@ -296,6 +297,8 @@ def run(
         print(f"  Score   : {score_min or '?'} – {score_max or '?'}")
     if ter_only:
         print("  TER only: oui")
+    if vol_only:
+        print("  VOL only: oui")
     print()
 
     started = datetime.now(timezone.utc)
@@ -315,7 +318,12 @@ def run(
         # Préfixes ISIN non-standard → absents de Morningstar
         SKIP_PREFIXES = ("CS", "QS", "QUA", "XS", "OT", "AM", "SC", "GF", "SU", "MS", "XF", "US", "JP")
 
-        null_fields = ("ter",) if ter_only else ("morningstar_rating", "performance_1y", "management_company", "category", "inception_date", "ter")
+        if ter_only:
+            null_fields = ("ter",)
+        elif vol_only:
+            null_fields = ("volatility_1y",)
+        else:
+            null_fields = ("morningstar_rating", "performance_1y", "management_company", "category", "inception_date", "ter")
 
         # Phase 1 : fonds avec AUM connu → triés par AUM desc (meilleure couverture Morningstar)
         # Phase 2 : fonds sans AUM (peuvent quand même être sur Morningstar)
@@ -440,8 +448,10 @@ if __name__ == "__main__":
     parser.add_argument("--score-min", type=int, default=None, help="Score completeness minimum")
     parser.add_argument("--score-max", type=int, default=None, help="Score completeness maximum")
     parser.add_argument("--ter-only",  action="store_true",  help="Ne cibler que les fonds sans TER")
+    parser.add_argument("--vol-only",  action="store_true",  help="Ne cibler que les fonds sans volatility_1y")
     args = parser.parse_args()
     run(
         apply=args.apply, limit=args.limit, isin_filter=args.isin,
-        score_min=args.score_min, score_max=args.score_max, ter_only=args.ter_only,
+        score_min=args.score_min, score_max=args.score_max,
+        ter_only=args.ter_only, vol_only=args.vol_only,
     )

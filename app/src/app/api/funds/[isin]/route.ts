@@ -6,6 +6,9 @@ export const dynamic = "force-dynamic";
 
 const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
 
+const normTer = (v: number | null | undefined): number | null =>
+  v != null && v > 0 && v < 0.1 ? parseFloat((v * 100).toFixed(4)) : v ?? null;
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ isin: string }> }
@@ -124,8 +127,8 @@ export async function GET(
     sharpe_3y: fund.sharpe_3y,
     max_drawdown_1y: fund.max_drawdown_1y,
     max_drawdown_3y: fund.max_drawdown_3y,
-    ongoing_charges: fund.ongoing_charges,
-    ter: fund.ter,
+    ongoing_charges: normTer(fund.ongoing_charges),
+    ter: normTer(fund.ter),
     entry_fee_max: fund.entry_fee_max ?? null,
     exit_fee_max: fund.exit_fee_max ?? null,
     performance_fee: fund.performance_fee ?? null,

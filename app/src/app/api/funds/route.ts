@@ -50,6 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const aumMin  = num(p(sp, "aum_min"));  // in M€ from UI
   const trMin   = num(p(sp, "track_record_min"));
   const mstarMin= num(p(sp, "morningstar_min"));
+  const retroMin= num(p(sp, "retrocession_min")); // en % → diviser par 100 pour fraction DB
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
   const currency  = arr(p(sp, "currency"));
@@ -84,6 +85,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (aumMin != null)   q = q.gte("aum_eur", aumMin * 1_000_000);
   if (trMin != null)    q = q.gte("track_record_years", trMin);
   if (mstarMin != null) q = q.gte("morningstar_rating", mstarMin);
+  if (retroMin != null) q = q.gte("retrocession_cgp", retroMin / 100);
 
   // Enveloppes
   if (envelopes.includes("PEA"))     q = q.eq("pea_eligible",     true);

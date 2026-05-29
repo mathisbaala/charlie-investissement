@@ -76,6 +76,7 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
+- retrocession_min: rétrocession CGP min en % ex: 0.5
 - manager_search: nom du gestionnaire (ex: "Amundi", "BlackRock", "Carmignac")
 - free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques)
 - chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
@@ -90,6 +91,11 @@ Règles de mapping :
 - "assurance-vie" (sans précision) → envelopes:["AV-FR","AV-LUX"]
 - "retraite" → envelopes:["PER"]
 - "bien noté" / "5 étoiles" → morningstar_min:4
+- "rétrocession" / "rétro CGP" → retrocession_min:0.3
+- "bonne rétrocession" / "rétrocession élevée" → retrocession_min:0.5
+- "ancienneté" / "historique long" → track_record_min:5
+- "volatilité faible" / "peu volatile" → vol_max:8
+- "gros fonds" / "encours élevés" → aum_min:500
 
 Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}
@@ -97,6 +103,8 @@ Exemples :
 - "OPCVM actions US performants éligibles CTO" → {"universe":["opcvm"],"envelopes":["CTO"],"chips":["Actions US","CTO éligible"]}
 - "fonds retraite PER Amundi" → {"envelopes":["PER"],"manager_search":"Amundi","chips":["PER","Amundi"]}
 - "ETF low cost monde" → {"universe":["etf"],"ter_max":0.3,"chips":["ETF monde","Low cost"]}
+- "OPCVM avec bonne rétrocession CGP éligibles AV" → {"universe":["opcvm"],"envelopes":["AV-FR","AV-LUX"],"retrocession_min":0.5,"chips":["Rétrocession ≥0.5%","Assurance-vie"]}
+- "fonds actions peu volatils 5 étoiles" → {"universe":["opcvm","etf"],"vol_max":10,"morningstar_min":4,"chips":["Actions","Faible volatilité","5 étoiles"]}
 
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
