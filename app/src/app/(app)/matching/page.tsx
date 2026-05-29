@@ -18,9 +18,12 @@ const ESG_OPTIONS: { value: EsgPreference; label: string }[] = [
 ];
 
 const ENVELOPE_OPTIONS: { value: Envelope; label: string }[] = [
-  { value: "pea",    label: "PEA" },
-  { value: "per",    label: "PER" },
-  { value: "av_lux", label: "AV Luxembourg" },
+  { value: "pea",     label: "PEA" },
+  { value: "pea_pme", label: "PEA-PME" },
+  { value: "per",     label: "PER" },
+  { value: "av_fr",   label: "AV France" },
+  { value: "av_lux",  label: "AV Luxembourg" },
+  { value: "cto",     label: "CTO" },
 ];
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {

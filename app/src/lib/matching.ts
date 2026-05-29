@@ -1,6 +1,6 @@
 export type RiskProfile = "prudent" | "equilibre" | "dynamique" | "offensif";
 export type EsgPreference = "indifferent" | "art8" | "art9";
-export type Envelope = "pea" | "per" | "av_lux";
+export type Envelope = "pea" | "pea_pme" | "per" | "av_fr" | "av_lux" | "cto";
 
 export interface ClientProfile {
   age: number;
@@ -27,8 +27,11 @@ export interface MatchResult {
   aum_eur: number | null;
   morningstar_rating: number | null;
   pea_eligible: boolean | null;
+  pea_pme_eligible: boolean | null;
   per_eligible: boolean | null;
+  av_fr_eligible: boolean | null;
   av_lux_eligible: boolean | null;
+  cto_eligible: boolean | null;
   inception_date: string | null;
   data_completeness: number;
   match_score: number;
