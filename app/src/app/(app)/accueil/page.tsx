@@ -1,32 +1,75 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { Btn } from "@/components/ui/Btn";
-import { Search } from "@/components/ui/icons";
+import { Search, ChevronRight } from "@/components/ui/icons";
 import { getFavorites } from "@/lib/favorites";
 import { getRecentSearches, addSearch, clearSearches } from "@/lib/searches";
 import type { FavoriteEntry } from "@/lib/favorites";
 import type { SearchEntry } from "@/lib/searches";
-import { pct, dt } from "@/lib/format";
+import { pct, fmtAum, dt } from "@/lib/format";
+import type { FundStats } from "@/lib/types";
 
-const QUICK_SEARCHES: { label: string; q: string }[] = [
-  { label: "ETF monde", q: "ETF+monde+all+cap" },
-  { label: "SCPI diversifiées", q: "SCPI+diversifiées+rendement" },
-  { label: "Fonds article 9", q: "fonds+SFDR+article+9" },
-  { label: "Obligataires défensifs", q: "obligations+investment+grade" },
+// ─── Quick search presets ─────────────────────────────────────────────────────
+
+const QUICK_SEARCHES: { label: string; q: string; color?: string }[] = [
+  { label: "ETF monde PEA", q: "ETF+monde+%C3%A9ligible+PEA" },
+  { label: "SCPI rendement", q: "SCPI+diversifi%C3%A9es+rendement" },
+  { label: "Article 9 ISR", q: "fonds+SFDR+article+9+impact" },
+  { label: "Obligataires court terme", q: "obligations+investment+grade+d%C3%A9fensif" },
+  { label: "Fonds PER retraite", q: "fonds+%C3%A9ligible+PER+retraite" },
+  { label: "Low cost actions monde", q: "ETF+actions+monde+low+cost" },
 ];
+
+// ─── Top performer type ───────────────────────────────────────────────────────
+
+type TopFund = {
+  isin: string;
+  name: string;
+  gestionnaire: string | null;
+  product_type: string;
+  sfdr_article: number | null;
+  performance_1y: number | null;
+  performance_3y: number | null;
+  ter: number | null;
+  morningstar_rating: number | null;
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AccueilPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [searches, setSearches] = useState<SearchEntry[]>([]);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
+  const [stats, setStats] = useState<FundStats | null>(null);
+  const [topEtf, setTopEtf] = useState<TopFund[]>([]);
+  const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
 
   useEffect(() => {
     setSearches(getRecentSearches());
     setFavorites(getFavorites());
+
+    // Fetch live stats
+    fetch("/api/screener/stats")
+      .then((r) => r.json())
+      .then((d) => setStats(d))
+      .catch(() => {});
+
+    // Fetch top ETFs (by perf 3y)
+    fetch("/api/screener/top-performers?type=etf&sort_by=performance_3y&limit=5&min_completeness=70")
+      .then((r) => r.json())
+      .then((d) => setTopEtf(d.data ?? []))
+      .catch(() => {});
+
+    // Fetch top OPCVMs (by sharpe 3y)
+    fetch("/api/screener/top-performers?type=opcvm&sort_by=performance_3y&limit=5&min_completeness=70&min_aum=50000000")
+      .then((r) => r.json())
+      .then((d) => setTopOpcvm(d.data ?? []))
+      .catch(() => {});
   }, []);
 
   function handleSearch() {
@@ -40,9 +83,10 @@ export default function AccueilPage() {
 
   return (
     <div className="h-full overflow-y-auto bg-cream px-8 py-10">
-      <div className="max-w-[960px] mx-auto">
-        {/* Section 1 — Search hero */}
-        <div className="mb-10">
+      <div className="max-w-[1040px] mx-auto">
+
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <div className="mb-8">
           <h1
             className="text-[32px] text-ink italic"
             style={{ fontFamily: "var(--font-serif)" }}
@@ -50,10 +94,10 @@ export default function AccueilPage() {
             Charlie.
           </h1>
           <p className="text-[13px] text-muted mt-1">
-            Décrire votre recherche en langage naturel.
+            Votre base de données fonds, normalisée pour le conseil.
           </p>
 
-          <div className="mt-6 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3">
+          <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3">
             <Search size={16} className="text-muted shrink-0" />
             <TypingPrompt
               value={query}
@@ -65,114 +109,241 @@ export default function AccueilPage() {
               Rechercher
             </Btn>
           </div>
+
+          {/* Quick search chips */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {QUICK_SEARCHES.map(({ label, q }) => (
+              <button
+                key={label}
+                onClick={() => router.push(`/recherche?q=${q}`)}
+                className="bg-paper hover:bg-accent-soft text-ink-2 hover:text-accent-ink text-[11px] px-3 py-1.5 rounded-full border border-line hover:border-accent/20 transition-colors cursor-pointer"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Section 2 — 3-column grid */}
-        <div className="grid grid-cols-3 gap-5">
+        {/* ── Stats KPI bar ─────────────────────────────────────────────────── */}
+        {stats && (
+          <div className="grid grid-cols-4 gap-3 mb-8">
+            {[
+              {
+                label: "Fonds exploitables",
+                value: stats.exploitable_funds?.toLocaleString("fr-FR") ?? "—",
+                sub: `sur ${stats.total_funds?.toLocaleString("fr-FR")} au total`,
+              },
+              {
+                label: "OPCVM",
+                value: stats.by_type?.["opcvm"]?.toLocaleString("fr-FR") ?? "—",
+                sub: "fonds actifs / UCITS",
+              },
+              {
+                label: "ETF",
+                value: stats.by_type?.["etf"]?.toLocaleString("fr-FR") ?? "—",
+                sub: "trackers et indices",
+              },
+              {
+                label: "Perf. moy. 3A",
+                value: stats.avg_perf_3y != null ? pct(stats.avg_perf_3y, true) : "—",
+                sub: "univers ≥ 60% complétude",
+              },
+            ].map(({ label, value, sub }) => (
+              <div key={label} className="bg-paper rounded-xl border border-line px-5 py-4">
+                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-1">{label}</p>
+                <p className="text-[22px] font-medium text-ink leading-none" style={{ fontFamily: "var(--font-serif)" }}>
+                  {value}
+                </p>
+                {sub && <p className="text-[10px] text-muted-2 mt-1">{sub}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── 3-column grid ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-5 mb-8">
+
           {/* Col 1 — Recherches récentes */}
-          <div>
+          <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Recherches récentes
             </p>
             {searches.length === 0 ? (
-              <p className="text-[12px] text-muted italic">
-                Aucune recherche récente
-              </p>
+              <p className="text-[12px] text-muted italic">Aucune recherche récente</p>
             ) : (
-              <div className="flex flex-col gap-1">
-                {searches.slice(0, 5).map((s, i) => (
+              <div className="flex flex-col gap-0.5">
+                {searches.slice(0, 6).map((s, i) => (
                   <div
                     key={i}
-                    className="cursor-pointer group rounded-lg px-3 py-2 hover:bg-paper-2 transition-colors"
-                    onClick={() =>
-                      router.push(
-                        "/recherche?q=" + encodeURIComponent(s.query)
-                      )
-                    }
+                    className="cursor-pointer group rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
+                    onClick={() => router.push("/recherche?q=" + encodeURIComponent(s.query))}
                   >
-                    <p className="text-[12px] text-ink-2 group-hover:text-ink truncate">
-                      {s.query}
-                    </p>
-                    <p
-                      className="text-[10px] text-muted-2 mt-0.5"
-                      style={{ fontFamily: "var(--font-mono)" }}
-                    >
+                    <p className="text-[12px] text-ink-2 group-hover:text-ink truncate">{s.query}</p>
+                    <p className="text-[10px] text-muted-2 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>
                       {dt(s.searched_at)}
                     </p>
                   </div>
                 ))}
                 <button
-                  onClick={() => {
-                    clearSearches();
-                    setSearches([]);
-                  }}
-                  className="text-[11px] text-muted hover:text-ink mt-1 text-left px-3 transition-colors"
+                  onClick={() => { clearSearches(); setSearches([]); }}
+                  className="text-[10px] text-muted hover:text-ink mt-2 text-left px-2 transition-colors"
                 >
-                  Effacer
+                  Effacer l'historique
                 </button>
               </div>
             )}
           </div>
 
           {/* Col 2 — Favoris récents */}
-          <div>
+          <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Favoris récents
             </p>
             {favorites.length === 0 ? (
-              <p className="text-[12px] text-muted italic">
-                Aucun favori enregistré
-              </p>
+              <p className="text-[12px] text-muted italic">Aucun favori enregistré</p>
             ) : (
-              <div className="flex flex-col gap-1">
-                {favorites.slice(0, 5).map((f) => (
+              <div className="flex flex-col gap-0.5">
+                {favorites.slice(0, 6).map((f) => (
                   <div
                     key={f.isin}
-                    className="cursor-pointer group rounded-lg px-3 py-2 hover:bg-paper-2 transition-colors"
+                    className="cursor-pointer group rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
                     onClick={() => router.push(`/fonds/${f.isin}`)}
                   >
-                    <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">
-                      {f.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-[10px] text-muted truncate">
-                        {f.gestionnaire ?? "—"}
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium flex-1">
+                        {f.name}
                       </p>
                       {f.performance_3y != null && (
                         <span
-                          className={`text-[10px] ml-auto shrink-0 ${
-                            f.performance_3y >= 0 ? "text-ok" : "text-warn"
-                          }`}
-                          style={{ fontFamily: "var(--font-mono)" }}
+                          className={`text-[11px] font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}
                         >
                           {pct(f.performance_3y, true)}
                         </span>
                       )}
                     </div>
+                    <p className="text-[10px] text-muted truncate px-0.5">{f.gestionnaire ?? "—"}</p>
                   </div>
                 ))}
+                <Link href="/favoris" className="text-[10px] text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
+                  Voir tous les favoris <ChevronRight size={10} />
+                </Link>
               </div>
             )}
           </div>
 
-          {/* Col 3 — Explorer */}
-          <div>
+          {/* Col 3 — Enveloppes rapides */}
+          <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
-              Explorer
+              Par enveloppe
             </p>
-            <div className="flex flex-nowrap gap-2">
-              {QUICK_SEARCHES.map(({ label, q }) => (
+            <div className="flex flex-col gap-1">
+              {[
+                { label: "PEA", q: "fonds+%C3%A9ligibles+PEA", desc: "Plan Épargne en Actions" },
+                { label: "PEA-PME", q: "fonds+%C3%A9ligibles+PEA-PME+PME", desc: "PEA dédié PME / ETI" },
+                { label: "PER", q: "fonds+%C3%A9ligibles+PER+retraite", desc: "Plan Épargne Retraite" },
+                { label: "AV France", q: "fonds+assurance-vie+France", desc: "Assurance-Vie française" },
+                { label: "AV Luxembourg", q: "fonds+assurance-vie+luxembourg", desc: "AV luxembourgeoise" },
+                { label: "CTO", q: "fonds+%C3%A9ligibles+CTO+compte-titres", desc: "Compte-Titres Ordinaire" },
+              ].map(({ label, q, desc }) => (
                 <button
                   key={label}
                   onClick={() => router.push(`/recherche?q=${q}`)}
-                  className="bg-paper-2 hover:bg-accent-soft text-ink-2 hover:text-accent-ink text-[11px] px-3 py-1.5 rounded-full border border-line hover:border-accent/20 transition-colors cursor-pointer"
+                  className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-paper-2 transition-colors text-left group"
                 >
-                  {label}
+                  <div>
+                    <span className="text-[12px] text-ink-2 group-hover:text-ink font-medium">{label}</span>
+                    <p className="text-[10px] text-muted-2">{desc}</p>
+                  </div>
+                  <ChevronRight size={12} className="text-muted group-hover:text-ink-2 shrink-0" />
                 </button>
               ))}
             </div>
           </div>
         </div>
+
+        {/* ── Top performers ─────────────────────────────────────────────────── */}
+        {(topEtf.length > 0 || topOpcvm.length > 0) && (
+          <div className="grid grid-cols-2 gap-5">
+
+            {/* Top ETF */}
+            {topEtf.length > 0 && (
+              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top ETF · Perf 3A</p>
+                  <Link href="/recherche?q=ETF+performant" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                    Voir tout <ChevronRight size={10} />
+                  </Link>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {topEtf.map((f) => (
+                    <Link
+                      key={f.isin}
+                      href={`/fonds/${f.isin}`}
+                      className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">
+                          {f.name}
+                        </p>
+                        <p className="text-[10px] text-muted-2 truncate">
+                          {f.gestionnaire ?? f.isin}
+                          {f.ter != null && <span className="ml-1.5 font-mono">{pct(f.ter)}</span>}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {f.performance_3y != null && (
+                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                            {pct(f.performance_3y, true)}
+                          </span>
+                        )}
+                        <p className="text-[10px] text-muted-2">3 ans</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top OPCVM */}
+            {topOpcvm.length > 0 && (
+              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top OPCVM · Perf 3A</p>
+                  <Link href="/recherche?q=OPCVM+performant" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                    Voir tout <ChevronRight size={10} />
+                  </Link>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {topOpcvm.map((f) => (
+                    <Link
+                      key={f.isin}
+                      href={`/fonds/${f.isin}`}
+                      className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">
+                          {f.name}
+                        </p>
+                        <p className="text-[10px] text-muted-2 truncate">
+                          {f.gestionnaire ?? f.isin}
+                          {f.sfdr_article && <span className="ml-1.5">Art.{f.sfdr_article}</span>}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {f.performance_3y != null && (
+                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                            {pct(f.performance_3y, true)}
+                          </span>
+                        )}
+                        <p className="text-[10px] text-muted-2">3 ans</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
