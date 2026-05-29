@@ -10,19 +10,7 @@ import { getFavorites } from "@/lib/favorites";
 import { getRecentSearches, addSearch, clearSearches } from "@/lib/searches";
 import type { FavoriteEntry } from "@/lib/favorites";
 import type { SearchEntry } from "@/lib/searches";
-import { pct, fmtAum, dt } from "@/lib/format";
-import type { FundStats } from "@/lib/types";
-
-// ─── Quick search presets ─────────────────────────────────────────────────────
-
-const QUICK_SEARCHES: { label: string; q: string; color?: string }[] = [
-  { label: "ETF monde PEA", q: "ETF+monde+%C3%A9ligible+PEA" },
-  { label: "SCPI rendement", q: "SCPI+diversifi%C3%A9es+rendement" },
-  { label: "Article 9 ISR", q: "fonds+SFDR+article+9+impact" },
-  { label: "Obligataires court terme", q: "obligations+investment+grade+d%C3%A9fensif" },
-  { label: "Fonds PER retraite", q: "fonds+%C3%A9ligible+PER+retraite" },
-  { label: "Low cost actions monde", q: "ETF+actions+monde+low+cost" },
-];
+import { pct, dt } from "@/lib/format";
 
 // ─── Top performer type ───────────────────────────────────────────────────────
 
@@ -45,19 +33,12 @@ export default function AccueilPage() {
   const [query, setQuery] = useState("");
   const [searches, setSearches] = useState<SearchEntry[]>([]);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
-  const [stats, setStats] = useState<FundStats | null>(null);
   const [topEtf, setTopEtf] = useState<TopFund[]>([]);
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
 
   useEffect(() => {
     setSearches(getRecentSearches());
     setFavorites(getFavorites());
-
-    // Fetch live stats
-    fetch("/api/screener/stats")
-      .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => {});
 
     // Fetch top ETFs (by perf 3y)
     fetch("/api/screener/top-performers?type=etf&sort_by=performance_3y&limit=5&min_completeness=70")
@@ -93,10 +74,6 @@ export default function AccueilPage() {
           >
             Charlie.
           </h1>
-          <p className="text-[13px] text-muted mt-1">
-            Votre base de données fonds, normalisée pour le conseil.
-          </p>
-
           <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3">
             <Search size={16} className="text-muted shrink-0" />
             <TypingPrompt
@@ -110,55 +87,7 @@ export default function AccueilPage() {
             </Btn>
           </div>
 
-          {/* Quick search chips */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {QUICK_SEARCHES.map(({ label, q }) => (
-              <button
-                key={label}
-                onClick={() => router.push(`/recherche?q=${q}`)}
-                className="bg-paper hover:bg-accent-soft text-ink-2 hover:text-accent-ink text-[11px] px-3 py-1.5 rounded-full border border-line hover:border-accent/20 transition-colors cursor-pointer"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
-
-        {/* ── Stats KPI bar ─────────────────────────────────────────────────── */}
-        {stats && (
-          <div className="grid grid-cols-4 gap-3 mb-8">
-            {[
-              {
-                label: "Fonds exploitables",
-                value: stats.exploitable_funds?.toLocaleString("fr-FR") ?? "—",
-                sub: `sur ${stats.total_funds?.toLocaleString("fr-FR")} au total`,
-              },
-              {
-                label: "OPCVM",
-                value: stats.by_type?.["opcvm"]?.toLocaleString("fr-FR") ?? "—",
-                sub: "fonds actifs / UCITS",
-              },
-              {
-                label: "ETF",
-                value: stats.by_type?.["etf"]?.toLocaleString("fr-FR") ?? "—",
-                sub: "trackers et indices",
-              },
-              {
-                label: "Perf. moy. 3A",
-                value: stats.avg_perf_3y != null ? pct(stats.avg_perf_3y, true) : "—",
-                sub: "univers ≥ 60% complétude",
-              },
-            ].map(({ label, value, sub }) => (
-              <div key={label} className="bg-paper rounded-xl border border-line px-5 py-4">
-                <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-1">{label}</p>
-                <p className="text-[22px] font-medium text-ink leading-none" style={{ fontFamily: "var(--font-serif)" }}>
-                  {value}
-                </p>
-                {sub && <p className="text-[10px] text-muted-2 mt-1">{sub}</p>}
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-5 mb-8">
