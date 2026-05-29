@@ -72,6 +72,9 @@ DB_COLUMNS = frozenset({
     "sharpe_1y", "sharpe_3y", "max_drawdown_1y", "max_drawdown_3y",
     "morningstar_rating", "track_record_years", "risk_level",
     "data_completeness", "updated_at",
+    # Frais détaillés (migration 20260529000004)
+    "entry_fee_max", "exit_fee_max", "performance_fee",
+    "retrocession_cgp", "holding_period_years",
 })
 
 HEADERS = {
@@ -132,6 +135,18 @@ KID_PATTERNS_FR = {
         r"frais\s+d.entr[eé]e.*?(\d+[.,]\d+)\s*%",
         r"commission\s+de\s+souscription.*?(\d+[.,]\d+)\s*%",
     ],
+    "exit_fee_max": [
+        r"co[uû]ts\s+de\s+sortie.*?jusqu.[aà].*?(\d+[.,]\d+)\s*%",
+        r"frais\s+de\s+sortie.*?(\d+[.,]\d+)\s*%",
+        r"co[uû]ts\s+de\s+sortie[^\d]*(\d+[.,]\d+)\s*%",
+        r"commission\s+de\s+rachat.*?(\d+[.,]\d+)\s*%",
+    ],
+    "performance_fee": [
+        r"commission\s+de\s+surperformance[^\d]*(\d+[.,]\d+)\s*%",
+        r"frais\s+de\s+performance[^\d]*(\d+[.,]\d+)\s*%",
+        r"co[uû]ts\s+ponctuels[^\d]*surperformance[^\d]*(\d+[.,]\d+)\s*%",
+        r"performance\s+fee[^\d]*(\d+[.,]\d+)\s*%",
+    ],
     "holding_period": [
         r"p[eé]riode\s*(?:minimale\s*de\s*)?d[eé]tention\s*recommand[eé]e\s*:?\s*(\d+)\s*ans?",
         r"p[eé]riode\s+(?:minimale\s+de\s+d[eé]tention|de\s+d[eé]tention\s+recommand[eé]e)[^\d]*(\d+)\s*an",
@@ -164,6 +179,15 @@ KID_PATTERNS_EN = {
     "entry_fee_max": [
         r"entry\s+costs?.*?up\s+to\s+(\d+[.,]\d+)\s*%",
         r"entry\s+(?:charge|fee).*?(\d+[.,]\d+)\s*%",
+    ],
+    "exit_fee_max": [
+        r"exit\s+costs?.*?up\s+to\s+(\d+[.,]\d+)\s*%",
+        r"exit\s+(?:charge|fee).*?(\d+[.,]\d+)\s*%",
+        r"redemption\s+(?:charge|fee).*?(\d+[.,]\d+)\s*%",
+    ],
+    "performance_fee": [
+        r"performance\s+fee[^\d]*(\d+[.,]\d+)\s*%",
+        r"performance[\s\-]+related\s+(?:fee|cost)[^\d]*(\d+[.,]\d+)\s*%",
     ],
     "holding_period": [
         r"recommended\s+holding\s+period[^\d]*(\d+)\s*year",
@@ -239,11 +263,21 @@ def parse_kid_text(text: str) -> dict:
         if val is not None and 0 <= val <= 10:
             r["entry_fee_max"] = round(val / 100, 6)
             conf += 10
+        # Exit fee
+        raw = try_patterns(text, pats.get("exit_fee_max", []))
+        val = extract_number(raw) if raw else None
+        if val is not None and 0 <= val <= 10:
+            r["exit_fee_max"] = round(val / 100, 6)
+        # Performance fee
+        raw = try_patterns(text, pats.get("performance_fee", []))
+        val = extract_number(raw) if raw else None
+        if val is not None and 0 <= val <= 60:
+            r["performance_fee"] = round(val / 100, 6)
         # Holding period
         raw = try_patterns(text, pats["holding_period"])
         val = extract_number(raw) if raw else None
         if val is not None and 1 <= val <= 30:
-            r["recommended_holding_years"] = int(val)
+            r["holding_period_years"] = int(val)
             conf += 15
         # Perf scenarios
         raw = try_patterns(text, pats["perf_moderate_5y"])

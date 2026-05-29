@@ -230,24 +230,13 @@ def run(apply: bool, limit: int | None, only_geco: bool) -> None:
             stats["not_found"] += 1
             continue
 
-        updates.append({
-            "isin": isin,
-            "retrocession_cgp": retro,
-            "updated_at": now.isoformat(),
-        })
-
-        if apply and len(updates) >= BATCH_SIZE:
-            client.table("investissement_funds").upsert(
-                updates, on_conflict="isin"
-            ).execute()
-            print(f"    → {len(updates)} rétrocessions mises en base")
-            updates.clear()
-
-    if apply and updates:
-        client.table("investissement_funds").upsert(
-            updates, on_conflict="isin"
-        ).execute()
-        print(f"    → {len(updates)} rétrocessions mises en base (flush final)")
+        if apply:
+            client.table("investissement_funds").update({
+                "retrocession_cgp": retro,
+                "updated_at": now.isoformat(),
+            }).eq("isin", isin).execute()
+        else:
+            updates.append({"isin": isin, "retrocession_cgp": retro})
 
     total = stats["pdf_ok"] + stats["inferred"] + stats["zero_inst"]
     print(f"\n  Résumé rétrocession CGP :")

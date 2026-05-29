@@ -50,8 +50,11 @@ const SELECT_COLUMNS = [
   "sfdr_article",
   "labels",
   "pea_eligible",
-  "av_lux_eligible",
+  "pea_pme_eligible",
   "per_eligible",
+  "av_fr_eligible",
+  "av_lux_eligible",
+  "cto_eligible",
   "ucits_compliant",
   "is_institutional",
   "accessible_retail",
@@ -153,9 +156,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const sriMax = parseInt_(sp.get("sri_max"));
   const terMax = parseFloat_(sp.get("ter_max"));
   const perf3yMin = parseFloat_(sp.get("perf_3y_min"));
-  const pea = sp.get("pea") === "true";
-  const per = sp.get("per") === "true";
-  const avLux = sp.get("av_lux") === "true";
+  const pea    = sp.get("pea")     === "true";
+  const peaPme = sp.get("pea_pme") === "true";
+  const per    = sp.get("per")     === "true";
+  const avFr   = sp.get("av_fr")   === "true";
+  const avLux  = sp.get("av_lux")  === "true";
+  const cto    = sp.get("cto")     === "true";
   const assetClasses = parseMulti(sp.get("asset_class"));
   const regions = parseMulti(sp.get("region"));
   const categories = parseMulti(sp.get("category"));
@@ -205,9 +211,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   // Eligibility flags
-  if (pea) q = q.eq("pea_eligible", true);
-  if (per) q = q.eq("per_eligible", true);
-  if (avLux) q = q.eq("av_lux_eligible", true);
+  if (pea)    q = q.eq("pea_eligible",     true);
+  if (peaPme) q = q.eq("pea_pme_eligible", true);
+  if (per)    q = q.eq("per_eligible",     true);
+  if (avFr)   q = q.eq("av_fr_eligible",   true);
+  if (avLux)  q = q.eq("av_lux_eligible",  true);
+  if (cto)    q = q.eq("cto_eligible",     true);
 
   // Asset class
   if (assetClasses.length > 0) {
