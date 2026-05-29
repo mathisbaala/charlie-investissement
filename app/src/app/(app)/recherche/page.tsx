@@ -300,12 +300,14 @@ function RechercheInner() {
                 </button>
               </div>
             ) : (
-              /* Fund table */
-              <FundTable
-                funds={funds}
-                onRowClick={handleRowClick}
-                activeFundIsin={activeFund}
-              />
+              /* Fund table — bordered container */
+              <div className="mx-4 my-3 border border-line rounded-xl overflow-hidden">
+                <FundTable
+                  funds={funds}
+                  onRowClick={handleRowClick}
+                  activeFundIsin={activeFund}
+                />
+              </div>
             )}
 
             {/* Pagination */}

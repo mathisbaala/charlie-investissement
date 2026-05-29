@@ -8,29 +8,17 @@ export {
   Filter, BarChart2, TrendingUp, Shield, Loader2
 } from "lucide-react";
 
-// Charlie brand logo: 26×26 ink square with italic Instrument Serif "C"
-export function Logo({ size = 26 }: { size?: number }) {
+// Charlie brand logo — uses the official mark PNG
+export function Logo({ size = 28 }: { size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
   return (
-    <svg
+    <img
+      src="/charlie-logo.png"
+      alt="Charlie"
       width={size}
       height={size}
-      viewBox="0 0 26 26"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="26" height="26" rx="6" fill="oklch(0.22 0.012 60)" />
-      <text
-        x="13"
-        y="19"
-        textAnchor="middle"
-        fontFamily="'Instrument Serif', Georgia, serif"
-        fontStyle="italic"
-        fontSize="17"
-        fill="oklch(0.955 0.018 78)"
-      >
-        C
-      </text>
-    </svg>
+      style={{ width: size, height: size, objectFit: "contain", display: "block" }}
+    />
   );
 }
 
