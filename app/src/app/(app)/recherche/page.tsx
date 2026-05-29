@@ -245,10 +245,11 @@ function RechercheInner() {
 
           <button
             onClick={handleSortDirToggle}
-            className="p-1.5 rounded-lg text-muted hover:text-ink-2 hover:bg-paper-2 border border-transparent hover:border-line transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
             title={sortDir === "desc" ? "Décroissant" : "Croissant"}
           >
-            <ArrowUpDown size={13} />
+            <ArrowUpDown size={12} />
+            {sortDir === "desc" ? "Déc." : "Crois."}
           </button>
 
           <button

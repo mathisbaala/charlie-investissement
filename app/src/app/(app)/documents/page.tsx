@@ -13,10 +13,6 @@ export default function DocumentsPage() {
       >
         Documents
       </h1>
-      <p className="text-[13px] text-muted mt-1">
-        Accédez aux DICIs, prospectus et rapports réglementaires.
-      </p>
-
       {/* Empty state card */}
       <div className="mt-8 bg-paper rounded-xl border border-line p-12 flex flex-col items-center text-center">
         <FileText size={40} className="text-muted-2" strokeWidth={1.25} />
