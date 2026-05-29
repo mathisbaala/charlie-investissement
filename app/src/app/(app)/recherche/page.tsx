@@ -46,6 +46,7 @@ function buildParams(
   if (f.retrocession_min != null)    sp.set("retrocession_min",  String(f.retrocession_min));
   if (f.envelopes?.length)           sp.set("envelopes",         f.envelopes.join(","));
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
+  if (f.sector?.length)              sp.set("sector",            f.sector.join(","));
   if (f.currency?.length)            sp.set("currency",          f.currency.join(","));
   if (f.manager_search)              sp.set("manager_search",    f.manager_search);
   if (f.free_text)                   sp.set("search",            f.free_text);

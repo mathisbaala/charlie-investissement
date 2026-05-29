@@ -74,6 +74,7 @@ Retourne un objet JSON valide avec ces champs optionnels :
   (PEA=Plan Épargne en Actions, PEA-PME=PEA dédié PME, PER=Plan Épargne Retraite,
    AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
 - universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
+- sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
 - retrocession_min: rétrocession CGP min en % ex: 0.5
@@ -96,6 +97,13 @@ Règles de mapping :
 - "ancienneté" / "historique long" → track_record_min:5
 - "volatilité faible" / "peu volatile" → vol_max:8
 - "gros fonds" / "encours élevés" → aum_min:500
+- "tech" / "technologie" / "numérique" → sector:["Technologie"]
+- "santé" / "pharma" / "médical" / "biotech" → sector:["Santé"]
+- "finance" / "banque" / "assurance" → sector:["Finance"]
+- "énergie" / "pétrole" / "gaz" / "renouvelable" → sector:["Énergie"]
+- "immobilier" / "REIT" / "foncier" → sector:["Immobilier"]
+- "environnement" / "eau" / "climat" → sector:["Environnement"]
+- "industrie" / "industrie" → sector:["Industrie"]
 
 Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}
@@ -105,6 +113,9 @@ Exemples :
 - "ETF low cost monde" → {"universe":["etf"],"ter_max":0.3,"chips":["ETF monde","Low cost"]}
 - "OPCVM avec bonne rétrocession CGP éligibles AV" → {"universe":["opcvm"],"envelopes":["AV-FR","AV-LUX"],"retrocession_min":0.5,"chips":["Rétrocession ≥0.5%","Assurance-vie"]}
 - "fonds actions peu volatils 5 étoiles" → {"universe":["opcvm","etf"],"vol_max":10,"morningstar_min":4,"chips":["Actions","Faible volatilité","5 étoiles"]}
+- "fonds technologie innovants" → {"sector":["Technologie"],"chips":["Technologie"]}
+- "ETF santé pharma article 9" → {"universe":["etf"],"sector":["Santé"],"sfdr":[9],"chips":["ETF","Santé","Article 9"]}
+- "fonds énergie renouvelable ESG" → {"sector":["Énergie"],"sfdr":[8,9],"chips":["Énergie","ESG"]}
 
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
