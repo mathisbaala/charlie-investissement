@@ -16,7 +16,6 @@ const QUICK_SEARCHES: { label: string; q: string }[] = [
   { label: "SCPI diversifiées", q: "SCPI+diversifiées+rendement" },
   { label: "Fonds article 9", q: "fonds+SFDR+article+9" },
   { label: "Obligataires défensifs", q: "obligations+investment+grade" },
-  { label: "Monétaires EUR", q: "fonds+monétaires+EUR" },
 ];
 
 export default function AccueilPage() {
@@ -161,7 +160,7 @@ export default function AccueilPage() {
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Explorer
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-nowrap gap-2">
               {QUICK_SEARCHES.map(({ label, q }) => (
                 <button
                   key={label}

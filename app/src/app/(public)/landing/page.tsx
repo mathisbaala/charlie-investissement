@@ -81,7 +81,6 @@ export default function LandingPage() {
 
         {/* Search card */}
         <div className="w-full bg-paper rounded-2xl border border-line shadow-[0_4px_24px_oklch(0.22_0.012_60_/_0.07)] px-5 py-4 flex items-center gap-3">
-          <Sparkle size={14} className="text-accent shrink-0" />
           <TypingPrompt
             value={query}
             onChange={setQuery}
