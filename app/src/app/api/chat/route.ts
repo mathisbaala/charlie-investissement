@@ -30,15 +30,20 @@ export async function POST(req: NextRequest): Promise<Response> {
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
-        for await (const chunk of stream) {
-          if (
-            chunk.type === "content_block_delta" &&
-            chunk.delta.type === "text_delta"
-          ) {
-            controller.enqueue(encoder.encode(chunk.delta.text));
+        try {
+          for await (const chunk of stream) {
+            if (
+              chunk.type === "content_block_delta" &&
+              chunk.delta.type === "text_delta"
+            ) {
+              controller.enqueue(encoder.encode(chunk.delta.text));
+            }
           }
+        } catch {
+          // Stream error (e.g. API quota) — close cleanly so client sees empty body
+        } finally {
+          controller.close();
         }
-        controller.close();
       },
     });
 
