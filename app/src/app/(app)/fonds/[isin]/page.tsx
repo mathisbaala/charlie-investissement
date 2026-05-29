@@ -43,9 +43,9 @@ export default async function FondPage({
 
   if (!fund) notFound();
 
-  const threeYearsAgo = new Date();
-  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-  const since = threeYearsAgo.toISOString().split("T")[0];
+  const fiveYearsAgo = new Date();
+  fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+  const since = fiveYearsAgo.toISOString().split("T")[0];
 
   const [
     { data: prices },
