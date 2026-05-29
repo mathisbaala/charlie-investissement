@@ -58,6 +58,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const currency     = arr(p(sp, "currency"));
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
   const search  = p(sp, "search")?.trim() ?? "";
+  const hasKid  = p(sp, "has_kid") === "true";
   const sortBy  = p(sp, "sort_by") ?? "data_completeness";
   const sortDir = p(sp, "sort_dir") === "asc";
   const page    = Math.max(1, int(p(sp, "page")) ?? 1);
@@ -109,6 +110,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (mgmtStyles.length)   q = q.in("management_style", mgmtStyles);
   if (currency.length)     q = q.in("currency", currency);
   if (mgr)              q = q.ilike("gestionnaire", `%${mgr}%`);
+
+  if (hasKid)   q = q.not("kid_url", "is", null);
 
   if (search) {
     const safe = search.replace(/[%_,()\[\]\\]/g, "");
