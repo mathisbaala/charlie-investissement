@@ -53,6 +53,12 @@ export type Fund = {
   inception_date: string | null;
   track_record_years: number | null;
 
+  // Frais détaillés (vue v3)
+  entry_fee_max: number | null;
+  exit_fee_max: number | null;
+  performance_fee: number | null;
+  retrocession_cgp: number | null;
+
   // Éligibilités
   pea_eligible: boolean | null;
   per_eligible: boolean | null;

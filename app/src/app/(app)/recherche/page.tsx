@@ -258,6 +258,7 @@ function RechercheInner() {
                   <option value="sharpe_1y">Sharpe 1A</option>
                   <option value="volatility_1y">Volatilité 1A</option>
                   <option value="ter">TER</option>
+                  <option value="retrocession_cgp">Rétrocession CGP</option>
                   <option value="morningstar_rating">Morningstar</option>
                   <option value="track_record_years">Ancienneté</option>
                 </select>

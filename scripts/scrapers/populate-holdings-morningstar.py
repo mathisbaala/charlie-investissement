@@ -293,7 +293,7 @@ def run(apply: bool, limit: int | None, single_isin: str | None) -> None:
             .select("isin, name")
             .not_.is_("morningstar_rating", "null")
             .in_("product_type", ["opcvm", "etf", "fcp", "sicav"])
-            .order("aum_eur", desc=True, nulls_first=False)
+            .order("aum_eur", desc=True)
         )
         if limit:
             q = q.limit(limit * 3)  # on en prend plus car certains n'ont pas de MS ID
