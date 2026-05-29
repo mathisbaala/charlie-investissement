@@ -22,6 +22,7 @@ function SriScale({ value }: { value: number }) {
 
 export function RisqueCard({ fund }: { fund: FundDetailHF }) {
   const sri = fund.risk_score ?? fund.srri;
+  const has3yData = (fund.track_record_years ?? 0) >= 3;
   const hasData =
     sri != null ||
     fund.volatility_1y != null ||
@@ -55,7 +56,7 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
               <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{pct(fund.volatility_1y)}</td>
             </tr>
           )}
-          {fund.volatility_3y != null && (
+          {fund.volatility_3y != null && has3yData && (
             <tr className="border-b border-line-soft">
               <td className="py-2.5 text-[12px] text-muted pr-4">Volatilité 3A</td>
               <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{pct(fund.volatility_3y)}</td>
@@ -67,7 +68,7 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
               <td className="py-2.5 text-[12px] text-warn text-right font-mono font-medium">{pct(fund.max_drawdown_1y)}</td>
             </tr>
           )}
-          {fund.max_drawdown_3y != null && (
+          {fund.max_drawdown_3y != null && has3yData && (
             <tr className="border-b border-line-soft">
               <td className="py-2.5 text-[12px] text-muted pr-4">Max Drawdown 3A</td>
               <td className="py-2.5 text-[12px] text-warn text-right font-mono font-medium">{pct(fund.max_drawdown_3y)}</td>
@@ -79,7 +80,7 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
               <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fmtSharpe(fund.sharpe_1y)}</td>
             </tr>
           )}
-          {fund.sharpe_3y != null && (
+          {fund.sharpe_3y != null && has3yData && (
             <tr>
               <td className="py-2.5 text-[12px] text-muted pr-4">Sharpe 3A</td>
               <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{fmtSharpe(fund.sharpe_3y)}</td>
