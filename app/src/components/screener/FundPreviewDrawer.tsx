@@ -95,6 +95,18 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             </p>
           )}
         </div>
+        {/* Favoris pill */}
+        <button
+          onClick={toggleFav}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0 ${
+            fav
+              ? "bg-accent-soft text-accent-ink border-accent/30"
+              : "border-line text-ink-2 hover:border-accent/40"
+          }`}
+        >
+          <Star size={11} className={fav ? "fill-current" : ""} />
+          Favoris
+        </button>
         {/* Compare pill */}
         <button
           onClick={() => fund && toggle({
@@ -128,29 +140,18 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
         </div>
       ) : fund ? (
         <div className="flex-1 px-4 py-3 space-y-4">
-          {/* Actions */}
-          <div className="flex gap-2">
+          {/* Actions — DICI uniquement si disponible */}
+          {fund.kid_url && (
             <Btn
-              variant={fav ? "accent-soft" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={toggleFav}
-              className="flex-1"
+              onClick={() => window.open(fund.kid_url!, "_blank")}
+              className="w-full"
             >
-              <Star size={13} className={fav ? "fill-current" : ""} />
-              Favoris
+              <Download size={13} />
+              Télécharger le DICI
             </Btn>
-            {fund.kid_url && (
-              <Btn
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(fund.kid_url!, "_blank")}
-                className="flex-1"
-              >
-                <Download size={13} />
-                DICI
-              </Btn>
-            )}
-          </div>
+          )}
 
           {/* Meta */}
           <div className="space-y-0.5 text-[11px] text-ink-2">

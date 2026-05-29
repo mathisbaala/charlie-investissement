@@ -103,25 +103,25 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
                 <td className="px-3 py-3 text-center"><SfdrBadge article={f.sfdr_article} /></td>
                 <td className="px-3 py-3 text-center"><SriBadge sri={f.risk_score} /></td>
 
-                <td className="px-3 py-3 text-right font-mono text-ink-2">
+                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {pct(f.ongoing_charges ?? f.ter)}
                 </td>
-                <td className={`px-3 py-3 text-right font-mono font-medium ${
+                <td className={`px-3 py-3 text-right font-mono font-medium whitespace-nowrap ${
                   f.performance_1y == null ? "text-muted" :
                   f.performance_1y >= 0 ? "text-ok" : "text-warn"
                 }`}>
                   {pct(f.performance_1y, true)}
                 </td>
-                <td className={`px-3 py-3 text-right font-mono font-medium ${
+                <td className={`px-3 py-3 text-right font-mono font-medium whitespace-nowrap ${
                   f.performance_3y == null ? "text-muted" :
                   f.performance_3y >= 0 ? "text-ok" : "text-warn"
                 }`}>
                   {pct(f.performance_3y, true)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-ink-2">
+                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {pct(f.volatility_1y)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-ink-2">
+                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {f.sharpe_1y == null ? "—" : f.sharpe_1y.toFixed(2)}
                 </td>
 

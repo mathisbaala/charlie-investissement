@@ -229,7 +229,7 @@ function RechercheInner() {
           <select
             value={sortBy}
             onChange={(e) => handleSortByChange(e.target.value)}
-            className="text-[11px] border border-line rounded-lg px-2.5 py-1.5 bg-paper text-ink-2 cursor-pointer focus:outline-none focus:border-accent/40 transition-colors"
+            className="flex items-center px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none focus:border-accent/40 transition-colors hover:bg-paper-2"
           >
             <option value="data_completeness">Complétude</option>
             <option value="performance_3y">Perf 3A</option>
