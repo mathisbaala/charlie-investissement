@@ -127,9 +127,12 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
 
                 <td className="px-3 py-3">
                   <div className="flex gap-1 flex-wrap">
-                    <EligPill label="PEA"     active={f.pea_eligible} />
-                    <EligPill label="PER"     active={f.per_eligible} />
-                    <EligPill label="AV Lux"  active={f.av_lux_eligible} />
+                    <EligPill label="PEA"      active={f.pea_eligible} />
+                    <EligPill label="PEA-PME"  active={f.pea_pme_eligible ?? null} />
+                    <EligPill label="PER"      active={f.per_eligible} />
+                    <EligPill label="CTO"      active={f.cto_eligible ?? null} />
+                    <EligPill label="AV FR"    active={f.av_fr_eligible ?? null} />
+                    <EligPill label="AV Lux"   active={f.av_lux_eligible} />
                   </div>
                 </td>
 
