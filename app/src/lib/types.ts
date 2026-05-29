@@ -295,6 +295,7 @@ export type ParsedFilters = {
   envelopes?: string[];
   universe?: string[];
   sector?: string[];
+  management_style?: string[];
   currency?: string[];
   morningstar_min?: number;
   manager_search?: string;

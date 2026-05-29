@@ -75,6 +75,7 @@ Retourne un objet JSON valide avec ces champs optionnels :
    AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
 - universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
+- management_style: tableau parmi ["passif","actif","smart_beta","alternatif"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
 - retrocession_min: rétrocession CGP min en % ex: 0.5
@@ -103,7 +104,11 @@ Règles de mapping :
 - "énergie" / "pétrole" / "gaz" / "renouvelable" → sector:["Énergie"]
 - "immobilier" / "REIT" / "foncier" → sector:["Immobilier"]
 - "environnement" / "eau" / "climat" → sector:["Environnement"]
-- "industrie" / "industrie" → sector:["Industrie"]
+- "industrie" → sector:["Industrie"]
+- "gestion passive" / "index" / "réplication" → management_style:["passif"]
+- "gestion active" / "stock-picking" → management_style:["actif"]
+- "smart beta" / "factoriel" → management_style:["smart_beta"]
+- "hedge fund" / "long-short" / "alternatif" → management_style:["alternatif"]
 
 Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}

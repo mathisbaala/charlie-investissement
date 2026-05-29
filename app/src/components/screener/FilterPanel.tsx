@@ -314,6 +314,27 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Style de gestion */}
+        <Section title="Style de gestion">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { val: "passif",     label: "Passif (index)" },
+              { val: "actif",      label: "Actif" },
+              { val: "smart_beta", label: "Smart beta" },
+              { val: "alternatif", label: "Alternatif" },
+            ].map(({ val, label }) => (
+              <SfdrPill
+                key={val}
+                label={label}
+                active={(f.management_style ?? []).includes(val)}
+                onToggle={() => set("management_style", toggleArr(f.management_style, val))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Morningstar */}
         <Section title="Notation Morningstar">
           <div className="flex gap-1.5">
