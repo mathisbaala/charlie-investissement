@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
 import { useSelection } from "@/components/SelectionProvider";
-import { pct, fmtAum, decodeHtml } from "@/lib/format";
+import { pct, decodeHtml } from "@/lib/format";
 import type { Fund } from "@/lib/types";
 
 interface FundTableProps {
@@ -39,7 +39,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 1A</th>
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 3A</th>
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Vol 1A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Sharpe</th>
+            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Rétro.</th>
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
             <th className="w-8 whitespace-nowrap" />
           </tr>
@@ -121,8 +121,10 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
                 <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {pct(f.volatility_1y)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
-                  {f.sharpe_1y == null ? "—" : f.sharpe_1y.toFixed(2)}
+                <td className={`px-3 py-3 text-right font-mono whitespace-nowrap font-medium ${
+                  f.retrocession_cgp == null ? "text-muted-2" : "text-accent"
+                }`}>
+                  {f.retrocession_cgp == null ? "—" : pct(f.retrocession_cgp * 100)}
                 </td>
 
                 <td className="px-3 py-3">

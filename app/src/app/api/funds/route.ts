@@ -14,6 +14,7 @@ const COLS = [
   "sharpe_1y","sharpe_3y","max_drawdown_1y","max_drawdown_3y","risk_score",
   "sfdr_article","labels","pea_eligible","pea_pme_eligible","per_eligible",
   "av_fr_eligible","av_lux_eligible","cto_eligible",
+  "entry_fee_max","exit_fee_max","performance_fee","retrocession_cgp",
   "ucits_compliant","is_institutional","accessible_retail","hedged",
   "aum_eur","morningstar_rating","currency","inception_date",
   "track_record_years","kid_url","data_completeness","updated_at",
@@ -62,7 +63,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const VALID_SORT = new Set([
     "performance_3y","performance_1y","performance_5y","ter","ongoing_charges",
     "aum_eur","sharpe_1y","sharpe_3y","volatility_1y","max_drawdown_3y",
-    "morningstar_rating","track_record_years","data_completeness"
+    "morningstar_rating","track_record_years","data_completeness",
+    "retrocession_cgp","entry_fee_max"
   ]);
   const safeSort = VALID_SORT.has(sortBy) ? sortBy : "data_completeness";
 
