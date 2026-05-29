@@ -70,12 +70,14 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
       {/* Chat trigger — logo mark */}
       <button
         onClick={onChatToggle}
-        className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
-          chatOpen ? "bg-accent-soft ring-1 ring-accent/30" : "hover:bg-paper-2"
+        className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+          chatOpen
+            ? "border-accent/30 bg-paper-2"
+            : "border-line bg-paper hover:bg-paper-2"
         }`}
         aria-label="Ouvrir Charlie"
       >
-        <Logo size={28} />
+        <Logo size={24} />
       </button>
     </header>
   );
