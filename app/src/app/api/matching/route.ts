@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   let q = supabase
     .from("investissement_funds_cgp")
     .select(
-      "isin,name,product_type,gestionnaire,sfdr_article,risk_score,ongoing_charges,performance_1y,performance_3y,performance_5y,volatility_1y,sharpe_1y,aum_eur,morningstar_rating,pea_eligible,per_eligible,av_lux_eligible,inception_date,data_completeness"
+      "isin,name,product_type,gestionnaire,sfdr_article,risk_score,ongoing_charges,performance_1y,performance_3y,performance_5y,volatility_1y,sharpe_1y,aum_eur,morningstar_rating,pea_eligible,pea_pme_eligible,per_eligible,av_fr_eligible,av_lux_eligible,cto_eligible,inception_date,data_completeness"
     )
     .gte("data_completeness", 60)
     .order("data_completeness", { ascending: false })
@@ -22,9 +22,12 @@ export async function POST(req: NextRequest) {
   // Filtrer sur l'enveloppe — au moins une doit matcher
   if (profile.envelopes.length > 0) {
     const conditions: string[] = [];
-    if (profile.envelopes.includes("pea")) conditions.push("pea_eligible.eq.true");
-    if (profile.envelopes.includes("per")) conditions.push("per_eligible.eq.true");
-    if (profile.envelopes.includes("av_lux")) conditions.push("av_lux_eligible.eq.true");
+    if (profile.envelopes.includes("pea"))     conditions.push("pea_eligible.eq.true");
+    if (profile.envelopes.includes("pea_pme")) conditions.push("pea_pme_eligible.eq.true");
+    if (profile.envelopes.includes("per"))     conditions.push("per_eligible.eq.true");
+    if (profile.envelopes.includes("av_fr"))   conditions.push("av_fr_eligible.eq.true");
+    if (profile.envelopes.includes("av_lux"))  conditions.push("av_lux_eligible.eq.true");
+    if (profile.envelopes.includes("cto"))     conditions.push("cto_eligible.eq.true");
     if (conditions.length > 0) {
       q = q.or(conditions.join(","));
     }
