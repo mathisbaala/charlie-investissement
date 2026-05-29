@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { decodeHtml } from "@/lib/format";
-import type { FundDetailHF, NavPointHF } from "@/lib/types";
+import type { FundDetailHF, NavPointHF, FundHoldingHF, FundBreakdownHF } from "@/lib/types";
 import { FundSheetClient } from "./FundSheetClient";
 
 // Standard ISIN (12 chars) OR internal identifiers (FE_*, CRYPTO_*)
@@ -28,7 +28,10 @@ export default async function FondPage({
       volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
       max_drawdown_1y, max_drawdown_3y,
       ongoing_charges, ter,
+      entry_fee_max, exit_fee_max, performance_fee,
+      retrocession_cgp, holding_period_years,
       pea_eligible, per_eligible, av_lux_eligible,
+      av_fr_eligible, pea_pme_eligible, cto_eligible,
       aum_eur, morningstar_rating, labels, kid_url,
       data_completeness
     `)
@@ -41,17 +44,61 @@ export default async function FondPage({
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const since = threeYearsAgo.toISOString().split("T")[0];
 
-  const { data: prices } = await supabase
-    .from("investissement_fund_prices")
-    .select("price_date, nav")
-    .eq("isin", upper)
-    .gte("price_date", since)
-    .order("price_date", { ascending: true })
-    .limit(1000);
+  const [
+    { data: prices },
+    { data: holdingsRaw },
+    { data: sectorsRaw },
+    { data: geosRaw },
+  ] = await Promise.all([
+    supabase
+      .from("investissement_fund_prices")
+      .select("price_date, nav")
+      .eq("isin", upper)
+      .gte("price_date", since)
+      .order("price_date", { ascending: true })
+      .limit(1000),
+    supabase
+      .from("investissement_fund_holdings")
+      .select("rank, position_name, ticker, asset_type, sector, country, weight")
+      .eq("isin", upper)
+      .order("rank", { ascending: true })
+      .limit(10),
+    supabase
+      .from("investissement_fund_sectors")
+      .select("sector_name, weight")
+      .eq("isin", upper)
+      .order("weight", { ascending: false }),
+    supabase
+      .from("investissement_fund_geos")
+      .select("country_code, country_label, weight")
+      .eq("isin", upper)
+      .order("weight", { ascending: false })
+      .limit(15),
+  ]);
 
   const nav_history: NavPointHF[] = (prices ?? []).map((p: any) => ({
     date: p.price_date,
     nav: p.nav,
+  }));
+
+  const holdings: FundHoldingHF[] = (holdingsRaw ?? []).map((h: any) => ({
+    rank:          h.rank,
+    position_name: h.position_name,
+    ticker:        h.ticker ?? null,
+    asset_type:    h.asset_type ?? null,
+    sector:        h.sector ?? null,
+    country:       h.country ?? null,
+    weight:        h.weight,
+  }));
+
+  const sectors: FundBreakdownHF[] = (sectorsRaw ?? []).map((s: any) => ({
+    label:  s.sector_name,
+    weight: s.weight,
+  }));
+
+  const geos: FundBreakdownHF[] = (geosRaw ?? []).map((g: any) => ({
+    label:  g.country_label || g.country_code,
+    weight: g.weight,
   }));
 
   const detail: FundDetailHF = {
@@ -80,15 +127,26 @@ export default async function FondPage({
     max_drawdown_3y: fund.max_drawdown_3y,
     ongoing_charges: fund.ongoing_charges,
     ter: fund.ter,
+    entry_fee_max: fund.entry_fee_max ?? null,
+    exit_fee_max: fund.exit_fee_max ?? null,
+    performance_fee: fund.performance_fee ?? null,
+    retrocession_cgp: fund.retrocession_cgp ?? null,
+    holding_period_years: fund.holding_period_years ?? null,
     pea_eligible: fund.pea_eligible,
     per_eligible: fund.per_eligible,
     av_lux_eligible: fund.av_lux_eligible,
+    av_fr_eligible: fund.av_fr_eligible ?? null,
+    pea_pme_eligible: fund.pea_pme_eligible ?? null,
+    cto_eligible: fund.cto_eligible ?? null,
     aum_eur: fund.aum_eur,
     morningstar_rating: fund.morningstar_rating,
     labels: Array.isArray(fund.labels) ? fund.labels : null,
     kid_url: fund.kid_url,
     data_completeness: fund.data_completeness ?? 0,
     nav_history,
+    holdings,
+    sectors,
+    geos,
   };
 
   return <FundSheetClient fund={detail} />;
