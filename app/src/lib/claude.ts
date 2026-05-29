@@ -63,24 +63,40 @@ export async function parseFrenchQuery(query: string): Promise<ParsedFilters> {
 
 Retourne un objet JSON valide avec ces champs optionnels :
 - sfdr: tableau de numéros SFDR ex: [8,9]
-- sri_min, sri_max: indicateur risque 1-7
-- ter_max: frais max en % ex: 1.5
-- perf_1y_min, perf_3y_min: performance min en % ex: 10.0
-- vol_max: volatilité max en %
-- sharpe_min: ratio Sharpe min
+- sri_min, sri_max: indicateur risque PRIIPs 1-7
+- ter_max: frais courants max en % ex: 1.5
+- perf_1y_min, perf_3y_min: performance annualisée min en % ex: 10.0
+- vol_max: volatilité 1 an max en %
+- sharpe_min: ratio Sharpe 1 an min
 - aum_min: encours min en M€ ex: 100
 - track_record_min: ancienneté min en années
-- envelopes: tableau parmi ["PEA","PER","AV-LUX"]
-- universe: tableau de types ex: ["etf","opcvm","scpi"]
+- envelopes: tableau parmi ["PEA","PEA-PME","PER","AV-FR","AV-LUX","CTO"]
+  (PEA=Plan Épargne en Actions, PEA-PME=PEA dédié PME, PER=Plan Épargne Retraite,
+   AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
+- universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
 - currency: tableau ex: ["EUR","USD"]
-- morningstar_min: note min 1-5
-- manager_search: nom du gestionnaire
-- chips: tableau de labels lisibles courts en français pour afficher dans l'UI comme chips (ex: ["ETF monde", "PEA éligible", "Article 8"])
+- morningstar_min: note Morningstar min 1-5
+- manager_search: nom du gestionnaire (ex: "Amundi", "BlackRock", "Carmignac")
+- free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques)
+- chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
+
+Règles de mapping :
+- "ESG" ou "durable" → sfdr:[8,9]
+- "article 9" ou "impact" → sfdr:[9]
+- "peu risqué" / "défensif" → sri_max:3
+- "modéré" / "équilibré" → sri_min:2, sri_max:5
+- "dynamique" / "risqué" → sri_min:4
+- "low cost" / "peu de frais" → ter_max:0.5
+- "assurance-vie" (sans précision) → envelopes:["AV-FR","AV-LUX"]
+- "retraite" → envelopes:["PER"]
+- "bien noté" / "5 étoiles" → morningstar_min:4
 
 Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}
 - "fonds peu risqués ESG" → {"sfdr":[8,9],"sri_max":3,"chips":["ESG","Risque faible"]}
-- "actions US performantes" → {"universe":["opcvm"],"chips":["Actions US","Performant"]}
+- "OPCVM actions US performants éligibles CTO" → {"universe":["opcvm"],"envelopes":["CTO"],"chips":["Actions US","CTO éligible"]}
+- "fonds retraite PER Amundi" → {"envelopes":["PER"],"manager_search":"Amundi","chips":["PER","Amundi"]}
+- "ETF low cost monde" → {"universe":["etf"],"ter_max":0.3,"chips":["ETF monde","Low cost"]}
 
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
