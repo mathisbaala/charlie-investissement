@@ -80,6 +80,7 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - morningstar_min: note Morningstar min 1-5
 - retrocession_min: rétrocession CGP min en % ex: 0.5
 - manager_search: nom du gestionnaire (ex: "Amundi", "BlackRock", "Carmignac")
+- has_kid: true si l'utilisateur veut uniquement des fonds avec DICI disponible
 - free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques)
 - chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
 
@@ -109,9 +110,12 @@ Règles de mapping :
 - "gestion active" / "stock-picking" → management_style:["actif"]
 - "smart beta" / "factoriel" → management_style:["smart_beta"]
 - "hedge fund" / "long-short" / "alternatif" → management_style:["alternatif"]
+- "avec DICI" / "DICI disponible" / "document réglementaire" → has_kid:true
+- "sans frais d'entrée" / "no load" / "frais d'entrée zéro" → chips:["Sans frais d'entrée"] (pas de filtre direct, mentionner dans chips)
 
 Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}
+- "fonds avec DICI disponible" → {"has_kid":true,"chips":["DICI disponible"]}
 - "fonds peu risqués ESG" → {"sfdr":[8,9],"sri_max":3,"chips":["ESG","Risque faible"]}
 - "OPCVM actions US performants éligibles CTO" → {"universe":["opcvm"],"envelopes":["CTO"],"chips":["Actions US","CTO éligible"]}
 - "fonds retraite PER Amundi" → {"envelopes":["PER"],"manager_search":"Amundi","chips":["PER","Amundi"]}
