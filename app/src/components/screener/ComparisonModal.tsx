@@ -32,9 +32,10 @@ const ROWS: { section: string; rows: Row[] }[] = [
   {
     section: "Frais & taille",
     rows: [
-      { label: "TER",          key: "ongoing_charges",    format: (v) => pct(v as number), best: "low" },
-      { label: "Encours",      key: "aum_eur",            format: (v) => fmtAum(v as number) },
-      { label: "Track record", key: "track_record_years", format: (v) => v == null ? "—" : `${v} ans` },
+      { label: "TER",           key: "ongoing_charges",    format: (v) => pct(v as number), best: "low" },
+      { label: "Rétrocession",  key: "retrocession_cgp",   format: (v) => v == null ? "—" : pct((v as number) * 100), best: "high" },
+      { label: "Encours",       key: "aum_eur",            format: (v) => fmtAum(v as number) },
+      { label: "Track record",  key: "track_record_years", format: (v) => v == null ? "—" : `${v} ans` },
     ],
   },
   {
