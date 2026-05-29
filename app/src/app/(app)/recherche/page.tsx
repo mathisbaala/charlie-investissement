@@ -9,34 +9,19 @@ import { FundTable } from "@/components/screener/FundTable";
 import { FundPreviewDrawer } from "@/components/screener/FundPreviewDrawer";
 import { SelectionBar } from "@/components/screener/SelectionBar";
 import { ComparisonModal } from "@/components/screener/ComparisonModal";
+import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-
-// ─── Client profile ────────────────────────────────────────────────────────────
-
-type LocalProfile = {
-  risk: "prudent" | "equilibre" | "dynamique" | "offensif" | null;
-  envelopes: string[];
-  esg: "indifferent" | "art8" | "art9";
-};
-
-const EMPTY_PROFILE: LocalProfile = { risk: null, envelopes: [], esg: "indifferent" };
-
-function serializeProfile(p: LocalProfile): string {
-  const parts: string[] = [];
-  const riskLabels: Record<string, string> = {
-    prudent: "prudent (SRI 1-3)",
-    equilibre: "équilibré (SRI 3-4)",
-    dynamique: "dynamique (SRI 4-6)",
-    offensif: "offensif (SRI 5-7)",
-  };
-  if (p.risk) parts.push(`profil de risque ${riskLabels[p.risk]}`);
-  if (p.envelopes.length) parts.push(`enveloppes disponibles: ${p.envelopes.join(", ")}`);
-  if (p.esg === "art8") parts.push("ESG: SFDR article 8 minimum");
-  if (p.esg === "art9") parts.push("ESG: SFDR article 9 uniquement");
-  return parts.join(", ");
-}
+import {
+  type RichClientProfile,
+  EMPTY_PROFILE,
+  loadStoredProfile,
+  saveStoredProfile,
+  clearStoredProfile,
+  isProfileActive,
+  serializeForNlp,
+} from "@/lib/clientProfile";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -92,14 +77,13 @@ async function parseQuery(q: string): Promise<ParsedFilters> {
   return res.json();
 }
 
-// ─── Inner component (needs useSearchParams → must be inside Suspense) ────────
+// ─── Inner component ──────────────────────────────────────────────────────────
 
 function RechercheInner() {
   const router      = useRouter();
   const searchParams = useSearchParams();
   const initialQ    = searchParams.get("q") ?? "";
 
-  // Core state
   const [query,          setQuery]          = useState(initialQ);
   const [filters,        setFilters]        = useState<ParsedFilters>({});
   const [nlpFailed,      setNlpFailed]      = useState(false);
@@ -107,31 +91,28 @@ function RechercheInner() {
   const [showComparison, setShowComparison] = useState(false);
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
 
-  // Client profile state
-  const [clientProfile,    setClientProfile]    = useState<LocalProfile>(EMPTY_PROFILE);
-  const [showClientPanel,  setShowClientPanel]  = useState(false);
+  // Client profile
+  const [profile,         setProfile]         = useState<RichClientProfile>(EMPTY_PROFILE);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
 
-  const isProfileActive = clientProfile.risk !== null
-    || clientProfile.envelopes.length > 0
-    || clientProfile.esg !== "indifferent";
-
-  // Results state
+  // Results
   const [funds,      setFunds]      = useState<Fund[]>([]);
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading,    setLoading]    = useState(true);
 
-  // Sort state
+  // Sort
   const [sortBy,  setSortBy]  = useState("data_completeness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Initialization — parse URL query once on mount
+  // Load profile from localStorage on mount
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (initialized) return;
     setInitialized(true);
+    setProfile(loadStoredProfile());
     if (initialQ) {
       setQuery(initialQ);
       parseQuery(initialQ).then((parsed) => {
@@ -142,7 +123,13 @@ function RechercheInner() {
     }
   }, [initialized, initialQ]);
 
-  // ─── Fetch effect — runs whenever fetch deps change ───────────────────────
+  // Persist profile changes
+  useEffect(() => {
+    if (!initialized) return;
+    saveStoredProfile(profile);
+  }, [profile, initialized]);
+
+  // Fetch results
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -155,40 +142,28 @@ function RechercheInner() {
           setLoading(false);
         }
       })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [filters, page, sortBy, sortDir]);
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
+  // ─── Search handler ────────────────────────────────────────────────────────
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
-
-    // Build enriched query with client profile context
-    const profileCtx = isProfileActive ? serializeProfile(clientProfile) : null;
+    const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
     const fullQuery = profileCtx
       ? `${query.trim()} — contexte client: ${profileCtx}`
       : query.trim();
 
     const parsed = await parseQuery(fullQuery);
     const hasFilters = Object.keys(parsed).length > 0;
-    if (hasFilters) {
-      setFilters(parsed);
-      setNlpFailed(false);
-    } else {
-      // Fallback: use the raw query as free-text name search
-      setFilters({ free_text: query.trim() });
-      setNlpFailed(true);
-    }
+    setFilters(hasFilters ? parsed : { free_text: query.trim() });
+    setNlpFailed(!hasFilters);
     setPage(1);
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
-  }, [query, router, clientProfile, isProfileActive]);
+  }, [query, router, profile]);
 
-  const handleFiltersApply = useCallback(() => {
-    setPage(1);
-  }, []);
+  const handleFiltersApply = useCallback(() => setPage(1), []);
 
   const handleFiltersReset = useCallback(() => {
     setFilters({});
@@ -204,41 +179,25 @@ function RechercheInner() {
     }));
   }, []);
 
-  // ─── Sort helpers ──────────────────────────────────────────────────────────
+  // ─── Sort / pagination ─────────────────────────────────────────────────────
 
-  const handleSortByChange = useCallback((value: string) => {
-    setSortBy(value);
-    setPage(1);
-  }, []);
+  const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPage(1); }, []);
+  const handleSortDirToggle = useCallback(() => { setSortDir((d) => d === "desc" ? "asc" : "desc"); setPage(1); }, []);
+  const goToPrevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
+  const goToNextPage = useCallback(() => setPage((p) => Math.min(totalPages, p + 1)), [totalPages]);
+  const handleRowClick = useCallback((f: Fund) => setActiveFund((prev) => prev === f.isin ? null : f.isin), []);
 
-  const handleSortDirToggle = useCallback(() => {
-    setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    setPage(1);
-  }, []);
+  const profileActive = isProfileActive(profile);
 
-  // ─── Pagination helpers ────────────────────────────────────────────────────
-
-  const goToPrevPage = useCallback(() => {
-    setPage((p) => Math.max(1, p - 1));
-  }, []);
-
-  const goToNextPage = useCallback(() => {
-    setPage((p) => Math.min(totalPages, p + 1));
-  }, [totalPages]);
-
-  // ─── Row click handler ─────────────────────────────────────────────────────
-
-  const handleRowClick = useCallback((f: Fund) => {
-    setActiveFund((prev) => (prev === f.isin ? null : f.isin));
-  }, []);
-
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full overflow-hidden bg-cream flex-col">
 
-      {/* ── Search bar + chips (sticky header) ── */}
+      {/* ── Sticky header ── */}
       <div className="shrink-0 border-b border-line bg-paper px-5 py-3 space-y-2.5">
+
+        {/* Search bar */}
         <div className="flex items-center gap-3">
           <div className="flex-1 flex items-center gap-3 bg-paper-2 rounded-xl border border-line px-4 py-2.5">
             <TypingPrompt
@@ -248,10 +207,11 @@ function RechercheInner() {
               className="flex-1"
             />
 
-            {/* Client profile toggle */}
-            {isProfileActive ? (
+            {/* Profile toggle pill / button */}
+            {profileActive ? (
               <button
-                onClick={() => setShowClientPanel((v) => !v)}
+                type="button"
+                onClick={() => setShowProfilePanel((v) => !v)}
                 className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-[11px] font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
               >
                 <span>Profil actif</span>
@@ -259,17 +219,19 @@ function RechercheInner() {
                   size={10}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setClientProfile(EMPTY_PROFILE);
-                    setShowClientPanel(false);
+                    setProfile(EMPTY_PROFILE);
+                    clearStoredProfile();
+                    setShowProfilePanel(false);
                   }}
                 />
               </button>
             ) : (
               <button
-                onClick={() => setShowClientPanel((v) => !v)}
+                type="button"
+                onClick={() => setShowProfilePanel((v) => !v)}
                 title="Importer un profil client"
                 className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
-                  showClientPanel
+                  showProfilePanel
                     ? "bg-accent-soft text-accent-ink border-accent/20"
                     : "border-line text-muted hover:bg-paper hover:text-ink-2"
                 }`}
@@ -284,139 +246,21 @@ function RechercheInner() {
           </div>
         </div>
 
-        {/* ── Client profile panel ── */}
-        {showClientPanel && (
-          <div className="bg-paper-2 rounded-xl border border-line px-4 py-3.5 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-ink-2 uppercase tracking-wider">
-                Profil client
-              </p>
-              <button
-                onClick={() => setShowClientPanel(false)}
-                className="text-muted hover:text-ink-2 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Profil de risque */}
-            <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
-                Profil de risque
-              </p>
-              <div className="flex gap-1.5 flex-wrap">
-                {(
-                  [
-                    ["prudent", "Prudent"],
-                    ["equilibre", "Équilibré"],
-                    ["dynamique", "Dynamique"],
-                    ["offensif", "Offensif"],
-                  ] as const
-                ).map(([v, l]) => (
-                  <button
-                    key={v}
-                    onClick={() =>
-                      setClientProfile((p) => ({ ...p, risk: p.risk === v ? null : v }))
-                    }
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                      clientProfile.risk === v
-                        ? "bg-accent-soft text-accent-ink border-accent/20"
-                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Enveloppes */}
-            <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
-                Enveloppes disponibles
-              </p>
-              <div className="flex gap-1.5 flex-wrap">
-                {(["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() =>
-                      setClientProfile((p) => ({
-                        ...p,
-                        envelopes: p.envelopes.includes(v)
-                          ? p.envelopes.filter((e) => e !== v)
-                          : [...p.envelopes, v],
-                      }))
-                    }
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                      clientProfile.envelopes.includes(v)
-                        ? "bg-accent-soft text-accent-ink border-accent/20"
-                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* ESG */}
-            <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide mb-1.5">
-                Préférence ESG
-              </p>
-              <div className="flex gap-1.5 flex-wrap">
-                {(
-                  [
-                    ["indifferent", "Indifférent"],
-                    ["art8", "Art.8+"],
-                    ["art9", "Art.9 uniquement"],
-                  ] as const
-                ).map(([v, l]) => (
-                  <button
-                    key={v}
-                    onClick={() => setClientProfile((p) => ({ ...p, esg: v }))}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                      clientProfile.esg === v
-                        ? "bg-accent-soft text-accent-ink border-accent/20"
-                        : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-0.5">
-              <button
-                onClick={() => setClientProfile(EMPTY_PROFILE)}
-                className="text-[11px] text-muted hover:text-ink-2 transition-colors"
-              >
-                Effacer le profil
-              </button>
-              <Btn
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  setShowClientPanel(false);
-                  handleSearch();
-                }}
-              >
-                Rechercher avec ce profil
-              </Btn>
-            </div>
-          </div>
+        {/* Profile panel */}
+        {showProfilePanel && (
+          <ClientProfilePanel
+            profile={profile}
+            onChange={setProfile}
+            onClose={() => setShowProfilePanel(false)}
+            onSearch={handleSearch}
+          />
         )}
 
         <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
         {nlpFailed && query.trim() && (
           <p className="text-[11px] text-muted px-1">
             Filtres intelligents indisponibles — recherche par nom. Utilisez les{" "}
-            <button
-              onClick={() => setShowFilters(true)}
-              className="underline hover:text-ink-2 transition-colors"
-            >
+            <button onClick={() => setShowFilters(true)} className="underline hover:text-ink-2 transition-colors">
               filtres manuels
             </button>{" "}
             pour affiner.
@@ -424,10 +268,9 @@ function RechercheInner() {
         )}
       </div>
 
-      {/* ── Three-pane area: [FilterCard] [Toolbar+Table] [DrawerCard] ── */}
+      {/* ── Main area ── */}
       <div className="flex-1 overflow-hidden flex gap-3 px-3 pb-3 min-h-0">
 
-        {/* Filter panel */}
         {showFilters && (
           <FilterPanel
             filters={filters}
@@ -439,7 +282,6 @@ function RechercheInner() {
           />
         )}
 
-        {/* Table column — toolbar + scroll area */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
           {/* Toolbar */}
@@ -468,22 +310,17 @@ function RechercheInner() {
                 </select>
                 <ChevronDown size={11} className="absolute right-2 pointer-events-none text-ink-2" />
               </div>
-
               <button
                 onClick={handleSortDirToggle}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
-                title={sortDir === "desc" ? "Décroissant" : "Croissant"}
               >
                 <ArrowUpDown size={12} />
                 {sortDir === "desc" ? "Déc." : "Crois."}
               </button>
-
               <button
                 onClick={() => setShowFilters((v) => !v)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
-                  showFilters
-                    ? "bg-accent-soft text-accent-ink border-accent/20"
-                    : "bg-paper text-ink-2 border-line hover:bg-paper-2"
+                  showFilters ? "bg-accent-soft text-accent-ink border-accent/20" : "bg-paper text-ink-2 border-line hover:bg-paper-2"
                 }`}
               >
                 <SlidersHorizontal size={12} />
@@ -492,7 +329,7 @@ function RechercheInner() {
             </div>
           </div>
 
-          {/* Table scroll area */}
+          {/* Table */}
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
             {loading ? (
               <div className="flex items-center justify-center h-40 text-muted">
@@ -507,33 +344,18 @@ function RechercheInner() {
               </div>
             ) : (
               <div className="border border-line rounded-xl overflow-x-auto">
-                <FundTable
-                  funds={funds}
-                  onRowClick={handleRowClick}
-                  activeFundIsin={activeFund}
-                />
+                <FundTable funds={funds} onRowClick={handleRowClick} activeFundIsin={activeFund} />
               </div>
             )}
 
-            {/* Pagination */}
             {!loading && totalPages > 1 && (
               <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
                 <span>Page {page} / {totalPages}</span>
                 <div className="flex gap-1">
-                  <button
-                    disabled={page <= 1}
-                    onClick={goToPrevPage}
-                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                    aria-label="Page précédente"
-                  >
+                  <button disabled={page <= 1} onClick={goToPrevPage} className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors" aria-label="Page précédente">
                     <ArrowLeft size={13} />
                   </button>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={goToNextPage}
-                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                    aria-label="Page suivante"
-                  >
+                  <button disabled={page >= totalPages} onClick={goToNextPage} className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors" aria-label="Page suivante">
                     <ChevronRight size={13} />
                   </button>
                 </div>
@@ -542,25 +364,16 @@ function RechercheInner() {
           </div>
         </div>
 
-        {/* Preview drawer — card aligned with table */}
         {activeFund && (
-          <FundPreviewDrawer
-            isin={activeFund}
-            onClose={() => setActiveFund(null)}
-          />
+          <FundPreviewDrawer isin={activeFund} onClose={() => setActiveFund(null)} />
         )}
       </div>
 
-      {/* Selection bar (fixed bottom) + comparison modal */}
       <SelectionBar onCompare={() => setShowComparison(true)} />
-      {showComparison && (
-        <ComparisonModal onClose={() => setShowComparison(false)} />
-      )}
+      {showComparison && <ComparisonModal onClose={() => setShowComparison(false)} />}
     </div>
   );
 }
-
-// ─── Export — wrapped in Suspense for useSearchParams ─────────────────────────
 
 export default function RecherchePage() {
   return (

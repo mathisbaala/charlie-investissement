@@ -4,13 +4,22 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
+import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
-import { Search, ChevronRight } from "@/components/ui/icons";
+import { Search, ChevronRight, Plus, X } from "@/components/ui/icons";
 import { getFavorites } from "@/lib/favorites";
 import { getRecentSearches, addSearch, clearSearches } from "@/lib/searches";
 import type { FavoriteEntry } from "@/lib/favorites";
 import type { SearchEntry } from "@/lib/searches";
 import { pct, dt } from "@/lib/format";
+import {
+  type RichClientProfile,
+  EMPTY_PROFILE,
+  loadStoredProfile,
+  saveStoredProfile,
+  clearStoredProfile,
+  isProfileActive,
+} from "@/lib/clientProfile";
 
 // ─── Top performer type ───────────────────────────────────────────────────────
 
@@ -26,32 +35,43 @@ type TopFund = {
   morningstar_rating: number | null;
 };
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AccueilPage() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query,   setQuery]   = useState("");
   const [searches, setSearches] = useState<SearchEntry[]>([]);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
-  const [topEtf, setTopEtf] = useState<TopFund[]>([]);
+  const [topEtf,  setTopEtf]  = useState<TopFund[]>([]);
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
+
+  // Client profile
+  const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [profileLoaded,    setProfileLoaded]    = useState(false);
 
   useEffect(() => {
     setSearches(getRecentSearches());
     setFavorites(getFavorites());
+    setProfile(loadStoredProfile());
+    setProfileLoaded(true);
 
-    // Fetch top ETFs (by perf 3y)
     fetch("/api/screener/top-performers?type=etf&sort_by=performance_3y&limit=5&min_completeness=70")
       .then((r) => r.json())
       .then((d) => setTopEtf(d.data ?? []))
       .catch(() => {});
 
-    // Fetch top OPCVMs (by sharpe 3y)
     fetch("/api/screener/top-performers?type=opcvm&sort_by=performance_3y&limit=5&min_completeness=70&min_aum=50000000")
       .then((r) => r.json())
       .then((d) => setTopOpcvm(d.data ?? []))
       .catch(() => {});
   }, []);
+
+  // Persist profile changes
+  useEffect(() => {
+    if (!profileLoaded) return;
+    saveStoredProfile(profile);
+  }, [profile, profileLoaded]);
 
   function handleSearch() {
     if (!query.trim()) {
@@ -62,18 +82,19 @@ export default function AccueilPage() {
     router.push("/recherche?q=" + encodeURIComponent(query.trim()));
   }
 
+  const profileActive = isProfileActive(profile);
+
   return (
     <div className="h-full overflow-y-auto bg-cream px-8 py-10">
       <div className="max-w-[1040px] mx-auto">
 
-        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <div className="mb-8">
-          <h1
-            className="text-[32px] text-ink italic"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
+          <h1 className="text-[32px] text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
             Charlie.
           </h1>
+
+          {/* Search bar */}
           <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3">
             <Search size={16} className="text-muted shrink-0" />
             <TypingPrompt
@@ -82,17 +103,62 @@ export default function AccueilPage() {
               onSubmit={handleSearch}
               className="flex-1"
             />
+
+            {/* Profile toggle */}
+            {profileActive ? (
+              <button
+                type="button"
+                onClick={() => setShowProfilePanel((v) => !v)}
+                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-[11px] font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
+              >
+                <span>Profil actif</span>
+                <X
+                  size={10}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProfile(EMPTY_PROFILE);
+                    clearStoredProfile();
+                    setShowProfilePanel(false);
+                  }}
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowProfilePanel((v) => !v)}
+                title="Importer un profil client"
+                className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+                  showProfilePanel
+                    ? "bg-accent-soft text-accent-ink border-accent/20"
+                    : "border-line text-muted hover:bg-paper-2 hover:text-ink-2"
+                }`}
+              >
+                <Plus size={13} />
+              </button>
+            )}
+
             <Btn variant="primary" size="sm" onClick={handleSearch}>
               Rechercher
             </Btn>
           </div>
 
+          {/* Profile panel */}
+          {showProfilePanel && (
+            <div className="mt-2">
+              <ClientProfilePanel
+                profile={profile}
+                onChange={setProfile}
+                onClose={() => setShowProfilePanel(false)}
+                onSearch={handleSearch}
+              />
+            </div>
+          )}
         </div>
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-5 mb-8">
 
-          {/* Col 1 — Recherches récentes */}
+          {/* Recherches récentes */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Recherches récentes
@@ -123,7 +189,7 @@ export default function AccueilPage() {
             )}
           </div>
 
-          {/* Col 2 — Favoris récents */}
+          {/* Favoris récents */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Favoris récents
@@ -143,9 +209,7 @@ export default function AccueilPage() {
                         {f.name}
                       </p>
                       {f.performance_3y != null && (
-                        <span
-                          className={`text-[11px] font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}
-                        >
+                        <span className={`text-[11px] font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
                           {pct(f.performance_3y, true)}
                         </span>
                       )}
@@ -160,19 +224,19 @@ export default function AccueilPage() {
             )}
           </div>
 
-          {/* Col 3 — Enveloppes rapides */}
+          {/* Par enveloppe */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Par enveloppe
             </p>
             <div className="flex flex-col gap-1">
               {[
-                { label: "PEA", q: "fonds+%C3%A9ligibles+PEA", desc: "Plan Épargne en Actions" },
-                { label: "PEA-PME", q: "fonds+%C3%A9ligibles+PEA-PME+PME", desc: "PEA dédié PME / ETI" },
-                { label: "PER", q: "fonds+%C3%A9ligibles+PER+retraite", desc: "Plan Épargne Retraite" },
-                { label: "AV France", q: "fonds+assurance-vie+France", desc: "Assurance-Vie française" },
-                { label: "AV Luxembourg", q: "fonds+assurance-vie+luxembourg", desc: "AV luxembourgeoise" },
-                { label: "CTO", q: "fonds+%C3%A9ligibles+CTO+compte-titres", desc: "Compte-Titres Ordinaire" },
+                { label: "PEA",           q: "fonds+%C3%A9ligibles+PEA",           desc: "Plan Épargne en Actions" },
+                { label: "PEA-PME",       q: "fonds+%C3%A9ligibles+PEA-PME+PME",   desc: "PEA dédié PME / ETI" },
+                { label: "PER",           q: "fonds+%C3%A9ligibles+PER+retraite",   desc: "Plan Épargne Retraite" },
+                { label: "AV France",     q: "fonds+assurance-vie+France",          desc: "Assurance-Vie française" },
+                { label: "AV Luxembourg", q: "fonds+assurance-vie+luxembourg",      desc: "AV luxembourgeoise" },
+                { label: "CTO",           q: "fonds+%C3%A9ligibles+CTO+compte-titres", desc: "Compte-Titres Ordinaire" },
               ].map(({ label, q, desc }) => (
                 <button
                   key={label}
@@ -190,11 +254,10 @@ export default function AccueilPage() {
           </div>
         </div>
 
-        {/* ── Top performers ─────────────────────────────────────────────────── */}
+        {/* ── Top performers ──────────────────────────────────────────────────── */}
         {(topEtf.length > 0 || topOpcvm.length > 0) && (
           <div className="grid grid-cols-2 gap-5">
 
-            {/* Top ETF */}
             {topEtf.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
@@ -205,15 +268,9 @@ export default function AccueilPage() {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {topEtf.map((f) => (
-                    <Link
-                      key={f.isin}
-                      href={`/fonds/${f.isin}`}
-                      className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
-                    >
+                    <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">
-                          {f.name}
-                        </p>
+                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
                         <p className="text-[10px] text-muted-2 truncate">
                           {f.gestionnaire ?? f.isin}
                           {f.ter != null && <span className="ml-1.5 font-mono">{pct(f.ter)}</span>}
@@ -233,7 +290,6 @@ export default function AccueilPage() {
               </div>
             )}
 
-            {/* Top OPCVM */}
             {topOpcvm.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
@@ -244,15 +300,9 @@ export default function AccueilPage() {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   {topOpcvm.map((f) => (
-                    <Link
-                      key={f.isin}
-                      href={`/fonds/${f.isin}`}
-                      className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
-                    >
+                    <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">
-                          {f.name}
-                        </p>
+                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
                         <p className="text-[10px] text-muted-2 truncate">
                           {f.gestionnaire ?? f.isin}
                           {f.sfdr_article && <span className="ml-1.5">Art.{f.sfdr_article}</span>}
