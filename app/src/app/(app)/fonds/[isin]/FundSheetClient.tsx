@@ -15,6 +15,7 @@ import { RisqueCard } from "./RisqueCard";
 import { EnveloppesCard } from "./EnveloppesCard";
 import { FeesCard } from "./FeesCard";
 import { CompositionCard } from "./CompositionCard";
+import { SimilarFundsCard } from "./SimilarFundsCard";
 
 interface Props { fund: FundDetailHF; }
 
@@ -183,6 +184,7 @@ export function FundSheetClient({ fund }: Props) {
           <EnveloppesCard fund={fund} />
           <FeesCard fund={fund} />
           <CompositionCard fund={fund} />
+          <SimilarFundsCard isin={fund.isin} />
         </div>
 
       </div>
