@@ -137,6 +137,14 @@ export function FundSheetClient({ fund }: Props) {
                   DICI
                 </Btn>
               )}
+              <Btn
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`/api/rapport/pdf?isins=${fund.isin}`, "_blank")}
+              >
+                <Download size={13} />
+                Rapport PDF
+              </Btn>
             </div>
           </div>
 
