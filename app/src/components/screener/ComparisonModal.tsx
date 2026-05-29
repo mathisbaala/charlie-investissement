@@ -10,6 +10,7 @@ interface Row {
   key: keyof SelectedFund;
   format: (v: unknown) => string;
   best?: "high" | "low";
+  bool?: true;
 }
 
 const ROWS: { section: string; rows: Row[] }[] = [
@@ -44,6 +45,17 @@ const ROWS: { section: string; rows: Row[] }[] = [
       { label: "SFDR",        key: "sfdr_article",       format: (v) => v == null ? "—" : `Art. ${v}` },
       { label: "SRI",         key: "risk_score",         format: (v) => v == null ? "—" : `${v}/7` },
       { label: "Morningstar", key: "morningstar_rating", format: (v) => v == null ? "—" : "★".repeat(v as number) },
+    ],
+  },
+  {
+    section: "Éligibilités",
+    rows: [
+      { label: "PEA",         key: "pea_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "PEA-PME",     key: "pea_pme_eligible", format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "PER",         key: "per_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "AV France",   key: "av_fr_eligible",   format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "AV Lux.",     key: "av_lux_eligible",  format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "CTO",         key: "cto_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
     ],
   },
 ];
@@ -138,11 +150,17 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                           const raw = f[row.key];
                           const isBest  = idx === bestIdx;
                           const isWorst = idx === worstIdx;
+                          const isTrue  = row.bool && raw === true;
+                          const isFalse = row.bool && raw === false;
                           return (
                             <td
                               key={f.isin}
                               className={`px-4 py-3 text-[13px] font-mono font-medium ${
-                                isBest
+                                isTrue
+                                  ? "text-ok"
+                                  : isFalse
+                                  ? "text-muted-2"
+                                  : isBest
                                   ? "bg-ok-soft text-ok"
                                   : isWorst
                                   ? "bg-warn-soft text-warn"
