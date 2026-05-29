@@ -28,7 +28,13 @@ function FeeRow({
 }
 
 export function FeesCard({ fund }: { fund: FundDetailHF }) {
-  const hasData = fund.ongoing_charges != null || fund.ter != null;
+  const hasData =
+    fund.ongoing_charges != null ||
+    fund.ter != null ||
+    fund.entry_fee_max != null ||
+    fund.exit_fee_max != null ||
+    fund.performance_fee != null ||
+    fund.retrocession_cgp != null;
 
   if (!hasData) {
     return (
