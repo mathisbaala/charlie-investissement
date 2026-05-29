@@ -73,7 +73,7 @@ export default function AccueilPage() {
         if (!d.total_funds) return;
         setStats({
           total:  d.total_funds,
-          withKid: 12804,
+          withKid: d.with_kid ?? 12804,
           etf:    d.by_type?.etf ?? 0,
           opcvm:  d.by_type?.opcvm ?? 0,
           scpi:   d.by_type?.scpi ?? 0,

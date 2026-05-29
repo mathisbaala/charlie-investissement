@@ -231,6 +231,7 @@ export type NavResponse = {
 export type FundStats = {
   total_funds: number;
   exploitable_funds: number;           // data_completeness >= 60
+  with_kid: number;
   by_type: Record<string, number>;
   by_sfdr: Record<string, number>;
   avg_ter: number | null;
