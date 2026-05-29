@@ -98,7 +98,15 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
 
                 {/* Fonds */}
                 <td className="px-3 py-3">
-                  <div className="font-medium text-ink leading-tight truncate max-w-[260px]">{decodeHtml(f.name)}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium text-ink leading-tight truncate max-w-[250px]">{decodeHtml(f.name)}</div>
+                    {f.data_completeness < 70 && (
+                      <span
+                        title={`Complétude : ${f.data_completeness}%`}
+                        className="shrink-0 w-1.5 h-1.5 rounded-full bg-warn/50"
+                      />
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}
                   </div>
