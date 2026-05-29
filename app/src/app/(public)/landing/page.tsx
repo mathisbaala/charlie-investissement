@@ -137,6 +137,33 @@ export default function LandingPage() {
           onChange={handleFileChange}
           className="hidden"
         />
+
+        {/* Popular searches */}
+        <div className="w-full mt-8 text-left">
+          <p className="text-[10px] uppercase tracking-[0.12em] text-muted font-semibold mb-3">
+            Explorer
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              "ETF monde",
+              "SCPI diversifiées",
+              "Fonds article 9",
+              "Obligataires défensifs",
+              "Monétaires EUR",
+            ].map((q) => (
+              <button
+                key={q}
+                onClick={() => {
+                  document.cookie = "charlie_seen=1; path=/; max-age=31536000";
+                  router.push(`/recherche?q=${encodeURIComponent(q)}`);
+                }}
+                className="px-4 py-2 rounded-full border border-line bg-transparent text-[13px] text-ink-2 hover:bg-paper hover:border-accent/30 transition-colors"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
