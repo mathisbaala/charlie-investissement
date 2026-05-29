@@ -1,3 +1,12 @@
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'",
+};
+
+export function decodeHtml(s: string | null | undefined): string {
+  if (!s) return s ?? "";
+  return s.replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&apos;/g, (m) => HTML_ENTITIES[m] ?? m);
+}
+
 export const nf  = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 export const nf1 = new Intl.NumberFormat("fr-FR", {
   minimumFractionDigits: 1,

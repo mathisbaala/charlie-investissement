@@ -188,164 +188,154 @@ function RechercheInner() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full overflow-hidden bg-cream">
-      {/* ── Filter panel — slides in from left ── */}
-      {showFilters && (
-        <FilterPanel
-          filters={filters}
-          onChange={setFilters}
-          onApply={handleFiltersApply}
-          onReset={handleFiltersReset}
-          onClose={() => setShowFilters(false)}
-          resultCount={total}
-        />
-      )}
+    <div className="flex h-full overflow-hidden bg-cream flex-col">
 
-      {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* ── Search bar + chips (sticky header) ── */}
+      <div className="shrink-0 border-b border-line bg-paper px-5 py-3 space-y-2.5">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-3 bg-paper-2 rounded-xl border border-line px-4 py-2.5">
+            <TypingPrompt
+              value={query}
+              onChange={setQuery}
+              onSubmit={handleSearch}
+              className="flex-1"
+            />
+            <Btn variant="primary" size="sm" onClick={handleSearch}>
+              Rechercher
+            </Btn>
+          </div>
+        </div>
+        <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
+        {nlpFailed && query.trim() && (
+          <p className="text-[11px] text-muted px-1">
+            Filtres intelligents indisponibles — résultats non filtrés. Utilisez les{" "}
+            <button
+              onClick={() => setShowFilters(true)}
+              className="underline hover:text-ink-2 transition-colors"
+            >
+              filtres manuels
+            </button>{" "}
+            pour affiner.
+          </p>
+        )}
+      </div>
 
-        {/* Search bar + chips */}
-        <div className="shrink-0 border-b border-line bg-paper px-5 py-3 space-y-2.5">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 flex items-center gap-3 bg-paper-2 rounded-xl border border-line px-4 py-2.5">
-              <TypingPrompt
-                value={query}
-                onChange={setQuery}
-                onSubmit={handleSearch}
-                className="flex-1"
-              />
-              <Btn variant="primary" size="sm" onClick={handleSearch}>
-                Rechercher
-              </Btn>
+      {/* ── Toolbar — transparent, just buttons on cream bg ── */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-2.5 text-[11px] text-muted">
+        <span className="text-[12px] font-medium text-ink-2">
+          {loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
+        </span>
+        <div className="flex items-center gap-2">
+          <select
+            value={sortBy}
+            onChange={(e) => handleSortByChange(e.target.value)}
+            className="text-[11px] border border-line rounded-lg px-2.5 py-1.5 bg-paper text-ink-2 cursor-pointer focus:outline-none focus:border-accent/40 transition-colors"
+          >
+            <option value="data_completeness">Complétude</option>
+            <option value="performance_3y">Perf 3A</option>
+            <option value="performance_1y">Perf 1A</option>
+            <option value="performance_5y">Perf 5A</option>
+            <option value="aum_eur">Encours</option>
+            <option value="sharpe_1y">Sharpe 1A</option>
+            <option value="volatility_1y">Volatilité 1A</option>
+            <option value="ter">TER</option>
+            <option value="morningstar_rating">Morningstar</option>
+            <option value="track_record_years">Ancienneté</option>
+          </select>
+
+          <button
+            onClick={handleSortDirToggle}
+            className="p-1.5 rounded-lg text-muted hover:text-ink-2 hover:bg-paper-2 border border-transparent hover:border-line transition-colors"
+            title={sortDir === "desc" ? "Décroissant" : "Croissant"}
+          >
+            <ArrowUpDown size={13} />
+          </button>
+
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
+              showFilters
+                ? "bg-accent-soft text-accent-ink border-accent/20"
+                : "bg-paper text-ink-2 border-line hover:bg-paper-2"
+            }`}
+          >
+            <SlidersHorizontal size={12} />
+            Filtres
+          </button>
+        </div>
+      </div>
+
+      {/* ── Three-pane area: [FilterCard] [Table] [DrawerCard] ── */}
+      <div className="flex-1 overflow-hidden flex gap-3 px-3 pb-3 min-h-0">
+
+        {/* Filter panel — card, starts at table level */}
+        {showFilters && (
+          <FilterPanel
+            filters={filters}
+            onChange={setFilters}
+            onApply={handleFiltersApply}
+            onReset={handleFiltersReset}
+            onClose={() => setShowFilters(false)}
+            resultCount={total}
+          />
+        )}
+
+        {/* Table scroll area */}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-40 text-muted">
+              <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
-          </div>
-          <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
-          {nlpFailed && query.trim() && (
-            <p className="text-[11px] text-muted px-1">
-              Filtres intelligents indisponibles — résultats non filtrés. Utilisez les{" "}
-              <button
-                onClick={() => setShowFilters(true)}
-                className="underline hover:text-ink-2 transition-colors"
-              >
-                filtres manuels
-              </button>{" "}
-              pour affiner.
-            </p>
+          ) : funds.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-muted text-sm gap-2">
+              <p>Aucun fonds ne correspond à votre recherche.</p>
+              <button onClick={handleFiltersReset} className="text-accent text-xs hover:underline">
+                Réinitialiser les filtres
+              </button>
+            </div>
+          ) : (
+            <div className="border border-line rounded-xl overflow-x-auto">
+              <FundTable
+                funds={funds}
+                onRowClick={handleRowClick}
+                activeFundIsin={activeFund}
+              />
+            </div>
           )}
-        </div>
 
-        {/* Results toolbar */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-2 border-b border-line-soft text-[11px] text-muted bg-paper">
-          <span>
-            {loading
-              ? "Chargement…"
-              : `${total.toLocaleString("fr-FR")} fonds`}
-          </span>
-          <div className="flex items-center gap-2">
-            {/* Sort field */}
-            <select
-              value={sortBy}
-              onChange={(e) => handleSortByChange(e.target.value)}
-              className="text-[11px] border border-line rounded px-2 py-1 bg-paper text-ink-2 cursor-pointer focus:outline-none focus:border-accent/40"
-            >
-              <option value="data_completeness">Complétude</option>
-              <option value="performance_3y">Perf 3A</option>
-              <option value="performance_1y">Perf 1A</option>
-              <option value="aum_eur">Encours</option>
-              <option value="sharpe_1y">Sharpe</option>
-              <option value="ter">TER</option>
-            </select>
-
-            {/* Sort direction toggle */}
-            <button
-              onClick={handleSortDirToggle}
-              className="p-1 rounded text-muted hover:text-ink-2 hover:bg-paper-2 transition-colors"
-              title={sortDir === "desc" ? "Décroissant" : "Croissant"}
-            >
-              <ArrowUpDown size={13} />
-            </button>
-
-            {/* Filter panel toggle */}
-            <button
-              onClick={() => setShowFilters((v) => !v)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${
-                showFilters
-                  ? "bg-accent-soft text-accent-ink border-accent/20"
-                  : "bg-paper text-ink-2 border-line hover:bg-paper-2"
-              }`}
-            >
-              <SlidersHorizontal size={12} />
-              Filtres
-            </button>
-          </div>
-        </div>
-
-        {/* Table + drawer area */}
-        <div className="flex-1 overflow-hidden flex">
-          <div className="flex-1 overflow-y-auto">
-            {/* Loading spinner */}
-            {loading ? (
-              <div className="flex items-center justify-center h-40 text-muted">
-                <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : funds.length === 0 ? (
-              /* Empty state */
-              <div className="flex flex-col items-center justify-center h-40 text-muted text-sm gap-2">
-                <p>Aucun fonds ne correspond à votre recherche.</p>
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
+              <span>Page {page} / {totalPages}</span>
+              <div className="flex gap-1">
                 <button
-                  onClick={handleFiltersReset}
-                  className="text-accent text-xs hover:underline"
+                  disabled={page <= 1}
+                  onClick={goToPrevPage}
+                  className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
+                  aria-label="Page précédente"
                 >
-                  Réinitialiser les filtres
+                  <ArrowLeft size={13} />
+                </button>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={goToNextPage}
+                  className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight size={13} />
                 </button>
               </div>
-            ) : (
-              /* Fund table — bordered container */
-              <div className="mx-4 my-3 border border-line rounded-xl overflow-hidden">
-                <FundTable
-                  funds={funds}
-                  onRowClick={handleRowClick}
-                  activeFundIsin={activeFund}
-                />
-              </div>
-            )}
-
-            {/* Pagination */}
-            {!loading && totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-line-soft text-[11px] text-muted">
-                <span>
-                  Page {page} / {totalPages}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    disabled={page <= 1}
-                    onClick={goToPrevPage}
-                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                    aria-label="Page précédente"
-                  >
-                    <ArrowLeft size={13} />
-                  </button>
-                  <button
-                    disabled={page >= totalPages}
-                    onClick={goToNextPage}
-                    className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors"
-                    aria-label="Page suivante"
-                  >
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Preview drawer — slides in from right */}
-          {activeFund && (
-            <FundPreviewDrawer
-              isin={activeFund}
-              onClose={() => setActiveFund(null)}
-            />
+            </div>
           )}
         </div>
+
+        {/* Preview drawer — card aligned with table */}
+        {activeFund && (
+          <FundPreviewDrawer
+            isin={activeFund}
+            onClose={() => setActiveFund(null)}
+          />
+        )}
       </div>
 
       {/* Selection bar (fixed bottom) + comparison modal */}

@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { decodeHtml } from "@/lib/format";
 import type { FundDetailHF, NavPointHF } from "@/lib/types";
 import { FundSheetClient } from "./FundSheetClient";
 
-const ISIN_RE = /^[A-Z0-9]{12}$/i;
+// Standard ISIN (12 chars) OR internal identifiers (FE_*, CRYPTO_*)
+const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
 
 export default async function FondPage({
   params,
@@ -54,9 +56,9 @@ export default async function FondPage({
 
   const detail: FundDetailHF = {
     isin: fund.isin,
-    name: fund.name,
-    gestionnaire: fund.management_company_normalized ?? fund.management_company,
-    management_company: fund.management_company,
+    name: decodeHtml(fund.name),
+    gestionnaire: decodeHtml(fund.management_company_normalized ?? fund.management_company),
+    management_company: decodeHtml(fund.management_company),
     product_type: fund.product_type,
     category_normalized: fund.category_normalized,
     asset_class: fund.asset_class,

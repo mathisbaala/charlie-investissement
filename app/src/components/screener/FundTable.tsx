@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
 import { useSelection } from "@/components/SelectionProvider";
-import { pct, fmtAum } from "@/lib/format";
+import { pct, fmtAum, decodeHtml } from "@/lib/format";
 import type { Fund } from "@/lib/types";
 
 interface FundTableProps {
@@ -52,12 +52,12 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
               <tr
                 key={f.isin}
                 onClick={() => onRowClick?.(f)}
-                className={`border-b border-line-soft cursor-pointer transition-colors relative ${
+                className={`border-b border-dashed border-line-soft cursor-pointer transition-colors relative ${
                   active
                     ? "bg-accent-soft/40"
                     : sel
                     ? "bg-ok-soft/20"
-                    : "hover:bg-paper-2"
+                    : "bg-cream hover:bg-paper"
                 }`}
               >
                 {/* Active stripe */}
@@ -95,7 +95,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
 
                 {/* Fonds */}
                 <td className="px-3 py-3">
-                  <div className="font-medium text-ink leading-tight truncate max-w-[260px]">{f.name}</div>
+                  <div className="font-medium text-ink leading-tight truncate max-w-[260px]">{decodeHtml(f.name)}</div>
                   <div className="text-[11px] text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}
                   </div>
