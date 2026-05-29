@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import type { FundDetailHF, NavPointHF } from "@/lib/types";
+import type { FundDetailHF, FundHoldingHF, FundBreakdownHF, NavPointHF } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -44,22 +44,59 @@ export async function GET(
     return NextResponse.json({ error: "Fonds non trouvé", isin: upper }, { status: 404 });
   }
 
-  // Fetch last 3 years of NAV history
+  // Fetch NAV history + breakdown tables in parallel
   const threeYearsAgo = new Date();
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const since = threeYearsAgo.toISOString().split("T")[0];
 
-  const { data: prices } = await supabase
-    .from("investissement_fund_prices")
-    .select("price_date, nav")
-    .eq("isin", upper)
-    .gte("price_date", since)
-    .order("price_date", { ascending: true })
-    .limit(1000);
+  const [pricesRes, holdingsRes, sectorsRes, geosRes] = await Promise.all([
+    supabase
+      .from("investissement_fund_prices")
+      .select("price_date, nav")
+      .eq("isin", upper)
+      .gte("price_date", since)
+      .order("price_date", { ascending: true })
+      .limit(1000),
+    supabase
+      .from("investissement_fund_holdings")
+      .select("rank, position_name, ticker, asset_type, sector, country, weight")
+      .eq("isin", upper)
+      .order("rank", { ascending: true }),
+    supabase
+      .from("investissement_fund_sectors")
+      .select("sector_name, weight")
+      .eq("isin", upper)
+      .order("weight", { ascending: false }),
+    supabase
+      .from("investissement_fund_geos")
+      .select("country_label, country_code, weight")
+      .eq("isin", upper)
+      .order("weight", { ascending: false }),
+  ]);
 
-  const nav_history: NavPointHF[] = (prices ?? []).map((p: any) => ({
+  const nav_history: NavPointHF[] = (pricesRes.data ?? []).map((p: any) => ({
     date: p.price_date,
     nav: p.nav,
+  }));
+
+  const holdings: FundHoldingHF[] = (holdingsRes.data ?? []).map((h: any) => ({
+    rank: h.rank,
+    position_name: h.position_name,
+    ticker: h.ticker ?? null,
+    asset_type: h.asset_type ?? null,
+    sector: h.sector ?? null,
+    country: h.country ?? null,
+    weight: h.weight,
+  }));
+
+  const sectors: FundBreakdownHF[] = (sectorsRes.data ?? []).map((s: any) => ({
+    label: s.sector_name,
+    weight: s.weight,
+  }));
+
+  const geos: FundBreakdownHF[] = (geosRes.data ?? []).map((g: any) => ({
+    label: g.country_label ?? g.country_code,
+    weight: g.weight,
   }));
 
   // Map to FundDetailHF
@@ -106,9 +143,9 @@ export async function GET(
     kid_url: fund.kid_url,
     data_completeness: fund.data_completeness ?? 0,
     nav_history,
-    holdings: [],
-    sectors: [],
-    geos: [],
+    holdings,
+    sectors,
+    geos,
   };
 
   return NextResponse.json(
