@@ -26,7 +26,7 @@ export async function GET(
     .from("investissement_funds")
     .select(`
       isin, name, management_company, management_company_normalized,
-      product_type, category_normalized, asset_class, region_normalized,
+      product_type, category_normalized, asset_class, region_normalized, management_style,
       currency, inception_date, track_record_years,
       sfdr_article, sri, srri, risk_level,
       performance_1y, performance_3y, performance_5y, average_performance,
@@ -118,9 +118,11 @@ export async function GET(
     sfdr_article: fund.sfdr_article,
     risk_score: fund.sri,
     srri: fund.srri,
+    management_style: (fund as any).management_style ?? null,
     performance_1y: fund.performance_1y,
     performance_3y: fund.performance_3y,
     performance_5y: fund.performance_5y,
+    average_performance: fund.average_performance ?? null,
     volatility_1y: fund.volatility_1y,
     volatility_3y: fund.volatility_3y,
     sharpe_1y: fund.sharpe_1y,
