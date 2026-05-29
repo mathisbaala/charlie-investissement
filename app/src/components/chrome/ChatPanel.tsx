@@ -80,27 +80,31 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
 
   return (
     <div
-      className={`c-pop fixed right-4 bottom-4 z-50 w-[360px] bg-paper border border-line rounded-xl shadow-[0_8px_24px_oklch(0.22_0.012_60_/_0.14)] flex flex-col overflow-hidden`}
-      style={{ maxHeight: isEmpty ? "220px" : "520px", transition: "max-height 300ms ease" }}
+      className="c-pop fixed right-4 z-50 w-[360px] bg-cream border border-line rounded-xl shadow-[0_12px_40px_oklch(0.22_0.012_60_/_0.18)] flex flex-col overflow-hidden"
+      style={{
+        top: "62px",
+        maxHeight: isEmpty ? "190px" : "520px",
+        transition: "max-height 300ms ease",
+      }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-2 border-b border-line shrink-0">
+      {/* Header — sans séparateur */}
+      <div className="flex items-center justify-between px-5 pt-4 pb-1 shrink-0">
         <span
-          className="text-[13px] text-ink"
+          className="text-[14px] text-ink"
           style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
         >
           Charlie
         </span>
         <button onClick={onClose} className="text-muted hover:text-ink transition-colors">
-          <X size={15} />
+          <X size={14} />
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3 min-h-0">
+      {/* Messages — aéré, sans boites pour l'assistant */}
+      <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2.5 min-h-0">
         {isEmpty ? (
           <p
-            className="text-[22px] text-ink leading-tight"
+            className="text-[24px] text-ink leading-tight pt-1"
             style={{ fontFamily: "var(--font-serif)" }}
           >
             Bonjour.
@@ -109,10 +113,10 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           messages.map((m, i) => (
             <div
               key={i}
-              className={`text-[12.5px] leading-relaxed ${
+              className={`text-[13px] leading-relaxed ${
                 m.role === "user"
-                  ? "text-ink-2 self-end bg-paper-2 rounded-lg px-3 py-2 max-w-[85%]"
-                  : "text-ink self-start max-w-full"
+                  ? "self-end bg-paper rounded-lg px-3 py-1.5 max-w-[85%] text-ink-2"
+                  : "self-start text-ink max-w-full"
               }`}
             >
               {m.content}
@@ -136,9 +140,9 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="px-3 pb-3 pt-2 border-t border-line shrink-0">
-        <div className="flex items-center gap-2 border border-line rounded-lg px-3 py-2 focus-within:border-accent/50 transition-colors">
+      {/* Input — fond paper dans le panel crème, sans border-top */}
+      <div className="px-4 pb-4 pt-1 shrink-0">
+        <div className="flex items-center gap-2 bg-paper rounded-lg px-3 py-2.5 focus-within:ring-1 focus-within:ring-accent/30 transition-all">
           <input
             ref={inputRef}
             value={input}
