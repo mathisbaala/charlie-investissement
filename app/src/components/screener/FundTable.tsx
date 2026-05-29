@@ -86,8 +86,11 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
                       aum_eur: f.aum_eur ?? null,
                       retrocession_cgp: f.retrocession_cgp ?? null,
                       pea_eligible: f.pea_eligible ?? null,
+                      pea_pme_eligible: f.pea_pme_eligible ?? null,
                       per_eligible: f.per_eligible ?? null,
+                      av_fr_eligible: f.av_fr_eligible ?? null,
                       av_lux_eligible: f.av_lux_eligible ?? null,
+                      cto_eligible: f.cto_eligible ?? null,
                     })}
                     className="w-3.5 h-3.5 rounded border-line accent-brown cursor-pointer"
                   />

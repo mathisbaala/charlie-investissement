@@ -121,8 +121,10 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             max_drawdown_3y: fund.max_drawdown_3y, morningstar_rating: fund.morningstar_rating,
             track_record_years: fund.track_record_years, aum_eur: fund.aum_eur,
             retrocession_cgp: fund.retrocession_cgp,
-            pea_eligible: fund.pea_eligible, per_eligible: fund.per_eligible,
-            av_lux_eligible: fund.av_lux_eligible,
+            pea_eligible: fund.pea_eligible, pea_pme_eligible: fund.pea_pme_eligible,
+            per_eligible: fund.per_eligible,
+            av_fr_eligible: fund.av_fr_eligible, av_lux_eligible: fund.av_lux_eligible,
+            cto_eligible: fund.cto_eligible,
           })}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0 ${
             sel
