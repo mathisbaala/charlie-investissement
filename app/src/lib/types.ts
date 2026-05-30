@@ -119,6 +119,7 @@ export type SimilarFund = {
   performance_1y: number | null;
   performance_3y: number | null;
   morningstar_rating: number | null;
+  retrocession_cgp: number | null;
   data_completeness: number;
   similarity_score: number;
 };

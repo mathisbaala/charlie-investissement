@@ -46,7 +46,7 @@ export function SimilarFundsCard({ isin }: Props) {
                 <SriBadge sri={f.risk_score} />
               </div>
             </div>
-            <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex items-center gap-3 text-[11px] flex-wrap">
               {f.ter != null && (
                 <span className="text-muted">
                   TER <span className="font-mono text-ink-2">{pct(f.ter)}</span>
@@ -54,12 +54,17 @@ export function SimilarFundsCard({ isin }: Props) {
               )}
               {f.performance_3y != null && (
                 <span className={`font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
-                  {f.performance_3y >= 0 ? "+" : ""}{pct(f.performance_3y)} 3A
+                  {pct(f.performance_3y, true)} 3A
                 </span>
               )}
               {f.performance_1y != null && f.performance_3y == null && (
                 <span className={`font-mono font-medium ${f.performance_1y >= 0 ? "text-ok" : "text-warn"}`}>
-                  {f.performance_1y >= 0 ? "+" : ""}{pct(f.performance_1y)} 1A
+                  {pct(f.performance_1y, true)} 1A
+                </span>
+              )}
+              {f.retrocession_cgp != null && f.retrocession_cgp > 0 && (
+                <span className="font-mono font-medium text-accent">
+                  Rétro. {pct(f.retrocession_cgp * 100)}
                 </span>
               )}
             </div>
