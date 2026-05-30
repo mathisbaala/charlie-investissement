@@ -3,7 +3,7 @@ export {
   Search, Sparkles, Star, FileText, Download, Upload,
   ArrowLeftRight, X, Plus, RefreshCw, SlidersHorizontal,
   Check, ChevronRight, ChevronDown, ArrowLeft, ArrowRight,
-  ArrowDown, LayoutGrid, AlertTriangle, Paperclip, Minus,
+  ArrowDown, ArrowUp, LayoutGrid, AlertTriangle, Paperclip, Minus,
   ArrowUpDown, Settings, Menu, ExternalLink, Copy, Trash2,
   Filter, BarChart2, TrendingUp, Shield, Loader2
 } from "lucide-react";

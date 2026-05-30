@@ -234,7 +234,13 @@ def run(apply: bool, limit: int | None, only_geco: bool, only_amfinesoft: bool =
         print(f"  [{i:4d}] {isin} — {fee_summary} ({name})")
 
         if apply:
-            client.table("investissement_funds").update(fees).eq("isin", isin).execute()
+            try:
+                client.table("investissement_funds").update(fees).eq("isin", isin).execute()
+            except Exception as db_err:
+                stats["db_error"] += 1
+                print(f"  [{i:4d}] {isin} — DB ERROR: {db_err}")
+                time.sleep(1)
+                continue
 
         if i % 50 == 0:
             elapsed = (datetime.now(timezone.utc) - started).total_seconds()

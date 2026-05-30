@@ -187,6 +187,15 @@ function RechercheInner() {
 
   const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPage(1); }, []);
   const handleSortDirToggle = useCallback(() => { setSortDir((d) => d === "desc" ? "asc" : "desc"); setPage(1); }, []);
+  const handleColumnSort    = useCallback((field: string) => {
+    if (field === sortBy) {
+      setSortDir((d) => d === "desc" ? "asc" : "desc");
+    } else {
+      setSortBy(field);
+      setSortDir("desc");
+    }
+    setPage(1);
+  }, [sortBy]);
   const goToPrevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
   const goToNextPage = useCallback(() => setPage((p) => Math.min(totalPages, p + 1)), [totalPages]);
   const handleRowClick = useCallback((f: Fund) => setActiveFund((prev) => prev === f.isin ? null : f.isin), []);
@@ -348,7 +357,14 @@ function RechercheInner() {
               </div>
             ) : (
               <div className="border border-line rounded-xl overflow-x-auto">
-                <FundTable funds={funds} onRowClick={handleRowClick} activeFundIsin={activeFund} />
+                <FundTable
+                  funds={funds}
+                  onRowClick={handleRowClick}
+                  activeFundIsin={activeFund}
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleColumnSort}
+                />
               </div>
             )}
 
