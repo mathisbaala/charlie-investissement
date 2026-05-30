@@ -33,6 +33,7 @@ type TopFund = {
   performance_3y: number | null;
   ter: number | null;
   morningstar_rating: number | null;
+  retrocession_cgp: number | null;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -42,8 +43,9 @@ export default function AccueilPage() {
   const [query,   setQuery]   = useState("");
   const [searches, setSearches] = useState<SearchEntry[]>([]);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
-  const [topEtf,  setTopEtf]  = useState<TopFund[]>([]);
-  const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
+  const [topEtf,    setTopEtf]    = useState<TopFund[]>([]);
+  const [topOpcvm,  setTopOpcvm]  = useState<TopFund[]>([]);
+  const [topRetro,  setTopRetro]  = useState<TopFund[]>([]);
   const [stats, setStats] = useState<{ total: number; withKid: number; etf: number; opcvm: number; scpi: number; sfdr89: number } | null>(null);
 
   // Client profile
@@ -65,6 +67,11 @@ export default function AccueilPage() {
     fetch("/api/screener/top-performers?type=opcvm&sort_by=performance_3y&limit=5&min_completeness=70&min_aum=50000000")
       .then((r) => r.json())
       .then((d) => setTopOpcvm(d.data ?? []))
+      .catch(() => {});
+
+    fetch("/api/screener/funds?types=opcvm&sort_by=retrocession_cgp&sort_dir=desc&retrocession_min=0.01&min_completeness=60&per_page=5&deduplicate=true")
+      .then((r) => r.json())
+      .then((d) => setTopRetro(d.data ?? []))
       .catch(() => {});
 
     fetch("/api/screener/stats")
@@ -292,8 +299,8 @@ export default function AccueilPage() {
         </div>
 
         {/* ── Top performers ──────────────────────────────────────────────────── */}
-        {(topEtf.length > 0 || topOpcvm.length > 0) && (
-          <div className="grid grid-cols-2 gap-5">
+        {(topEtf.length > 0 || topOpcvm.length > 0 || topRetro.length > 0) && (
+          <div className="grid grid-cols-3 gap-5">
 
             {topEtf.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
@@ -352,6 +359,38 @@ export default function AccueilPage() {
                           </span>
                         )}
                         <p className="text-[10px] text-muted-2">3 ans</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {topRetro.length > 0 && (
+              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top OPCVM · Rétro. CGP</p>
+                  <Link
+                    href="/recherche?q=OPCVM+r%C3%A9trocession+CGP&sort_by=retrocession_cgp"
+                    className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5"
+                  >
+                    Voir tout <ChevronRight size={10} />
+                  </Link>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {topRetro.map((f) => (
+                    <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
+                        <p className="text-[10px] text-muted-2 truncate">{f.gestionnaire ?? f.isin}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {f.retrocession_cgp != null && (
+                          <span className="text-[13px] font-mono font-medium text-accent">
+                            {pct(f.retrocession_cgp * 100)}
+                          </span>
+                        )}
+                        <p className="text-[10px] text-muted-2">rétro./an</p>
                       </div>
                     </Link>
                   ))}
