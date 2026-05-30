@@ -185,9 +185,15 @@ function FavCard({
   );
 }
 
+const nfEur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+type SortKey = "added" | "perf" | "retro" | "ter";
+
 export default function FavorisPage() {
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("added");
+  const [aumInput, setAumInput] = useState("100000");
 
   useEffect(() => {
     setFavorites(getFavorites());
@@ -198,6 +204,20 @@ export default function FavorisPage() {
     setFavorites((prev) => prev.filter((f) => f.isin !== isin));
   }
 
+  const aum = aumInput ? (parseFloat(aumInput.replace(/\s/g, "").replace(",", ".")) || null) : null;
+
+  const withRetro = favorites.filter((f) => (f.retrocession_cgp ?? 0) > 0);
+  const avgRetro = withRetro.length > 0
+    ? withRetro.reduce((s, f) => s + (f.retrocession_cgp ?? 0), 0) / withRetro.length
+    : null;
+
+  const sorted = [...favorites].sort((a, b) => {
+    if (sortKey === "perf")  return (b.performance_3y ?? -999) - (a.performance_3y ?? -999);
+    if (sortKey === "retro") return (b.retrocession_cgp ?? 0) - (a.retrocession_cgp ?? 0);
+    if (sortKey === "ter")   return (a.ongoing_charges ?? 999) - (b.ongoing_charges ?? 999);
+    return new Date(b.added_at ?? 0).getTime() - new Date(a.added_at ?? 0).getTime();
+  });
+
   return (
     <div className="h-full overflow-y-auto bg-cream px-8 py-8">
       {/* Header */}
@@ -206,13 +226,72 @@ export default function FavorisPage() {
           Favoris
           <span className="ml-2 text-[13px] text-muted font-sans">({favorites.length})</span>
         </h1>
-        {favorites.length > 0 && (
-          <Btn variant="outline" size="sm" onClick={() => exportCsv(favorites)}>
-            <Download size={13} />
-            Exporter CSV
-          </Btn>
-        )}
+        <div className="flex items-center gap-2">
+          {favorites.length > 0 && (
+            <>
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none hover:bg-paper-2"
+              >
+                <option value="added">Récemment ajoutés</option>
+                <option value="perf">Perf 3A</option>
+                <option value="retro">Rétrocession CGP</option>
+                <option value="ter">TER (croissant)</option>
+              </select>
+              <Btn variant="outline" size="sm" onClick={() => exportCsv(favorites)}>
+                <Download size={13} />
+                Exporter CSV
+              </Btn>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Synthèse rétrocession */}
+      {withRetro.length > 0 && (
+        <div className="mb-5 mt-3 bg-accent/10 border border-accent/20 rounded-xl px-5 py-4 flex flex-wrap items-center gap-5">
+          <div>
+            <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold">Fonds avec rétrocession</p>
+            <p className="text-[20px] font-semibold text-accent font-mono mt-0.5" style={{ fontFamily: "var(--font-serif)" }}>
+              {withRetro.length}
+              <span className="text-[12px] font-normal text-muted-2 ml-1">/ {favorites.length}</span>
+            </p>
+          </div>
+          {avgRetro != null && (
+            <div>
+              <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold">Rétro. moyenne</p>
+              <p className="text-[20px] font-semibold text-accent font-mono mt-0.5" style={{ fontFamily: "var(--font-serif)" }}>
+                {pct(avgRetro * 100)}
+              </p>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div>
+              <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold">Pour</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <input
+                  type="number"
+                  value={aumInput}
+                  onChange={(e) => setAumInput(e.target.value)}
+                  className="w-28 border border-line rounded-lg px-2.5 py-1 text-[13px] font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+                />
+                <span className="text-[12px] text-muted">€</span>
+              </div>
+            </div>
+            {aum != null && avgRetro != null && (
+              <div className="mt-4">
+                <span className="text-[13px] text-muted mx-1">→</span>
+                <span className="text-[18px] font-bold text-accent font-mono">
+                  {nfEur.format(aum * avgRetro)}
+                  <span className="text-[11px] font-normal text-muted-2">/an</span>
+                </span>
+                <span className="text-[10px] text-muted ml-1">moy.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Grid or empty state */}
       {favorites.length === 0 ? (
@@ -226,7 +305,7 @@ export default function FavorisPage() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-3 gap-4 max-[900px]:grid-cols-2 pb-24">
-          {favorites.map((f) => (
+          {sorted.map((f) => (
             <FavCard key={f.isin} f={f} onRemove={() => handleRemove(f.isin)} />
           ))}
         </div>
