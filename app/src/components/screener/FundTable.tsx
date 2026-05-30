@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronRight } from "@/components/ui/icons";
+import { ChevronRight, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
 import { useSelection } from "@/components/SelectionProvider";
 import { pct, decodeHtml } from "@/lib/format";
@@ -12,6 +12,9 @@ interface FundTableProps {
   funds: Fund[];
   onRowClick?: (fund: Fund) => void;
   activeFundIsin?: string | null;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+  onSort?: (field: string) => void;
 }
 
 function EligPill({ label, active }: { label: string; active: boolean | null }) {
@@ -23,7 +26,34 @@ function EligPill({ label, active }: { label: string; active: boolean | null }) 
   );
 }
 
-export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps) {
+function SortTh({
+  field, label, align = "right", sortBy, sortDir, onSort, children,
+}: {
+  field: string; label?: string; align?: "left" | "right" | "center";
+  sortBy?: string; sortDir?: "asc" | "desc";
+  onSort?: (f: string) => void;
+  children?: React.ReactNode;
+}) {
+  const active = sortBy === field;
+  const cls = `px-3 py-3 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap select-none ${
+    onSort ? "cursor-pointer hover:text-ink transition-colors" : ""
+  } ${active ? "text-ink" : "text-muted"} text-${align}`;
+
+  return (
+    <th className={cls} onClick={() => onSort?.(field)}>
+      <span className="inline-flex items-center gap-1" style={{ justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start" }}>
+        {children ?? label}
+        {active && (
+          sortDir === "asc"
+            ? <ArrowUp size={9} className="text-accent" />
+            : <ArrowDown size={9} className="text-accent" />
+        )}
+      </span>
+    </th>
+  );
+}
+
+export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, onSort }: FundTableProps) {
   const { toggle, isSelected } = useSelection();
 
   return (
@@ -35,11 +65,11 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
             <th className="text-left px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Fonds</th>
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SFDR</th>
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SRI</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">TER</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 1A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Perf 3A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Vol 1A</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-right whitespace-nowrap">Rétro.</th>
+            <SortTh field="ter" label="TER" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="performance_1y" label="Perf 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="performance_3y" label="Perf 3A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="volatility_1y" label="Vol 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="retrocession_cgp" label="Rétro." sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
             <th className="w-8 whitespace-nowrap" />
           </tr>
@@ -60,7 +90,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin }: FundTableProps)
                     : "bg-paper hover:bg-cream"
                 }`}
               >
-                {/* Checkbox — stripe is inside this td to avoid ghost column */}
+                {/* Checkbox */}
                 <td className="px-3 py-3 relative" onClick={(e) => e.stopPropagation()}>
                   {active && (
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-accent rounded-r pointer-events-none" />
