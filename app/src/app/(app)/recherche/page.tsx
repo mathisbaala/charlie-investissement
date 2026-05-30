@@ -331,6 +331,20 @@ function RechercheInner() {
                 {sortDir === "desc" ? "Déc." : "Crois."}
               </button>
               <button
+                onClick={() => {
+                  setFilters((f) => ({ ...f, retrocession_min: f.retrocession_min != null ? undefined : 0.01 }));
+                  setPage(1);
+                }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
+                  filters.retrocession_min != null
+                    ? "bg-accent text-paper border-accent"
+                    : "bg-paper text-ink-2 border-line hover:bg-paper-2"
+                }`}
+                title="N'afficher que les fonds avec rétrocession CGP"
+              >
+                Avec rétro.
+              </button>
+              <button
                 onClick={() => setShowFilters((v) => !v)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
                   showFilters ? "bg-accent-soft text-accent-ink border-accent/20" : "bg-paper text-ink-2 border-line hover:bg-paper-2"

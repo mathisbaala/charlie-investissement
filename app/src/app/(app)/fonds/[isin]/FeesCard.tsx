@@ -2,6 +2,8 @@ import React from "react";
 import { pct } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
+const nfEur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
 function FeeRow({
   label,
   value,
@@ -71,6 +73,27 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           )}
         </tbody>
       </table>
+      {fund.retrocession_cgp != null && fund.retrocession_cgp > 0 && (
+        <div className="mt-4 pt-3.5 border-t border-dashed border-line-soft">
+          <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-2">
+            Revenu CGP estimé
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] text-muted">Pour 100 000 € investis</span>
+            <span className="text-[13px] font-semibold text-accent font-mono">
+              {nfEur.format(100_000 * fund.retrocession_cgp)}<span className="text-[10px] font-normal text-muted-2">/an</span>
+            </span>
+          </div>
+          {ter != null && (
+            <div className="flex items-center justify-between gap-3 mt-1.5">
+              <span className="text-[11px] text-muted">Coût net client (TER − rétro.)</span>
+              <span className="text-[12px] font-mono text-ink-2">
+                {pct(ter - fund.retrocession_cgp * 100)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
       {(fund.entry_fee_max == null || fund.exit_fee_max == null) && (
         <p className="text-[10px] text-muted-2 mt-3 italic">
           * Frais transactionnels extraits des KIDs — incomplets pour certains fonds.

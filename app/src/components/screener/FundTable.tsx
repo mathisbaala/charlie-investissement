@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
 import { useSelection } from "@/components/SelectionProvider";
-import { pct, decodeHtml } from "@/lib/format";
+import { pct, fmtAumShort, decodeHtml } from "@/lib/format";
 import type { Fund } from "@/lib/types";
 
 interface FundTableProps {
@@ -70,6 +70,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
             <SortTh field="performance_3y" label="Perf 3A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="volatility_1y" label="Vol 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="retrocession_cgp" label="Rétro." sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="aum_eur" label="Encours" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
             <th className="w-8 whitespace-nowrap" />
           </tr>
@@ -167,6 +168,10 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   f.retrocession_cgp == null ? "text-muted-2" : "text-accent"
                 }`}>
                   {f.retrocession_cgp == null ? "—" : pct(f.retrocession_cgp * 100)}
+                </td>
+
+                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap text-[11.5px]">
+                  {fmtAumShort(f.aum_eur)}
                 </td>
 
                 <td className="px-3 py-3">

@@ -29,10 +29,20 @@ export function eur(v: number | null | undefined): string {
 
 export function fmtAum(v: number | null | undefined): string {
   if (v == null) return "—";
-  // v is already in euros (not M€), convert to M€
   const m = v / 1_000_000;
   if (m >= 1000) return nf.format(Math.round(m / 100) * 100) + " M€";
   return nf1.format(m) + " M€";
+}
+
+export function fmtAumShort(v: number | null | undefined): string {
+  if (v == null) return "—";
+  const bn = v / 1_000_000_000;
+  if (bn >= 10) return `${Math.round(bn)} Md€`;
+  if (bn >= 1)  return `${nf1.format(bn)} Md€`;
+  const m = v / 1_000_000;
+  if (m >= 100) return `${Math.round(m)} M€`;
+  if (m >= 1)   return `${nf1.format(m)} M€`;
+  return `< 1 M€`;
 }
 
 export function dt(iso: string | null | undefined): string {

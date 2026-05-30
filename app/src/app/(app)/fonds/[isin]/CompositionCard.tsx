@@ -5,35 +5,112 @@ function pctStr(v: number) {
   return `${(v * 100).toFixed(1)}%`;
 }
 
-function BarRow({ label, weight, maxWeight }: { label: string; weight: number; maxWeight: number }) {
-  const barPct = maxWeight > 0 ? (weight / maxWeight) * 100 : 0;
+// Palette "Charlie earth tones" — assez disctincte pour 10 tranches
+const PALETTE = [
+  "#8B7355", "#6B9E9F", "#C4956A", "#7A8E6B", "#9E7A8B",
+  "#5A7A8B", "#B8956A", "#6B7A5A", "#8B6B6B", "#6B8B7A",
+];
+
+function DonutChart({ items, size = 72 }: { items: FundBreakdownHF[]; size?: number }) {
+  const total = items.reduce((s, x) => s + x.weight, 0);
+  if (total === 0) return null;
+
+  const cx = size / 2, cy = size / 2;
+  const r  = size * 0.42;
+  const ri = size * 0.26;
+
+  let angle = -90;
+  const paths: React.ReactNode[] = [];
+
+  items.forEach((item, i) => {
+    const frac = item.weight / total;
+    if (frac < 0.005) return;
+    const start = angle;
+    const end   = angle + frac * 360;
+    angle = end;
+
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x1 = cx + r * Math.cos(toRad(start));
+    const y1 = cy + r * Math.sin(toRad(start));
+    const x2 = cx + r * Math.cos(toRad(end));
+    const y2 = cy + r * Math.sin(toRad(end));
+    const xi1 = cx + ri * Math.cos(toRad(start));
+    const yi1 = cy + ri * Math.sin(toRad(start));
+    const xi2 = cx + ri * Math.cos(toRad(end));
+    const yi2 = cy + ri * Math.sin(toRad(end));
+    const large = frac > 0.5 ? 1 : 0;
+
+    paths.push(
+      <path
+        key={i}
+        d={`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${ri} ${ri} 0 ${large} 0 ${xi1} ${yi1} Z`}
+        fill={PALETTE[i % PALETTE.length]}
+        opacity={0.9}
+      />
+    );
+  });
+
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-[11px] text-muted shrink-0 w-36 truncate">{label}</span>
-      <div className="flex-1 h-1.5 bg-paper-2 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-accent/70 rounded-full"
-          style={{ width: `${barPct}%` }}
-        />
-      </div>
-      <span className="text-[11px] font-mono text-ink-2 shrink-0 w-12 text-right">
-        {pctStr(weight)}
-      </span>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+      {paths}
+    </svg>
+  );
+}
+
+function LegendRow({ label, weight, color }: { label: string; weight: number; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+      <span className="text-[10.5px] text-muted flex-1 truncate">{label}</span>
+      <span className="text-[10.5px] font-mono text-ink-2 shrink-0">{pctStr(weight)}</span>
     </div>
   );
 }
 
-function HoldingRow({ holding }: { holding: FundHoldingHF }) {
+function BreakdownPanel({
+  title, items, showDonut = true,
+}: {
+  title: string; items: FundBreakdownHF[]; showDonut?: boolean;
+}) {
+  if (items.length === 0) return null;
+  const top = items.slice(0, 8);
+
   return (
-    <div className="flex items-center gap-3 py-1.5 border-b border-line-soft last:border-0">
-      <span className="text-[10px] text-muted-2 font-mono w-4 shrink-0">{holding.rank}</span>
-      <span className="flex-1 text-[11px] text-ink-2 truncate">{holding.position_name}</span>
-      {holding.country && (
-        <span className="text-[10px] text-muted shrink-0">{holding.country}</span>
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-semibold">{title}</p>
+      {showDonut ? (
+        <div className="flex gap-3 items-start">
+          <DonutChart items={top} size={72} />
+          <div className="flex-1 min-w-0 space-y-1">
+            {top.map((s, i) => (
+              <LegendRow key={s.label} label={s.label} weight={s.weight} color={PALETTE[i % PALETTE.length]} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {top.map((s, i) => (
+            <LegendRow key={s.label} label={s.label} weight={s.weight} color={PALETTE[i % PALETTE.length]} />
+          ))}
+        </div>
       )}
-      <span className="text-[11px] font-mono text-ink shrink-0 w-12 text-right font-medium">
-        {pctStr(holding.weight)}
-      </span>
+    </div>
+  );
+}
+
+function HoldingRow({ holding, rank }: { holding: FundHoldingHF; rank: number }) {
+  const barPct = Math.min(holding.weight * 100 / 15, 100);
+  return (
+    <div className="flex items-center gap-2.5 py-1 border-b border-line-soft last:border-0">
+      <span className="text-[10px] text-muted-2 font-mono w-4 shrink-0 text-right">{rank}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] text-ink-2 truncate leading-tight">{holding.position_name}</div>
+        <div
+          className="mt-0.5 h-[3px] rounded-full bg-accent/25"
+          style={{ width: `${barPct}%` }}
+        />
+      </div>
+      <span className="text-[11px] font-mono text-ink shrink-0 font-medium">{pctStr(holding.weight)}</span>
     </div>
   );
 }
@@ -46,8 +123,7 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
 
   if (!hasHoldings && !hasSectors && !hasGeos) return null;
 
-  const maxSectorW = hasSectors ? Math.max(...sectors.map(s => s.weight)) : 0;
-  const maxGeoW    = hasGeos    ? Math.max(...geos.map(g => g.weight))    : 0;
+  const colCount = [hasHoldings, hasSectors || hasGeos].filter(Boolean).length;
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5 col-span-2">
@@ -55,46 +131,26 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
         Composition du portefeuille
       </h3>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className={`grid gap-8 ${colCount >= 2 ? "grid-cols-[1fr_1fr]" : "grid-cols-1"}`}>
         {/* Top holdings */}
         {hasHoldings && (
-          <div className="col-span-1">
-            <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-medium">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-semibold">
               Top {holdings.length} positions
             </p>
             <div>
-              {holdings.map(h => (
-                <HoldingRow key={h.rank} holding={h} />
+              {holdings.map((h, i) => (
+                <HoldingRow key={h.rank} holding={h} rank={i + 1} />
               ))}
             </div>
           </div>
         )}
 
-        {/* Sector breakdown */}
-        {hasSectors && (
-          <div className={hasHoldings ? "col-span-1" : "col-span-2"}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-medium">
-              Secteurs
-            </p>
-            <div className="space-y-2">
-              {sectors.slice(0, 10).map(s => (
-                <BarRow key={s.label} label={s.label} weight={s.weight} maxWeight={maxSectorW} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Geo breakdown */}
-        {hasGeos && (
-          <div className={!hasHoldings && !hasSectors ? "col-span-3" : "col-span-1"}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-medium">
-              Zones géographiques
-            </p>
-            <div className="space-y-2">
-              {geos.slice(0, 10).map(g => (
-                <BarRow key={g.label} label={g.label} weight={g.weight} maxWeight={maxGeoW} />
-              ))}
-            </div>
+        {/* Breakdown panels (sectors + geos) */}
+        {(hasSectors || hasGeos) && (
+          <div className={`space-y-6 ${!hasHoldings ? "col-span-2 grid grid-cols-2 gap-8 space-y-0" : ""}`}>
+            <BreakdownPanel title="Répartition sectorielle" items={sectors} showDonut={hasSectors} />
+            <BreakdownPanel title="Zones géographiques"     items={geos}    showDonut={hasGeos} />
           </div>
         )}
       </div>
