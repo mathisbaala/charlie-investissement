@@ -197,9 +197,18 @@ export type ScreenerFilters = {
 export type SortField =
   | 'performance_3y'
   | 'performance_1y'
+  | 'performance_5y'
+  | 'average_performance'
   | 'ter'
   | 'aum_eur'
+  | 'sharpe_1y'
   | 'sharpe_3y'
+  | 'volatility_1y'
+  | 'max_drawdown_3y'
+  | 'morningstar_rating'
+  | 'track_record_years'
+  | 'retrocession_cgp'
+  | 'entry_fee_max'
   | 'data_completeness';
 
 // ─── Réponses API ─────────────────────────────────────────────────────────────
