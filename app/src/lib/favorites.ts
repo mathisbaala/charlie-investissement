@@ -8,6 +8,7 @@ export type FavoriteEntry = {
   risk_score: number | null;
   performance_3y: number | null;
   ongoing_charges: number | null;
+  retrocession_cgp: number | null;
   pea_eligible: boolean | null;
   pea_pme_eligible: boolean | null;
   per_eligible: boolean | null;
