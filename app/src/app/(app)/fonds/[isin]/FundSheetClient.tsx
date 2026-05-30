@@ -41,6 +41,7 @@ export function FundSheetClient({ fund }: Props) {
         risk_score: fund.risk_score,
         performance_3y: fund.performance_3y,
         ongoing_charges: fund.ongoing_charges,
+        retrocession_cgp: fund.retrocession_cgp,
         pea_eligible: fund.pea_eligible,
         pea_pme_eligible: fund.pea_pme_eligible,
         per_eligible: fund.per_eligible,

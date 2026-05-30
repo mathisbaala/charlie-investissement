@@ -19,7 +19,7 @@ function fmtBool(v: boolean | null | undefined): string {
 function exportCsv(funds: FavoriteEntry[]) {
   const HEADERS = [
     "ISIN", "Nom", "Gestionnaire", "SFDR", "SRI", "Morningstar",
-    "Perf 3A (%)", "TER (%)",
+    "Perf 3A (%)", "TER (%)", "Rétrocession CGP (%)",
     "PEA", "PEA-PME", "PER", "AV France", "AV Luxembourg", "CTO",
     "Ajouté le",
   ];
@@ -32,6 +32,7 @@ function exportCsv(funds: FavoriteEntry[]) {
     f.morningstar_rating ?? "",
     f.performance_3y != null ? f.performance_3y.toFixed(2) + "%" : "",
     f.ongoing_charges != null ? f.ongoing_charges.toFixed(2) + "%" : "",
+    f.retrocession_cgp != null && f.retrocession_cgp > 0 ? (f.retrocession_cgp * 100).toFixed(3) + "%" : "",
     fmtBool(f.pea_eligible),
     fmtBool(f.pea_pme_eligible),
     fmtBool(f.per_eligible),
@@ -69,7 +70,7 @@ function toSelectedFund(f: FavoriteEntry): SelectedFund {
     morningstar_rating: f.morningstar_rating,
     track_record_years: null,
     aum_eur: null,
-    retrocession_cgp: null,
+    retrocession_cgp: f.retrocession_cgp ?? null,
     pea_eligible: f.pea_eligible,
     pea_pme_eligible: f.pea_pme_eligible,
     per_eligible: f.per_eligible,
@@ -131,7 +132,7 @@ function FavCard({
       </div>
 
       {/* Metrics */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <div>
           <p className="text-[10px] text-muted mb-0.5">Perf. 3A</p>
           <p
@@ -146,6 +147,12 @@ function FavCard({
           <p className="text-[10px] text-muted mb-0.5">TER</p>
           <p className="text-[12px] text-ink-2 font-mono">{pct(f.ongoing_charges)}</p>
         </div>
+        {f.retrocession_cgp != null && f.retrocession_cgp > 0 && (
+          <div>
+            <p className="text-[10px] text-muted mb-0.5">Rétro. CGP</p>
+            <p className="text-[12px] font-medium font-mono text-accent">{pct(f.retrocession_cgp * 100)}</p>
+          </div>
+        )}
       </div>
 
       {/* Eligibility pills */}
