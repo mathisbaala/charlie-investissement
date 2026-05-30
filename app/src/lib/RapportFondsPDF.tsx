@@ -29,6 +29,12 @@ const S = StyleSheet.create({
   warning: { backgroundColor: "#fef3c7", padding: "5 8", marginBottom: 10, fontSize: 8.5, color: "#92400e" },
 });
 
+// Normalise les frais depuis la table brute (fraction < 0.1 → ×100, comme la view)
+function normTer(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return v > 0 && v < 0.1 ? parseFloat((v * 100).toFixed(4)) : v;
+}
+
 function fmt(n: number | null, suffix = "%", d = 2): string {
   return n == null ? "—" : `${Number(n).toFixed(d)}${suffix}`;
 }
@@ -37,6 +43,9 @@ function perf(n: number | null): string {
   if (n == null) return "—";
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
+
+const nfEur = (v: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function FundPage({ fund, index, total }: { fund: Record<string, any>; index: number; total: number }) {
@@ -81,12 +90,19 @@ function FundPage({ fund, index, total }: { fund: Record<string, any>; index: nu
         </View>
         <View style={S.col}>
           <Text style={S.sectionTitle}>Frais</Text>
-          <View style={S.row}><Text style={S.label}>Frais courants (TER)</Text><Text style={S.value}>{fmt(fund.ongoing_charges ?? fund.ter)}</Text></View>
+          <View style={S.row}><Text style={S.label}>Frais courants (TER)</Text><Text style={S.value}>{fmt(normTer(fund.ongoing_charges ?? fund.ter))}</Text></View>
           <View style={S.row}><Text style={S.label}>Frais d'entrée max</Text><Text style={S.value}>{fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "—"}</Text></View>
-          <View style={S.row}><Text style={S.label}>Rétrocession CGP</Text><Text style={S.value}>{fund.retrocession_cgp != null ? fmt(fund.retrocession_cgp * 100) : "—"}</Text></View>
+          <View style={S.row}><Text style={S.label}>Commission de sortie max</Text><Text style={S.value}>{fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "—"}</Text></View>
+          <View style={S.row}><Text style={S.label}>Rétrocession CGP</Text><Text style={[S.value, { color: (fund.retrocession_cgp ?? 0) > 0 ? "#8B7355" : "#1a1a1a" }]}>{fund.retrocession_cgp != null ? fmt(fund.retrocession_cgp * 100) : "—"}</Text></View>
+          {fund.retrocession_cgp > 0 && (
+            <View style={S.row}>
+              <Text style={S.label}>→ Revenu CGP / 100 000 €</Text>
+              <Text style={[S.value, { color: "#8B7355" }]}>{nfEur(100_000 * fund.retrocession_cgp)}/an</Text>
+            </View>
+          )}
           <View style={S.row}><Text style={S.label}>Encours</Text><Text style={S.value}>{fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "—"}</Text></View>
           <View style={S.row}><Text style={S.label}>Création</Text><Text style={S.value}>{fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "—"}</Text></View>
-          <View style={S.row}><Text style={S.label}>Track record</Text><Text style={S.value}>{trackRecord ? `${trackRecord} ans` : "—"}</Text></View>
+          <View style={S.row}><Text style={S.label}>Ancienneté</Text><Text style={S.value}>{trackRecord ? `${trackRecord} ans` : "—"}</Text></View>
           <View style={S.row}><Text style={S.label}>Type</Text><Text style={S.value}>{fund.product_type ?? "—"}</Text></View>
         </View>
       </View>
@@ -116,22 +132,24 @@ export default function RapportFondsPDF({ funds }: { funds: Record<string, any>[
           <Text style={[S.colSm, S.headerText]}>SFDR</Text>
           <Text style={[S.colSm, S.headerText]}>SRI</Text>
           <Text style={[S.colMd, S.headerText]}>TER</Text>
-          <Text style={[S.colMd, S.headerText]}>Perf 1Y</Text>
-          <Text style={[S.colMd, S.headerText]}>Perf 3Y</Text>
-          <Text style={[S.colMd, S.headerText]}>Perf 5Y</Text>
+          <Text style={[S.colMd, S.headerText]}>Rétro. CGP</Text>
+          <Text style={[S.colMd, S.headerText]}>Perf 1A</Text>
+          <Text style={[S.colMd, S.headerText]}>Perf 3A</Text>
         </View>
         {funds.map((f) => (
           <View key={f.isin} style={S.tableRow}>
             <View style={S.colName}>
-              <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold" }}>{String(f.name).slice(0, 55)}</Text>
+              <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold" }}>{String(f.name).slice(0, 50)}</Text>
               <Text style={{ fontSize: 7.5, color: "#9ca3af" }}>{f.isin}</Text>
             </View>
             <Text style={S.colSm}>{f.sfdr_article ? `Art.${f.sfdr_article}` : "—"}</Text>
             <Text style={S.colSm}>{(f.sri ?? f.risk_score) ? `${f.sri ?? f.risk_score}/7` : "—"}</Text>
-            <Text style={S.colMd}>{fmt(f.ongoing_charges)}</Text>
+            <Text style={S.colMd}>{fmt(normTer(f.ongoing_charges ?? f.ter))}</Text>
+            <Text style={[S.colMd, { color: f.retrocession_cgp > 0 ? "#8B7355" : "#1a1a1a" }]}>
+              {f.retrocession_cgp != null ? fmt(f.retrocession_cgp * 100) : "—"}
+            </Text>
             <Text style={S.colMd}>{perf(f.performance_1y)}</Text>
             <Text style={S.colMd}>{perf(f.performance_3y)}</Text>
-            <Text style={S.colMd}>{perf(f.performance_5y)}</Text>
           </View>
         ))}
 
