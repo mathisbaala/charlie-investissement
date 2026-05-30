@@ -332,6 +332,9 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
                 if 5 <= len(rows) <= 25 and _is_pct_table(rows):
                     items = _extract_name_weight_rows(rows)
                     if len(items) >= 3 and not any(bad_kw.search(it["name"]) for it in items[:3]):
+                        # Rejeter si les noms ressemblent à des pays (geo mal détecté comme holdings)
+                        if any(it["name"] in COUNTRY_CODES for it in items[:3]):
+                            continue
                         for j, it in enumerate(items[:10], 1):
                             result["holdings"].append({"rank": j, "position_name": it["name"], "weight": it["weight"]})
                         break
