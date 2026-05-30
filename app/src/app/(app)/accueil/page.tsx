@@ -46,7 +46,7 @@ export default function AccueilPage() {
   const [topEtf,    setTopEtf]    = useState<TopFund[]>([]);
   const [topOpcvm,  setTopOpcvm]  = useState<TopFund[]>([]);
   const [topRetro,  setTopRetro]  = useState<TopFund[]>([]);
-  const [stats, setStats] = useState<{ total: number; withKid: number; etf: number; opcvm: number; scpi: number; sfdr89: number } | null>(null);
+  const [stats, setStats] = useState<{ total: number; withKid: number; etf: number; opcvm: number; scpi: number; sfdr89: number; withRetro: number } | null>(null);
 
   // Client profile
   const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -79,12 +79,13 @@ export default function AccueilPage() {
       .then((d) => {
         if (!d.total_funds) return;
         setStats({
-          total:  d.total_funds,
-          withKid: d.with_kid ?? 12804,
-          etf:    d.by_type?.etf ?? 0,
-          opcvm:  d.by_type?.opcvm ?? 0,
-          scpi:   d.by_type?.scpi ?? 0,
-          sfdr89: (d.by_sfdr?.["8"] ?? 0) + (d.by_sfdr?.["9"] ?? 0),
+          total:     d.total_funds,
+          withKid:   d.with_kid ?? 12804,
+          etf:       d.by_type?.etf ?? 0,
+          opcvm:     d.by_type?.opcvm ?? 0,
+          scpi:      d.by_type?.scpi ?? 0,
+          sfdr89:    (d.by_sfdr?.["8"] ?? 0) + (d.by_sfdr?.["9"] ?? 0),
+          withRetro: d.with_retrocession ?? 0,
         });
       })
       .catch(() => {});
@@ -180,19 +181,24 @@ export default function AccueilPage() {
 
         {/* ── Stats strip ────────────────────────────────────────────────────── */}
         {stats && (
-          <div className="mb-8 grid grid-cols-4 gap-3">
+          <div className="mb-8 grid grid-cols-5 gap-3">
             {[
-              { label: "fonds indexés",    value: stats.total.toLocaleString("fr-FR"), link: "/recherche" },
-              { label: "DICIs disponibles", value: stats.withKid.toLocaleString("fr-FR"), link: "/documents" },
-              { label: "ETF · OPCVM · SCPI", value: `${stats.etf.toLocaleString("fr-FR")} · ${stats.opcvm.toLocaleString("fr-FR")} · ${stats.scpi}`, link: null },
-              { label: "fonds ESG (Art. 8+9)", value: stats.sfdr89.toLocaleString("fr-FR"), link: "/recherche?q=ESG" },
-            ].map(({ label, value, link }) => (
+              { label: "fonds indexés",         value: stats.total.toLocaleString("fr-FR"),   link: "/recherche" },
+              { label: "DICIs disponibles",      value: stats.withKid.toLocaleString("fr-FR"), link: "/documents" },
+              { label: "ETF · OPCVM · SCPI",    value: `${stats.etf.toLocaleString("fr-FR")} · ${stats.opcvm.toLocaleString("fr-FR")} · ${stats.scpi}`, link: null },
+              { label: "fonds ESG (Art. 8+9)",   value: stats.sfdr89.toLocaleString("fr-FR"),  link: "/recherche?q=ESG" },
+              { label: "avec rétrocession CGP",  value: stats.withRetro.toLocaleString("fr-FR"), link: "/recherche?q=OPCVM+r%C3%A9trocession+CGP&sort_by=retrocession_cgp", accent: true },
+            ].map(({ label, value, link, accent }) => (
               <div
                 key={label}
-                className={`bg-paper rounded-xl border border-line px-4 py-3 ${link ? "cursor-pointer hover:bg-cream transition-colors" : ""}`}
+                className={`rounded-xl border px-4 py-3 transition-colors ${
+                accent
+                  ? "bg-accent/10 border-accent/20 cursor-pointer hover:bg-accent/15"
+                  : `bg-paper border-line ${link ? "cursor-pointer hover:bg-cream" : ""}`
+              }`}
                 onClick={link ? () => router.push(link) : undefined}
               >
-                <p className="text-[20px] font-medium text-ink" style={{ fontFamily: "var(--font-serif)" }}>{value}</p>
+                <p className={`text-[20px] font-medium ${accent ? "text-accent" : "text-ink"}`} style={{ fontFamily: "var(--font-serif)" }}>{value}</p>
                 <p className="text-[10px] text-muted mt-0.5">{label}</p>
               </div>
             ))}
