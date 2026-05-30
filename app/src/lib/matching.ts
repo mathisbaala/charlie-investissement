@@ -19,6 +19,7 @@ export interface MatchResult {
   sfdr_article: number | null;
   risk_score: number | null;
   ongoing_charges: number | null;
+  retrocession_cgp: number | null;
   performance_1y: number | null;
   performance_3y: number | null;
   performance_5y: number | null;
