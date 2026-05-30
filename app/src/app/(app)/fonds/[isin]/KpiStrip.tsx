@@ -4,13 +4,13 @@ import React from "react";
 import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
-function KpiTile({ label, value, ok }: { label: string; value: string; ok?: boolean | null }) {
+function KpiTile({ label, value, ok, accent }: { label: string; value: string; ok?: boolean | null; accent?: boolean }) {
   return (
-    <div className="flex-1 bg-paper rounded-xl border border-line px-5 py-4 text-center min-w-0">
+    <div className={`flex-1 rounded-xl border px-5 py-4 text-center min-w-0 ${accent ? "bg-accent/10 border-accent/30" : "bg-paper border-line"}`}>
       <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">{label}</p>
       <p
         className={`text-[22px] leading-none font-normal ${
-          ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
+          accent ? "text-accent font-semibold" : ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
       >
@@ -27,21 +27,24 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
     ? { label: "Perf moy.", value: pct(fund.average_performance, true), ok: fund.average_performance >= 0 }
     : null;
 
-  const tiles = [
+  const tiles: { label: string; value: string; ok?: boolean | null; accent?: boolean }[] = [
     { label: "Perf 1A", value: pct(fund.performance_1y, true), ok: fund.performance_1y == null ? null : fund.performance_1y >= 0 },
-    fund.performance_3y != null ? { label: "Perf 3A", value: pct(fund.performance_3y, true), ok: fund.performance_3y >= 0 } : null,
-    perf5OrAvg,
-    { label: "Frais courants", value: pct(fund.ongoing_charges ?? fund.ter), ok: null },
-    { label: "Volatilité 1A", value: pct(fund.volatility_1y), ok: null },
-    fund.sharpe_1y != null ? { label: "Sharpe 1A", value: fmtSharpe(fund.sharpe_1y), ok: null } : null,
-  ].filter(Boolean) as { label: string; value: string; ok: boolean | null }[];
+    ...(fund.performance_3y != null ? [{ label: "Perf 3A", value: pct(fund.performance_3y, true), ok: fund.performance_3y >= 0 }] : []),
+    ...(perf5OrAvg ? [perf5OrAvg] : []),
+    { label: "Frais courants", value: pct(fund.ongoing_charges ?? fund.ter) },
+    { label: "Volatilité 1A", value: pct(fund.volatility_1y) },
+    ...(fund.sharpe_1y != null ? [{ label: "Sharpe 1A", value: fmtSharpe(fund.sharpe_1y) }] : []),
+    ...(fund.retrocession_cgp != null && fund.retrocession_cgp > 0
+      ? [{ label: "Rétro. CGP", value: pct(fund.retrocession_cgp * 100), accent: true }]
+      : []),
+  ];
 
   if (tiles.length === 0) return null;
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-1">
       {tiles.map(t => (
-        <KpiTile key={t.label} label={t.label} value={t.value} ok={t.ok} />
+        <KpiTile key={t.label} label={t.label} value={t.value} ok={t.ok} accent={t.accent} />
       ))}
     </div>
   );
