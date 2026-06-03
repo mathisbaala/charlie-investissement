@@ -229,7 +229,6 @@ export default function MatchingPage() {
                       <th className="text-center px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">SFDR</th>
                       <th className="text-center px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">SRI</th>
                       <th className="text-right px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">TER</th>
-                      <th className="text-right px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">Rétro.</th>
                       <th className="text-right px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">1A</th>
                       <th className="text-right px-3 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">3A</th>
                       <th className="text-left px-4 py-3 text-[10px] font-medium text-muted uppercase tracking-wider">Résumé</th>
@@ -268,11 +267,6 @@ export default function MatchingPage() {
                           ) : <span className="text-muted">—</span>}
                         </td>
                         <td className="px-3 py-3 text-right text-ink-2">{fmt(f.ongoing_charges)}</td>
-                        <td className={`px-3 py-3 text-right font-mono font-medium ${
-                          f.retrocession_cgp != null && f.retrocession_cgp > 0 ? "text-accent" : "text-muted-2"
-                        }`}>
-                          {f.retrocession_cgp != null && f.retrocession_cgp > 0 ? fmt(f.retrocession_cgp * 100) : "—"}
-                        </td>
                         <td className={`px-3 py-3 text-right font-medium ${
                           f.performance_1y == null ? "" : f.performance_1y >= 0 ? "text-green-600" : "text-red-500"
                         }`}>{fmt(f.performance_1y)}</td>
