@@ -33,7 +33,6 @@ type TopFund = {
   performance_3y: number | null;
   ter: number | null;
   morningstar_rating: number | null;
-  retrocession_cgp: number | null;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -43,10 +42,9 @@ export default function AccueilPage() {
   const [query,   setQuery]   = useState("");
   const [searches, setSearches] = useState<SearchEntry[]>([]);
   const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
-  const [topEtf,    setTopEtf]    = useState<TopFund[]>([]);
-  const [topOpcvm,  setTopOpcvm]  = useState<TopFund[]>([]);
-  const [topRetro,  setTopRetro]  = useState<TopFund[]>([]);
-  const [stats, setStats] = useState<{ total: number; withKid: number; etf: number; opcvm: number; scpi: number; sfdr89: number; withRetro: number } | null>(null);
+  const [topEtf,   setTopEtf]   = useState<TopFund[]>([]);
+  const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
+  const [topScpi,  setTopScpi]  = useState<TopFund[]>([]);
 
   // Client profile
   const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -69,25 +67,9 @@ export default function AccueilPage() {
       .then((d) => setTopOpcvm(d.data ?? []))
       .catch(() => {});
 
-    fetch("/api/screener/funds?types=opcvm&sort_by=retrocession_cgp&sort_dir=desc&retrocession_min=0.01&min_completeness=60&per_page=5&deduplicate=true")
+    fetch("/api/screener/top-performers?type=scpi&sort_by=performance_3y&limit=5&min_completeness=50")
       .then((r) => r.json())
-      .then((d) => setTopRetro(d.data ?? []))
-      .catch(() => {});
-
-    fetch("/api/screener/stats")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.total_funds) return;
-        setStats({
-          total:     d.total_funds,
-          withKid:   d.with_kid ?? 12804,
-          etf:       d.by_type?.etf ?? 0,
-          opcvm:     d.by_type?.opcvm ?? 0,
-          scpi:      d.by_type?.scpi ?? 0,
-          sfdr89:    (d.by_sfdr?.["8"] ?? 0) + (d.by_sfdr?.["9"] ?? 0),
-          withRetro: d.with_retrocession ?? 0,
-        });
-      })
+      .then((d) => setTopScpi(d.data ?? []))
       .catch(() => {});
   }, []);
 
@@ -178,32 +160,6 @@ export default function AccueilPage() {
             </div>
           )}
         </div>
-
-        {/* ── Stats strip ────────────────────────────────────────────────────── */}
-        {stats && (
-          <div className="mb-8 grid grid-cols-5 gap-3">
-            {[
-              { label: "fonds indexés",         value: stats.total.toLocaleString("fr-FR"),   link: "/recherche" },
-              { label: "DICIs disponibles",      value: stats.withKid.toLocaleString("fr-FR"), link: "/documents" },
-              { label: "ETF · OPCVM · SCPI",    value: `${stats.etf.toLocaleString("fr-FR")} · ${stats.opcvm.toLocaleString("fr-FR")} · ${stats.scpi}`, link: null },
-              { label: "fonds ESG (Art. 8+9)",   value: stats.sfdr89.toLocaleString("fr-FR"),  link: "/recherche?q=ESG" },
-              { label: "avec rétrocession CGP",  value: stats.withRetro.toLocaleString("fr-FR"), link: "/recherche?q=OPCVM+r%C3%A9trocession+CGP&sort_by=retrocession_cgp", accent: true },
-            ].map(({ label, value, link, accent }) => (
-              <div
-                key={label}
-                className={`rounded-xl border px-4 py-3 transition-colors ${
-                accent
-                  ? "bg-accent/10 border-accent/20 cursor-pointer hover:bg-accent/15"
-                  : `bg-paper border-line ${link ? "cursor-pointer hover:bg-cream" : ""}`
-              }`}
-                onClick={link ? () => router.push(link) : undefined}
-              >
-                <p className={`text-[20px] font-medium ${accent ? "text-accent" : "text-ink"}`} style={{ fontFamily: "var(--font-serif)" }}>{value}</p>
-                <p className="text-[10px] text-muted mt-0.5">{label}</p>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-5 mb-8">
@@ -305,7 +261,7 @@ export default function AccueilPage() {
         </div>
 
         {/* ── Top performers ──────────────────────────────────────────────────── */}
-        {(topEtf.length > 0 || topOpcvm.length > 0 || topRetro.length > 0) && (
+        {(topEtf.length > 0 || topOpcvm.length > 0 || topScpi.length > 0) && (
           <div className="grid grid-cols-3 gap-5">
 
             {topEtf.length > 0 && (
@@ -372,31 +328,28 @@ export default function AccueilPage() {
               </div>
             )}
 
-            {topRetro.length > 0 && (
+            {topScpi.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top OPCVM · Rétro. CGP</p>
-                  <Link
-                    href="/recherche?q=OPCVM+r%C3%A9trocession+CGP&sort_by=retrocession_cgp"
-                    className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5"
-                  >
+                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top SCPI · Perf 3A</p>
+                  <Link href="/recherche?q=SCPI+performante" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  {topRetro.map((f) => (
+                  {topScpi.map((f) => (
                     <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
                         <p className="text-[10px] text-muted-2 truncate">{f.gestionnaire ?? f.isin}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        {f.retrocession_cgp != null && (
-                          <span className="text-[13px] font-mono font-medium text-accent">
-                            {pct(f.retrocession_cgp * 100)}
+                        {f.performance_3y != null && (
+                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                            {pct(f.performance_3y, true)}
                           </span>
                         )}
-                        <p className="text-[10px] text-muted-2">rétro./an</p>
+                        <p className="text-[10px] text-muted-2">3 ans</p>
                       </div>
                     </Link>
                   ))}
