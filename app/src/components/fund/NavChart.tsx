@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from "recharts";
 import type { NavPointHF } from "@/lib/types";
 
@@ -27,12 +27,32 @@ function filterByPeriod(data: NavPointHF[], months: number): NavPointHF[] {
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
-  const q = Math.floor(d.getMonth() / 3) + 1;
-  return `T${q} ${d.getFullYear()}`;
+  return `${d.getFullYear()}`;
 }
 
 function formatPct(v: number): string {
   return (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+
+// Custom tooltip
+function CustomTooltip({ active, payload, label, mode }: {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+  mode: "vl" | "base100";
+}) {
+  if (!active || !payload?.length) return null;
+  const val = payload[0].value;
+  return (
+    <div className="bg-paper border border-line rounded-lg px-3 py-2 shadow-sm text-[11px] font-mono">
+      <p className="text-muted mb-0.5">{label ? new Date(label).toLocaleDateString("fr-FR") : ""}</p>
+      <p className="text-ink font-medium">
+        {mode === "base100"
+          ? `${val.toFixed(1)} (${formatPct(val - 100)})`
+          : val.toFixed(4)}
+      </p>
+    </div>
+  );
 }
 
 export function NavChart({ data }: NavChartProps) {
@@ -50,7 +70,7 @@ export function NavChart({ data }: NavChartProps) {
     );
   }
 
-  const step = Math.max(1, Math.floor(filtered.length / 150));
+  const step = Math.max(1, Math.floor(filtered.length / 200));
   const sampled = filtered.filter((_, i) => i % step === 0);
 
   const base = sampled[0]?.nav ?? 1;
@@ -65,13 +85,14 @@ export function NavChart({ data }: NavChartProps) {
   }));
 
   const dataKey = mode === "vl" ? "nav" : "indexed";
-  const lineColor = perfPositive ? "oklch(0.52 0.14 150)" : "oklch(0.62 0.14 28)";
+  const lineColor = perfPositive ? "#16a34a" : "#dc2626";
+  const gradientId = `gradient-${mode}-${perfPositive ? "ok" : "warn"}`;
 
   return (
     <div className="space-y-3">
       {/* Controls */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1">
+        <div className="flex gap-0.5 bg-paper-2 border border-line rounded-lg p-0.5">
           {PERIODS.map((p) => {
             const pts = filterByPeriod(data, p.months);
             return (
@@ -79,10 +100,10 @@ export function NavChart({ data }: NavChartProps) {
                 key={p.label}
                 onClick={() => setPeriod(p.label)}
                 disabled={pts.length < 2}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                   period === p.label
-                    ? "bg-brown text-paper"
-                    : "text-muted hover:text-ink-2 hover:bg-paper-2"
+                    ? "bg-paper text-ink shadow-sm border border-line"
+                    : "text-muted hover:text-ink-2"
                 }`}
               >
                 {p.label}
@@ -90,22 +111,23 @@ export function NavChart({ data }: NavChartProps) {
             );
           })}
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3">
           {sampled.length > 1 && (
-            <span className={`text-[12px] font-mono font-medium ${perfPositive ? "text-ok" : "text-warn"}`}>
+            <span className={`text-[13px] font-mono font-semibold ${perfPositive ? "text-ok" : "text-warn"}`}>
               {formatPct(perfTotal)}
             </span>
           )}
-          <div className="flex rounded-lg border border-line overflow-hidden text-[10px]">
+          <div className="flex bg-paper-2 border border-line rounded-lg p-0.5 text-[10px]">
             <button
               onClick={() => setMode("base100")}
-              className={`px-2.5 py-1 transition-colors ${mode === "base100" ? "bg-brown text-paper" : "text-muted hover:bg-paper-2"}`}
+              className={`px-2.5 py-1 rounded-md transition-all ${mode === "base100" ? "bg-paper text-ink shadow-sm border border-line" : "text-muted hover:text-ink-2"}`}
             >
               Base 100
             </button>
             <button
               onClick={() => setMode("vl")}
-              className={`px-2.5 py-1 transition-colors ${mode === "vl" ? "bg-brown text-paper" : "text-muted hover:bg-paper-2"}`}
+              className={`px-2.5 py-1 rounded-md transition-all ${mode === "vl" ? "bg-paper text-ink shadow-sm border border-line" : "text-muted hover:text-ink-2"}`}
             >
               VL
             </button>
@@ -113,53 +135,59 @@ export function NavChart({ data }: NavChartProps) {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="4 4" stroke="oklch(0.86 0.015 70)" vertical={false} />
+      <ResponsiveContainer width="100%" height={240}>
+        <AreaChart data={chartData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lineColor} stopOpacity={0.12} />
+              <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="0"
+            stroke="oklch(0.90 0.010 70)"
+            vertical={false}
+            strokeWidth={1}
+          />
           <XAxis
             dataKey="date"
             tickFormatter={formatDate}
-            tick={{ fontSize: 10, fill: "oklch(0.58 0.012 60)", fontFamily: "var(--font-mono)" }}
+            tick={{ fontSize: 10, fill: "oklch(0.60 0.010 60)", fontFamily: "var(--font-mono)" }}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 10, fill: "oklch(0.58 0.012 60)", fontFamily: "var(--font-mono)" }}
+            tick={{ fontSize: 10, fill: "oklch(0.60 0.010 60)", fontFamily: "var(--font-mono)" }}
             axisLine={false}
             tickLine={false}
-            width={48}
+            width={44}
             tickFormatter={(v: number) => mode === "base100" ? v.toFixed(0) : v.toFixed(2)}
             domain={["auto", "auto"]}
           />
           {mode === "base100" && (
-            <ReferenceLine y={100} stroke="oklch(0.78 0.018 68)" strokeDasharray="3 3" />
+            <ReferenceLine y={100} stroke="oklch(0.80 0.015 68)" strokeDasharray="4 2" strokeWidth={1} />
           )}
           <Tooltip
-            contentStyle={{
-              fontSize: 11,
-              borderRadius: 8,
-              border: "1px solid oklch(0.78 0.018 68)",
-              fontFamily: "var(--font-mono)",
-              background: "oklch(0.998 0.003 80)",
-            }}
-            formatter={(v: unknown) => [
-              mode === "base100"
-                ? `${(v as number).toFixed(1)} (${formatPct((v as number) - 100)})`
-                : (v as number).toFixed(4),
-              mode === "base100" ? "Perf." : "VL",
-            ]}
-            labelFormatter={(l: unknown) => new Date(String(l)).toLocaleDateString("fr-FR")}
+            content={(props) => (
+              <CustomTooltip
+                active={props.active}
+                payload={props.payload as { value: number }[]}
+                label={props.label as string}
+                mode={mode}
+              />
+            )}
           />
-          <Line
+          <Area
             type="monotone"
             dataKey={dataKey}
             stroke={lineColor}
-            strokeWidth={2}
+            strokeWidth={1.75}
+            fill={`url(#${gradientId})`}
             dot={false}
-            activeDot={{ r: 3, fill: lineColor }}
+            activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
