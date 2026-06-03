@@ -34,9 +34,6 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
     { label: "Frais courants", value: pct(fund.ongoing_charges ?? fund.ter) },
     { label: "Volatilité 1A", value: pct(fund.volatility_1y) },
     ...(fund.sharpe_1y != null ? [{ label: "Sharpe 1A", value: fmtSharpe(fund.sharpe_1y) }] : []),
-    ...(fund.retrocession_cgp != null && fund.retrocession_cgp > 0
-      ? [{ label: "Rétro. CGP", value: pct(fund.retrocession_cgp * 100), accent: true }]
-      : []),
   ];
 
   if (tiles.length === 0) return null;
