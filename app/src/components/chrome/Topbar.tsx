@@ -6,21 +6,13 @@ import { Logo, ChevronRight } from "@/components/ui/icons";
 
 
 function breadcrumb(pathname: string): { label: string; href: string }[] {
-  const map: Record<string, string> = {
-    "/accueil":    "Accueil",
-    "/recherche":  "Recherche",
-    "/favoris":    "Favoris",
-    "/documents":  "Documents",
-  };
   if (pathname.startsWith("/fonds/")) {
     return [
       { label: "Recherche", href: "/recherche" },
       { label: "Fiche fonds", href: pathname },
     ];
   }
-  const label = map[pathname];
-  if (!label) return [];
-  return [{ label, href: pathname }];
+  return [];
 }
 
 interface TopbarProps {
