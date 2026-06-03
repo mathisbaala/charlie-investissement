@@ -11,7 +11,7 @@ import { SelectionBar } from "@/components/screener/SelectionBar";
 import { ComparisonModal } from "@/components/screener/ComparisonModal";
 import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
-import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X } from "@/components/ui/icons";
+import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X, Search } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
 import {
   type RichClientProfile,
@@ -307,11 +307,15 @@ function RechercheInner() {
 
           {!hasSearched ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-              <p className="text-[32px] text-muted-2" style={{ lineHeight: 1 }}>⌕</p>
-              <p className="text-[14px] font-medium text-ink-2">Tapez une recherche pour explorer les fonds</p>
-              <p className="text-[12px] text-muted max-w-sm">
-                Utilisez la barre de recherche ci-dessus ou saisissez librement : &ldquo;ETF monde sans frais ESG&rdquo;, &ldquo;SCPI rendement élevé&rdquo;…
-              </p>
+              <div className="w-12 h-12 rounded-2xl bg-paper-2 border border-line flex items-center justify-center">
+                <Search size={20} className="text-muted" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[14px] font-medium text-ink-2">Recherchez dans la base de données</p>
+                <p className="text-[12px] text-muted mt-1 max-w-xs">
+                  &ldquo;ETF monde sans frais ESG&rdquo;, &ldquo;SCPI rendement élevé&rdquo;, &ldquo;OPCVM défensif PEA&rdquo;…
+                </p>
+              </div>
             </div>
           ) : (<>
 
