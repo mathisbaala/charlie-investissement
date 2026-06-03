@@ -24,46 +24,31 @@ interface Props {
 
 // ─── Pill helpers ─────────────────────────────────────────────────────────────
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Chip({
+  label, active, onClick,
+}: {
+  label: string; active: boolean; onClick: () => void;
+}) {
   return (
-    <div>
-      <p className="text-[10px] text-muted uppercase tracking-widest font-medium mb-1.5">{label}</p>
-      {children}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+        active
+          ? "bg-brown text-paper border-brown shadow-sm"
+          : "bg-paper text-ink-2 border-line hover:border-brown/30 hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
-function Pills<T extends string>({
-  options,
-  value,
-  onToggle,
-  multi = false,
-}: {
-  options: { value: T; label: string }[];
-  value: T | T[] | null;
-  onToggle: (v: T) => void;
-  multi?: boolean;
-}) {
-  const isActive = (v: T) => {
-    if (multi) return Array.isArray(value) && value.includes(v);
-    return value === v;
-  };
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map(({ value: v, label }) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onToggle(v)}
-          className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-            isActive(v)
-              ? "bg-accent-soft text-accent-ink border-accent/20"
-              : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <p className="text-[11px] font-medium text-muted uppercase tracking-widest">{label}</p>
+      {children}
     </div>
   );
 }
@@ -96,66 +81,54 @@ async function readExcelAsText(file: File): Promise<string> {
   return XLSX.utils.sheet_to_csv(sheet);
 }
 
+// ─── Risk profile options ─────────────────────────────────────────────────────
+
+const RISK_OPTIONS: { value: RiskProfile; label: string; desc: string; color: string }[] = [
+  { value: "prudent",   label: "Prudent",   desc: "SRI 1–3", color: "text-ok" },
+  { value: "modere",    label: "Modéré",    desc: "SRI 2–4", color: "text-ok" },
+  { value: "equilibre", label: "Équilibré", desc: "SRI 3–5", color: "text-warn" },
+  { value: "dynamique", label: "Dynamique", desc: "SRI 4–6", color: "text-warn" },
+  { value: "offensif",  label: "Offensif",  desc: "SRI 5–7", color: "text-warn-dark" },
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting]     = useState(false);
+  const [importing, setImporting]       = useState(false);
   const [importSource, setImportSource] = useState<string | null>(null);
+  const [dragging, setDragging]         = useState(false);
 
-  // ─── Handlers ───────────────────────────────────────────────────────────────
+  // ─── Setters ──────────────────────────────────────────────────────────────
 
   function set<K extends keyof RichClientProfile>(key: K, val: RichClientProfile[K]) {
     onChange({ ...profile, [key]: val });
   }
 
-  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes">(
-    key: K,
-    val: string,
-  ) {
+  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes">(key: K, val: string) {
     const prev = profile[key] as string[];
     set(key, (prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]) as RichClientProfile[K]);
   }
 
-  function toggleRisk(v: RiskProfile) {
-    set("risk_profile", profile.risk_profile === v ? null : v);
-  }
-  function toggleObjectif(v: Objectif) {
-    set("objectif", profile.objectif === v ? null : v);
-  }
-  function togglePerteMax(v: PerteMax) {
-    set("perte_max", profile.perte_max === v ? null : v);
-  }
-  function toggleTmi(v: Tmi) {
-    set("tmi", profile.tmi === v ? null : v);
-  }
-  function toggleEsg(v: EsgPref) {
-    set("esg", v);
-  }
-  function toggleHorizon(years: number) {
-    set("horizon_years", profile.horizon_years === years ? null : years);
+  function toggleOne<T>(current: T | null, val: T, setter: (v: T | null) => void) {
+    setter(current === val ? null : val);
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // ─── Import ───────────────────────────────────────────────────────────────
+
+  async function processFile(file: File) {
     setImporting(true);
     setImportSource(file.name);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase();
       let body: Record<string, string>;
-
       if (ext === "pdf") {
-        const base64 = await readAsBase64(file);
-        body = { file_base64: base64, file_type: "application/pdf" };
+        body = { file_base64: await readAsBase64(file), file_type: "application/pdf" };
       } else if (ext === "xlsx" || ext === "xls") {
-        const text = await readExcelAsText(file);
-        body = { text };
+        body = { text: await readExcelAsText(file) };
       } else {
-        const text = await readAsText(file);
-        body = { text };
+        body = { text: await readAsText(file) };
       }
-
       const res = await fetch("/api/parse-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,32 +139,39 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
         onChange({ ...profile, ...extracted });
       }
     } catch {
-      // Silently ignore — user can fill form manually
+      // Silent — user can fill manually
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-paper-2 rounded-xl border border-line px-5 py-4 space-y-4 max-h-[80vh] overflow-y-auto">
+    <div className="bg-paper rounded-2xl border border-line shadow-lg overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-paper-2">
         <div className="flex items-center gap-3">
-          <p className="text-[11px] font-semibold text-ink-2 uppercase tracking-wider">
-            Profil client
-          </p>
+          <p className="text-[12px] font-semibold text-ink tracking-wide">Profil client</p>
           {importSource && !importing && (
-            <span className="text-[10px] text-muted bg-paper border border-line rounded-full px-2 py-0.5 flex items-center gap-1">
-              Importé — {importSource.slice(0, 30)}
-              <button
-                type="button"
-                onClick={() => setImportSource(null)}
-                className="hover:text-ink-2"
-              >
+            <span className="inline-flex items-center gap-1.5 text-[10px] text-ok bg-ok-soft border border-ok/20 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-ok inline-block" />
+              {importSource.length > 28 ? importSource.slice(0, 28) + "…" : importSource}
+              <button type="button" onClick={() => setImportSource(null)} className="hover:text-ok/70">
                 <X size={9} />
               </button>
             </span>
@@ -202,16 +182,12 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 hover:bg-cream hover:border-brown/30 transition-colors disabled:opacity-50"
           >
-            {importing ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Upload size={12} />
-            )}
-            {importing ? "Analyse…" : "Importer un fichier"}
+            {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {importing ? "Analyse…" : "Importer"}
           </button>
-          <button type="button" onClick={onClose} className="text-muted hover:text-ink-2 transition-colors">
+          <button type="button" onClick={onClose} className="p-1 text-muted hover:text-ink transition-colors rounded">
             <X size={14} />
           </button>
         </div>
@@ -224,204 +200,239 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
         />
       </div>
 
-      {/* ── Grid layout ── */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
+      {/* Drop overlay — activated during drag */}
+      {dragging && (
+        <div
+          className="fixed inset-0 z-50 bg-accent/10 border-2 border-accent border-dashed rounded-2xl flex items-center justify-center"
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={() => setDragging(false)}
+        >
+          <p className="text-[16px] font-medium text-accent">Relâchez pour importer</p>
+        </div>
+      )}
 
-        {/* Âge */}
-        <div>
-          <p className="text-[10px] text-muted uppercase tracking-widest font-medium mb-1.5">Âge du client</p>
-          <input
-            type="number"
-            min={18}
-            max={100}
-            value={profile.age ?? ""}
-            onChange={(e) => set("age", e.target.value ? Number(e.target.value) : null)}
-            placeholder="ex: 45"
-            className="w-28 border border-line rounded-lg px-3 py-1.5 text-[12px] bg-paper text-ink focus:outline-none focus:border-accent/50 transition-colors"
-          />
+      {/* Body */}
+      <div
+        className="px-5 py-5 space-y-5 max-h-[70vh] overflow-y-auto"
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      >
+
+        {/* Infos de base */}
+        <div className="grid grid-cols-2 gap-4">
+          <FieldGroup label="Âge du client">
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={18}
+                max={100}
+                value={profile.age ?? ""}
+                onChange={(e) => set("age", e.target.value ? Number(e.target.value) : null)}
+                placeholder="ex: 45"
+                className="w-full border border-line rounded-lg px-3 py-2 text-[13px] bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
+              />
+            </div>
+          </FieldGroup>
+
+          <FieldGroup label="Montant (€)">
+            <input
+              type="number"
+              min={0}
+              value={profile.amount_eur ?? ""}
+              onChange={(e) => set("amount_eur", e.target.value ? Number(e.target.value) : null)}
+              placeholder="ex: 50 000"
+              className="w-full border border-line rounded-lg px-3 py-2 text-[13px] bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
+            />
+          </FieldGroup>
         </div>
 
-        {/* Montant */}
-        <div>
-          <p className="text-[10px] text-muted uppercase tracking-widest font-medium mb-1.5">Montant à investir (€)</p>
-          <input
-            type="number"
-            min={0}
-            value={profile.amount_eur ?? ""}
-            onChange={(e) => set("amount_eur", e.target.value ? Number(e.target.value) : null)}
-            placeholder="ex: 50 000"
-            className="w-36 border border-line rounded-lg px-3 py-1.5 text-[12px] bg-paper text-ink focus:outline-none focus:border-accent/50 transition-colors"
-          />
+        {/* Horizon */}
+        <FieldGroup label="Horizon de placement">
+          <div className="flex flex-wrap gap-2">
+            {([2, 5, 10, 15, 20] as const).map((y) => (
+              <Chip
+                key={y}
+                label={y === 2 ? "< 3 ans" : y === 20 ? "20 ans+" : `${y} ans`}
+                active={profile.horizon_years === y}
+                onClick={() => toggleOne(profile.horizon_years, y, (v) => set("horizon_years", v))}
+              />
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* Objectif */}
+        <FieldGroup label="Objectif principal">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { value: "capitalisation",  label: "Capitalisation" },
+                { value: "revenus",         label: "Revenus" },
+                { value: "retraite",        label: "Retraite" },
+                { value: "transmission",    label: "Transmission" },
+                { value: "defiscalisation", label: "Défiscalisation" },
+              ] as { value: Objectif; label: string }[]
+            ).map(({ value, label }) => (
+              <Chip
+                key={value}
+                label={label}
+                active={profile.objectif === value}
+                onClick={() => toggleOne(profile.objectif, value, (v) => set("objectif", v))}
+              />
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* Profil de risque */}
+        <FieldGroup label="Profil de risque MIF">
+          <div className="grid grid-cols-5 gap-2">
+            {RISK_OPTIONS.map(({ value, label, desc, color }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleOne(profile.risk_profile, value, (v) => set("risk_profile", v))}
+                className={`flex flex-col items-center justify-center px-2 py-3 rounded-xl border text-center transition-all ${
+                  profile.risk_profile === value
+                    ? "bg-brown text-paper border-brown shadow-sm"
+                    : "bg-paper text-ink-2 border-line hover:border-brown/30"
+                }`}
+              >
+                <span className="text-[12px] font-medium">{label}</span>
+                <span className={`text-[10px] font-mono mt-0.5 ${profile.risk_profile === value ? "text-paper/70" : color}`}>
+                  {desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* Tolérance pertes + ESG */}
+        <div className="grid grid-cols-2 gap-5">
+          <FieldGroup label="Tolérance aux pertes">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { value: "5",         label: "< 5 %" },
+                  { value: "10",        label: "< 10 %" },
+                  { value: "20",        label: "< 20 %" },
+                  { value: "30",        label: "< 30 %" },
+                  { value: "illimitee", label: "Sans limite" },
+                ] as { value: PerteMax; label: string }[]
+              ).map(({ value, label }) => (
+                <Chip
+                  key={value}
+                  label={label}
+                  active={profile.perte_max === value}
+                  onClick={() => toggleOne(profile.perte_max, value, (v) => set("perte_max", v))}
+                />
+              ))}
+            </div>
+          </FieldGroup>
+
+          <FieldGroup label="Préférence ESG">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { value: "indifferent", label: "Indifférent" },
+                  { value: "art8",        label: "Art. 8+" },
+                  { value: "art9",        label: "Art. 9" },
+                ] as { value: EsgPref; label: string }[]
+              ).map(({ value, label }) => (
+                <Chip
+                  key={value}
+                  label={label}
+                  active={profile.esg === value}
+                  onClick={() => set("esg", value)}
+                />
+              ))}
+            </div>
+          </FieldGroup>
         </div>
+
+        {/* Enveloppes */}
+        <FieldGroup label="Enveloppes disponibles">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "PEA",     label: "PEA" },
+              { value: "PEA-PME", label: "PEA-PME" },
+              { value: "PER",     label: "PER" },
+              { value: "AV-FR",   label: "AV France" },
+              { value: "AV-LUX",  label: "AV Luxembourg" },
+              { value: "CTO",     label: "CTO" },
+            ].map(({ value, label }) => (
+              <Chip
+                key={value}
+                label={label}
+                active={profile.envelopes.includes(value)}
+                onClick={() => toggleArray("envelopes", value)}
+              />
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* TMI + Exclusions + Classes actifs */}
+        <div className="grid grid-cols-2 gap-5">
+          <FieldGroup label="Tranche marginale (TMI)">
+            <div className="flex flex-wrap gap-2">
+              {(["0", "11", "30", "41", "45"] as Tmi[]).map((v) => (
+                <Chip
+                  key={v}
+                  label={`${v} %`}
+                  active={profile.tmi === v}
+                  onClick={() => toggleOne(profile.tmi, v, (val) => set("tmi", val))}
+                />
+              ))}
+            </div>
+          </FieldGroup>
+
+          <FieldGroup label="Exclusions sectorielles">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "tabac",    label: "Tabac" },
+                { value: "armes",    label: "Armes" },
+                { value: "fossiles", label: "Fossiles" },
+                { value: "jeux",     label: "Jeux" },
+                { value: "alcool",   label: "Alcool" },
+              ].map(({ value, label }) => (
+                <Chip
+                  key={value}
+                  label={label}
+                  active={profile.exclusions.includes(value)}
+                  onClick={() => toggleArray("exclusions", value)}
+                />
+              ))}
+            </div>
+          </FieldGroup>
+        </div>
+
+        {/* Classes d'actifs */}
+        <FieldGroup label="Classes d'actifs souhaitées">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "actions",        label: "Actions" },
+              { value: "obligations",    label: "Obligations" },
+              { value: "scpi",           label: "SCPI / Immo" },
+              { value: "private_equity", label: "Private Equity" },
+              { value: "monetaire",      label: "Monétaire" },
+              { value: "multi_actifs",   label: "Multi-actifs" },
+            ].map(({ value, label }) => (
+              <Chip
+                key={value}
+                label={label}
+                active={profile.asset_classes.includes(value)}
+                onClick={() => toggleArray("asset_classes", value)}
+              />
+            ))}
+          </div>
+        </FieldGroup>
 
       </div>
-
-      {/* Horizon */}
-      <Section label="Horizon de placement">
-        <div className="flex flex-wrap gap-1.5">
-          {([2, 5, 10, 15, 20] as const).map((y) => (
-            <button
-              key={y}
-              type="button"
-              onClick={() => toggleHorizon(y)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
-                profile.horizon_years === y
-                  ? "bg-accent-soft text-accent-ink border-accent/20"
-                  : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-              }`}
-            >
-              {y === 2 ? "< 3 ans" : y === 20 ? "20 ans+" : `${y} ans`}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* Objectif */}
-      <Section label="Objectif principal">
-        <Pills
-          options={[
-            { value: "capitalisation", label: "Capitalisation" },
-            { value: "revenus",        label: "Revenus réguliers" },
-            { value: "retraite",       label: "Retraite" },
-            { value: "transmission",   label: "Transmission" },
-            { value: "defiscalisation",label: "Défiscalisation" },
-          ]}
-          value={profile.objectif}
-          onToggle={toggleObjectif}
-        />
-      </Section>
-
-      {/* Profil de risque */}
-      <Section label="Profil de risque MIF">
-        <div className="flex flex-wrap gap-1.5">
-          {(
-            [
-              { value: "prudent",   label: "Prudent",   sub: "SRI 1-3" },
-              { value: "modere",    label: "Modéré",    sub: "SRI 2-4" },
-              { value: "equilibre", label: "Équilibré", sub: "SRI 3-5" },
-              { value: "dynamique", label: "Dynamique", sub: "SRI 4-6" },
-              { value: "offensif",  label: "Offensif",  sub: "SRI 5-7" },
-            ] as { value: RiskProfile; label: string; sub: string }[]
-          ).map(({ value, label, sub }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => toggleRisk(value)}
-              className={`flex flex-col items-center px-3 py-2 rounded-xl text-[11px] font-medium border transition-colors min-w-[72px] ${
-                profile.risk_profile === value
-                  ? "bg-accent-soft text-accent-ink border-accent/20"
-                  : "bg-paper text-muted border-line hover:border-line-soft hover:text-ink-2"
-              }`}
-            >
-              <span>{label}</span>
-              <span className={`text-[9px] mt-0.5 font-mono ${profile.risk_profile === value ? "text-accent-ink/70" : "text-muted-2"}`}>
-                {sub}
-              </span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* Tolérance aux pertes */}
-      <Section label="Tolérance maximale aux pertes">
-        <Pills
-          options={[
-            { value: "5",         label: "< 5 %" },
-            { value: "10",        label: "< 10 %" },
-            { value: "20",        label: "< 20 %" },
-            { value: "30",        label: "< 30 %" },
-            { value: "illimitee", label: "Sans limite" },
-          ]}
-          value={profile.perte_max}
-          onToggle={togglePerteMax}
-        />
-      </Section>
-
-      {/* Enveloppes */}
-      <Section label="Enveloppes disponibles">
-        <Pills
-          options={[
-            { value: "PEA",     label: "PEA" },
-            { value: "PEA-PME", label: "PEA-PME" },
-            { value: "PER",     label: "PER" },
-            { value: "AV-FR",   label: "AV France" },
-            { value: "AV-LUX",  label: "AV Luxembourg" },
-            { value: "CTO",     label: "CTO" },
-          ]}
-          value={profile.envelopes}
-          onToggle={(v) => toggleArray("envelopes", v)}
-          multi
-        />
-      </Section>
-
-      {/* TMI + ESG sur la même ligne */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
-        <Section label="Tranche marginale (TMI)">
-          <Pills
-            options={[
-              { value: "0",  label: "0 %" },
-              { value: "11", label: "11 %" },
-              { value: "30", label: "30 %" },
-              { value: "41", label: "41 %" },
-              { value: "45", label: "45 %" },
-            ]}
-            value={profile.tmi}
-            onToggle={toggleTmi}
-          />
-        </Section>
-
-        <Section label="Préférence ESG">
-          <Pills
-            options={[
-              { value: "indifferent", label: "Indifférent" },
-              { value: "art8",        label: "Art. 8+" },
-              { value: "art9",        label: "Art. 9 uniquement" },
-            ]}
-            value={profile.esg}
-            onToggle={toggleEsg}
-          />
-        </Section>
-      </div>
-
-      {/* Exclusions sectorielles */}
-      <Section label="Exclusions sectorielles">
-        <Pills
-          options={[
-            { value: "tabac",    label: "Tabac" },
-            { value: "armes",    label: "Armes" },
-            { value: "fossiles", label: "Fossiles" },
-            { value: "jeux",     label: "Jeux" },
-            { value: "alcool",   label: "Alcool" },
-          ]}
-          value={profile.exclusions}
-          onToggle={(v) => toggleArray("exclusions", v)}
-          multi
-        />
-      </Section>
-
-      {/* Classes d'actifs souhaitées */}
-      <Section label="Classes d'actifs souhaitées">
-        <Pills
-          options={[
-            { value: "actions",         label: "Actions" },
-            { value: "obligations",     label: "Obligations" },
-            { value: "scpi",            label: "SCPI / Immo" },
-            { value: "private_equity",  label: "Private Equity" },
-            { value: "monetaire",       label: "Monétaire" },
-            { value: "multi_actifs",    label: "Multi-actifs" },
-          ]}
-          value={profile.asset_classes}
-          onToggle={(v) => toggleArray("asset_classes", v)}
-          multi
-        />
-      </Section>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-1 border-t border-line-soft">
+      <div className="flex items-center justify-between px-5 py-3.5 border-t border-line bg-paper-2">
         <button
           type="button"
           onClick={() => { onChange(EMPTY_PROFILE); setImportSource(null); }}
-          className="text-[11px] text-muted hover:text-ink-2 transition-colors"
+          className="text-[11px] text-muted hover:text-ink transition-colors"
         >
           Effacer le profil
         </button>

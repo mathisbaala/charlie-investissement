@@ -99,12 +99,14 @@ function RechercheInner() {
   const [profile,         setProfile]         = useState<RichClientProfile>(EMPTY_PROFILE);
   const [showProfilePanel, setShowProfilePanel] = useState(false);
 
+  const [hasSearched, setHasSearched] = useState(!!initialQ);
+
   // Results
   const [funds,      setFunds]      = useState<Fund[]>([]);
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading,    setLoading]    = useState(true);
+  const [loading,    setLoading]    = useState(!!initialQ);
 
   // Sort
   const [sortBy,  setSortBy]  = useState("data_completeness");
@@ -135,6 +137,10 @@ function RechercheInner() {
 
   // Fetch results
   useEffect(() => {
+    if (!hasSearched) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     fetchFunds(filters, page, sortBy, sortDir)
@@ -148,12 +154,13 @@ function RechercheInner() {
       })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [filters, page, sortBy, sortDir]);
+  }, [filters, page, sortBy, sortDir, hasSearched]);
 
   // ─── Search handler ────────────────────────────────────────────────────────
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
+    setHasSearched(true);
     const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
     const fullQuery = profileCtx
       ? `${query.trim()} — contexte client: ${profileCtx}`
@@ -173,6 +180,7 @@ function RechercheInner() {
     setFilters({});
     setQuery("");
     setPage(1);
+    setHasSearched(false);
     router.replace("/recherche", { scroll: false });
   }, [router]);
 
@@ -297,6 +305,16 @@ function RechercheInner() {
 
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
+          {!hasSearched ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
+              <p className="text-[32px] text-muted-2" style={{ lineHeight: 1 }}>⌕</p>
+              <p className="text-[14px] font-medium text-ink-2">Tapez une recherche pour explorer les fonds</p>
+              <p className="text-[12px] text-muted max-w-sm">
+                Utilisez la barre de recherche ci-dessus ou saisissez librement : &ldquo;ETF monde sans frais ESG&rdquo;, &ldquo;SCPI rendement élevé&rdquo;…
+              </p>
+            </div>
+          ) : (<>
+
           {/* Toolbar */}
           <div className="shrink-0 flex items-center justify-between py-2.5 text-[11px] text-muted">
             <span className="text-[12px] font-medium text-ink-2">
@@ -317,7 +335,6 @@ function RechercheInner() {
                   <option value="sharpe_1y">Sharpe 1A</option>
                   <option value="volatility_1y">Volatilité 1A</option>
                   <option value="ter">TER</option>
-                  <option value="retrocession_cgp">Rétrocession CGP</option>
                   <option value="morningstar_rating">Morningstar</option>
                   <option value="track_record_years">Ancienneté</option>
                 </select>
@@ -329,20 +346,6 @@ function RechercheInner() {
               >
                 <ArrowUpDown size={12} />
                 {sortDir === "desc" ? "Déc." : "Crois."}
-              </button>
-              <button
-                onClick={() => {
-                  setFilters((f) => ({ ...f, retrocession_min: f.retrocession_min != null ? undefined : 0.01 }));
-                  setPage(1);
-                }}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
-                  filters.retrocession_min != null
-                    ? "bg-accent text-paper border-accent"
-                    : "bg-paper text-ink-2 border-line hover:bg-paper-2"
-                }`}
-                title="N'afficher que les fonds avec rétrocession CGP"
-              >
-                Avec rétro.
               </button>
               <button
                 onClick={() => setShowFilters((v) => !v)}
@@ -396,6 +399,7 @@ function RechercheInner() {
               </div>
             )}
           </div>
+          </>)}
         </div>
 
         {activeFund && (
