@@ -19,28 +19,32 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-const LABEL_COLORS: Record<string, string> = {
-  ISR: "bg-ok-soft text-ok border-ok/20",
-  Greenfin: "bg-ok-soft text-ok border-ok/20",
-  "Towards Sustainability": "bg-ok-soft text-ok border-ok/20",
-  "FNG Label": "bg-ok-soft text-ok border-ok/20",
+const LABEL_DISPLAY: Record<string, string> = {
+  isr: "ISR",
+  greenfin: "Greenfin",
+  esg: "ESG",
+  solidaire: "Solidaire",
+  novethic: "Novethic",
+  "towards-sustainability": "Towards Sustainability",
+  "luxflag-esg": "LuxFLAG ESG",
+  "luxflag-environment": "LuxFLAG Env.",
+  "luxflag-climate-finance": "LuxFLAG Climat",
 };
 
 function LabelsRow({ labels }: { labels: string[] | null }) {
-  if (!labels || labels.length === 0) return null;
+  const visible = labels?.filter(l => LABEL_DISPLAY[l.toLowerCase()]) ?? [];
+  if (visible.length === 0) return null;
   return (
     <tr className="border-b border-line-soft">
       <td className="py-2.5 text-[12px] text-muted pr-4 align-top">Labels</td>
       <td className="py-2.5 text-right">
         <div className="flex flex-wrap gap-1 justify-end">
-          {labels.map(l => (
+          {visible.map(l => (
             <span
               key={l}
-              className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${
-                LABEL_COLORS[l] ?? "bg-paper-2 text-muted border-line"
-              }`}
+              className="text-[10px] px-1.5 py-0.5 rounded border font-medium bg-ok-soft text-ok border-ok/20"
             >
-              {l}
+              {LABEL_DISPLAY[l.toLowerCase()]}
             </span>
           ))}
         </div>
