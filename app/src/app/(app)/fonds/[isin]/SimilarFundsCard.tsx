@@ -62,11 +62,6 @@ export function SimilarFundsCard({ isin }: Props) {
                   {pct(f.performance_1y, true)} 1A
                 </span>
               )}
-              {f.retrocession_cgp != null && f.retrocession_cgp > 0 && (
-                <span className="font-mono font-medium text-accent">
-                  Rétro. {pct(f.retrocession_cgp * 100)}
-                </span>
-              )}
             </div>
           </Link>
         ))}

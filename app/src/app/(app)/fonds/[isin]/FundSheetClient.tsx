@@ -17,6 +17,18 @@ import { FeesCard } from "./FeesCard";
 import { CompositionCard } from "./CompositionCard";
 import { SimilarFundsCard } from "./SimilarFundsCard";
 
+const LABEL_DISPLAY: Record<string, string> = {
+  isr: "ISR",
+  greenfin: "Greenfin",
+  esg: "ESG",
+  solidaire: "Solidaire",
+  novethic: "Novethic",
+  "towards-sustainability": "Towards Sustainability",
+  "luxflag-esg": "LuxFLAG ESG",
+  "luxflag-environment": "LuxFLAG Env.",
+  "luxflag-climate-finance": "LuxFLAG Climat",
+};
+
 interface Props { fund: FundDetailHF; }
 
 export function FundSheetClient({ fund }: Props) {
@@ -101,21 +113,14 @@ export function FundSheetClient({ fund }: Props) {
                 <SfdrBadge article={fund.sfdr_article} />
                 <SriBadge sri={fund.risk_score} />
                 <MorningstarBadge rating={fund.morningstar_rating} />
-                {fund.labels && fund.labels.slice(0, 3).map(l => {
-                  const isNeg = /cost|fee|institutional/i.test(l);
-                  return (
-                    <span
-                      key={l}
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
-                        isNeg
-                          ? "bg-warn/10 text-warn border-warn/20"
-                          : "bg-ok-soft text-ok border-ok/20"
-                      }`}
-                    >
-                      {l}
-                    </span>
-                  );
-                })}
+                {fund.labels && fund.labels.filter(l => LABEL_DISPLAY[l.toLowerCase()]).map(l => (
+                  <span
+                    key={l}
+                    className="text-[10px] px-2 py-0.5 rounded-full font-medium border bg-ok-soft text-ok border-ok/20"
+                  >
+                    {LABEL_DISPLAY[l.toLowerCase()]}
+                  </span>
+                ))}
               </div>
             </div>
             {/* Actions */}
@@ -181,7 +186,6 @@ export function FundSheetClient({ fund }: Props) {
         {/* NAV Chart */}
         {fund.nav_history.length > 1 && (
           <div className="bg-paper rounded-2xl border border-line px-7 py-5 mt-5">
-            <h2 className="text-[13px] font-semibold text-ink mb-4">Historique de la valeur liquidative</h2>
             <NavChart data={fund.nav_history} />
           </div>
         )}

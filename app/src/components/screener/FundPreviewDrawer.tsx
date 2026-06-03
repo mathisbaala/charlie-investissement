@@ -189,27 +189,6 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             }
           </div>
 
-          {/* Rétrocession CGP — mise en avant si disponible */}
-          {fund.retrocession_cgp != null && fund.retrocession_cgp > 0 && (
-            <div className="bg-accent-soft/30 border border-accent/20 rounded-lg px-3 py-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[9.5px] uppercase tracking-widest text-accent-ink/70 font-semibold">Rétrocession CGP</p>
-                  <p className="text-[18px] font-medium text-accent mt-0.5" style={{ fontFamily: "var(--font-serif)" }}>
-                    {pct(fund.retrocession_cgp * 100)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-muted leading-tight">Pour 100 000 € investis</p>
-                  <p className="text-[15px] font-semibold text-accent font-mono mt-0.5">
-                    {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(100_000 * fund.retrocession_cgp)}
-                    <span className="text-[10px] font-normal text-muted-2">/an</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Sparkline */}
           {fund.nav_history.length > 1 && (
             <div className="bg-paper-2 rounded-lg p-3">
