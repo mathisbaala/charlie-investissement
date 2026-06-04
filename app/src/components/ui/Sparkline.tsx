@@ -1,4 +1,3 @@
-import React from "react";
 import type { NavPointHF } from "@/lib/types";
 
 interface SparklineProps {

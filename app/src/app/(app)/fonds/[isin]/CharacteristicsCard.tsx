@@ -1,4 +1,3 @@
-import React from "react";
 import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 

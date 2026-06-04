@@ -1,4 +1,3 @@
-import React from "react";
 import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
@@ -43,7 +42,7 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
 
       {sri != null && (
         <div className="mb-4">
-          <p className="text-[11px] text-muted mb-1">SRI (Indicateur synthétique de risque)</p>
+          <p className="text-[11px] text-muted mb-1">SRI</p>
           <SriScale value={sri} />
         </div>
       )}

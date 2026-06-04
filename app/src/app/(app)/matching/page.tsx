@@ -116,7 +116,6 @@ export default function MatchingPage() {
             <h1 className="text-xl font-semibold text-ink" style={{ fontFamily: "var(--font-serif)" }}>
               Matching client
             </h1>
-            <p className="text-[12px] text-muted">Trouvez les fonds adaptés au profil d&apos;un client</p>
           </div>
         </div>
 

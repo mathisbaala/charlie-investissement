@@ -184,9 +184,6 @@ export default function DocumentsPage() {
             <h1 className="text-[22px] text-ink" style={{ fontFamily: "var(--font-serif)" }}>
               DICI → Fiche produit
             </h1>
-            <p className="text-[12px] text-muted mt-0.5">
-              Déposez un DICI (Document d'Information Clé) pour générer automatiquement une fiche produit avec l'IA
-            </p>
           </div>
           {fiche && (
             <button
@@ -230,7 +227,6 @@ export default function DocumentsPage() {
                   ou <span className="text-accent-ink underline underline-offset-2">cliquez pour sélectionner</span> un fichier PDF
                 </p>
               </div>
-              <p className="text-[11px] text-muted-2">Formats acceptés : PDF uniquement · L&apos;IA lit le document et extrait les informations clés</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -250,7 +246,6 @@ export default function DocumentsPage() {
                 <p className="text-[11px] text-muted mt-1">
                   {fileName && <span className="font-mono">{fileName}</span>}
                 </p>
-                <p className="text-[11px] text-muted">L&apos;IA lit le document et extrait les données</p>
               </div>
             </div>
           )}

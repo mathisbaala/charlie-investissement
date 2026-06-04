@@ -165,10 +165,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <p className="absolute bottom-6 text-[11px] text-muted-2">
-        Données réglementaires.
-      </p>
     </div>
   );
 }

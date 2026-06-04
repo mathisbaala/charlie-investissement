@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, ArrowRight } from "@/components/ui/icons";
 
 interface Message {

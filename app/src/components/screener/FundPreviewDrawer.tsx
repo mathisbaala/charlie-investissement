@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X, Star, Download, Check, ChevronRight } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
