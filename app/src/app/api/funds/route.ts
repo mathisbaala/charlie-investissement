@@ -115,7 +115,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (search) {
     const safe = search.replace(/[%_,()\[\]\\]/g, "");
-    if (safe) q = (q as any).or(`name.ilike.%${safe}%,gestionnaire.ilike.%${safe}%`);
+    const words = safe.split(/\s+/).filter(Boolean);
+    for (const word of words) {
+      q = (q as any).or(`name.ilike.%${word}%,gestionnaire.ilike.%${word}%`);
+    }
   }
 
   q = q.order(safeSort, { ascending: sortDir, nullsFirst: false });
