@@ -237,16 +237,16 @@ export default function AccueilPage() {
             </p>
             <div className="flex flex-col gap-0.5">
               {[
-                { label: "PEA",           q: "fonds+%C3%A9ligibles+PEA" },
-                { label: "PEA-PME",       q: "fonds+%C3%A9ligibles+PEA-PME+PME" },
-                { label: "PER",           q: "fonds+%C3%A9ligibles+PER+retraite" },
-                { label: "AV France",     q: "fonds+assurance-vie+France" },
-                { label: "AV Luxembourg", q: "fonds+assurance-vie+luxembourg" },
-                { label: "CTO",           q: "fonds+%C3%A9ligibles+CTO+compte-titres" },
-              ].map(({ label, q }) => (
+                { label: "PEA",           env: "PEA" },
+                { label: "PEA-PME",       env: "PEA-PME" },
+                { label: "PER",           env: "PER" },
+                { label: "AV France",     env: "AV-FR" },
+                { label: "AV Luxembourg", env: "AV-LUX" },
+                { label: "CTO",           env: "CTO" },
+              ].map(({ label, env }) => (
                 <button
                   key={label}
-                  onClick={() => router.push(`/recherche?q=${q}`)}
+                  onClick={() => router.push(`/recherche?envelopes=${env}`)}
                   className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-paper-2 transition-colors text-left group"
                 >
                   <span className="text-[12px] text-ink-2 group-hover:text-ink font-medium">{label}</span>
