@@ -265,7 +265,7 @@ export default function AccueilPage() {
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top ETF · Perf 3A</p>
-                  <Link href="/recherche?q=ETF+performant" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <Link href="/recherche?universe=etf&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
@@ -297,7 +297,7 @@ export default function AccueilPage() {
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top OPCVM · Perf 3A</p>
-                  <Link href="/recherche?q=OPCVM+performant" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <Link href="/recherche?universe=opcvm&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
@@ -329,7 +329,7 @@ export default function AccueilPage() {
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top SCPI · Perf 3A</p>
-                  <Link href="/recherche?q=SCPI+performante" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <Link href="/recherche?universe=scpi&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>

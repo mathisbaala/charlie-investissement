@@ -100,17 +100,20 @@ function RechercheInner() {
   const [showProfilePanel, setShowProfilePanel] = useState(false);
 
   const initialEnvelopes = searchParams.get("envelopes");
-  const [hasSearched, setHasSearched] = useState(!!(initialQ || initialEnvelopes));
+  const initialUniverse  = searchParams.get("universe");
+  const initialSortBy    = searchParams.get("sort_by");
+  const hasInitialFilter = !!(initialQ || initialEnvelopes || initialUniverse);
+  const [hasSearched, setHasSearched] = useState(hasInitialFilter);
 
   // Results
   const [funds,      setFunds]      = useState<Fund[]>([]);
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading,    setLoading]    = useState(!!(initialQ || initialEnvelopes));
+  const [loading,    setLoading]    = useState(hasInitialFilter);
 
   // Sort
-  const [sortBy,  setSortBy]  = useState("data_completeness");
+  const [sortBy,  setSortBy]  = useState(initialSortBy ?? "data_completeness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Load profile from localStorage on mount
@@ -120,7 +123,10 @@ function RechercheInner() {
     if (initialized) return;
     setInitialized(true);
     setProfile(loadStoredProfile());
-    if (initialEnvelopes) {
+    if (initialUniverse) {
+      const universe = initialUniverse.split(",").filter(Boolean);
+      setFilters({ universe });
+    } else if (initialEnvelopes) {
       const envelopes = initialEnvelopes.split(",").filter(Boolean) as ParsedFilters["envelopes"];
       setFilters({ envelopes });
     } else if (initialQ) {
@@ -131,7 +137,7 @@ function RechercheInner() {
         setNlpFailed(!hasFilters);
       });
     }
-  }, [initialized, initialQ, initialEnvelopes]);
+  }, [initialized, initialQ, initialEnvelopes, initialUniverse]);
 
   // Persist profile changes
   useEffect(() => {
