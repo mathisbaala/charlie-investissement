@@ -74,7 +74,7 @@ export function TypingPrompt({ value, onChange, onSubmit, className = "" }: Typi
       />
       {!value && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 text-muted text-[14px] pointer-events-none select-none"
+          className="absolute left-0 right-6 top-1/2 -translate-y-1/2 flex items-center whitespace-nowrap overflow-hidden text-muted text-[14px] pointer-events-none select-none"
           style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
         >
           {placeholder}

@@ -91,7 +91,7 @@ export default function AccueilPage() {
   const profileActive = isProfileActive(profile);
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-8 py-10">
+    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
       <div className="max-w-[1040px] mx-auto">
 
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
@@ -162,7 +162,7 @@ export default function AccueilPage() {
         </div>
 
         {/* ── 3-column grid ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-5 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
 
           {/* Recherches récentes */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
@@ -259,7 +259,7 @@ export default function AccueilPage() {
 
         {/* ── Top performers ──────────────────────────────────────────────────── */}
         {(topEtf.length > 0 || topOpcvm.length > 0 || topScpi.length > 0) && (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             {topEtf.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
