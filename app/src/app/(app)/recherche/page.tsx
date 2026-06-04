@@ -99,14 +99,15 @@ function RechercheInner() {
   const [profile,         setProfile]         = useState<RichClientProfile>(EMPTY_PROFILE);
   const [showProfilePanel, setShowProfilePanel] = useState(false);
 
-  const [hasSearched, setHasSearched] = useState(!!initialQ);
+  const initialEnvelopes = searchParams.get("envelopes");
+  const [hasSearched, setHasSearched] = useState(!!(initialQ || initialEnvelopes));
 
   // Results
   const [funds,      setFunds]      = useState<Fund[]>([]);
   const [total,      setTotal]      = useState(0);
   const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading,    setLoading]    = useState(!!initialQ);
+  const [loading,    setLoading]    = useState(!!(initialQ || initialEnvelopes));
 
   // Sort
   const [sortBy,  setSortBy]  = useState("data_completeness");
@@ -119,7 +120,10 @@ function RechercheInner() {
     if (initialized) return;
     setInitialized(true);
     setProfile(loadStoredProfile());
-    if (initialQ) {
+    if (initialEnvelopes) {
+      const envelopes = initialEnvelopes.split(",").filter(Boolean) as ParsedFilters["envelopes"];
+      setFilters({ envelopes });
+    } else if (initialQ) {
       setQuery(initialQ);
       parseQuery(initialQ).then((parsed) => {
         const hasFilters = Object.keys(parsed).length > 0;
@@ -127,7 +131,7 @@ function RechercheInner() {
         setNlpFailed(!hasFilters);
       });
     }
-  }, [initialized, initialQ]);
+  }, [initialized, initialQ, initialEnvelopes]);
 
   // Persist profile changes
   useEffect(() => {
