@@ -74,6 +74,8 @@ Retourne un objet JSON valide avec ces champs optionnels :
   (PEA=Plan Épargne en Actions, PEA-PME=PEA dédié PME, PER=Plan Épargne Retraite,
    AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
 - universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
+- region: tableau de zones géographiques normalisées parmi
+  ["world","europe","eurozone","usa","france","emerging","japan","asia","china","uk","germany","switzerland","india","brazil"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
 - management_style: tableau parmi ["passif","actif","smart_beta","alternatif"]
 - currency: tableau ex: ["EUR","USD"]
@@ -85,6 +87,20 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
 
 Règles de mapping :
+- "monde" / "mondial" / "international" / "global" / "world" / "MSCI World" / "ACWI" → region:["world"]
+- "Europe" / "européen" / "STOXX" → region:["europe"]
+- "zone euro" / "eurozone" → region:["eurozone"]
+- "USA" / "américain" / "US" / "États-Unis" / "S&P 500" / "Nasdaq" → region:["usa"]
+- "France" / "français" / "CAC 40" → region:["france"]
+- "émergents" / "emerging" / "pays émergents" → region:["emerging"]
+- "Japon" / "japonais" / "Nikkei" → region:["japan"]
+- "Asie" / "asiatique" / "Pacifique" → region:["asia"]
+- "Chine" / "chinois" → region:["china"]
+- "Royaume-Uni" / "UK" / "britannique" / "FTSE" → region:["uk"]
+- "Allemagne" / "allemand" / "DAX" → region:["germany"]
+- "Suisse" / "suisse" / "SMI" → region:["switzerland"]
+- "Inde" / "indien" → region:["india"]
+- "Brésil" / "brésilien" → region:["brazil"]
 - "ESG" ou "durable" → sfdr:[8,9]
 - "article 9" ou "impact" → sfdr:[9]
 - "peu risqué" / "défensif" → sri_max:3
@@ -114,12 +130,15 @@ Règles de mapping :
 - "sans frais d'entrée" / "no load" / "frais d'entrée zéro" → chips:["Sans frais d'entrée"] (pas de filtre direct, mentionner dans chips)
 
 Exemples :
-- "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"chips":["ETF monde","PEA éligible","Article 8"]}
+- "ETF monde" → {"universe":["etf"],"region":["world"],"chips":["ETF","Monde"]}
+- "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"region":["world"],"chips":["ETF","Monde","PEA éligible","Article 8"]}
+- "fonds actions américaines" → {"universe":["opcvm","etf"],"region":["usa"],"chips":["Actions","USA"]}
+- "fonds émergents dynamiques" → {"region":["emerging"],"sri_min":4,"chips":["Émergents","Dynamique"]}
 - "fonds avec DICI disponible" → {"has_kid":true,"chips":["DICI disponible"]}
 - "fonds peu risqués ESG" → {"sfdr":[8,9],"sri_max":3,"chips":["ESG","Risque faible"]}
-- "OPCVM actions US performants éligibles CTO" → {"universe":["opcvm"],"envelopes":["CTO"],"chips":["Actions US","CTO éligible"]}
+- "OPCVM actions US performants éligibles CTO" → {"universe":["opcvm"],"region":["usa"],"envelopes":["CTO"],"chips":["Actions US","CTO éligible"]}
 - "fonds retraite PER Amundi" → {"envelopes":["PER"],"manager_search":"Amundi","chips":["PER","Amundi"]}
-- "ETF low cost monde" → {"universe":["etf"],"ter_max":0.3,"chips":["ETF monde","Low cost"]}
+- "ETF low cost monde" → {"universe":["etf"],"region":["world"],"ter_max":0.3,"chips":["ETF","Monde","Low cost"]}
 - "OPCVM avec bonne rétrocession CGP éligibles AV" → {"universe":["opcvm"],"envelopes":["AV-FR","AV-LUX"],"retrocession_min":0.5,"chips":["Rétrocession ≥0.5%","Assurance-vie"]}
 - "fonds actions peu volatils 5 étoiles" → {"universe":["opcvm","etf"],"vol_max":10,"morningstar_min":4,"chips":["Actions","Faible volatilité","5 étoiles"]}
 - "fonds technologie innovants" → {"sector":["Technologie"],"chips":["Technologie"]}
