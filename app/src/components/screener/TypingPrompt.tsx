@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const PROMPTS = [
   "ETF monde éligibles PEA avec faibles frais",

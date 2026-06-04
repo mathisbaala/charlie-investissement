@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 

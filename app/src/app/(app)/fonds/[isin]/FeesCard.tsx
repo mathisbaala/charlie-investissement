@@ -1,4 +1,3 @@
-import React from "react";
 import { pct } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
@@ -69,11 +68,6 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           )}
         </tbody>
       </table>
-      {(fund.entry_fee_max == null || fund.exit_fee_max == null) && (
-        <p className="text-[10px] text-muted-2 mt-3 italic">
-          * Frais transactionnels extraits des KIDs — incomplets pour certains fonds.
-        </p>
-      )}
     </div>
   );
 }

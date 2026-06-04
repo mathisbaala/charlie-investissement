@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Star, Download } from "@/components/ui/icons";
 import { NavChart } from "@/components/fund/NavChart";

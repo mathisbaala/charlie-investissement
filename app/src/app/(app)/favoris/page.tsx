@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Btn } from "@/components/ui/Btn";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { FilterPanel } from "@/components/screener/FilterPanel";
@@ -310,12 +310,7 @@ function RechercheInner() {
               <div className="w-12 h-12 rounded-2xl bg-paper-2 border border-line flex items-center justify-center">
                 <Search size={20} className="text-muted" strokeWidth={1.5} />
               </div>
-              <div>
-                <p className="text-[14px] font-medium text-ink-2">Recherchez dans la base de données</p>
-                <p className="text-[12px] text-muted mt-1 max-w-xs">
-                  &ldquo;ETF monde sans frais ESG&rdquo;, &ldquo;SCPI rendement élevé&rdquo;, &ldquo;OPCVM défensif PEA&rdquo;…
-                </p>
-              </div>
+              <p className="text-[14px] font-medium text-ink-2">Recherchez dans la base de données</p>
             </div>
           ) : (<>
 
