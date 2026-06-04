@@ -53,6 +53,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const retroMin= num(p(sp, "retrocession_min")); // en % → diviser par 100 pour fraction DB
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
+  const regions      = arr(p(sp, "region"));
   const sectors      = arr(p(sp, "sector"));
   const mgmtStyles   = arr(p(sp, "management_style"));
   const currency     = arr(p(sp, "currency"));
@@ -106,6 +107,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (productTypes.length) q = q.in("product_type", productTypes);
   }
 
+  if (regions.length)      q = q.in("region_normalized", regions);
   if (sectors.length)      q = q.in("sector", sectors);
   if (mgmtStyles.length)   q = q.in("management_style", mgmtStyles);
   if (currency.length)     q = q.in("currency", currency);

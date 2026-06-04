@@ -314,6 +314,37 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Zone géographique */}
+        <Section title="Zone géographique">
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { val: "world",       label: "Monde" },
+              { val: "europe",      label: "Europe" },
+              { val: "eurozone",    label: "Zone euro" },
+              { val: "usa",         label: "USA" },
+              { val: "france",      label: "France" },
+              { val: "emerging",    label: "Émergents" },
+              { val: "japan",       label: "Japon" },
+              { val: "asia",        label: "Asie" },
+              { val: "china",       label: "Chine" },
+              { val: "uk",          label: "Royaume-Uni" },
+              { val: "germany",     label: "Allemagne" },
+              { val: "switzerland", label: "Suisse" },
+              { val: "india",       label: "Inde" },
+              { val: "brazil",      label: "Brésil" },
+            ].map(({ val, label }) => (
+              <SfdrPill
+                key={val}
+                label={label}
+                active={(f.region ?? []).includes(val)}
+                onToggle={() => set("region", toggleArr(f.region, val))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Style de gestion */}
         <Section title="Style de gestion">
           <div className="flex gap-2 flex-wrap">

@@ -305,6 +305,7 @@ export type ParsedFilters = {
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
   universe?: string[];
+  region?: string[];         // zone géographique normalisée (world, europe, usa…)
   sector?: string[];
   management_style?: string[];
   currency?: string[];
