@@ -322,9 +322,10 @@ clé d'accès publique (présente dans les DICI publiés). Plusieurs (distribute
 - SPIRICA : `/download/SPIRICA/underlying/kid/{ISIN}/lang/fr?key=tldIV1x9…`
 
 `scripts/enrichers/epr-kid-enrich.py` : pour chaque OPCVM/ETF sans kid_url, construit l'URL,
-valide le PDF (magic `%PDF`), stocke via `safe_fill_funds` (fill-only). **~48 % de hit** sur
-les 16 550 OPCVM/ETF sans kid (le générique couvre le catalogue maître ; les autres en repli).
-Les ratés = SCPI/PE/structurés (pas de DICI PRIIPs).
+valide le PDF (magic `%PDF`), stocke via `safe_fill_funds` (fill-only). Run 05/06 : **+817 DICI**
+sur 16 550 ciblés (**48 % de hit sur les gros fonds, ~5 % global** — la longue traîne kid-null
+est dominée par le non-retail : PE/structurés/dédiés/obscurs sans DICI PRIIPs). KID des OPCVM
+investables : **65 → 70 %**. Le plafond rejoint celui de la perf (univers retail déjà couvert).
 
 **Sources HS** (ne pas réutiliser) : GECO épuisé (héberge seulement un sous-ensemble),
 `kid-url-finder.py` (DuckDuckGo/SGP) périmé, Morningstar hash opaque + IP-block.
