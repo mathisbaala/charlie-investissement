@@ -24,7 +24,10 @@ const KEY = "charlie_favorites";
 export function getFavorites(): FavoriteEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const parsed = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    // Protège contre un localStorage corrompu (objet/null au lieu d'un tableau)
+    // qui ferait planter les .filter()/.slice() en aval (favoris, accueil).
+    return Array.isArray(parsed) ? parsed.filter((f) => f && typeof f.isin === "string") : [];
   } catch {
     return [];
   }
