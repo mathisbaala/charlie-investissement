@@ -290,4 +290,28 @@ des NULL + merge `field_sources` (jamais d'écrasement). Stack scraper validée 
 
 ---
 
-**Version 3.1** — Normalisation back-end + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47), 05/06/2026, 36 035 fonds.
+### 11.8 Constat stratégique : le trou de perf OPCVM est STRUCTUREL
+Test Boursorama sur les OPCVM sans `performance_1y` → **0 hit perf** même sur les meilleurs
+candidats retail. Caractérisation des 13 092 OPCVM sans perf : 93 % sans AUM, 5 724 noms
+structurés/datés/dédiés (« AMUNDI 09/19/2019 », « MILLESIMA 2032 »), 1 135 trop récents (<1 an).
+**Ce sont massivement des véhicules non-retail** (fonds à formule, dédiés, mandats
+institutionnels, monétaires, FPCI mal classés) sans VL/perf publique. Les ~51 % de couverture
+perf = **plafond réaliste** de l'univers réellement investable. Brute-force scraping = ROI quasi nul.
+→ Le levier n'est pas « plus de perf » mais **mieux exploiter l'univers investable** (= ceux qui
+ont une perf : 13 578 OPCVM, déjà à frais 81 % / SRI 100 % / AUM 99 %).
+
+### 11.9 Dérivation secteur + région depuis `category` (gros gain exploitabilité)
+La `category` (classification AMF/fournisseur) couvre 94 % des OPCVM investables et encode
+asset-class + région ; les « Actions Sectorielles X » désignent le secteur.
+`scripts/migrations/derive-sector-region-from-category.sql` (fill-only, idempotent, traçabilité) :
+- **`sector` : 13 % → 77 %** sur les OPCVM investables (26 % → 64 % global). Mapping des
+  « Actions Sectorielles X » → secteur précis ; diversifiés/géographiques/mixtes → `Multisecteur`
+  (valeur honnête qui rend le filtre utilisable) ; obligations/monétaires laissés NULL.
+- **`region_normalized`** : déjà à 74 % (plafond — le reste sont des fonds mixtes/flexibles
+  sans mandat géographique).
+- Le filtre secteur du screener est data-driven (RPC) → `Multisecteur` + secteurs remontent
+  automatiquement, **sans changement de code front**.
+
+---
+
+**Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %), 05/06/2026, 36 035 fonds.
