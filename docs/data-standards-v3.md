@@ -312,17 +312,22 @@ asset-class + région ; les « Actions Sectorielles X » désignent le secteur.
 - Le filtre secteur du screener est data-driven (RPC) → `Multisecteur` + secteurs remontent
   automatiquement, **sans changement de code front**.
 
-### 11.10 KID/DICI — sources gratuites épuisées (ne pas réinvestiguer)
-Sources existantes des `kid_url` : Morningstar (6 219), EPR AXA/amfinesoft (4 499), GECO (1 990).
-Investigation 05/06 sur les 4 743 investables sans kid :
-- **`geco-kid-finder.py` FONCTIONNE** (pipeline shareId→document/byShare→download validé sur
-  Carmignac Patrimoine) mais GECO renvoie `[]` pour les fonds restants → non hébergés.
-- **EPR AXA constructible** (`epr.amfinesoft.com/api/v1/download/AXA/.../kid-security/{ISIN}/lang/fr?key=…`)
-  mais 404 hors catalogue AXA (déjà moissonné).
-- **Morningstar** : hash de document opaque (non constructible) + IP-block.
-- `kid-url-finder.py` (général, DuckDuckGo/SGP) : 0 hit, scrapers périmés.
-→ **65 % = plafond gratuit.** Débloquer plus = découvrir les clés EPR d'autres distributeurs
-(Generali, Spirica…) une par une, ou parsing KID payant (LLM) sur les 65 % déjà munis d'un kid_url.
+### 11.10 KID/DICI — catalogue maître amfinesoft EPR (DÉBLOCAGE)
+Le portail réglementaire **amfinesoft EPR** (`epr.amfinesoft.com`) héberge les DICI PRIIPs de
+quasiment tous les fonds distribués en France. Les URLs sont **constructibles par ISIN** avec une
+clé d'accès publique (présente dans les DICI publiés). Plusieurs (distributeur, clé) existent :
+- **générique** (catalogue maître) : `/api/v1/download/underlying/kid/{ISIN}/lang/fr?key=xJdkzl5Bq4GWwvPKrtPRSK4a9QfrXe`
+- SOGECAP : `/download/SOGECAP/underlying/kid/{ISIN}/lang/fr?key=7pPlB7HoeaCTjsHOsYGA87RfJcmpSQ`
+- AXA : `/download/AXA/underlying/kid-security/{ISIN}/lang/fr?key=LKCkPWj3Jd2y8HlRp3QAtQ6Cjz36KB`
+- SPIRICA : `/download/SPIRICA/underlying/kid/{ISIN}/lang/fr?key=tldIV1x9…`
+
+`scripts/enrichers/epr-kid-enrich.py` : pour chaque OPCVM/ETF sans kid_url, construit l'URL,
+valide le PDF (magic `%PDF`), stocke via `safe_fill_funds` (fill-only). **~48 % de hit** sur
+les 16 550 OPCVM/ETF sans kid (le générique couvre le catalogue maître ; les autres en repli).
+Les ratés = SCPI/PE/structurés (pas de DICI PRIIPs).
+
+**Sources HS** (ne pas réutiliser) : GECO épuisé (héberge seulement un sous-ensemble),
+`kid-url-finder.py` (DuckDuckGo/SGP) périmé, Morningstar hash opaque + IP-block.
 
 ---
 
