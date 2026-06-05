@@ -20,15 +20,25 @@ function KpiTile({ label, value, ok, accent }: { label: string; value: string; o
 }
 
 export function KpiStrip({ fund }: { fund: FundDetailHF }) {
-  const perf5OrAvg = fund.performance_5y != null
-    ? { label: "Perf 5A", value: pct(fund.performance_5y, true), ok: fund.performance_5y >= 0 }
+  // Garde-fou : ne jamais afficher une perf sur une période plus longue que
+  // l'ancienneté du fonds (un fonds de 6 mois n'a pas de perf 3A/5A). Quand
+  // l'ancienneté est inconnue, on laisse passer (rien à invalider).
+  const tr = fund.track_record_years;
+  const hasPeriod = (years: number) => tr == null || tr >= years - 0.25;
+
+  const show1 = fund.performance_1y != null && hasPeriod(1);
+  const show3 = fund.performance_3y != null && hasPeriod(3);
+  const show5 = fund.performance_5y != null && hasPeriod(5);
+
+  const perf5OrAvg = show5
+    ? { label: "Perf 5A", value: pct(fund.performance_5y!, true), ok: fund.performance_5y! >= 0 }
     : fund.average_performance != null
     ? { label: "Perf moy.", value: pct(fund.average_performance, true), ok: fund.average_performance >= 0 }
     : null;
 
   const tiles: { label: string; value: string; ok?: boolean | null; accent?: boolean }[] = [
-    { label: "Perf 1A", value: pct(fund.performance_1y, true), ok: fund.performance_1y == null ? null : fund.performance_1y >= 0 },
-    ...(fund.performance_3y != null ? [{ label: "Perf 3A", value: pct(fund.performance_3y, true), ok: fund.performance_3y >= 0 }] : []),
+    ...(show1 ? [{ label: "Perf 1A", value: pct(fund.performance_1y!, true), ok: fund.performance_1y! >= 0 }] : []),
+    ...(show3 ? [{ label: "Perf 3A", value: pct(fund.performance_3y!, true), ok: fund.performance_3y! >= 0 }] : []),
     ...(perf5OrAvg ? [perf5OrAvg] : []),
     { label: "Frais courants", value: pct(fund.ongoing_charges ?? fund.ter) },
     { label: "Volatilité 1A", value: pct(fund.volatility_1y) },

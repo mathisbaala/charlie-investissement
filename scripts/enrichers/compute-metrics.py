@@ -40,6 +40,14 @@ MIN_POINTS_1Y = 26   # ~26 semaines de données hebdo
 MIN_POINTS_3Y = 78   # ~78 semaines
 MIN_POINTS_5Y = 130  # ~130 semaines
 
+# Couverture temporelle minimale (en jours) qu'une série doit RÉELLEMENT
+# couvrir pour qu'on lui fasse confiance pour la période. Un nombre de points
+# suffisant ne garantit pas la durée (26 points hebdo = ~6 mois, pas 1 an) :
+# sans ce garde, un fonds jeune se voyait attribuer une perf 3Y/5Y bidon.
+MIN_SPAN_1Y = 300            # ~0.82 an
+MIN_SPAN_3Y = 365 * 3 - 90  # ~2.75 ans
+MIN_SPAN_5Y = 365 * 5 - 120 # ~4.67 ans
+
 # ─── Calculs financiers ────────────────────────────────────────────────────────
 
 def perf_total(prices: list[float]) -> float | None:
@@ -103,53 +111,65 @@ def max_drawdown(prices: list[float]) -> float | None:
     return round(-max_dd, 6)  # négatif par convention
 
 
-def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf) -> dict:
+def _valid_perf(prices: list[float], min_points: int, span_days: int, min_span: int) -> bool:
+    """Une perf n'est fiable que si la série a assez de points ET couvre
+    réellement la période ET ne démarre pas sur une VL nulle/négative. Une
+    perte > 100% (perf_total <= -1) trahit une VL aberrante : on l'écarte."""
+    if len(prices) < min_points or span_days < min_span or prices[0] <= 0:
+        return False
+    p = perf_total(prices)
+    return p is not None and p > -1.0
+
+
+def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=None) -> dict:
     metrics = {}
+    spans = spans or {"1y": 0, "3y": 0, "5y": 0}
 
     # Convention : toutes les métriques sont stockées en % (9.82 = 9.82%, -2.7 = -2.7%)
     # Sauf sharpe_1y (adimensionnel)
+    # On écrit explicitement None quand une perf n'est pas fiable, pour PURGER
+    # les valeurs aberrantes écrites par les scrapers (au lieu de les laisser).
 
     # ── 1Y ──
-    if len(prices_1y) >= MIN_POINTS_1Y:
-        p = perf_total(prices_1y)
-        if p is not None:
-            metrics["performance_1y"]  = _clamp(round(p * 100, 4))
-            dd = max_drawdown(prices_1y)
-            if dd is not None:
-                metrics["max_drawdown_1y"] = round(dd * 100, 4)
-            vol1y = volatility_annualized(prices_1y)
-            if vol1y:
-                metrics["volatility_1y"] = _clamp(round(vol1y * 100, 4))
-            sh1 = sharpe_ratio(prices_1y, rf)
-            metrics["sharpe_1y"] = _clamp(sh1) if sh1 is not None else None
+    if _valid_perf(prices_1y, MIN_POINTS_1Y, spans["1y"], MIN_SPAN_1Y):
+        metrics["performance_1y"]  = _clamp(round(perf_total(prices_1y) * 100, 4))
+        dd = max_drawdown(prices_1y)
+        if dd is not None:
+            metrics["max_drawdown_1y"] = round(dd * 100, 4)
+        vol1y = volatility_annualized(prices_1y)
+        if vol1y:
+            metrics["volatility_1y"] = _clamp(round(vol1y * 100, 4))
+        sh1 = sharpe_ratio(prices_1y, rf)
+        metrics["sharpe_1y"] = _clamp(sh1) if sh1 is not None else None
+    else:
+        metrics["performance_1y"] = None
 
     # ── 3Y ──
-    if len(prices_3y) >= MIN_POINTS_3Y:
-        p3 = perf_annualized(prices_3y, 3.0)
-        if p3 is not None:
-            metrics["performance_3y"]  = _clamp(round(perf_total(prices_3y) * 100, 4))
-            dd3 = max_drawdown(prices_3y)
-            if dd3 is not None:
-                metrics["max_drawdown_3y"] = round(dd3 * 100, 4)
-            vol3y = volatility_annualized(prices_3y)
-            if vol3y:
-                metrics["volatility_3y"] = _clamp(round(vol3y * 100, 4))
-            sh3 = sharpe_ratio(prices_3y, rf)
-            metrics["sharpe_3y"] = _clamp(sh3) if sh3 is not None else None
+    if _valid_perf(prices_3y, MIN_POINTS_3Y, spans["3y"], MIN_SPAN_3Y):
+        metrics["performance_3y"]  = _clamp(round(perf_total(prices_3y) * 100, 4))
+        dd3 = max_drawdown(prices_3y)
+        if dd3 is not None:
+            metrics["max_drawdown_3y"] = round(dd3 * 100, 4)
+        vol3y = volatility_annualized(prices_3y)
+        if vol3y:
+            metrics["volatility_3y"] = _clamp(round(vol3y * 100, 4))
+        sh3 = sharpe_ratio(prices_3y, rf)
+        metrics["sharpe_3y"] = _clamp(sh3) if sh3 is not None else None
+    else:
+        metrics["performance_3y"] = None
 
     # ── 5Y ──
-    if len(prices_5y) >= MIN_POINTS_5Y:
-        p5 = perf_annualized(prices_5y, 5.0)
-        if p5 is not None:
-            metrics["performance_5y"] = _clamp(round(perf_total(prices_5y) * 100, 4))
+    if _valid_perf(prices_5y, MIN_POINTS_5Y, spans["5y"], MIN_SPAN_5Y):
+        metrics["performance_5y"] = _clamp(round(perf_total(prices_5y) * 100, 4))
+    else:
+        metrics["performance_5y"] = None
 
     # ── Average performance (moyenne des perf 1Y/3Y/5Y en %) ──
     p1 = metrics.get("performance_1y")
     p3 = metrics.get("performance_3y")
     p5 = metrics.get("performance_5y")
     avgs = [v for v in [p1, p3, p5] if v is not None]
-    if avgs:
-        metrics["average_performance"] = _clamp(round(sum(avgs) / len(avgs), 4))
+    metrics["average_performance"] = _clamp(round(sum(avgs) / len(avgs), 4)) if avgs else None
 
     # ── Track record ──
     if prices_all:
@@ -190,14 +210,21 @@ def fetch_prices_for_isin(client, isin: str) -> dict[str, list[float]]:
             except (ValueError, TypeError):
                 pass
 
-    def window(cutoff: str) -> list[float]:
-        return [p for d, p in all_prices if d >= cutoff]
+    def window(cutoff: str) -> list[tuple[str, float]]:
+        return [(d, p) for d, p in all_prices if d >= cutoff]
 
+    def span_days(pairs: list[tuple[str, float]]) -> int:
+        if len(pairs) < 2:
+            return 0
+        return (date.fromisoformat(pairs[-1][0]) - date.fromisoformat(pairs[0][0])).days
+
+    w5, w3, w1 = window(DATE_5Y), window(DATE_3Y), window(DATE_1Y)
     return {
         "all":  [p for _, p in all_prices],
-        "5y":   window(DATE_5Y),
-        "3y":   window(DATE_3Y),
-        "1y":   window(DATE_1Y),
+        "5y":   [p for _, p in w5],
+        "3y":   [p for _, p in w3],
+        "1y":   [p for _, p in w1],
+        "span": {"5y": span_days(w5), "3y": span_days(w3), "1y": span_days(w1)},
     }
 
 
@@ -264,6 +291,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             prices_5y=prices["5y"],
             prices_all=prices["all"],
             rf=rf,
+            spans=prices["span"],
         )
 
         if not metrics:
