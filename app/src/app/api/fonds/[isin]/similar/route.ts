@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { feeFracToPct } from "@/lib/format";
 import type { SimilarFund, SimilarFundsResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +38,14 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Frontière API : frais fraction (DB) → % (le composant affiche via pct()).
+  const funds = ((data as unknown as SimilarFund[]) ?? []).map((f) => ({
+    ...f,
+    ter: feeFracToPct(f.ter),
+  }));
+
   const response: SimilarFundsResponse = {
-    data: (data as unknown as SimilarFund[]) ?? [],
+    data: funds,
     ref_isin: upper,
   };
 

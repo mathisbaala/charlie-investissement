@@ -18,6 +18,19 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+// Affiche une ligne booléenne même quand la valeur est "Non" (mais pas quand null/inconnu).
+function BoolRow({ label, value, yes = "Oui", no = "Non" }: { label: string; value: boolean | null; yes?: string; no?: string }) {
+  if (value == null) return null;
+  return (
+    <tr className="border-b border-line-soft">
+      <td className="py-2.5 text-[12px] text-muted pr-4 align-top">{label}</td>
+      <td className={`py-2.5 text-[12px] text-right font-medium ${value ? "text-ink-2" : "text-muted-2"}`}>
+        {value ? yes : no}
+      </td>
+    </tr>
+  );
+}
+
 const LABEL_DISPLAY: Record<string, string> = {
   isr: "ISR",
   greenfin: "Greenfin",
@@ -81,10 +94,13 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
+          <BoolRow label="Couverture de change" value={fund.hedged} yes="Couvert" no="Non couvert" />
           <Row label="Gestionnaire" value={fund.gestionnaire ?? fund.management_company} />
           <Row label="Encours" value={fmtAumShort(fund.aum_eur)} />
           <Row label="Création" value={fund.inception_date ? dt(fund.inception_date) : null} />
           <Row label="Ancienneté" value={fmtYears(fund.track_record_years)} />
+          <BoolRow label="Conforme UCITS" value={fund.ucits_compliant} />
+          <BoolRow label="Distribué en France" value={fund.distributor_france} />
           <MorningstarRow rating={fund.morningstar_rating} />
           <LabelsRow labels={fund.labels} />
         </tbody>

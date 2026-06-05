@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { feeFracToPct } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Frontière API : frais fraction (DB) → % (widgets accueil affichent via pct()).
+  const funds = (data ?? []).map((f: any) => ({
+    ...f,
+    ter: feeFracToPct(f.ter),
+    ongoing_charges: feeFracToPct(f.ongoing_charges),
+  }));
+
   return NextResponse.json(
-    { data: data ?? [], sort_by: sortBy },
+    { data: funds, sort_by: sortBy },
     { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
   );
 }

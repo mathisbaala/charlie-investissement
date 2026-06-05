@@ -325,12 +325,19 @@ export type FundDetailHF = {
   gestionnaire: string | null;
   management_company: string | null;
   product_type: string | null;
+  category: string | null;             // catégorie brute (non normalisée)
   category_normalized: string | null;
   asset_class: string | null;
   region_normalized: string | null;
+  region_exposure: string | null;      // exposition géographique brute
   currency: string | null;
   inception_date: string | null;
   track_record_years: number | null;
+  hedged: boolean | null;              // version couverte en devise
+  distributor_france: boolean | null;  // distribué en France
+  ucits_compliant: boolean | null;     // conforme UCITS
+  data_source: string | null;          // source legacy (fallback traçabilité)
+  field_sources: Record<string, string> | null; // provenance par champ
   sfdr_article: number | null;
   risk_score: number | null;
   srri: number | null;

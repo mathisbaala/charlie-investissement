@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { scoreFunds, ClientProfile } from "@/lib/matching";
+import { feeFracToPct } from "@/lib/format";
 import type { MatchingResponse } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -44,7 +45,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const ranked = scoreFunds(data ?? [], profile).slice(0, 20);
+  // Frais stockés en fraction (DB) → % : scoreTER et l'affichage attendent des %.
+  const normalized = (data ?? []).map((f: any) => ({
+    ...f,
+    ongoing_charges: feeFracToPct(f.ongoing_charges),
+  }));
+
+  const ranked = scoreFunds(normalized, profile).slice(0, 20);
 
   const response: MatchingResponse = { results: ranked, profile };
   return NextResponse.json(response);

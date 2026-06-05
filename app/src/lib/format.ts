@@ -22,6 +22,17 @@ export function pct(v: number | null | undefined, sign = false): string {
   return (sign && v > 0 ? "+" : "") + nf1.format(v) + " %";
 }
 
+/**
+ * Convertit une fraction de frais stockée en base (canonique : 0.018 = 1,8 %)
+ * en pourcentage d'affichage (1.8). Source de vérité unique pour TER / frais
+ * courants, utilisée à la frontière API. Renvoie null si absent.
+ * Arrondi à 4 décimales pour neutraliser le bruit flottant (0.018*100 = 1.7999…).
+ */
+export function feeFracToPct(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return Math.round(v * 1e6) / 1e4;
+}
+
 export function eur(v: number | null | undefined): string {
   if (v == null) return "—";
   return nf.format(v) + " M€";

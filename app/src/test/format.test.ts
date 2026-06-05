@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize } from '../lib/format'
+import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct } from '../lib/format'
 
 describe('pct', () => {
   it('returns em dash for null', () => expect(pct(null)).toBe('—'))
@@ -8,6 +8,19 @@ describe('pct', () => {
   it('adds + sign when requested and positive', () => expect(pct(5.5, true)).toBe('+5,5 %'))
   it('no + for zero even with sign', () => expect(pct(0, true)).toBe('0,0 %'))
   it('formats negative correctly', () => expect(pct(-3.2)).toBe('-3,2 %'))
+})
+
+describe('feeFracToPct', () => {
+  // Régression : la base stocke les frais en fraction (0.018), l'UI attend des %.
+  // Avant correctif, la liste affichait "0,0 %" car la fraction n'était pas convertie.
+  it('returns null for null/undefined', () => {
+    expect(feeFracToPct(null)).toBe(null)
+    expect(feeFracToPct(undefined)).toBe(null)
+  })
+  it('converts a standard OPCVM TER fraction to percent', () => expect(feeFracToPct(0.018)).toBe(1.8))
+  it('converts a cheap ETF fraction', () => expect(feeFracToPct(0.0009)).toBe(0.09))
+  it('converts an SCPI fee-on-rent fraction (>=0.1) correctly', () => expect(feeFracToPct(0.18)).toBe(18))
+  it('handles zero', () => expect(feeFracToPct(0)).toBe(0))
 })
 
 describe('fmtAum', () => {
