@@ -235,6 +235,95 @@ def update_funds_bulk(rows: list[dict], batch_size: int = 100) -> tuple[int, int
     return success, failed
 
 
+def safe_fill_funds(records: list[dict], source: str, batch_size: int = 200) -> dict:
+    """
+    Enrichissement FILL-ONLY sans écrasement — sûr sur une base curée.
+
+    Pour chaque record (dict avec 'isin' + champs scrappés) :
+      - ISIN existant : UPDATE uniquement les colonnes actuellement NULL en base,
+        et merge `field_sources` (ajoute `source` pour chaque champ rempli).
+        Ne recalcule PAS data_completeness (préserve la complétude existante).
+      - ISIN nouveau : INSERT complet (completeness calculée, field_sources peuplé).
+
+    Ne JAMAIS écraser une valeur non-NULL existante. Contraste avec
+    upsert_funds_bulk() qui écrase toutes les colonnes fournies.
+
+    Returns: {"new_inserted", "rows_updated", "fields_filled", "failed"}.
+    """
+    client = get_client()
+    stats = {"new_inserted": 0, "rows_updated": 0, "fields_filled": 0, "failed": 0}
+    if not records:
+        return stats
+
+    cols = sorted({k for r in records for k in r.keys() if k != "isin"})
+    isins = [r["isin"] for r in records if r.get("isin")]
+
+    # État existant : isin -> {col: val, ..., field_sources}
+    existing: dict[str, dict] = {}
+    sel = "isin," + ",".join(cols + ["field_sources"])
+    for i in range(0, len(isins), 300):
+        chunk = isins[i : i + 300]
+        try:
+            r = client.table("investissement_funds").select(sel).in_("isin", chunk).execute()
+            for row in (r.data or []):
+                existing[row["isin"]] = row
+        except Exception as e:
+            print(f"  ✗ lecture existants : {e}")
+
+    new_rows: list[dict] = []
+    updates: list[tuple[str, dict]] = []
+    for rec in records:
+        isin = rec.get("isin")
+        if not isin:
+            continue
+        ex = existing.get(isin)
+        if ex is None:
+            payload = {k: v for k, v in rec.items() if v is not None}
+            payload["field_sources"] = {k: source for k in payload if k != "isin"}
+            payload["data_completeness"] = compute_completeness(payload)
+            payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+            new_rows.append(payload)
+        else:
+            payload = {k: v for k, v in rec.items()
+                       if k != "isin" and v is not None and ex.get(k) is None}
+            if payload:
+                fs = dict(ex.get("field_sources") or {})
+                for k in payload:
+                    fs.setdefault(k, source)
+                stats["fields_filled"] += len(payload)
+                payload["field_sources"] = fs
+                payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+                updates.append((isin, payload))
+
+    # Insert des nouveaux fonds
+    for i in range(0, len(new_rows), batch_size):
+        batch = new_rows[i : i + batch_size]
+        try:
+            client.table("investissement_funds").upsert(batch, on_conflict="isin").execute()
+            stats["new_inserted"] += len(batch)
+        except Exception as e:
+            stats["failed"] += len(batch)
+            print(f"  ✗ insert batch : {e}")
+
+    # Update fill-only des existants
+    for isin, payload in updates:
+        for attempt in range(3):
+            try:
+                client.table("investissement_funds").update(payload).eq("isin", isin).execute()
+                stats["rows_updated"] += 1
+                break
+            except Exception as e:
+                if "23502" in str(e):
+                    break
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                else:
+                    stats["failed"] += 1
+                    print(f"  ✗ update({isin}) : {e}")
+
+    return stats
+
+
 # ─── Upsert prix (VL) ─────────────────────────────────────────────────────────
 
 def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 500) -> tuple[int, int]:
