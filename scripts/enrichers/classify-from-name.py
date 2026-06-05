@@ -192,7 +192,7 @@ def run(apply: bool, limit: int | None):
     offset = 0
     while True:
         r = client.table("investissement_funds") \
-            .select("isin, name, product_type, asset_class, category, asset_class_broad, region_normalized, sector, labels") \
+            .select("isin, name, product_type, asset_class, category, asset_class_broad, region_normalized, sector, labels, management_style, ucits_compliant, per_eligible") \
             .range(offset, offset + 999) \
             .execute()
         if not r.data:

@@ -253,10 +253,30 @@ Mapping appliqué :
 - `matieres_premieres` → `matieres_premieres`
 - `alternatif`, `private_equity`, `infrastructure` → `alternatif`
 
-**Limites (nécessitent le pipeline de scrapers + creds Supabase, indisponibles en in-DB)** :
-`region_normalized` (53 %) et `sector` (26 %) ne sont pas dérivables proprement par SQL
+**Limites (nécessitent une source de catégorie externe)** :
+`region_normalized` (53 %) et `sector` (26 %) ne sont **pas dérivables** du nom ni par SQL
 (les fonds sans région sont majoritairement des actions individuelles sans zone dans le nom ;
-une passe par mots-clés ne remontait que 3 fonds). → relancer `classify-from-name.py`.
+une passe par mots-clés ne remonte que 3 fonds).
+
+### 11.6 État de l'enrichissement (05/06/2026) — IN-DB épuisé
+- **`compute-metrics`** : `nav250_no_p1y = 0` → toutes les VL disponibles sont déjà calculées en perf/vol. Rien à faire.
+- **`classify-from-name`** : 0 fonds à enrichir après correctif (cf. ci-dessous). `management_style` 84 % / `ucits_compliant` 9 % = plafond de l'heuristique par nom.
+- **`asset_class_broad`** : 100 % (cf. §11.5).
+- Les gaps restants (OPCVM TER 51 %, perf 52 %, région, secteur) exigent de la **donnée externe** (Quantalys/GECO/Morningstar).
+
+**⚠️ Sécurité scrapers — NE PAS lancer les scrapers de seeding sur la base curée.**
+`scripts/scrapers/amf-geco-full.py` (et assimilés) appellent `upsert_funds_bulk` →
+`upsert(on_conflict="isin")` qui **écrase toutes les colonnes fournies** et **recalcule
+`data_completeness` à partir des seuls champs du scraper** (épars). `map_geco_record`
+hardcode `currency="EUR"` et `data_source="amf-geco"`. Les lancer en l'état **dégraderait**
+la base (devises USD/GBP→EUR, provenance écrasée, complétude effondrée).
+→ Pour enrichir sans casse : utiliser `update_funds_bulk` (UPDATE-only) + un merge **fill-only**
+des NULL + merge `field_sources` (jamais d'écrasement). Stack scraper validée :
+`scrapling + curl_cffi + playwright + browserforge + lxml` dans `scripts/.venv` (Python 3.11).
+
+**Correctif `classify-from-name.py`** : le `SELECT` n'incluait pas `management_style` /
+`ucits_compliant` / `per_eligible` → la garde `not f.get(k)` était toujours vraie et le script
+**réécrivait** ces champs à chaque run (faux « N mis à jour », gain nul). Corrigé → fill-only idempotent.
 
 ---
 
