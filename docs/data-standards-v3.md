@@ -241,6 +241,23 @@ via `feeFracToPct()` (`app/src/lib/format.ts`, testée). Routes concernées :
 /`data_source` (nouvelle carte **Provenance des données**). `min_subscription_eur` reste vide
 (0 ligne) → non exposé tant que non collecté.
 
+### 11.5 Enrichissement dérivé en base — `asset_class_broad`
+Dimension **filtrable/affichée** du screener qui n'était couverte qu'à ~44 %.
+**+20 256 fonds** classés par mapping déterministe depuis `asset_class` (traçabilité
+`field_sources.asset_class_broad = "derived-from-asset_class"`) → couverture **100 %**.
+Mapping appliqué :
+- `product_type='action'` → `action_individuelle`
+- `actions`, `communication` → `action`
+- `diversifie`, `multi-actifs` → `diversifie`
+- `obligations` → `obligation`
+- `matieres_premieres` → `matieres_premieres`
+- `alternatif`, `private_equity`, `infrastructure` → `alternatif`
+
+**Limites (nécessitent le pipeline de scrapers + creds Supabase, indisponibles en in-DB)** :
+`region_normalized` (53 %) et `sector` (26 %) ne sont pas dérivables proprement par SQL
+(les fonds sans région sont majoritairement des actions individuelles sans zone dans le nom ;
+une passe par mots-clés ne remontait que 3 fonds). → relancer `classify-from-name.py`.
+
 ---
 
-**Version 3.1** — Normalisation back-end + exposition, 05/06/2026, 35 988 fonds.
+**Version 3.1** — Normalisation back-end + exposition + enrichissement asset_class_broad, 05/06/2026, 35 988 fonds.
