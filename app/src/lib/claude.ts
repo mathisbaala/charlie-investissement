@@ -51,7 +51,10 @@ export async function interpretQuery(query: string): Promise<ScreenerFilters> {
     const text = response.content[0].type === "text" ? response.content[0].text : "{}";
     const json = text.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
     return JSON.parse(json) as ScreenerFilters;
-  } catch {
+  } catch (e) {
+    // On dégrade en {} (repli recherche par nom) MAIS on trace : sans ce log,
+    // une clé ANTHROPIC_API_KEY manquante est indiscernable d'un « 0 résultat ».
+    console.error("[claude] interpretQuery a échoué (repli sur {}):", e);
     return {};
   }
 }
@@ -157,7 +160,10 @@ Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
     const text = response.content[0].type === "text" ? response.content[0].text : "{}";
     const json = text.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
     return JSON.parse(json) as ParsedFilters;
-  } catch {
+  } catch (e) {
+    // Repli {} = « Filtres intelligents indisponibles » côté UI. Le log permet
+    // de distinguer clé manquante / rate-limit / timeout d'un vrai 0 résultat.
+    console.error("[claude] parseFrenchQuery a échoué (repli sur {}):", e);
     return {};
   }
 }

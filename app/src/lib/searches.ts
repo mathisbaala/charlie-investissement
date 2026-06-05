@@ -12,7 +12,10 @@ const KEY = "charlie_searches";
 export function getRecentSearches(): SearchEntry[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const parsed = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    // Un localStorage corrompu (objet/null au lieu d'un tableau) ferait planter
+    // les .filter()/.slice() en aval — donc l'accueil. On valide la forme.
+    return Array.isArray(parsed) ? parsed.filter((s) => s && typeof s.query === "string") : [];
   } catch {
     return [];
   }
