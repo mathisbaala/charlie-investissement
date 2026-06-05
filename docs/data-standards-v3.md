@@ -206,3 +206,41 @@ fcpi, fcpr, fct, fip, fps, fpci, obligation, livret, opci
 ---
 
 **Version 3** — Validée par l'audit étendu du 19/05/2026 sur 22 485 fonds.
+
+---
+
+## 11. Addendum v3.1 — Normalisation back-end du 05/06/2026 (35 988 fonds)
+
+### 11.1 Unités de frais — convention durcie
+- **Canonique base = fraction** pour `ter` et `ongoing_charges` (`0.018` = 1,8 %). Confirmé.
+- Correctif appliqué : **972 lignes** stockées par erreur en pourcent ont été divisées par 100.
+  - Non-SCPI : toute valeur `≥ 0.1` (impossible en fraction pour un fonds retail) → `/100`.
+  - SCPI : `ongoing_charges` = fraction des loyers (0,10–0,18) ; seules les valeurs `> 1` → `/100`.
+  - Backup réversible : table `investissement_funds_units_backup_20260605`.
+- **Contraintes CHECK ajoutées** (anti-régression, migration `fees_unit_check_constraints`) :
+  `chk_ter_fraction` et `chk_ongoing_fraction` → `ter`/`ongoing_charges ∈ [0, 0.5]`.
+  Toute future insertion en pourcent (>0.5) est désormais **rejetée par la base**.
+
+### 11.2 Frontière API = pourcent (règle d'exposition)
+La base stocke en fraction ; **toutes les routes Next.js convertissent en % à la frontière**
+via `feeFracToPct()` (`app/src/lib/format.ts`, testée). Routes concernées :
+`/api/funds`, `/api/funds/[isin]`, `fonds/[isin]/page.tsx`, `/api/matching`,
+`/api/fonds/[isin]/similar`, `/api/screener/top-performers`, et `RapportFondsPDF`.
+- L'ancien pansement `normTer` (×100 si <0.1) est **supprimé** : il cassait l'affichage SCPI
+  (0,18 restait « 0.18 % » au lieu de 18 %).
+- ⚠️ Le scoring `scoreTER` (`lib/matching.ts`) attend des **pourcents** (seuils 0,3–2,0) :
+  la route matching convertit donc avant `scoreFunds`.
+
+### 11.3 Performances aberrantes
+- **5 artefacts** non-action/crypto (OPCVM/FPCI > 300 %/an, ex. +5604 %) → `performance_1y`
+  mis à `NULL`. Backup : `investissement_funds_perf_backup_20260605`.
+- Les gros mouvements réels (crypto, valeurs tech) sont **conservés** (action/crypto exclus du nettoyage).
+
+### 11.4 Données nouvellement exposées (fiche fonds)
+`hedged`, `distributor_france`, `ucits_compliant` (carte Caractéristiques) + `field_sources`
+/`data_source` (nouvelle carte **Provenance des données**). `min_subscription_eur` reste vide
+(0 ligne) → non exposé tant que non collecté.
+
+---
+
+**Version 3.1** — Normalisation back-end + exposition, 05/06/2026, 35 988 fonds.

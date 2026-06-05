@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { feeFracToPct } from "@/lib/format";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
-  if (terMax != null)   q = (q as any).or(`ter.lte.${terMax},ongoing_charges.lte.${terMax}`);
+  // L'UI envoie ter_max en % ; la base stocke en fraction → diviser par 100.
+  if (terMax != null)   q = (q as any).or(`ter.lte.${terMax / 100},ongoing_charges.lte.${terMax / 100}`);
   if (p1yMin != null)   q = q.gte("performance_1y", p1yMin);
   if (p3yMin != null)   q = q.gte("performance_3y", p3yMin);
   if (volMax != null)   q = q.lte("volatility_1y", volMax);
@@ -132,7 +134,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const raw  = (data as unknown as Fund[]) ?? [];
-  const deduped = dedup(raw).slice(0, perPage);
+  // Frontière API : convertir les frais fraction (DB) → % (contrat Fund, cf. types.ts).
+  const deduped = dedup(raw).slice(0, perPage).map((f) => ({
+    ...f,
+    ter: feeFracToPct(f.ter),
+    ongoing_charges: feeFracToPct(f.ongoing_charges),
+  }));
   const rawCount = count ?? 0;
   const ratio = raw.length > 0 ? deduped.length / raw.length : 1;
   const total = Math.round(rawCount * ratio);

@@ -29,10 +29,12 @@ const S = StyleSheet.create({
   warning: { backgroundColor: "#fef3c7", padding: "5 8", marginBottom: 10, fontSize: 8.5, color: "#92400e" },
 });
 
-// Normalise les frais depuis la table brute (fraction < 0.1 → ×100, comme la view)
+// Frais stockés en fraction (canonique : 0.018 = 1,8 %) → pourcentage d'affichage.
+// Conversion unit-true (toujours ×100) : gère aussi les SCPI (0.18 → 18) que
+// l'ancien seuil <0.1 laissait à tort tels quels. Cf. feeFracToPct (lib/format).
 function normTer(v: number | null | undefined): number | null {
   if (v == null) return null;
-  return v > 0 && v < 0.1 ? parseFloat((v * 100).toFixed(4)) : v;
+  return Math.round(v * 1e6) / 1e4;
 }
 
 function fmt(n: number | null, suffix = "%", d = 2): string {

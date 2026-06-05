@@ -1,14 +1,11 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml } from "@/lib/format";
+import { decodeHtml, feeFracToPct } from "@/lib/format";
 import type { FundDetailHF, NavPointHF, FundHoldingHF, FundBreakdownHF } from "@/lib/types";
 import { FundSheetClient } from "./FundSheetClient";
 
 // Standard ISIN (12 chars) OR internal identifiers (FE_*, CRYPTO_*)
 const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
-
-const normTer = (v: number | null | undefined): number | null =>
-  v != null && v > 0 && v < 0.1 ? parseFloat((v * 100).toFixed(4)) : v ?? null;
 
 export default async function FondPage({
   params,
@@ -24,8 +21,9 @@ export default async function FondPage({
     .from("investissement_funds")
     .select(`
       isin, name, management_company, management_company_normalized,
-      product_type, category_normalized, asset_class, region_normalized, management_style,
+      product_type, category, category_normalized, asset_class, region_normalized, region_exposure, management_style,
       currency, inception_date, track_record_years,
+      hedged, distributor_france, ucits_compliant, data_source, field_sources,
       sfdr_article, sri, srri,
       performance_1y, performance_3y, performance_5y, average_performance,
       volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
@@ -110,12 +108,19 @@ export default async function FondPage({
     gestionnaire: decodeHtml(fund.management_company_normalized ?? fund.management_company),
     management_company: decodeHtml(fund.management_company),
     product_type: fund.product_type,
+    category: (fund as any).category ?? null,
     category_normalized: fund.category_normalized,
     asset_class: fund.asset_class,
     region_normalized: fund.region_normalized,
+    region_exposure: (fund as any).region_exposure ?? null,
     currency: fund.currency,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
+    hedged: (fund as any).hedged ?? null,
+    distributor_france: (fund as any).distributor_france ?? null,
+    ucits_compliant: (fund as any).ucits_compliant ?? null,
+    data_source: (fund as any).data_source ?? null,
+    field_sources: ((fund as any).field_sources ?? null) as Record<string, string> | null,
     sfdr_article: fund.sfdr_article,
     risk_score: fund.sri,
     srri: fund.srri,
@@ -130,8 +135,8 @@ export default async function FondPage({
     sharpe_3y: fund.sharpe_3y,
     max_drawdown_1y: fund.max_drawdown_1y,
     max_drawdown_3y: fund.max_drawdown_3y,
-    ongoing_charges: normTer(fund.ongoing_charges),
-    ter: normTer(fund.ter),
+    ongoing_charges: feeFracToPct(fund.ongoing_charges),
+    ter: feeFracToPct(fund.ter),
     entry_fee_max: fund.entry_fee_max ?? null,
     exit_fee_max: fund.exit_fee_max ?? null,
     performance_fee: fund.performance_fee ?? null,

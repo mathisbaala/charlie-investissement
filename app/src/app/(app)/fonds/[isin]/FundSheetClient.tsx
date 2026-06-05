@@ -16,6 +16,7 @@ import { EnveloppesCard } from "./EnveloppesCard";
 import { FeesCard } from "./FeesCard";
 import { CompositionCard } from "./CompositionCard";
 import { SimilarFundsCard } from "./SimilarFundsCard";
+import { SourcesCard } from "./SourcesCard";
 
 const LABEL_DISPLAY: Record<string, string> = {
   isr: "ISR",
@@ -198,6 +199,7 @@ export function FundSheetClient({ fund }: Props) {
           <FeesCard fund={fund} />
           <CompositionCard fund={fund} />
           <SimilarFundsCard isin={fund.isin} />
+          <SourcesCard fund={fund} />
         </div>
 
       </div>
