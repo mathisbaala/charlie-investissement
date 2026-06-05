@@ -312,6 +312,18 @@ asset-class + région ; les « Actions Sectorielles X » désignent le secteur.
 - Le filtre secteur du screener est data-driven (RPC) → `Multisecteur` + secteurs remontent
   automatiquement, **sans changement de code front**.
 
+### 11.10 KID/DICI — sources gratuites épuisées (ne pas réinvestiguer)
+Sources existantes des `kid_url` : Morningstar (6 219), EPR AXA/amfinesoft (4 499), GECO (1 990).
+Investigation 05/06 sur les 4 743 investables sans kid :
+- **`geco-kid-finder.py` FONCTIONNE** (pipeline shareId→document/byShare→download validé sur
+  Carmignac Patrimoine) mais GECO renvoie `[]` pour les fonds restants → non hébergés.
+- **EPR AXA constructible** (`epr.amfinesoft.com/api/v1/download/AXA/.../kid-security/{ISIN}/lang/fr?key=…`)
+  mais 404 hors catalogue AXA (déjà moissonné).
+- **Morningstar** : hash de document opaque (non constructible) + IP-block.
+- `kid-url-finder.py` (général, DuckDuckGo/SGP) : 0 hit, scrapers périmés.
+→ **65 % = plafond gratuit.** Débloquer plus = découvrir les clés EPR d'autres distributeurs
+(Generali, Spirica…) une par une, ou parsing KID payant (LLM) sur les 65 % déjà munis d'un kid_url.
+
 ---
 
-**Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %), 05/06/2026, 36 035 fonds.
+**Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
