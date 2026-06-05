@@ -278,6 +278,16 @@ des NULL + merge `field_sources` (jamais d'écrasement). Stack scraper validée 
 `ucits_compliant` / `per_eligible` → la garde `not f.get(k)` était toujours vraie et le script
 **réécrivait** ces champs à chaque run (faux « N mis à jour », gain nul). Corrigé → fill-only idempotent.
 
+### 11.7 Couche d'enrichissement sûre + run GECO fill-only
+- **`db.safe_fill_funds(records, source)`** : primitive d'enrichissement non-destructive —
+  remplit uniquement les colonnes NULL des fonds existants, merge `field_sources`, ne recalcule
+  pas la complétude des existants, insère les nouveaux ISIN. À utiliser pour **tout** futur
+  scraper (au lieu de `upsert_funds_bulk`).
+- **`scripts/enrichers/geco-safe-enrich.py`** : applique GECO via `safe_fill_funds`.
+  Run du 05/06 : 12 804 collectés, 12 757 déjà en base, **+47 nouveaux supports**, 4 champs NULL
+  remplis, **0 dégât** (4 125 devises non-EUR préservées — l'upsert destructif les aurait forcées à EUR).
+  → GECO confirmé quasi-épuisé contre cette base. Base = **36 035 fonds**.
+
 ---
 
-**Version 3.1** — Normalisation back-end + exposition + enrichissement asset_class_broad, 05/06/2026, 35 988 fonds.
+**Version 3.1** — Normalisation back-end + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47), 05/06/2026, 36 035 fonds.
