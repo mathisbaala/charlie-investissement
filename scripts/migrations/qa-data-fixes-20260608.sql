@@ -1,33 +1,50 @@
 -- qa-data-fixes-20260608.sql — corrections data trouvées en QA navigateur (vue CGP senior)
 -- Appliqué live le 08/06/2026. Tracé via field_sources, idempotent.
--- Contexte : QA du screener trié Perf 3A → LVMH/Orange/BNP affichés comme OPCVM,
--- et perfs annualisées délirantes (Robeco EM +98%/an, ARDIAN +167%/an).
+-- Contexte : QA des tris Perf 1A / Perf 3A → actions blue-chip affichées comme OPCVM,
+-- et perfs délirantes (Robeco EM +98%/an, ARDIAN +167%/an, FIP/FIPS +148%/1an,
+-- fonds "prudent/flexible" à +99%/1an).
 
--- (1) Actions individuelles classées OPCVM → product_type='action' (les sort du screener fonds).
---     Signal fiable : asset_class_broad='action_individuelle' (LVMH, L'Oréal, Hermès, Orange…).
+-- (1) Actions individuelles classées OPCVM → product_type='action' (LVMH, L'Oréal, Hermès, Orange…).
 update investissement_funds
 set product_type = 'action',
     field_sources = jsonb_set(coalesce(field_sources,'{}'::jsonb),'{product_type}','"reclassified-stock-as-action"')
 where product_type='opcvm' and asset_class_broad='action_individuelle';
 
--- (2) Perf_3y/5y annualisée délirante sur fonds NON-leveragés (inflation systématique de la
---     perf_3y brute, ~2x ce que perf_1y implique). On assainit le visible : un fonds diversifié
---     ne fait pas >45%/an sur 3 ans ni >38%/an sur 5 ans. Les ETF 2x/3x sont préservés (nom).
+-- (2) Caps perf par CLASSE D'ACTIF (précis, vs seuil aveugle) — un fonds ne dépasse pas la
+--     borne plausible de sa catégorie. ETF 2x/3x préservés (nom). Inflation perf brute diffuse.
+--   Actions/ETF : >100%/1an, >45%/an (3A), >38%/an (5A) = impossible pour un fonds non-leveragé
+update investissement_funds set performance_1y = null
+where product_type in ('opcvm','etf') and performance_1y > 100 and name !~* '\m(2x|3x|leveraged|daily|short)\M';
 update investissement_funds set performance_3y = null
 where product_type in ('opcvm','etf') and performance_3y is not null
   and name !~* '\m(2x|3x|leveraged|daily|short)\M' and inv_annualize(performance_3y,3) > 45;
 update investissement_funds set performance_5y = null
 where product_type in ('opcvm','etf') and performance_5y is not null
   and name !~* '\m(2x|3x|leveraged|daily|short)\M' and inv_annualize(performance_5y,5) > 38;
-
--- (3) Fonds obligataires : un fonds oblig ne fait pas >15%/an sur 3 ans (>13%/an sur 5 ans).
+--   Diversifiés (équilibrés/prudents/flexibles) : >40%/1an, >25%/an (3A), >22%/an (5A)
+update investissement_funds set performance_1y = null
+where product_type in ('opcvm','etf') and asset_class_broad='diversifie' and performance_1y > 40;
+update investissement_funds set performance_3y = null
+where product_type in ('opcvm','etf') and asset_class_broad='diversifie' and performance_3y is not null
+  and inv_annualize(performance_3y,3) > 25;
+update investissement_funds set performance_5y = null
+where product_type in ('opcvm','etf') and asset_class_broad='diversifie' and performance_5y is not null
+  and inv_annualize(performance_5y,5) > 22;
+--   Obligataires : >15%/an (3A), >13%/an (5A)
 update investissement_funds set performance_3y = null
 where product_type in ('opcvm','etf') and asset_class_broad='obligation' and performance_3y is not null
   and inv_annualize(performance_3y,3) > 15;
 update investissement_funds set performance_5y = null
 where product_type in ('opcvm','etf') and asset_class_broad='obligation' and performance_5y is not null
   and inv_annualize(performance_5y,5) > 13;
+--   Monétaires : >10%/1an
+update investissement_funds set performance_1y = null
+where product_type in ('opcvm','etf') and asset_class_broad='monetaire' and performance_1y > 10;
 
--- LIMITE CONNUE : l'inflation perf_3y est diffuse (toutes sources, ~2x). Les fonds entre 20 et
--- 45%/an restent potentiellement gonflés mais non distinguables des vrais performers sans source
--- autoritaire (Morningstar/Quantalys = morts). Recompute completeness après : recompute-completeness-v2.sql
+-- (3) Perf AUTORITAIRE depuis les VL : compute-metrics.py recalcule perf/vol/sharpe pour les
+--     ~7000 fonds avec historique NAV (≥2,75 ans). Lancé en arrière-plan le 08/06 (n'écrase pas
+--     les fonds sans VL). C'est le fix de fond ; les caps ci-dessus traitent les fonds sans NAV.
+
+-- LIMITE CONNUE : l'inflation perf sur les fonds SANS VL (FIP/FIPS/PE retail, certains scrapes)
+-- reste partielle entre les bornes par catégorie — non distinguable des vrais performers sans
+-- source autoritaire. Recompute completeness après : recompute-completeness-v2.sql
