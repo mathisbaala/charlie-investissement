@@ -33,6 +33,22 @@ export function feeFracToPct(v: number | null | undefined): number | null {
   return Math.round(v * 1e6) / 1e4;
 }
 
+/**
+ * Convertit une performance CUMULÉE sur N années (ex: 57.5 = +57,5 % sur 3 ans)
+ * en performance ANNUALISÉE (%/an), convention standard CGP (Morningstar/Quantalys).
+ * La base stocke les perfs 3y/5y en cumulé ; la frontière API les annualise.
+ * Doit rester aligné avec la fonction SQL inv_annualize() (vue + RPC).
+ * Renvoie null si absent, ou si la perte est ≥ 100 % (donnée invalide, base ≤ 0).
+ */
+export function annualizeCumul(
+  cumulPct: number | null | undefined,
+  years: number,
+): number | null {
+  if (cumulPct == null) return null;
+  if (cumulPct <= -100) return null;
+  return Math.round((Math.pow(1 + cumulPct / 100, 1 / years) - 1) * 1e4) / 1e2;
+}
+
 export function eur(v: number | null | undefined): string {
   if (v == null) return "—";
   return nf.format(v) + " M€";

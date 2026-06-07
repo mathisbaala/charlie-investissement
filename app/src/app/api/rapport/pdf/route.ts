@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
+import { annualizeCumul } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -22,10 +23,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Fonds introuvables" }, { status: 404 });
   }
 
-  // Conserver l'ordre de sélection
+  // Conserver l'ordre de sélection + annualiser les perfs cumulées 3y/5y
+  // (cf. inv_annualize SQL / vue CGP — le composant reçoit des valeurs annualisées).
   const ordered = isins
     .map((isin) => funds.find((f) => f.isin === isin))
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((f) => ({
+      ...f,
+      performance_3y: annualizeCumul(f!.performance_3y, 3),
+      performance_5y: annualizeCumul(f!.performance_5y, 5),
+    }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(RapportFondsPDF as any, { funds: ordered });

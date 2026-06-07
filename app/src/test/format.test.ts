@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct } from '../lib/format'
+import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul } from '../lib/format'
 
 describe('pct', () => {
   it('returns em dash for null', () => expect(pct(null)).toBe('—'))
@@ -21,6 +21,24 @@ describe('feeFracToPct', () => {
   it('converts a cheap ETF fraction', () => expect(feeFracToPct(0.0009)).toBe(0.09))
   it('converts an SCPI fee-on-rent fraction (>=0.1) correctly', () => expect(feeFracToPct(0.18)).toBe(18))
   it('handles zero', () => expect(feeFracToPct(0)).toBe(0))
+})
+
+describe('annualizeCumul', () => {
+  // La base stocke les perfs 3y/5y en cumulé ; l'UI affiche de l'annualisé (%/an).
+  // Doit rester aligné avec la fonction SQL inv_annualize() (vue + RPC).
+  it('returns null for null/undefined', () => {
+    expect(annualizeCumul(null, 3)).toBe(null)
+    expect(annualizeCumul(undefined, 5)).toBe(null)
+  })
+  it('annualise un cumulé 3 ans positif', () => expect(annualizeCumul(57.5, 3)).toBe(16.35))
+  it('annualise un cumulé 5 ans positif', () => expect(annualizeCumul(127, 5)).toBe(17.82))
+  it('annualise un cumulé négatif (perte)', () => expect(annualizeCumul(-30, 3)).toBe(-11.21))
+  it('cumulé sur 1 an reste inchangé', () => expect(annualizeCumul(12, 1)).toBe(12))
+  it('renvoie null si perte >= 100 % (base <= 0)', () => {
+    expect(annualizeCumul(-100, 3)).toBe(null)
+    expect(annualizeCumul(-150, 3)).toBe(null)
+  })
+  it('gère zéro', () => expect(annualizeCumul(0, 3)).toBe(0))
 })
 
 describe('fmtAum', () => {
