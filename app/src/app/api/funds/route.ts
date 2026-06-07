@@ -108,10 +108,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (productTypes.length) {
     q = q.in("product_type", productTypes);
   } else {
-    // Défaut CGP : univers collectif. Les titres vifs (action) et crypto restent
-    // accessibles uniquement en opt-in via le filtre univers, pour qu'une recherche
-    // large remonte des fonds et non des actions individuelles (cf. tri completeness).
-    q = (q as any).not("product_type", "in", "(action,crypto)");
+    // Défaut CGP : univers collectif. Restent en opt-in via le filtre univers :
+    // les titres vifs (action), crypto, et les FPS (Fonds Professionnels Spécialisés,
+    // réservés aux pros et sans métriques retail — 1 033 coquilles vides qui pollueraient
+    // le tri completeness). Une recherche large remonte ainsi des fonds exploitables.
+    q = (q as any).not("product_type", "in", "(action,crypto,fps)");
   }
 
   if (regions.length)      q = q.in("region_normalized", regions);
