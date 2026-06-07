@@ -409,6 +409,23 @@ QA du parcours complet sur l'app déployée (API via MCP Vercel). Deux bugs trou
   médiane TER 1,10 %, max 4,00 %. Couverture TER OPCVM/ETF 80 %→41 % mais **fiable** (un « — »
   honnête vaut mieux qu'un faux 4,83 %).
 
+### 11.15 Complétude métadonnées dérivées (07/06/2026)
+
+Dérivations in-DB (sans scraper), tracées `field_sources`, réversibles :
+
+- **`track_record_years` recalculé depuis `inception_date`** = `(today - inception)/365.25`.
+  Corrige un **plafonnement à 5 ans** (3 112 fonds anciens affichaient « 5 ans » ; ROBECO 1938
+  affichait 4,2 → **88,3 ans**) + 5 496 incohérences. Couverture 74 %→92 %, médiane 8,7 ans.
+  `inception_date = 1800-01-01` (placeholder, 2 fonds) nullée.
+- **`management_style`** comblé (ETF→passif, factor→smart_beta, long/short→alternatif, sinon
+  actif) → 100 % sur OPCVM/ETF (le reste = actions/crypto, sans style).
+- **`sector`** comblé sur actions/diversifiés sans secteur : mot-clé thématique sinon
+  `Multisecteur` → 78 %→81 %. Non appliqué aux obligataires/monétaires (secteur actions non
+  pertinent). `field_sources` : `derived-name-style`, `derived-name-sector`, `derived-inception-date`.
+
+NB : `data_completeness` n'a pas été recalculé après la purge TER garbage (§11.14) — les scores
+des fonds concernés sont légèrement surévalués mais ≥50 (restent visibles avec un TER « — »).
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
