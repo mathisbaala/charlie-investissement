@@ -48,3 +48,33 @@ where product_type in ('opcvm','etf') and asset_class_broad='monetaire' and perf
 -- LIMITE CONNUE : l'inflation perf sur les fonds SANS VL (FIP/FIPS/PE retail, certains scrapes)
 -- reste partielle entre les bornes par catégorie — non distinguable des vrais performers sans
 -- source autoritaire. Recompute completeness après : recompute-completeness-v2.sql
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- POST-COMPUTE-METRICS (08/06) — à rejouer APRÈS compute-metrics.py (qui recalcule
+-- perf/vol/sharpe depuis les VL pour ~8300 fonds et peut propager des glitches NAV
+-- + écrase track_record_years avec la durée d'historique NAV au lieu de l'âge réel).
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- (A) Re-caps perf (compute-metrics a réécrit la perf des fonds à VL → re-borner les glitches).
+--     Idem que (2) ci-dessus : 1A>100, 3A>45%/an, 5A>38%/an, diversifié>40/25, oblig>15, mon>15.
+--     (rejouer le bloc (2))
+
+-- (B) Volatilité glitch NAV (>80% non-leveragé : ex. ETF Low Vol à 10000% = point VL corrompu).
+update investissement_funds set volatility_1y=null, sharpe_1y=null
+where product_type in ('opcvm','etf') and volatility_1y>80 and name !~* '\m(2x|3x|leveraged|daily|short)\M';
+update investissement_funds set volatility_3y=null, sharpe_3y=null
+where product_type in ('opcvm','etf') and volatility_3y>80 and name !~* '\m(2x|3x|leveraged|daily|short)\M';
+
+-- (C) Sharpe artefacts : |valeur|>15, OU vol quasi-nulle (monétaires CHF : vol~0 → Sharpe -57).
+update investissement_funds set sharpe_1y=null
+where sharpe_1y is not null and (abs(sharpe_1y)>15 or (volatility_1y is not null and volatility_1y<0.5));
+update investissement_funds set sharpe_3y=null
+where sharpe_3y is not null and (abs(sharpe_3y)>15 or (volatility_3y is not null and volatility_3y<0.5));
+
+-- (D) Restaurer track_record_years = âge réel depuis inception (compute-metrics l'a écrasé).
+update investissement_funds
+set track_record_years = round((current_date - inception_date)/365.25, 1)
+where inception_date is not null and inception_date <= current_date and inception_date > '1900-01-01'
+  and round((current_date - inception_date)/365.25,1) is distinct from track_record_years;
+
+-- (E) Puis rejouer recompute-completeness-v2.sql.
