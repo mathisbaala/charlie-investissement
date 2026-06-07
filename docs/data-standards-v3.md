@@ -455,6 +455,20 @@ dans le nom) — restent sans gestionnaire, ce qui est honnête.
   fonds ISR/Finansol qui le sont par définition. Whitelist d'affichage `CharacteristicsCard`
   étendue (finansol, relance).
 
+### 11.18 Recalcul complétude + sweep qualité final (07/06/2026, pré-lancement public)
+
+- **`data_completeness` recalculé** (formule v2 per-type, répliquée en SQL depuis
+  `recalc-completeness-v2.py`) pour refléter purges TER + perfs nullées. Impact honnête :
+  univers ≥50 ≈ 23 279 → ~22 900. OPCVM −172 (TER garbage retiré), **fonds_euros 276→93**
+  (les 183 quantalys-supporteuro sans taux servi valide sortent — un fonds euros sans taux
+  n'est pas exploitable). Pas d'effondrement.
+- **Sweep valeurs aberrantes** (univers ≥50) : drawdown/AUM/devise/SRI/Morningstar **tous OK**.
+  Nullés : `volatility_1y > 80 %` sur 51 fonds non-leveragés (HSBC Hang Seng 712 %, ETF or 139 %,
+  S&P 500 323 % = erreurs ; les ETF 2x/3x préservés) + `sharpe_1y` associé ; `performance_1y > 150 %`
+  sur 29 fonds non-leveragés (ETF Corée/Space +230 % = impossible pour un indice).
+- Screener par défaut validé : Livret A/PEL, iShares Core MSCI World (TER 0,30 %, 19 %/an, vol 12 %),
+  PIMCO Income, Pictet Japan — fonds crédibles, métriques réalistes.
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
@@ -462,3 +476,4 @@ dans le nom) — restent sans gestionnaire, ce qui est honnête.
 **Version 3.3** — Éligibilités (PEA additif fiable, non-dérivation documentée) + hygiène perf par catégorie, 07/06/2026.
 **Version 3.4** — Fiabilisation classification depuis le nom (région 220, asset_class 366, PEA −42 FP non-actions), 07/06/2026.
 **Version 3.5** — QA pré-démo (SCPI non-annualisées, purge TER garbage) + complétude métadonnées (track_record, style, sector, sociétés de gestion 70→97 %), 07/06/2026.
+**Version 3.6** — Labels ESG français (ISR/Finansol/Relance) + recalcul complétude v2 + sweep qualité final (vol/perf aberrantes), pré-lancement public, 07/06/2026.
