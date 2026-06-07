@@ -30,10 +30,11 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
   const show3 = fund.performance_3y != null && hasPeriod(3);
   const show5 = fund.performance_5y != null && hasPeriod(5);
 
+  // NB : on n'affiche plus `average_performance` en repli — c'est un cumulé à
+  // période indéfinie (≈ perf_3y cumulé), trompeur présenté comme une moyenne
+  // annuelle (cf. annualisation perf 3y/5y). On ne montre que la Perf 5A fiable.
   const perf5OrAvg = show5
     ? { label: "Perf 5A", value: pct(fund.performance_5y!, true), ok: fund.performance_5y! >= 0 }
-    : fund.average_performance != null
-    ? { label: "Perf moy.", value: pct(fund.average_performance, true), ok: fund.average_performance >= 0 }
     : null;
 
   const tiles: { label: string; value: string; ok?: boolean | null; accent?: boolean }[] = [
