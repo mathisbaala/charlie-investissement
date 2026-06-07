@@ -394,6 +394,21 @@ Re-dérivation **haute-précision en SQL** (via MCP, car `.env` locaux = stubs) 
 `field_sources` tracent les dérivations : `derived-name-region-v2`, `derived-name-assetclass-v2`,
 `derived-assetclass-noneq`, `derived-name-pea`. **Toutes réversibles** (filtrables par field_sources).
 
+### 11.14 QA pré-démo : SCPI non-annualisées + purge TER garbage (07/06/2026)
+
+QA du parcours complet sur l'app déployée (API via MCP Vercel). Deux bugs trouvés et corrigés :
+
+- **SCPI/livret sur-annualisés** : leur perf multi-années est un **taux annuel** (distribution SCPI,
+  taux livret), pas du cumulé — l'annualisation v3.2 les compressait (Corum Origin affichait
+  1,99 %/an au lieu de **6,06 %**). Fix : helper `inv_annualize_pt(cumul, years, product_type)` (SQL)
+  + `annualizeForType()` (TS) qui **excluent `scpi`/`livret`**. Appliqué vue + 3 RPC + routes
+  détail/PDF. fonds_euros et obligation restent annualisés (eux sont bien cumulés, vérifié).
+- **TER garbage** : ~5 500 OPCVM/ETF avaient un TER **factice en clusters** (677 fonds à 5,04 %,
+  482 à 4,83 %, 454 à 5,18 %… valeurs identiques au centième = artefact de parsing amf-geco/cssf).
+  Aucun UCITS n'a >4 % de frais courants. **Nullés** (ter/ongoing_charges, `ter > 0.04`) →
+  médiane TER 1,10 %, max 4,00 %. Couverture TER OPCVM/ETF 80 %→41 % mais **fiable** (un « — »
+  honnête vaut mieux qu'un faux 4,83 %).
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
