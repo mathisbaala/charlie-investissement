@@ -111,23 +111,19 @@ KID_PATTERNS_FR = {
         r"investissement\s+(?:durable|responsable)\s+comme\s+objectif",
     ],
     "ter": [
-        # PRIORITÉ 1 : "Incidence des coûts annuels" = TER total PRIIPS (1ère valeur = 1 an)
-        # Format table : "Incidence des coûts annuels | 1,99% | 2,11%"
-        r"incidence\s+des\s+co[uû]ts\s+annuels[^|]*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
-        # Format texte inline : "Incidence des coûts annuels (*) 0,33% 0,32%"
-        r"incidence\s+des\s+co[uû]ts\s+annuels[^\d]{0,40}(\d+[.,]\d+)\s*%",
-        # Format avec "Coûts totaux" sur la ligne précédente
-        r"co[uû]ts\s+totaux[^\n]+\n[^\n]*incidence[^\d]{0,30}(\d+[.,]\d+)\s*%",
-        # PRIORITÉ 2 : Tableau "Coûts récurrents" ligne totale (pas les sous-lignes individuelles)
-        r"co[uû]ts\s+r[eé]currents\s*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
+        # PRIORITÉ 1 : ligne PRIIPs "Frais de gestion et autres frais ... X%" = frais courants (TER).
+        # C'est LA ligne ongoing-charges (≈ TER). NE PAS confondre avec "Incidence sur le rendement
+        # annuel" (coût-drag à 1 an, qui inclut les coûts d'entrée amortis → surestime fortement).
+        r"frais\s+de\s+gestion\s+et\s+autres\s+frais[^\d%]{0,80}(\d+[.,]\d+)\s*%",
         r"frais\s+courants[^\d]*(\d+[.,]\d+)\s*%",
         r"charges\s+courantes[^\d]*(\d+[.,]\d+)\s*%",
+        # PRIORITÉ 2 : Tableau "Coûts récurrents" ligne totale (pas les sous-lignes individuelles)
+        r"co[uû]ts\s+r[eé]currents\s*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
         r"ratio\s+des\s+frais[^\d]*(\d+[.,]\d+)\s*%",
-        r"total\s+des\s+co[uû]ts[^\d]*(\d+[.,]\d+)\s*%",
-        # PDFs concatenés : "0,33%delavaleurdevotreinvestissement"
+        # PDFs concatenés : "1,87%delavaleurdevotreinvestissement"
         r"co[uû]ts\s*r[eé]currents[^€\n]{0,200}?(\d+[.,]\d+)\s*%\s*de\s*la\s*valeur",
         r"(\d+[.,]\d{2})\s*%\s*de\s*la\s*valeur\s*de\s*votre\s*investissement\s*par\s*an",
-        # PRIORITÉ 3 : Sous-ligne frais de gestion (moins précis mais mieux que rien)
+        # PRIORITÉ 3 : ligne "Coûts récurrents" générique (dernier recours)
         r"co[uû]ts\s+r[eé]currents[^\d]*(\d+[.,]\d+)\s*%",
     ],
     "entry_fee_max": [
@@ -170,10 +166,12 @@ KID_PATTERNS_EN = {
         r"classified\s+(?:this\s+)?product\s+(?:in\s+)?(?:risk\s+)?class\s+(\d)",
     ],
     "ter": [
+        # PRIORITÉ 1 : "Management fees and other administrative/operating costs X%" = ongoing charges.
+        # NE PAS prendre "annual cost impact / impact on return" (coût-drag à 1 an, surestime).
+        r"management\s+fees\s+and\s+other[^\d%]{0,90}(\d+[.,]\d+)\s*%",
+        r"ongoing\s+(?:charges?|costs?)[^\d]*(\d+[.,]\d+)\s*%",
         r"recurring\s+costs\s*\|[^|]*\|\s*(\d+[.,]\d+)\s*%",
         r"recurring\s+costs[^\d]*(\d+[.,]\d+)\s*%",
-        r"ongoing\s+(?:charges?|costs?)[^\d]*(\d+[.,]\d+)\s*%",
-        r"total\s+(?:annual\s+)?costs?[^\d]*(\d+[.,]\d+)\s*%",
         r"annual\s+(?:management\s+)?(?:charge|fee)[^\d]*(\d+[.,]\d+)\s*%",
     ],
     "entry_fee_max": [
@@ -250,12 +248,13 @@ def parse_kid_text(text: str) -> dict:
                     elif "caract" in pat:
                         r["sfdr_article"] = 8
                     break
-        # TER — stocké en % dans la DB (0.33 = 0.33%), pas en fraction
+        # TER — convention DB v3 = FRACTION (0.0033 = 0.33%), cf. data-standards-v3 §11.1
+        # + contrainte CHECK chk_ter_fraction (ter ∈ [0, 0.5]). Le KID donne un % → ÷100.
         raw = try_patterns(text, pats["ter"])
         val = extract_number(raw) if raw else None
         if val is not None and 0 < val < 10:
-            r["ter"] = round(val, 4)
-            r["ongoing_charges"] = round(val, 4)
+            r["ter"] = round(val / 100, 6)
+            r["ongoing_charges"] = round(val / 100, 6)
             conf += 25
         # Entry fee
         raw = try_patterns(text, pats["entry_fee_max"])
@@ -449,6 +448,53 @@ def download_pdf(session: FetcherSession, url: str) -> bytes | None:
     return data if fmt == "pdf" else None
 
 
+# Champs que le KID fait AUTORITÉ — on override + on trace dans field_sources.
+# (Le KID/DICI PRIIPs est la source légale pour SRI, SFDR, frais courants, frais d'entrée/sortie.)
+KID_AUTHORITATIVE = frozenset({
+    "sri", "sfdr_article", "ter", "ongoing_charges",
+    "entry_fee_max", "exit_fee_max", "performance_fee", "holding_period_years",
+})
+
+
+def kid_write(isin: str, fields: dict, pdf_hash: str) -> bool:
+    """
+    Écrit les champs parsés du KID en mergeant field_sources (tag 'kid_pdf').
+    Le KID est autoritaire → override des champs ci-dessus. NE recalcule PAS
+    data_completeness (laissé au recompute v2 SQL post-run, cf. README).
+    """
+    client = get_client()
+    try:
+        existing = client.table("investissement_funds") \
+            .select("field_sources").eq("isin", isin).limit(1).execute().data
+        fs = dict((existing[0].get("field_sources") if existing else None) or {})
+        for k in fields:
+            if k in KID_AUTHORITATIVE:
+                fs[k] = "kid_pdf"
+        payload = {
+            **fields,
+            "kid_hash": pdf_hash,
+            "kid_parsed_at": datetime.now(timezone.utc).isoformat(),
+            "field_sources": fs,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        for attempt in range(3):
+            try:
+                client.table("investissement_funds").update(payload).eq("isin", isin).execute()
+                return True
+            except Exception as e:
+                if "chk_ter" in str(e) or "23514" in str(e):
+                    # Garde-fou : un TER hors [0,0.5] = parse douteux → on retire les frais et on retente
+                    payload.pop("ter", None); payload.pop("ongoing_charges", None)
+                    fs.pop("ter", None); fs.pop("ongoing_charges", None)
+                    payload["field_sources"] = fs
+                    continue
+                if attempt == 2:
+                    return False
+        return False
+    except Exception:
+        return False
+
+
 def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool) -> dict:
     isin    = fund["isin"]
     kid_url = fund.get("kid_url", "")
@@ -498,13 +544,9 @@ def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool
 
     # Mise à jour Supabase
     if apply:
-        update_data = {
-            "isin":          isin,
-            "kid_hash":      pdf_hash,
-            "kid_parsed_at": datetime.now(timezone.utc).isoformat(),
-            **{k: v for k, v in extracted.items() if not k.startswith("_") and k in DB_COLUMNS},
-        }
-        success = upsert_fund(update_data)
+        fields = {k: v for k, v in extracted.items()
+                  if not k.startswith("_") and k in DB_COLUMNS and v is not None}
+        success = kid_write(isin, fields, pdf_hash)
         result["status"] = "ok" if success else "upsert_failed"
     else:
         result["status"] = "ok_dryrun"
