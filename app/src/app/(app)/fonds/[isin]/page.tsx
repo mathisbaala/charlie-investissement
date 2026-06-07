@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, feeFracToPct } from "@/lib/format";
+import { decodeHtml, feeFracToPct, annualizeForType } from "@/lib/format";
 import type { FundDetailHF, NavPointHF, FundHoldingHF, FundBreakdownHF } from "@/lib/types";
 import { FundSheetClient } from "./FundSheetClient";
 
@@ -126,8 +126,10 @@ export default async function FondPage({
     srri: fund.srri,
     management_style: fund.management_style ?? null,
     performance_1y: fund.performance_1y,
-    performance_3y: fund.performance_3y,
-    performance_5y: fund.performance_5y,
+    // 3y/5y stockés en cumulé (sauf SCPI/livret) → annualisés, comme le screener
+    // et /api/funds/[isin]. Sans ça la fiche affichait du cumulé (incohérent).
+    performance_3y: annualizeForType(fund.performance_3y, 3, fund.product_type),
+    performance_5y: annualizeForType(fund.performance_5y, 5, fund.product_type),
     average_performance: fund.average_performance ?? null,
     volatility_1y: fund.volatility_1y,
     volatility_3y: fund.volatility_3y,
