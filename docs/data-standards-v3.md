@@ -330,6 +330,73 @@ investables : **65 → 70 %**. Le plafond rejoint celui de la perf (univers reta
 **Sources HS** (ne pas réutiliser) : GECO épuisé (héberge seulement un sous-ensemble),
 `kid-url-finder.py` (DuckDuckGo/SGP) périmé, Morningstar hash opaque + IP-block.
 
+### 11.11 Cohérence métriques screener (06/06/2026) — perf annualisée + double-conversion frais
+
+Audit qualité « métriques pas délirantes » pour le screener CGP. Trois bugs corrigés :
+
+1. **Double-conversion des frais (×100)**. La vue `investissement_funds_cgp` faisait `ter*100`
+   **et** l'API refaisait `feeFracToPct` → un ETF à 0,07 % s'affichait **7 %**. Fix : la vue
+   renvoie désormais la **fraction brute** (`ter`, `ongoing_charges`) ; l'API reste l'unique point
+   de conversion (cf. 11.2). Invariant : **DB/vue/RPC = fraction, API = %**.
+2. **Colonnes générées `ter_pct`/`ongoing_charges_pct` buggées**. Expression `WHEN ter<0.01 THEN
+   ter*100 ELSE ter` → fraction conservée à tort pour 69 % des lignes. Corrigée en `round(ter*100,4)`
+   (`ALTER COLUMN … SET EXPRESSION`, PG17). Les RPC `get_top_performers`/`get_similar_funds`/
+   `get_fund_detail` n'utilisent plus ces colonnes → passées à `ter`/`ongoing_charges` bruts.
+3. **Perf 3y/5y cumulé affiché comme annualisé**. La base stocke 3y/5y en **cumulé** (uniforme,
+   toutes sources) ; le contrat type annonçait « annualisé ». Fix : annualisation à l'affichage,
+   colonnes brutes intactes (réversible).
+   - SQL : helper `inv_annualize(cumul, years)` utilisé dans la vue + les 3 RPC.
+   - TS : helper `annualizeCumul(cumulPct, years)` (`lib/format.ts`, testé) dans `funds/[isin]`
+     (détail) et `rapport/pdf` (routes lisant la table brute). **Garder les 2 helpers alignés.**
+   - Résultat : perf_3y médiane **6,7 %/an**, 56 fonds > 100 %/an (titres spéculatifs réels, conservés).
+
+**Nettoyages** : perfs fonds euros `quantalys-supporteuro` > 10 % nullées (183, un fonds euros
+plafonne ~8 %) ; TER synthétique ~4,62 % nullé sur **1 719 actions** (une action n'a pas de frais
+courants). TER médian affiché après fix : **1,52 %** (réaliste).
+
+---
+
+### 11.12 Éligibilités & hygiène perf (07/06/2026)
+
+- **PEA — NON dérivable en masse depuis les champs actuels.** Un dry-run d'une règle
+  région+asset_class a produit des erreurs dans les deux sens car `region_normalized`/
+  `asset_class_broad` sont **bruités** (ex. *Amundi Prime Europe* taggé `usa` ; *Crescent Direct
+  Lending LP*, fonds de dette, taggé `action`). Réécrire `pea_eligible` en masse = **risque
+  conformité**. Décision : ne PAS mass-flipper. Seul ajout sûr = **signal déclaratif fiable du nom**
+  (`name ~* 'PEA'`) → +102 fonds (`field_sources.pea_eligible = "derived-name-pea"`). Pour vraiment
+  combler le PEA il faut une **source autoritaire** (KID, liste PEA éditeur), pas une dérivation.
+- `pea_eligible` n'a **aucun null** (classification complète true/false), héritée d'un heuristique
+  faible — ne pas la traiter comme autoritaire.
+- **Hygiène perf par catégorie** : monétaire avec perf > 15 %/an (6) ou cumul 3y > 30 % (8), et
+  obligataire avec perf_1y > 50 % (20) → perfs nullées (impossibles). Monétaire max repassé à 4,6 %.
+- **Frais : pas de vrai trou.** TER OPCVM 80 %, ETF 93 %. Le « 58 % global » était dilué par les
+  actions (sans TER, nullées 06/06) et les **FPS** (1 033 coquilles : 1 % TER, 0 % perf/SRI).
+
+### 11.13 Fiabilisation classification depuis le nom (07/06/2026)
+
+Le nom du fonds est le **signal le plus fiable** (region/asset_class issus des sources sont bruités).
+Re-dérivation **haute-précision en SQL** (via MCP, car `.env` locaux = stubs) :
+
+- **Région** : on ne dérive que si le nom contient **exactement un** signal régional (sinon ambigu →
+  ignoré). 96 % d'accord avec le stocké (validation). Tokens parasites **nettoyés** avant matching
+  (`swiss life`, `russell investments`, `global funds` = gérants/umbrella, pas des régions) ; `euro`
+  ajouté comme signal europe (rend les noms umbrella multi-signaux → exclus). **Override interdit
+  vers `world`** (signal faible). Résultat : **220 corrigés** (201 overrides + 19 fills), ex.
+  *BlackRock Global Funds - China Bond* : `world`→`china`.
+- **Asset class** : conflits nom↔stocké corrigés (**366**) — surtout fonds obligataires/dette taggés
+  `action` (US Treasuries, Corporate Bonds, Private Debt, Senior Lending) ou `diversifie`. `shares`
+  retiré du signal actions (mot de classe de part) ; pluriels `obligations`/`bonds` détectés pour
+  exclure les mixtes (ex. *Junon Actions Obligations*).
+- **PEA — retrait FP non-actions** : un fonds `obligation`/`monetaire`/`immobilier`/
+  `matieres_premieres`/`crypto` ne peut être PEA-éligible → **42 faux positifs** retirés. Combiné au
+  fix asset_class, ça assainit les faux « PEA » (fonds obligataires qui étaient taggés action+PEA).
+
+`field_sources` tracent les dérivations : `derived-name-region-v2`, `derived-name-assetclass-v2`,
+`derived-assetclass-noneq`, `derived-name-pea`. **Toutes réversibles** (filtrables par field_sources).
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
+**Version 3.2** — Cohérence métriques screener (perf annualisée, double-conversion frais corrigée, ter_pct régénéré), 06/06/2026.
+**Version 3.3** — Éligibilités (PEA additif fiable, non-dérivation documentée) + hygiène perf par catégorie, 07/06/2026.
+**Version 3.4** — Fiabilisation classification depuis le nom (région 220, asset_class 366, PEA −42 FP non-actions), 07/06/2026.

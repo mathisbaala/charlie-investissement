@@ -102,11 +102,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (envelopes.includes("CTO"))     q = q.eq("cto_eligible",     true);
 
   // Univers → product_type / asset_class
-  if (universe.length) {
-    const productTypes = universe.filter(u =>
-      ["opcvm","etf","scpi","fps","fonds_euros","action","crypto"].includes(u)
-    );
-    if (productTypes.length) q = q.in("product_type", productTypes);
+  const productTypes = universe.filter(u =>
+    ["opcvm","etf","scpi","fps","fonds_euros","action","crypto"].includes(u)
+  );
+  if (productTypes.length) {
+    q = q.in("product_type", productTypes);
+  } else {
+    // Défaut CGP : univers collectif. Les titres vifs (action) et crypto restent
+    // accessibles uniquement en opt-in via le filtre univers, pour qu'une recherche
+    // large remonte des fonds et non des actions individuelles (cf. tri completeness).
+    q = (q as any).not("product_type", "in", "(action,crypto)");
   }
 
   if (regions.length)      q = q.in("region_normalized", regions);
