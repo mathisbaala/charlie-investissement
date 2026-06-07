@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { feeFracToPct, annualizeCumul } from "@/lib/format";
+import { feeFracToPct, annualizeForType } from "@/lib/format";
 import type { FundDetailHF, FundHoldingHF, FundBreakdownHF, NavPointHF } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -126,9 +126,10 @@ export async function GET(
     srri: fund.srri,
     management_style: (fund as any).management_style ?? null,
     performance_1y: fund.performance_1y,
-    // Base stocke 3y/5y en cumulé → annualisation (cf. inv_annualize SQL / vue CGP).
-    performance_3y: annualizeCumul(fund.performance_3y, 3),
-    performance_5y: annualizeCumul(fund.performance_5y, 5),
+    // Base stocke 3y/5y en cumulé (sauf SCPI/livret = taux annuels) → annualisation
+    // conditionnelle, alignée avec inv_annualize_pt SQL / vue CGP.
+    performance_3y: annualizeForType(fund.performance_3y, 3, fund.product_type),
+    performance_5y: annualizeForType(fund.performance_5y, 5, fund.product_type),
     average_performance: fund.average_performance ?? null,
     volatility_1y: fund.volatility_1y,
     volatility_3y: fund.volatility_3y,

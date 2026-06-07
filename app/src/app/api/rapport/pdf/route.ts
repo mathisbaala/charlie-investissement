@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
-import { annualizeCumul } from "@/lib/format";
+import { annualizeForType } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     .filter(Boolean)
     .map((f) => ({
       ...f,
-      performance_3y: annualizeCumul(f!.performance_3y, 3),
-      performance_5y: annualizeCumul(f!.performance_5y, 5),
+      performance_3y: annualizeForType(f!.performance_3y, 3, f!.product_type),
+      performance_5y: annualizeForType(f!.performance_5y, 5, f!.product_type),
     }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

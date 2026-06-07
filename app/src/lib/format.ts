@@ -49,6 +49,20 @@ export function annualizeCumul(
   return Math.round((Math.pow(1 + cumulPct / 100, 1 / years) - 1) * 1e4) / 1e2;
 }
 
+// Produits à taux ANNUEL (SCPI = taux de distribution, livret = taux) : leurs
+// perfs multi-années sont déjà annuelles, ne pas les annualiser. Les autres
+// (OPCVM/ETF/action…) stockent du cumulé. Aligné avec inv_annualize_pt() (SQL).
+const ANNUAL_RATE_TYPES = new Set(["scpi", "livret"]);
+export function annualizeForType(
+  cumulPct: number | null | undefined,
+  years: number,
+  productType: string | null | undefined,
+): number | null {
+  if (cumulPct == null) return null;
+  if (productType && ANNUAL_RATE_TYPES.has(productType)) return cumulPct;
+  return annualizeCumul(cumulPct, years);
+}
+
 export function eur(v: number | null | undefined): string {
   if (v == null) return "—";
   return nf.format(v) + " M€";

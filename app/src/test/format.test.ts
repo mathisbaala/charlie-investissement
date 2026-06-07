@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul } from '../lib/format'
+import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType } from '../lib/format'
 
 describe('pct', () => {
   it('returns em dash for null', () => expect(pct(null)).toBe('—'))
@@ -39,6 +39,16 @@ describe('annualizeCumul', () => {
     expect(annualizeCumul(-150, 3)).toBe(null)
   })
   it('gère zéro', () => expect(annualizeCumul(0, 3)).toBe(0))
+})
+
+describe('annualizeForType', () => {
+  // SCPI/livret = taux annuels (déjà annualisés) → renvoyés tels quels.
+  it('annualise un OPCVM (cumulé)', () => expect(annualizeForType(57.5, 3, 'opcvm')).toBe(16.35))
+  it('annualise un ETF (cumulé)', () => expect(annualizeForType(57.5, 3, 'etf')).toBe(16.35))
+  it('ne touche PAS une SCPI (taux annuel)', () => expect(annualizeForType(6.06, 3, 'scpi')).toBe(6.06))
+  it('ne touche PAS un livret', () => expect(annualizeForType(3, 3, 'livret')).toBe(3))
+  it('annualise quand product_type inconnu/null', () => expect(annualizeForType(57.5, 3, null)).toBe(16.35))
+  it('renvoie null si valeur absente', () => expect(annualizeForType(null, 3, 'scpi')).toBe(null))
 })
 
 describe('fmtAum', () => {
