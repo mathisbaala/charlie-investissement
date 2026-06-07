@@ -426,9 +426,27 @@ Dérivations in-DB (sans scraper), tracées `field_sources`, réversibles :
 NB : `data_completeness` n'a pas été recalculé après la purge TER garbage (§11.14) — les scores
 des fonds concernés sont légèrement surévalués mais ≥50 (restent visibles avec un TER « — »).
 
+### 11.16 Référentiel sociétés de gestion — dérivation + consolidation (07/06/2026)
+
+`management_company_normalized` était à ~70 % et **fragmenté** (1 038 valeurs, doublons de casse/
+suffixe : « Moneta Am » vs « Moneta AM », « AXA IM » vs « AXA Investment Managers », « Eurazeo »
+vs « Eurazeo Global Investor »…). Deux passes via mapping `(regex → canonique)` :
+
+- **Consolidation** : variantes existantes → forme canonique unique (Moneta AM, Dorval AM, AXA IM,
+  M&G, Ostrum AM, Swiss Life AM, VanEck, Vontobel, H2O AM, Ardian, Eurazeo, KKR, CVC…).
+- **Dérivation depuis le nom** (ancrée au début, fill-only) : ~60 marques (AMs majeurs + PE/
+  alternatifs : Amundi, BNP Paribas AM, BlackRock, Schroders, Blackstone, Ares, GTCR, CVC,
+  Wellington, Suravenir, Handelsbanken…). Échantillon de contrôle : **100 % corrects**.
+
+Résultat : gestionnaire **ETF 99 % / OPCVM 97 % / SCPI 100 %** (investable). `field_sources` :
+`canonical-map-v1` (consolidation), `derived-name-company` (dérivation). Réversible.
+Limite : produits structurés (Phoenix/Athena/Autocall) non mappables (l'émetteur n'est pas
+dans le nom) — restent sans gestionnaire, ce qui est honnête.
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
 **Version 3.2** — Cohérence métriques screener (perf annualisée, double-conversion frais corrigée, ter_pct régénéré), 06/06/2026.
 **Version 3.3** — Éligibilités (PEA additif fiable, non-dérivation documentée) + hygiène perf par catégorie, 07/06/2026.
 **Version 3.4** — Fiabilisation classification depuis le nom (région 220, asset_class 366, PEA −42 FP non-actions), 07/06/2026.
+**Version 3.5** — QA pré-démo (SCPI non-annualisées, purge TER garbage) + complétude métadonnées (track_record, style, sector, sociétés de gestion 70→97 %), 07/06/2026.
