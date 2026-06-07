@@ -34,6 +34,8 @@ function BoolRow({ label, value, yes = "Oui", no = "Non" }: { label: string; val
 const LABEL_DISPLAY: Record<string, string> = {
   isr: "ISR",
   greenfin: "Greenfin",
+  finansol: "Finansol",
+  relance: "Label Relance",
   esg: "ESG",
   solidaire: "Solidaire",
   novethic: "Novethic",

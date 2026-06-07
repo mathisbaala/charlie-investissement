@@ -443,6 +443,18 @@ Résultat : gestionnaire **ETF 99 % / OPCVM 97 % / SCPI 100 %** (investable). `f
 Limite : produits structurés (Phoenix/Athena/Autocall) non mappables (l'émetteur n'est pas
 dans le nom) — restent sans gestionnaire, ce qui est honnête.
 
+### 11.17 Labels ESG français + limite SFDR (07/06/2026)
+
+- **SFDR — NON fiable, non corrigé.** `sfdr_article=9` est **sur-attribué** (4 525 fonds = 28 %,
+  alors que l'Article 9 réel ≈ 3-5 % ; seuls 12-36 % ont un nom ESG). La source est générique
+  (amf-geco/absent), pas une classification SFDR autoritaire, et le 8↔9 est invérifiable sans
+  prospectus. Comme le PEA (§11.12), **on ne réécrit pas en masse** (sur-classer Art. 9 = risque
+  greenwashing). Le label `esg` étant dérivé du sfdr, il ne corrobore pas. → source autoritaire requise.
+- **Labels français dérivés du nom** (signal indépendant, fiable) : `isr` (367, label d'État —
+  était **absent**), `finansol` (88), `relance` (6) ; `greenfin` (0 nommé). + `esg` ajouté aux
+  fonds ISR/Finansol qui le sont par définition. Whitelist d'affichage `CharacteristicsCard`
+  étendue (finansol, relance).
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
