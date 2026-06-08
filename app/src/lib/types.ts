@@ -327,7 +327,8 @@ export type FundDetailHF = {
   product_type: string | null;
   category: string | null;             // catégorie brute (non normalisée)
   category_normalized: string | null;
-  asset_class: string | null;
+  asset_class_broad: string | null;    // classe d'actif large, normalisée (colonne de référence)
+  asset_class: string | null;          // classe d'actif fine (peut contenir un secteur)
   region_normalized: string | null;
   region_exposure: string | null;      // exposition géographique brute
   currency: string | null;

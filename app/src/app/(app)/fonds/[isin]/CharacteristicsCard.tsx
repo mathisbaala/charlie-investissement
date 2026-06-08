@@ -8,6 +8,33 @@ const STYLE_LABELS: Record<string, string> = {
   alternatif: "Gestion alternative",
 };
 
+// Libellés FR de la classe d'actif large (colonne normalisée asset_class_broad).
+// Évite les doublons de la colonne fine (ex. « diversifie » vs « multi-actifs »).
+const ASSET_CLASS_LABELS: Record<string, string> = {
+  action:            "Actions",
+  actions:           "Actions",
+  diversifie:        "Diversifié",
+  "multi-actifs":    "Diversifié",
+  obligation:        "Obligations",
+  obligations:       "Obligations",
+  monetaire:         "Monétaire",
+  immobilier:        "Immobilier",
+  alternatif:        "Alternatif",
+  matieres_premieres:"Matières premières",
+  private_equity:    "Private equity",
+  "private equity":  "Private equity",
+  euro_garanti:      "Fonds en euros",
+  fonds_euros:       "Fonds en euros",
+  livret:            "Livret",
+  crypto:            "Crypto-actifs",
+};
+
+function assetClassLabel(broad: string | null, fine: string | null): string | null {
+  const raw = broad ?? fine;
+  if (!raw) return null;
+  return ASSET_CLASS_LABELS[raw.toLowerCase()] ?? capitalize(raw);
+}
+
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
@@ -92,7 +119,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
         <tbody>
           <Row label="Type" value={productTypeLabel(fund.product_type)} />
           <Row label="Style" value={styleLabel} />
-          <Row label="Classe d'actif" value={capitalize(fund.asset_class)} />
+          <Row label="Classe d'actif" value={assetClassLabel(fund.asset_class_broad, fund.asset_class)} />
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
