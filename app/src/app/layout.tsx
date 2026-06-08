@@ -37,7 +37,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Charlie · Investissement",
+  title: "Charlie Investissement",
   description: "L'intelligence la plus profonde sur chaque fonds.",
 };
 
