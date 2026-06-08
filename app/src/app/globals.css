@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces */
-  --color-cream:       oklch(0.955 0.018 78);
-  --color-paper:       oklch(0.998 0.003 80);
-  --color-paper-2:     oklch(0.965 0.015 76);
-  --color-paper-3:     oklch(0.93  0.02  74);
+  /* Surfaces — palette terre Charlie (hex de référence de l'ADN) */
+  --color-cream:       #F4EFE4; /* fond global chaud */
+  --color-paper:       #FCFAF4; /* cartes & panneaux (blanc cassé chaud) */
+  --color-paper-2:     #EFE9DD; /* surface alternée / hover */
+  --color-paper-3:     #E7E0D1; /* surface enfoncée */
 
   /* Texte */
-  --color-ink:         oklch(0.22  0.012 60);
-  --color-ink-2:       oklch(0.40  0.012 60);
-  --color-muted:       oklch(0.58  0.012 60);
-  --color-muted-2:     oklch(0.72  0.012 60);
+  --color-ink:         #2B2722; /* texte principal & boutons primaires (encre brune) */
+  --color-ink-strong:  #1A1612; /* hover des boutons primaires (encore plus foncé) */
+  --color-ink-2:       #5C544A; /* texte secondaire */
+  --color-muted:       #857D72; /* labels, texte tertiaire, icônes discrètes */
+  --color-muted-2:     #A89F92; /* placeholders */
 
   /* Bordures */
-  --color-line:        oklch(0.78  0.018 68);
-  --color-line-soft:   oklch(0.86  0.015 70);
+  --color-line:        #E2DACB; /* séparateurs & contours de cartes */
+  --color-line-soft:   #EDE7DB; /* hairlines très discrètes */
 
   /* Accent terracotta */
-  --color-accent:      oklch(0.62  0.13  45);
+  --color-accent:      #9A4222; /* orange brique (clay) — accent, liens, signaux */
   --color-accent-soft: oklch(0.93  0.05  50);
   --color-accent-ink:  oklch(0.42  0.13  40);
   --color-brown:       oklch(0.53  0.135 45);
@@ -42,8 +43,8 @@
 html { height: 100%; }
 
 body {
-  background-color: oklch(0.955 0.018 78);
-  color: oklch(0.22 0.012 60);
+  background-color: #F4EFE4;
+  color: #2B2722;
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.45;
