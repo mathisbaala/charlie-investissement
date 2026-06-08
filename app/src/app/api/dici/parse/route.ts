@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,38 @@ Règles :
 - key_risks : liste des principaux risques mentionnés (max 5, concis)
 - Répondre en JSON pur, sans markdown, sans commentaires`;
 
+// Retrouve en base le fonds correspondant au DIC analysé.
+// Priorité à l'ISIN (correspondance exacte) ; repli sur le nom (ilike, plus gros encours).
+async function matchFund(
+  isin: string | null,
+  name: string | null,
+): Promise<{ isin: string; name: string } | null> {
+  if (isin) {
+    const clean = isin.trim().toUpperCase();
+    if (/^[A-Z0-9]{12}$/.test(clean)) {
+      const { data } = await supabase
+        .from("investissement_funds")
+        .select("isin, name")
+        .eq("isin", clean)
+        .maybeSingle();
+      if (data) return { isin: data.isin, name: data.name };
+    }
+  }
+  if (name) {
+    const safe = name.replace(/[%_,()[\]\\]/g, " ").trim().slice(0, 60);
+    if (safe.length >= 4) {
+      const { data } = await supabase
+        .from("investissement_funds")
+        .select("isin, name, aum_eur")
+        .ilike("name", `%${safe}%`)
+        .order("aum_eur", { ascending: false, nullsFirst: false })
+        .limit(1);
+      if (data && data[0]) return { isin: data[0].isin, name: data[0].name };
+    }
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -78,7 +111,12 @@ export async function POST(req: NextRequest) {
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const fiche = JSON.parse(cleaned);
 
-    return NextResponse.json(fiche);
+    // Reliure DIC → fonds : on tente de retrouver le fonds correspondant en base
+    // pour pouvoir ouvrir directement sa fiche produit complète. ISIN d'abord
+    // (correspondance exacte, fiable), repli sur le nom sinon.
+    const match = await matchFund(fiche.isin, fiche.name);
+
+    return NextResponse.json({ ...fiche, matched_isin: match?.isin ?? null, matched_name: match?.name ?? null });
   } catch (err) {
     console.error("DICI parse error:", err);
     return NextResponse.json({ error: "Erreur d'analyse du document" }, { status: 500 });

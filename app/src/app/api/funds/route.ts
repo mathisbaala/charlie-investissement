@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
+import { searchWords, searchOrClause } from "@/lib/search";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -124,10 +125,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (hasKid)   q = q.not("kid_url", "is", null);
 
   if (search) {
-    const safe = search.replace(/[%_,()\[\]\\]/g, "");
-    const words = safe.split(/\s+/).filter(Boolean);
-    for (const word of words) {
-      q = (q as any).or(`name.ilike.%${word}%,gestionnaire.ilike.%${word}%`);
+    // Chaque mot doit matcher quelque part (ET entre mots, OR entre colonnes) :
+    // nom, gestionnaire, mais aussi zone géo / catégorie / classe d'actif /
+    // secteur. Cf. lib/search.ts pour le détail.
+    for (const word of searchWords(search)) {
+      q = (q as any).or(searchOrClause(word));
     }
   }
 

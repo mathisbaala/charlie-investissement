@@ -25,6 +25,9 @@ interface DiciFiche {
   currency: string | null;
   domicile: string | null;
   inception_date: string | null;
+  // Reliure base de données : ISIN/nom du fonds retrouvé en base (null si introuvable).
+  matched_isin: string | null;
+  matched_name: string | null;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,6 +177,10 @@ export default function DocumentsPage() {
     router.push(`/recherche?q=${encodeURIComponent(q)}`);
   }
 
+  function handleViewFund() {
+    if (fiche?.matched_isin) router.push(`/fonds/${fiche.matched_isin}`);
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-cream">
 
@@ -182,7 +189,7 @@ export default function DocumentsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[22px] text-ink" style={{ fontFamily: "var(--font-serif)" }}>
-              DICI → Fiche produit
+              Documents
             </h1>
           </div>
           {fiche && (
@@ -372,15 +379,46 @@ export default function DocumentsPage() {
                 </div>
               )}
 
+              {/* Reliure base de données */}
+              {fiche.matched_isin ? (
+                <div className="flex items-start gap-2.5 bg-ok-soft border border-ok/20 rounded-xl px-4 py-3">
+                  <span className="text-ok text-[14px] shrink-0 leading-5">✓</span>
+                  <p className="text-[12px] text-ink-2 leading-relaxed">
+                    Fonds identifié dans la base&nbsp;:{" "}
+                    <span className="font-medium">{fiche.matched_name}</span>{" "}
+                    <span className="font-mono text-muted">{fiche.matched_isin}</span>.
+                    Ouvrez sa fiche produit complète pour toutes les métriques disponibles.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2.5 bg-paper-2 border border-line rounded-xl px-4 py-3">
+                  <span className="text-muted text-[14px] shrink-0 leading-5">○</span>
+                  <p className="text-[12px] text-muted leading-relaxed">
+                    Ce fonds n'a pas été retrouvé automatiquement dans la base. Vous pouvez le
+                    rechercher manuellement dans le screener.
+                  </p>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center gap-3">
-                <button
-                  onClick={handleSearchFund}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-ink text-paper hover:bg-ink-strong transition-colors"
-                >
-                  <Search size={13} />
-                  Rechercher ce fonds dans le screener
-                </button>
+                {fiche.matched_isin ? (
+                  <button
+                    onClick={handleViewFund}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+                  >
+                    <Search size={13} />
+                    Voir la fiche produit complète
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSearchFund}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+                  >
+                    <Search size={13} />
+                    Rechercher ce fonds dans le screener
+                  </button>
+                )}
                 <button
                   onClick={handleReset}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
