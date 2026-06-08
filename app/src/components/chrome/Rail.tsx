@@ -8,7 +8,7 @@ const NAV = [
   { href: "/accueil",   icon: LayoutGrid, label: "Accueil" },
   { href: "/recherche", icon: Search,     label: "Recherche" },
   { href: "/favoris",   icon: Star,       label: "Favoris" },
-  { href: "/documents", icon: FileText,   label: "Documents DICI" },
+  { href: "/documents", icon: FileText,   label: "Documents" },
 ];
 
 export function Rail() {

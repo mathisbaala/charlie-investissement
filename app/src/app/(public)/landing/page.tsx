@@ -90,9 +90,9 @@ export default function LandingPage() {
           <button
             onClick={handleSubmit}
             className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-paper transition-colors"
-            style={{ background: "#2B2722" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1612")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#2B2722")}
+            style={{ background: "var(--color-brown)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-brown-2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-brown)")}
           >
             Chercher
             <ArrowRight size={14} />

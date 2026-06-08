@@ -32,7 +32,8 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
     fund.ter != null ||
     fund.entry_fee_max != null ||
     fund.exit_fee_max != null ||
-    fund.performance_fee != null;
+    fund.performance_fee != null ||
+    fund.retrocession_cgp != null;
 
   if (!hasData) {
     return (
@@ -58,6 +59,7 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           <FeeRow label="Frais d'entrée max"        value={fund.entry_fee_max} />
           <FeeRow label="Frais de sortie max"        value={fund.exit_fee_max} />
           <FeeRow label="Commission de surperf."     value={fund.performance_fee} />
+          <FeeRow label="Rétrocession CGP"           value={fund.retrocession_cgp} highlight />
           {fund.holding_period_years != null && (
             <tr>
               <td className="py-2.5 text-[12px] text-muted pr-4">Durée recommandée</td>
