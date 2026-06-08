@@ -376,7 +376,7 @@ export default function DocumentsPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleSearchFund}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-brown text-paper hover:bg-brown/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-ink text-paper hover:bg-ink-strong transition-colors"
                 >
                   <Search size={13} />
                   Rechercher ce fonds dans le screener
