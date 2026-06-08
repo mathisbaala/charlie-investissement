@@ -21,7 +21,7 @@ export default async function FondPage({
     .from("investissement_funds")
     .select(`
       isin, name, management_company, management_company_normalized,
-      product_type, category, category_normalized, asset_class, region_normalized, region_exposure, management_style,
+      product_type, category, category_normalized, asset_class_broad, asset_class, region_normalized, region_exposure, management_style,
       currency, inception_date, track_record_years,
       hedged, distributor_france, ucits_compliant, data_source, field_sources,
       sfdr_article, sri, srri,
@@ -110,6 +110,7 @@ export default async function FondPage({
     product_type: fund.product_type,
     category: (fund as any).category ?? null,
     category_normalized: fund.category_normalized,
+    asset_class_broad: (fund as any).asset_class_broad ?? null,
     asset_class: fund.asset_class,
     region_normalized: fund.region_normalized,
     region_exposure: (fund as any).region_exposure ?? null,
