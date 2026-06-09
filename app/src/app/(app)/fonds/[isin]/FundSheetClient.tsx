@@ -70,7 +70,7 @@ export function FundSheetClient({ fund }: Props) {
 
   return (
     <div className="h-full overflow-y-auto bg-cream">
-      <div className="max-w-[1100px] mx-auto px-8 py-8">
+      <div className="max-w-[1100px] mx-auto px-4 py-5 md:px-8 md:py-8">
 
         {/* Back link */}
         <Link
@@ -82,8 +82,8 @@ export function FundSheetClient({ fund }: Props) {
         </Link>
 
         {/* Banner */}
-        <div className="bg-paper rounded-2xl border border-line px-7 py-6 mb-5">
-          <div className="flex items-start gap-6">
+        <div className="bg-paper rounded-2xl border border-line px-5 py-5 md:px-7 md:py-6 mb-5">
+          <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
             <div className="flex-1 min-w-0">
               {/* Product type chip */}
               {fund.product_type && (
@@ -124,7 +124,7 @@ export function FundSheetClient({ fund }: Props) {
               </div>
             </div>
             {/* Actions */}
-            <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex flex-row flex-wrap md:flex-col gap-2 shrink-0 w-full md:w-auto">
               <Btn
                 variant={fav ? "accent-soft" : "outline"}
                 size="sm"
@@ -156,7 +156,7 @@ export function FundSheetClient({ fund }: Props) {
 
           {/* AUM quick stat */}
           {fund.aum_eur != null && (
-            <div className="mt-4 pt-4 border-t border-line-soft flex items-center gap-6 text-[11px]">
+            <div className="mt-4 pt-4 border-t border-line-soft flex flex-wrap items-center gap-x-5 gap-y-1 md:gap-6 text-[11px]">
               <span className="text-muted">Encours</span>
               <span className="font-mono text-ink-2 font-medium">
                 {fund.aum_eur >= 1_000_000_000
@@ -185,13 +185,13 @@ export function FundSheetClient({ fund }: Props) {
 
         {/* NAV Chart */}
         {fund.nav_history.length > 1 && (
-          <div className="bg-paper rounded-2xl border border-line px-7 py-5 mt-5">
+          <div className="bg-paper rounded-2xl border border-line px-4 py-4 md:px-7 md:py-5 mt-5">
             <NavChart data={fund.nav_history} />
           </div>
         )}
 
-        {/* 2-col grid of cards */}
-        <div className="grid grid-cols-2 gap-5 mt-5">
+        {/* Grille de cartes : 1 colonne sur mobile, 2 sur desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
           <CharacteristicsCard fund={fund} />
           <RisqueCard fund={fund} />
           <EnveloppesCard fund={fund} />

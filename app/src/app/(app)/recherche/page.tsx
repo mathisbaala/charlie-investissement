@@ -311,7 +311,7 @@ function RechercheInner() {
     <div className="flex h-full overflow-hidden bg-cream flex-col">
 
       {/* ── Sticky header ── */}
-      <div className="shrink-0 border-b border-line bg-paper px-5 py-3 space-y-2.5">
+      <div className="shrink-0 border-b border-line bg-paper px-3 md:px-5 py-3 space-y-2.5">
 
         {/* Search bar */}
         <div className="flex items-center gap-3">
