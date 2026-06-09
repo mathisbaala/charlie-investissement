@@ -307,6 +307,7 @@ export type ParsedFilters = {
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
   insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
+  gestionnaires?: string[];   // sélection rapide de sociétés de gestion (match exact, ex: "Amundi")
   region?: string[];         // zone géographique normalisée (world, europe, usa…)
   sector?: string[];
   management_style?: string[];
