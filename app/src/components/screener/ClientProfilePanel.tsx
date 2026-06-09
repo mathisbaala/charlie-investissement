@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Btn } from "@/components/ui/Btn";
 import { X, Upload, Loader2 } from "@/components/ui/icons";
+import { handledRateLimit } from "@/lib/rateLimitClient";
 import {
   type RichClientProfile,
   type RiskProfile,
@@ -134,6 +135,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (await handledRateLimit(res)) return;
       if (res.ok) {
         const extracted = (await res.json()) as Partial<RichClientProfile>;
         onChange({ ...profile, ...extracted });

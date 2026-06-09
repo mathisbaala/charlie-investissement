@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X, ArrowRight } from "@/components/ui/icons";
+import { handledRateLimit } from "@/lib/rateLimitClient";
 
 interface Message {
   role: "user" | "assistant";
@@ -46,6 +47,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
         body: JSON.stringify({ messages: updated }),
       });
 
+      if (await handledRateLimit(res)) { setStreaming(false); return; }
       if (!res.ok || !res.body) throw new Error("Erreur réseau");
 
       const reader = res.body.getReader();

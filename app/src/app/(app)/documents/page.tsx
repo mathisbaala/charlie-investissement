@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, X, Search, FileText } from "@/components/ui/icons";
 import { dt } from "@/lib/format";
+import { handledRateLimit } from "@/lib/rateLimitClient";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -136,11 +137,7 @@ export default function DocumentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_base64: b64 }),
       });
-      if (res.status === 429) {
-        const body = await res.json().catch(() => null);
-        setError(body?.message ?? "Limite d'utilisation de l'IA atteinte. Réessayez plus tard.");
-        return;
-      }
+      if (await handledRateLimit(res)) return;
       if (!res.ok) throw new Error("Erreur serveur");
       const data = await res.json();
       setFiche(data);
