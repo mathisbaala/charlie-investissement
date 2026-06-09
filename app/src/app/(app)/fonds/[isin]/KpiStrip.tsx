@@ -5,10 +5,10 @@ import type { FundDetailHF } from "@/lib/types";
 
 function KpiTile({ label, value, ok, accent }: { label: string; value: string; ok?: boolean | null; accent?: boolean }) {
   return (
-    <div className={`flex-1 rounded-xl border px-5 py-4 text-center min-w-0 ${accent ? "bg-accent/10 border-accent/30" : "bg-paper border-line"}`}>
-      <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">{label}</p>
+    <div className={`md:flex-1 rounded-xl border px-3 py-3 md:px-5 md:py-4 text-center min-w-0 ${accent ? "bg-accent/10 border-accent/30" : "bg-paper border-line"}`}>
+      <p className="text-[9px] md:text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-1.5 md:mb-2 truncate">{label}</p>
       <p
-        className={`text-[22px] leading-none font-normal ${
+        className={`text-[18px] md:text-[22px] leading-none font-normal ${
           accent ? "text-accent font-semibold" : ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
@@ -49,7 +49,7 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
   if (tiles.length === 0) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="grid grid-cols-3 gap-2.5 md:flex md:gap-3 md:overflow-x-auto pb-1">
       {tiles.map(t => (
         <KpiTile key={t.label} label={t.label} value={t.value} ok={t.ok} accent={t.accent} />
       ))}

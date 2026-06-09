@@ -57,7 +57,54 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
   const { toggle, isSelected } = useSelection();
 
   return (
-    <div className="overflow-x-auto">
+    <>
+    {/* ── Mobile : liste de cartes (le tableau déborderait sur un téléphone) ── */}
+    <div className="md:hidden divide-y divide-line-soft">
+      {funds.map((f) => (
+        <Link
+          key={f.isin}
+          href={`/fonds/${f.isin}`}
+          className="block p-3.5 bg-paper active:bg-cream transition-colors"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="font-medium text-ink leading-tight">{decodeHtml(f.name)}</div>
+              <div className="text-[11px] text-muted font-mono mt-0.5 truncate">
+                {f.isin} · {f.gestionnaire ?? "—"}
+              </div>
+            </div>
+            <ChevronRight size={16} className="shrink-0 text-muted mt-0.5" />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5">
+            <SfdrBadge article={f.sfdr_article} />
+            <SriBadge sri={f.risk_score} />
+            <span className="font-mono text-[11.5px] text-muted">TER {pct(f.ongoing_charges ?? f.ter)}</span>
+            <span className={`font-mono text-[11.5px] font-medium ${
+              f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-warn"
+            }`}>1A {pct(f.performance_1y, true)}</span>
+            <span className={`font-mono text-[11.5px] font-medium ${
+              f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
+            }`}>3A {pct(f.performance_3y, true)}</span>
+            {f.aum_eur != null && (
+              <span className="font-mono text-[11.5px] text-muted">{fmtAumShort(f.aum_eur)}</span>
+            )}
+          </div>
+
+          <div className="flex gap-1 flex-wrap mt-2">
+            <EligPill label="PEA"     active={f.pea_eligible} />
+            <EligPill label="PEA-PME" active={f.pea_pme_eligible ?? null} />
+            <EligPill label="PER"     active={f.per_eligible} />
+            <EligPill label="CTO"     active={f.cto_eligible ?? null} />
+            <EligPill label="AV FR"   active={f.av_fr_eligible ?? null} />
+            <EligPill label="AV Lux"  active={f.av_lux_eligible} />
+          </div>
+        </Link>
+      ))}
+    </div>
+
+    {/* ── Desktop : tableau complet ── */}
+    <div className="hidden md:block overflow-x-auto">
       <table className="w-full text-[12.5px] border-collapse min-w-[900px]">
         <thead>
           <tr className="border-b border-line">
@@ -190,5 +237,6 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
         </tbody>
       </table>
     </div>
+    </>
   );
 }
