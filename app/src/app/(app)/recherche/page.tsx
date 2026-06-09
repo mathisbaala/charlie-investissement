@@ -315,7 +315,7 @@ function RechercheInner() {
 
         {/* Search bar */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 flex items-center gap-3 bg-paper-2 rounded-xl border border-line px-4 py-2.5">
+          <div className="flex-1 min-w-0 flex items-center gap-2 md:gap-3 bg-paper-2 rounded-xl border border-line px-3 md:px-4 py-2.5">
             <TypingPrompt
               value={query}
               onChange={setQuery}
@@ -467,7 +467,7 @@ function RechercheInner() {
                 </button>
               </div>
             ) : (
-              <div className="border border-line rounded-xl overflow-x-auto">
+              <div className="border border-line rounded-xl overflow-hidden">
                 <FundTable
                   funds={funds}
                   onRowClick={handleRowClick}
