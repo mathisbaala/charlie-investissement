@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       file_base64?: string;
       file_type?: string;
     };
+
+    const limited = await aiRateLimit(req, AI_COST.profile);
+    if (limited) return limited;
 
     let messageContent: Anthropic.MessageParam["content"];
 
