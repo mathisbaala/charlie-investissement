@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { FilterPanel } from "@/components/screener/FilterPanel";
@@ -83,6 +83,40 @@ async function parseQuery(q: string): Promise<ParsedFilters> {
   return res.json();
 }
 
+// ─── Cache de session ──────────────────────────────────────────────────────────
+// Conserve la dernière recherche (requête + filtres + résultats) pour que le
+// retour depuis une fiche fonds restaure l'écran instantanément, sans re-parser
+// ni recharger (sinon la page se remonte à vide puis « repart de zéro »).
+const SEARCH_CACHE_KEY = "charlie_search_state_v1";
+
+type SearchCache = {
+  query: string;
+  filters: ParsedFilters;
+  funds: Fund[];
+  total: number;
+  page: number;
+  totalPages: number;
+  sortBy: string;
+  sortDir: "asc" | "desc";
+  nlpFailed: boolean;
+};
+
+function loadSearchCache(): SearchCache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(SEARCH_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as SearchCache) : null;
+  } catch { return null; }
+}
+function saveSearchCache(c: SearchCache) {
+  if (typeof window === "undefined") return;
+  try { sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(c)); } catch { /* quota plein : ignore */ }
+}
+function clearSearchCache() {
+  if (typeof window === "undefined") return;
+  try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch { /* ignore */ }
+}
+
 // ─── Inner component ──────────────────────────────────────────────────────────
 
 function RechercheInner() {
@@ -93,6 +127,10 @@ function RechercheInner() {
   const [query,          setQuery]          = useState(initialQ);
   const [filters,        setFilters]        = useState<ParsedFilters>({});
   const [nlpFailed,      setNlpFailed]      = useState(false);
+  const [parsing,        setParsing]        = useState(false);  // analyse NLP en cours
+  // Après une restauration depuis le cache, on saute le fetch automatique
+  // (les résultats sont déjà là — éviter un rechargement et un nouveau flash).
+  const skipNextFetch = useRef(false);
   const [showFilters,    setShowFilters]    = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
@@ -125,6 +163,30 @@ function RechercheInner() {
     if (initialized) return;
     setInitialized(true);
     setProfile(loadStoredProfile());
+
+    // Restauration instantanée depuis le cache de session : au retour d'une
+    // fiche fonds (URL /recherche sans `q`, ou `q` identique à la recherche
+    // mémorisée), on réaffiche la liste précédente sans re-parser ni recharger.
+    const cache = loadSearchCache();
+    const canRestore =
+      cache && !initialUniverse && !initialEnvelopes &&
+      (!initialQ || initialQ === cache.query);
+    if (canRestore && cache) {
+      skipNextFetch.current = true;
+      setQuery(cache.query);
+      setFilters(cache.filters);
+      setFunds(cache.funds);
+      setTotal(cache.total);
+      setPage(cache.page);
+      setTotalPages(cache.totalPages);
+      setSortBy(cache.sortBy);
+      setSortDir(cache.sortDir);
+      setNlpFailed(cache.nlpFailed);
+      setHasSearched(true);
+      setLoading(false);
+      return;
+    }
+
     if (initialUniverse) {
       const universe = initialUniverse.split(",").filter(Boolean);
       setFilters({ universe });
@@ -133,10 +195,12 @@ function RechercheInner() {
       setFilters({ envelopes });
     } else if (initialQ) {
       setQuery(initialQ);
+      setParsing(true);
       parseQuery(initialQ).then((parsed) => {
         const hasFilters = Object.keys(parsed).length > 0;
         setFilters(hasFilters ? parsed : { free_text: initialQ });
         setNlpFailed(!hasFilters);
+        setParsing(false);
       });
     }
   }, [initialized, initialQ, initialEnvelopes, initialUniverse]);
@@ -153,6 +217,13 @@ function RechercheInner() {
       setLoading(false);
       return;
     }
+    // Tant que l'analyse NLP tourne, on n'interroge PAS l'API : sinon un premier
+    // fetch part avec les filtres encore vides (la « pseudo-liste » qui clignote
+    // avant les vrais résultats). On attend que les filtres compris soient prêts.
+    if (parsing) return;
+    // État restauré depuis le cache : la liste est déjà à l'écran, pas de refetch.
+    if (skipNextFetch.current) { skipNextFetch.current = false; return; }
+
     let cancelled = false;
     setLoading(true);
     fetchFunds(filters, page, sortBy, sortDir)
@@ -162,17 +233,27 @@ function RechercheInner() {
           setTotal(data.total);
           setTotalPages(data.total_pages);
           setLoading(false);
+          saveSearchCache({
+            query, filters, funds: data.data, total: data.total,
+            page, totalPages: data.total_pages, sortBy, sortDir, nlpFailed,
+          });
         }
       })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [filters, page, sortBy, sortDir, hasSearched]);
+    // `query`/`nlpFailed` ne pilotent pas le fetch : exclus des deps à dessein
+    // (ils ne servent qu'à alimenter le cache au moment du succès).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, page, sortBy, sortDir, hasSearched, parsing]);
 
   // ─── Search handler ────────────────────────────────────────────────────────
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
     setHasSearched(true);
+    setParsing(true);     // affiche l'état de chargement, gèle le fetch
+    setFunds([]);         // vide la liste précédente → aucun chevauchement visuel
+    setPage(1);
     const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
     const fullQuery = profileCtx
       ? `${query.trim()} — contexte client: ${profileCtx}`
@@ -182,7 +263,7 @@ function RechercheInner() {
     const hasFilters = Object.keys(parsed).length > 0;
     setFilters(hasFilters ? parsed : { free_text: query.trim() });
     setNlpFailed(!hasFilters);
-    setPage(1);
+    setParsing(false);    // libère le fetch, qui part avec les filtres compris
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
   }, [query, router, profile]);
 
@@ -191,8 +272,10 @@ function RechercheInner() {
   const handleFiltersReset = useCallback(() => {
     setFilters({});
     setQuery("");
+    setFunds([]);
     setPage(1);
     setHasSearched(false);
+    clearSearchCache();
     router.replace("/recherche", { scroll: false });
   }, [router]);
 
@@ -329,7 +412,7 @@ function RechercheInner() {
           {/* Toolbar */}
           <div className="shrink-0 flex items-center justify-between py-2.5 text-[11px] text-muted">
             <span className="text-[12px] font-medium text-ink-2">
-              {loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
+              {parsing ? "Analyse de votre recherche…" : loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
             </span>
             <div className="flex items-center gap-2">
               <div className="relative flex items-center">
@@ -372,7 +455,7 @@ function RechercheInner() {
 
           {/* Table */}
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-            {loading ? (
+            {loading || parsing ? (
               <div className="flex items-center justify-center h-40 text-muted">
                 <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               </div>
@@ -396,7 +479,7 @@ function RechercheInner() {
               </div>
             )}
 
-            {!loading && totalPages > 1 && (
+            {!loading && !parsing && totalPages > 1 && (
               <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
                 <span>Page {page} / {totalPages}</span>
                 <div className="flex gap-1">
