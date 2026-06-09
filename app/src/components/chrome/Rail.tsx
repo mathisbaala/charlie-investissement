@@ -45,11 +45,6 @@ export function Rail() {
           );
         })}
       </nav>
-
-      {/* Avatar bottom */}
-      <div className="w-8 h-8 rounded-full bg-accent-soft flex items-center justify-center text-accent-ink text-xs font-semibold mb-1 select-none">
-        CB
-      </div>
     </aside>
   );
 }
