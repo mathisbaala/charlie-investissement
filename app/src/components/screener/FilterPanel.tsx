@@ -158,14 +158,18 @@ export function FilterPanel({
     onChange({ ...f, [key]: val });
   }
 
-  // Liste des assureurs (référencement) chargée à la volée.
+  // Listes assureurs (référencement) + sociétés de gestion, chargées à la volée.
   const [insurerOptions, setInsurerOptions] = useState<{ company: string; funds: number }[]>([]);
+  const [managerOptions, setManagerOptions] = useState<{ company: string; funds: number }[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/screener/insurers")
-      .then((r) => r.ok ? r.json() : { data: [] })
-      .then((j) => { if (!cancelled) setInsurerOptions(j.data ?? []); })
-      .catch(() => {});
+    const load = (url: string, set: (v: { company: string; funds: number }[]) => void) =>
+      fetch(url)
+        .then((r) => r.ok ? r.json() : { data: [] })
+        .then((j) => { if (!cancelled) set(j.data ?? []); })
+        .catch(() => {});
+    load("/api/screener/insurers", setInsurerOptions);
+    load("/api/screener/managers", setManagerOptions);
     return () => { cancelled = true; };
   }, []);
 
@@ -476,13 +480,25 @@ export function FilterPanel({
 
         <Divider />
 
-        {/* Gestionnaire */}
-        <Section title="Gestionnaire">
+        {/* Société de gestion */}
+        <Section title="Société de gestion">
+          {managerOptions.length > 0 && (
+            <div className="flex gap-1.5 flex-wrap mb-2.5">
+              {managerOptions.map(({ company, funds }) => (
+                <SfdrPill
+                  key={company}
+                  label={`${company} (${funds})`}
+                  active={(f.gestionnaires ?? []).includes(company)}
+                  onToggle={() => set("gestionnaires", toggleArr(f.gestionnaires, company))}
+                />
+              ))}
+            </div>
+          )}
           <input
             type="text"
             value={f.manager_search ?? ""}
             onChange={(e) => set("manager_search", e.target.value || undefined)}
-            placeholder="Amundi, BlackRock…"
+            placeholder="Autre société de gestion…"
             className="w-full border border-line rounded-lg px-3 py-2 text-[12px] text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
           />
         </Section>

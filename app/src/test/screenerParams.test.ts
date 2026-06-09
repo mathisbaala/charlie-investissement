@@ -51,3 +51,17 @@ describe('buildParams — filtre assureur (référencement)', () => {
     expect(sp.has('insurer')).toBe(false)
   })
 })
+
+describe('buildParams — filtre société de gestion', () => {
+  it('sérialise gestionnaires vers "gestionnaire_in"', () => {
+    const f: ParsedFilters = { gestionnaires: ['Amundi'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('gestionnaire_in')).toBe('Amundi')
+  })
+
+  it('joint plusieurs sociétés de gestion par des virgules', () => {
+    const f: ParsedFilters = { gestionnaires: ['Amundi', 'BlackRock'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('gestionnaire_in')).toBe('Amundi,BlackRock')
+  })
+})
