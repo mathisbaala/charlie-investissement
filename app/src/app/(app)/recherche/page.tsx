@@ -13,6 +13,7 @@ import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X, Search } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
+import { handledRateLimit } from "@/lib/rateLimitClient";
 import {
   type RichClientProfile,
   EMPTY_PROFILE,
@@ -79,6 +80,7 @@ async function parseQuery(q: string): Promise<ParsedFilters> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query: q }),
   });
+  if (await handledRateLimit(res)) return {};
   if (!res.ok) return {};
   return res.json();
 }

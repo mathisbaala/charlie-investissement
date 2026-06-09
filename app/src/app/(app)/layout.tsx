@@ -6,6 +6,7 @@ import { Topbar } from "@/components/chrome/Topbar";
 import { ChatPanel } from "@/components/chrome/ChatPanel";
 import { ToastProvider } from "@/components/ui/Toast";
 import { SelectionProvider } from "@/components/SelectionProvider";
+import { RateLimitDialog } from "@/components/ui/RateLimitDialog";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [chatOpen, setChatOpen] = useState(false);
@@ -33,6 +34,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Chat panel (floating) */}
           <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+
+          {/* Modal « crédits du jour épuisés » (déclenché sur 429 des routes IA) */}
+          <RateLimitDialog />
         </div>
       </SelectionProvider>
     </ToastProvider>
