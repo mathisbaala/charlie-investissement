@@ -83,6 +83,11 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - region: tableau de zones géographiques normalisées parmi
   ["world","europe","eurozone","usa","france","emerging","japan","asia","china","uk","germany","switzerland","india","brazil"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
+- insurers: assureurs référençant le fonds, parmi ["BNP Paribas Cardif","Suravenir","Linxea","AXA France","SwissLife France","Allianz France","AG2R La Mondiale","Generali Luxembourg","Swiss Life Luxembourg","Wealins","Cardif Lux Vie","Baloise Life","AXA Wealth Europe"]
+  (mapping : "AXA" / "chez AXA" → "AXA France" ; "Swiss Life" / "SwissLife" → "SwissLife France" ;
+   "Allianz" → "Allianz France" ; "Cardif" / "BNP" → "BNP Paribas Cardif" ; "Suravenir" → "Suravenir" ;
+   "Linxea" → "Linxea" ; "AG2R" / "La Mondiale" → "AG2R La Mondiale" ; déclenché par "référencé chez X",
+   "disponible chez/sur X", "assurance vie X", "contrat X", "je travaille avec X")
 - management_style: tableau parmi ["passif","actif","smart_beta","alternatif"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
@@ -147,6 +152,8 @@ Exemples :
 - "fonds actions américaines" → {"asset_class":["action"],"region":["usa"],"chips":["Actions","USA"]}
 - "fonds obligataire ISR à faible risque éligible assurance vie" → {"asset_class":["obligation"],"sfdr":[8,9],"sri_max":3,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire","ISR","Risque faible","Assurance-vie"]}
 - "fonds diversifié patrimonial prudent" → {"asset_class":["diversifie"],"sri_max":3,"chips":["Diversifié","Prudent"]}
+- "fonds actions monde référencés chez AXA" → {"asset_class":["action"],"region":["world"],"insurers":["AXA France"],"chips":["Actions","Monde","AXA France"]}
+- "je travaille avec Suravenir, montre les ETF obligataires" → {"universe":["etf"],"asset_class":["obligation"],"insurers":["Suravenir"],"chips":["ETF","Obligataire","Suravenir"]}
 - "SCPI immobilier de rendement" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
 - "fonds monétaire euro" → {"asset_class":["monetaire"],"currency":["EUR"],"chips":["Monétaire","EUR"]}
 - "fonds émergents dynamiques" → {"region":["emerging"],"sri_min":4,"chips":["Émergents","Dynamique"]}

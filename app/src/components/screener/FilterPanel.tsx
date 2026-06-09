@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, SlidersHorizontal } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/Btn";
 import type { ParsedFilters } from "@/lib/types";
@@ -158,6 +158,17 @@ export function FilterPanel({
     onChange({ ...f, [key]: val });
   }
 
+  // Liste des assureurs (référencement) chargée à la volée.
+  const [insurerOptions, setInsurerOptions] = useState<{ company: string; funds: number }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/screener/insurers")
+      .then((r) => r.ok ? r.json() : { data: [] })
+      .then((j) => { if (!cancelled) setInsurerOptions(j.data ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="c-slide-in-l flex flex-col w-[300px] shrink-0 bg-cream border border-line rounded-xl overflow-hidden">
       {/* Header */}
@@ -277,6 +288,30 @@ export function FilterPanel({
         </Section>
 
         <Divider />
+
+        {/* Assureur (référencement) */}
+        {insurerOptions.length > 0 && (
+          <>
+            <Section title="Référencé chez (assureur)">
+              <div className="flex gap-1.5 flex-wrap">
+                {insurerOptions.map(({ company, funds }) => (
+                  <SfdrPill
+                    key={company}
+                    label={`${company} (${funds})`}
+                    active={(f.insurers ?? []).includes(company)}
+                    onToggle={() => set("insurers", toggleArr(f.insurers, company))}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-2 mt-2 leading-snug">
+                Fonds disponibles sur au moins un contrat de l&apos;assureur. Donnée partielle —
+                l&apos;absence ne signifie pas non-référencement.
+              </p>
+            </Section>
+
+            <Divider />
+          </>
+        )}
 
         {/* Secteur */}
         <Section title="Secteur">

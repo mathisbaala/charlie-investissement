@@ -48,6 +48,7 @@ export function buildParams(
   if (f.envelopes?.length)           sp.set("envelopes",         f.envelopes.join(","));
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
   if (f.asset_class?.length)         sp.set("asset_class",       f.asset_class.join(","));
+  if (f.insurers?.length)            sp.set("insurer",           f.insurers.join(","));
   if (f.region?.length)              sp.set("region",            f.region.join(","));
   if (f.sector?.length)              sp.set("sector",            f.sector.join(","));
   if (f.management_style?.length)    sp.set("management_style",  f.management_style.join(","));

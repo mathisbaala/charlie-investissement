@@ -306,6 +306,7 @@ export type ParsedFilters = {
   envelopes?: string[];
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
+  insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
   region?: string[];         // zone géographique normalisée (world, europe, usa…)
   sector?: string[];
   management_style?: string[];
@@ -377,6 +378,13 @@ export type FundDetailHF = {
   holdings: FundHoldingHF[];
   sectors: FundBreakdownHF[];
   geos: FundBreakdownHF[];
+  insurers?: FundInsurerRef[];  // référencement assurantiel (assureur + contrats)
+};
+
+// Référencement d'un fonds chez un assureur (sortie get_fund_insurers)
+export type FundInsurerRef = {
+  company: string;
+  contracts: string[];
 };
 
 export type FundHoldingHF = {
