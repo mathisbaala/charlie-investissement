@@ -136,6 +136,11 @@ export default function DocumentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ file_base64: b64 }),
       });
+      if (res.status === 429) {
+        const body = await res.json().catch(() => null);
+        setError(body?.message ?? "Limite d'utilisation de l'IA atteinte. Réessayez plus tard.");
+        return;
+      }
       if (!res.ok) throw new Error("Erreur serveur");
       const data = await res.json();
       setFiche(data);

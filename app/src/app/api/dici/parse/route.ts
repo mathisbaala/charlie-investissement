@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
+import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -83,6 +84,9 @@ export async function POST(req: NextRequest) {
     if (!file_base64) {
       return NextResponse.json({ error: "file_base64 requis" }, { status: 400 });
     }
+
+    const limited = await aiRateLimit(req, AI_COST.dici);
+    if (limited) return limited;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",

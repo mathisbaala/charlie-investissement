@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -75,6 +76,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!messages?.length) {
       return new Response("Messages manquants", { status: 400 });
     }
+
+    const limited = await aiRateLimit(req, AI_COST.chat);
+    if (limited) return limited;
 
     const stream = await client.messages.stream({
       model: "claude-sonnet-4-6",
