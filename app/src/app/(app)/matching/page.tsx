@@ -219,7 +219,35 @@ export default function MatchingPage() {
               </div>
             ) : (
               <div className="bg-paper rounded-xl border border-line overflow-hidden">
-                <table className="w-full text-[12px]">
+                {/* Mobile : cartes (le tableau déborderait sur un téléphone) */}
+                <div className="md:hidden divide-y divide-line-soft">
+                  {results.map((f) => (
+                    <Link key={f.isin} href={`/fonds/${f.isin}`} className="block p-3.5 active:bg-paper-2 transition-colors">
+                      <div className="flex items-start gap-3">
+                        <ScoreBadge score={f.match_score} label={f.match_label} />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-ink leading-tight">{f.name}</div>
+                          <div className="text-[10px] text-muted font-mono mt-0.5 truncate">{f.isin} · {f.gestionnaire ?? "—"}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5 text-[11.5px]">
+                        {f.sfdr_article && (
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700">Art.{f.sfdr_article}</span>
+                        )}
+                        {f.risk_score && (
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700">{f.risk_score}/7</span>
+                        )}
+                        <span className="text-muted">TER {fmt(f.ongoing_charges)}</span>
+                        <span className={`font-medium ${f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-green-600" : "text-red-500"}`}>1A {fmt(f.performance_1y)}</span>
+                        <span className={`font-medium ${f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-green-600" : "text-red-500"}`}>3A {fmt(f.performance_3y)}</span>
+                      </div>
+                      {f.match_summary && <p className="text-[11px] text-muted mt-2 leading-snug">{f.match_summary}</p>}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Desktop : tableau complet */}
+                <table className="hidden md:table w-full text-[12px]">
                   <thead className="bg-paper-2 border-b border-line">
                     <tr>
                       <th className="px-4 py-3 w-8"></th>
