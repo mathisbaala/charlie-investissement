@@ -17,8 +17,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Rail 60px fixed left */}
           <Rail />
 
-          {/* Main content area */}
-          <div className="flex-1 flex flex-col" style={{ marginLeft: "60px" }}>
+          {/* Main content area — min-w-0 indispensable : sans lui, la colonne flex
+              ne se contraint pas à l'espace dispo (largeur min = contenu) et
+              déborde de ~60px à droite sur mobile (sidebar fixe + marginLeft). */}
+          <div className="flex-1 min-w-0 flex flex-col" style={{ marginLeft: "60px" }}>
             <Topbar
               onChatToggle={() => setChatOpen((v) => !v)}
               chatOpen={chatOpen}
