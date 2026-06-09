@@ -145,20 +145,18 @@ def _extract_name_weight_rows(rows) -> list[dict]:
 
 
 def _find_section_table_bs(soup, keywords: list[str]):
-    """Cherche une section par mots-clés et retourne les <tr> de la table la plus proche."""
+    """Trouve la section par son TITRE (h2-h5 court, ex. « Secteurs », « Pays »)
+    et retourne les <tr> de la table qui suit. Cibler les titres évite les faux
+    positifs sur du texte légal (« Pays-Bas », « pays suivants… »)."""
     kw_pattern = re.compile("|".join(keywords), re.I)
-    for tag in soup.find_all(string=kw_pattern):
-        parent = tag.parent
-        # Remonter jusqu'à 5 niveaux pour trouver une table
-        for _ in range(5):
-            if parent is None:
-                break
-            table = parent.find("table")
+    for h in soup.find_all(["h2", "h3", "h4", "h5"]):
+        ht = h.get_text(strip=True)
+        if len(ht) <= 25 and kw_pattern.search(ht):
+            table = h.find_next("table")
             if table:
                 rows = table.find_all("tr")
-                if len(rows) > 2:
+                if 2 <= len(rows) <= 30:
                     return rows
-            parent = parent.parent
     return None
 
 
@@ -281,10 +279,16 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     if isin_filter:
         etfs = [{"isin": isin_filter.upper(), "name": "—"}]
     else:
-        already_done = {
-            r["isin"] for r in
-            client.table("investissement_fund_holdings").select("isin").execute().data
-        }
+        # ETF déjà dotés de secteurs (paginé — PostgREST plafonne à 1000/req).
+        # On cible "sans secteurs" : capture les ETF holdings-seuls (extraction
+        # secteurs/géo réparée) ET les nouveaux, sans refaire ceux déjà complets.
+        already_done, _off = set(), 0
+        while True:
+            _d = client.table("investissement_fund_sectors").select("isin").range(_off, _off + 999).execute().data
+            if not _d:
+                break
+            already_done.update(r["isin"] for r in _d)
+            _off += 1000
         all_etfs = client.table("investissement_funds") \
             .select("isin,name,aum_eur") \
             .eq("product_type", "etf") \
