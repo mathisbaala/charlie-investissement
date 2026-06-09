@@ -19,12 +19,22 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
             const contracts = r.contracts.filter(
               (c) => c && !(r.contracts.length === 1 && c === r.company),
             );
+            const MAX = 6;
+            const shown = contracts.slice(0, MAX);
+            const extra = contracts.length - shown.length;
             return (
               <div key={r.company}>
-                <p className="text-[12.5px] font-semibold text-ink">{r.company}</p>
-                {contracts.length > 0 && (
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[12.5px] font-semibold text-ink">{r.company}</p>
+                  {contracts.length > 0 && (
+                    <span className="text-[10px] text-muted-2 shrink-0">
+                      {contracts.length} contrat{contracts.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+                {shown.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
-                    {contracts.map((c) => (
+                    {shown.map((c) => (
                       <span
                         key={c}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-paper-2 border border-line-soft text-muted"
@@ -32,6 +42,9 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
                         {c}
                       </span>
                     ))}
+                    {extra > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 text-muted-2">+{extra} autres</span>
+                    )}
                   </div>
                 )}
               </div>
