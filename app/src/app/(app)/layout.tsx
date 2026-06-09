@@ -13,7 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       <SelectionProvider>
-        <div className="flex h-full min-h-screen bg-cream">
+        <div className="flex h-full min-h-screen bg-cream overflow-x-hidden">
           {/* Rail 60px fixed left */}
           <Rail />
 

@@ -49,7 +49,7 @@ export function KpiStrip({ fund }: { fund: FundDetailHF }) {
   if (tiles.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-3 gap-2.5 md:flex md:gap-3 md:overflow-x-auto pb-1">
+    <div className="grid grid-cols-2 gap-2.5 md:flex md:gap-3 md:overflow-x-auto pb-1">
       {tiles.map(t => (
         <KpiTile key={t.label} label={t.label} value={t.value} ok={t.ok} accent={t.accent} />
       ))}
