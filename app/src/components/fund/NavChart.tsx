@@ -100,7 +100,7 @@ export function NavChart({ data }: NavChartProps) {
   return (
     <div className="space-y-3">
       {/* Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-0.5 bg-paper-2 border border-line rounded-lg p-0.5">
           {PERIODS.map((p) => {
             const pts = filterByPeriod(data, p.months);
