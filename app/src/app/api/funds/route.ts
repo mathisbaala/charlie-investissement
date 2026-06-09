@@ -152,14 +152,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const raw  = (data as unknown as Fund[]) ?? [];
+  // Dédup share-classes sur tout l'overfetch (avant la découpe à perPage), pour
+  // estimer le bon ratio de dédup — sinon `total` est plafonné par perPage et
+  // sous-compté dès que le résultat dépasse une page.
+  const uniqueAll = dedup(raw);
   // Frontière API : convertir les frais fraction (DB) → % (contrat Fund, cf. types.ts).
-  const deduped = dedup(raw).slice(0, perPage).map((f) => ({
+  const deduped = uniqueAll.slice(0, perPage).map((f) => ({
     ...f,
     ter: feeFracToPct(f.ter),
     ongoing_charges: feeFracToPct(f.ongoing_charges),
   }));
   const rawCount = count ?? 0;
-  const ratio = raw.length > 0 ? deduped.length / raw.length : 1;
+  const ratio = raw.length > 0 ? uniqueAll.length / raw.length : 1;
   const total = Math.round(rawCount * ratio);
 
   const resp: ScreenerResponse = {
