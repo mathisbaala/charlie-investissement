@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { EXTRACTION_MODEL } from "@/lib/claude";
 
 export const runtime = "nodejs";
 
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: EXTRACTION_MODEL,
       max_tokens: 512,
       system: SYSTEM,
       messages: [{ role: "user", content: messageContent }],

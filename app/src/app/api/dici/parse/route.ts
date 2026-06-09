@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { EXTRACTION_MODEL } from "@/lib/claude";
 
 export const runtime = "nodejs";
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (limited) return limited;
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: EXTRACTION_MODEL,
       max_tokens: 2048,
       system: SYSTEM,
       messages: [

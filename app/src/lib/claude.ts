@@ -8,6 +8,15 @@ export type { ScreenerFilters };
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Modèle pour les tâches d'extraction structurée (phrase / PDF → JSON).
+// Haiku 4.5 : ~3× moins cher que Sonnet en entrée comme en sortie, largement
+// suffisant pour du mapping déterministe vers des filtres. Le chat conversationnel
+// (app/api/chat) reste sur Sonnet, où la qualité de rédaction compte.
+// NB : le prompt caching n'est PAS activé ici — les system prompts (~500-2500 tokens)
+// restent sous le seuil minimum cachable de Haiku (4096 tokens), le cache ne se
+// déclencherait donc jamais. Le gain de coût vient entièrement du choix du modèle.
+export const EXTRACTION_MODEL = "claude-haiku-4-5";
+
 const SYSTEM_PROMPT = `Tu es un assistant qui convertit des requêtes en langage naturel en filtres JSON pour une base de données de fonds d'investissement français.
 
 Champs disponibles :
@@ -42,7 +51,7 @@ export async function interpretQuery(query: string): Promise<ScreenerFilters> {
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: EXTRACTION_MODEL,
       max_tokens: 512,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: sanitized }],
@@ -172,7 +181,7 @@ Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: EXTRACTION_MODEL,
       max_tokens: 512,
       system: SYSTEM,
       messages: [{ role: "user", content: sanitized }],
