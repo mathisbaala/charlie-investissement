@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// Plafonds anti-abus des appels IA (par IP). Volontairement généreux : laisser
-// un visiteur explorer toute la puissance du produit, mais l'empêcher de cramer
-// les crédits Claude en une heure. Réglables via variables d'environnement.
-//   - heure : proxy de « session » (« ne pas tout cramer en une heure »)
-//   - jour  : plafond quotidien global
-const HOUR_LIMIT = Number(process.env.AI_HOUR_LIMIT ?? 40);
-const DAY_LIMIT  = Number(process.env.AI_DAY_LIMIT ?? 150);
+// Plafonds anti-abus des appels IA (par IP). Stratégie « démo » : laisser un
+// visiteur prendre l'outil en main (quelques recherches + uploads, ~10-15 min)
+// puis le bloquer jusqu'au lendemain — il revient chaque jour, sans cramer les
+// crédits, et on l'incite à demander un accès complet. Le plafond JOUR est la
+// contrainte qui mord ; l'heure est calée pareil pour qu'une seule session
+// puisse l'atteindre. Réglables via variables d'environnement (sans redéploiement
+// du code, juste un redeploy Vercel).
+//   coûts : 1 recherche=1, 1 chat=2, 1 upload DICI=3
+const HOUR_LIMIT = Number(process.env.AI_HOUR_LIMIT ?? 25);
+const DAY_LIMIT  = Number(process.env.AI_DAY_LIMIT ?? 25);
 
 // Coût relatif par type d'appel (l'extraction DICI en vision coûte bien plus
 // cher qu'une simple interprétation de requête).
@@ -46,8 +49,8 @@ export async function aiRateLimit(req: NextRequest, cost = 1): Promise<NextRespo
         error: "rate_limited",
         scope: r.scope,
         message: perHour
-          ? "Limite d'utilisation de l'IA atteinte pour cette heure. Réessayez d'ici une heure."
-          : "Limite d'utilisation de l'IA atteinte pour aujourd'hui. Revenez demain.",
+          ? "Vous avez atteint votre quota de découverte pour cette heure. Réessayez d'ici une heure — ou contactez-nous pour un accès complet."
+          : "Vous avez atteint votre quota de découverte du jour. Revenez demain — ou contactez-nous pour débloquer un accès complet à Charlie.",
       },
       { status: 429, headers: { "Retry-After": perHour ? "3600" : "86400" } },
     );
