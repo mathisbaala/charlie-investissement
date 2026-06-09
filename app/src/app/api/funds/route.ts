@@ -6,7 +6,8 @@ import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const VIEW = "investissement_funds_cgp";
+// Vue enrichie : cgp + colonne `insurers` (tableau d'assureurs référençant le fonds).
+const VIEW = "investissement_funds_cgp_ref";
 
 const COLS = [
   "isin","name","product_type","asset_class_broad","asset_class",
@@ -56,6 +57,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
   const assetClasses = arr(p(sp, "asset_class"));
+  const insurers     = arr(p(sp, "insurer"));
   const regions      = arr(p(sp, "region"));
   const sectors      = arr(p(sp, "sector"));
   const mgmtStyles   = arr(p(sp, "management_style"));
@@ -120,6 +122,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
   // Distinct de l'univers produit (product_type) : un OPCVM peut être actions ou obligataire.
   if (assetClasses.length) q = q.in("asset_class_broad", assetClasses);
+
+  // Référencement assureur : fonds disponibles chez au moins un des assureurs choisis.
+  if (insurers.length)     q = (q as any).overlaps("insurers", insurers);
 
   if (regions.length)      q = q.in("region_normalized", regions);
   if (sectors.length)      q = q.in("sector", sectors);

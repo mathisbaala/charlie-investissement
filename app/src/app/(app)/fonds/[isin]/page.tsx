@@ -50,6 +50,7 @@ export default async function FondPage({
     { data: holdingsRaw },
     { data: sectorsRaw },
     { data: geosRaw },
+    { data: insurersRaw },
   ] = await Promise.all([
     supabase
       .from("investissement_fund_prices")
@@ -75,6 +76,7 @@ export default async function FondPage({
       .eq("isin", upper)
       .order("weight", { ascending: false })
       .limit(15),
+    supabase.rpc("get_fund_insurers", { p_isin: upper }),
   ]);
 
   const nav_history: NavPointHF[] = (prices ?? []).map((p: any) => ({
@@ -160,6 +162,7 @@ export default async function FondPage({
     holdings,
     sectors,
     geos,
+    insurers: Array.isArray(insurersRaw) ? (insurersRaw as FundDetailHF["insurers"]) : [],
   };
 
   return <FundSheetClient fund={detail} />;

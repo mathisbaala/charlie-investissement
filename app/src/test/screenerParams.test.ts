@@ -32,3 +32,22 @@ describe('buildParams — filtre classe d\'actif', () => {
     expect(sp.get('asset_class')).toBe('obligation')
   })
 })
+
+describe('buildParams — filtre assureur (référencement)', () => {
+  it('sérialise insurers vers le paramètre "insurer"', () => {
+    const f: ParsedFilters = { insurers: ['AXA France'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('insurer')).toBe('AXA France')
+  })
+
+  it('joint plusieurs assureurs par des virgules', () => {
+    const f: ParsedFilters = { insurers: ['AXA France', 'Suravenir'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('insurer')).toBe('AXA France,Suravenir')
+  })
+
+  it('n\'émet pas "insurer" quand il est absent', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('insurer')).toBe(false)
+  })
+})
