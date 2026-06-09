@@ -298,8 +298,32 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Classe d'actif */}
+        <Section title="Classe d'actif">
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { val: "action",            label: "Actions" },
+              { val: "obligation",        label: "Obligataire" },
+              { val: "diversifie",        label: "Diversifié" },
+              { val: "monetaire",         label: "Monétaire" },
+              { val: "immobilier",        label: "Immobilier" },
+              { val: "matieres_premieres",label: "Matières prem." },
+              { val: "alternatif",        label: "Alternatif" },
+            ].map(({ val, label }) => (
+              <SfdrPill
+                key={val}
+                label={label}
+                active={(f.asset_class ?? []).includes(val)}
+                onToggle={() => set("asset_class", toggleArr(f.asset_class, val))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Univers */}
-        <Section title="Univers">
+        <Section title="Univers (type de produit)">
           <div className="flex gap-2 flex-wrap">
             {["opcvm", "etf", "scpi", "fps", "fonds_euros"].map((u) => (
               <SfdrPill

@@ -304,7 +304,8 @@ export type ParsedFilters = {
   track_record_min?: number;
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
-  universe?: string[];
+  universe?: string[];        // type de produit (opcvm, etf, scpi…)
+  asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
   region?: string[];         // zone géographique normalisée (world, europe, usa…)
   sector?: string[];
   management_style?: string[];

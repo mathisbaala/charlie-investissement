@@ -88,3 +88,17 @@ describe('fmtSharpe', () => {
   it('returns em dash for null', () => expect(fmtSharpe(null)).toBe('—'))
   it('formats to 2 decimals', () => expect(fmtSharpe(1.234)).toContain('1,23'))
 })
+
+describe('dt', () => {
+  it('returns em dash for null/undefined', () => {
+    expect(dt(null)).toBe('—')
+    expect(dt(undefined)).toBe('—')
+  })
+  it('formats an ISO date to fr-FR', () => expect(dt('2019-11-07')).toBe('07/11/2019'))
+  // Régression DICI : "07/11/2019" (JJ/MM/AAAA) ne doit PAS devenir le 11 juillet
+  // (interprétation US MM/JJ de new Date). Jour et mois restent à leur place.
+  it('handles a French DD/MM/YYYY string without swapping day/month', () =>
+    expect(dt('07/11/2019')).toBe('07/11/2019'))
+  it('returns the raw string for an unparseable value', () =>
+    expect(dt('pas une date')).toBe('pas une date'))
+})

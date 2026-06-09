@@ -76,7 +76,10 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - envelopes: tableau parmi ["PEA","PEA-PME","PER","AV-FR","AV-LUX","CTO"]
   (PEA=Plan Épargne en Actions, PEA-PME=PEA dédié PME, PER=Plan Épargne Retraite,
    AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
-- universe: tableau de types ex: ["etf","opcvm","scpi","fonds_euros","fps"]
+- universe: tableau de types de produit ex: ["etf","opcvm","scpi","fonds_euros","fps"]
+- asset_class: tableau de classes d'actifs parmi ["action","obligation","diversifie","monetaire","immobilier","matieres_premieres","alternatif","fonds_euros"]
+  (NB: c'est la NATURE des actifs sous-jacents — distinct de "universe" qui est l'enveloppe produit.
+   Un OPCVM peut être actions OU obligataire ; toujours renseigner asset_class quand la requête précise la classe.)
 - region: tableau de zones géographiques normalisées parmi
   ["world","europe","eurozone","usa","france","emerging","japan","asia","china","uk","germany","switzerland","india","brazil"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
@@ -104,6 +107,12 @@ Règles de mapping :
 - "Suisse" / "suisse" / "SMI" → region:["switzerland"]
 - "Inde" / "indien" → region:["india"]
 - "Brésil" / "brésilien" → region:["brazil"]
+- "actions" / "fonds actions" / "equity" / "titres" → asset_class:["action"]
+- "obligataire" / "obligations" / "oblig" / "bonds" / "crédit" / "taux" / "high yield" / "investment grade" → asset_class:["obligation"]
+- "diversifié" / "multi-actifs" / "multi-asset" / "allocation" / "patrimonial" / "flexible" / "mixte" / "profilé" → asset_class:["diversifie"]
+- "monétaire" / "money market" / "cash" / "trésorerie" / "court terme" → asset_class:["monetaire"]
+- "immobilier" / "SCPI" / "pierre papier" / "foncier" / "SCI" → asset_class:["immobilier"]
+- "matières premières" / "or" / "métaux" / "commodités" / "commodities" → asset_class:["matieres_premieres"]
 - "ESG" ou "durable" → sfdr:[8,9]
 - "article 9" ou "impact" → sfdr:[9]
 - "peu risqué" / "défensif" → sri_max:3
@@ -122,7 +131,7 @@ Règles de mapping :
 - "santé" / "pharma" / "médical" / "biotech" → sector:["Santé"]
 - "finance" / "banque" / "assurance" → sector:["Finance"]
 - "énergie" / "pétrole" / "gaz" / "renouvelable" → sector:["Énergie"]
-- "immobilier" / "REIT" / "foncier" → sector:["Immobilier"]
+- "REIT" / "actions immobilières cotées" → sector:["Immobilier"] (sinon, pour de l'immobilier en direct/SCPI, préférer asset_class:["immobilier"])
 - "environnement" / "eau" / "climat" → sector:["Environnement"]
 - "industrie" → sector:["Industrie"]
 - "gestion passive" / "index" / "réplication" → management_style:["passif"]
@@ -135,7 +144,11 @@ Règles de mapping :
 Exemples :
 - "ETF monde" → {"universe":["etf"],"region":["world"],"chips":["ETF","Monde"]}
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"region":["world"],"chips":["ETF","Monde","PEA éligible","Article 8"]}
-- "fonds actions américaines" → {"universe":["opcvm","etf"],"region":["usa"],"chips":["Actions","USA"]}
+- "fonds actions américaines" → {"asset_class":["action"],"region":["usa"],"chips":["Actions","USA"]}
+- "fonds obligataire ISR à faible risque éligible assurance vie" → {"asset_class":["obligation"],"sfdr":[8,9],"sri_max":3,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire","ISR","Risque faible","Assurance-vie"]}
+- "fonds diversifié patrimonial prudent" → {"asset_class":["diversifie"],"sri_max":3,"chips":["Diversifié","Prudent"]}
+- "SCPI immobilier de rendement" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
+- "fonds monétaire euro" → {"asset_class":["monetaire"],"currency":["EUR"],"chips":["Monétaire","EUR"]}
 - "fonds émergents dynamiques" → {"region":["emerging"],"sri_min":4,"chips":["Émergents","Dynamique"]}
 - "fonds avec DICI disponible" → {"has_kid":true,"chips":["DICI disponible"]}
 - "fonds peu risqués ESG" → {"sfdr":[8,9],"sri_max":3,"chips":["ESG","Risque faible"]}
