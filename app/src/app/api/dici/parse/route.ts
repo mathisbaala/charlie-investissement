@@ -29,7 +29,7 @@ Retourne UNIQUEMENT un objet JSON valide avec les champs suivants (null si non t
   "benchmark": string | null,
   "currency": string | null,
   "domicile": string | null,
-  "inception_date": string | null
+  "inception_date": string | null  // format ISO AAAA-MM-JJ
 }
 
 Règles :
@@ -39,6 +39,8 @@ Règles :
 - sfdr_article : chercher les mentions "article 6", "article 8", "article 9" de la réglementation SFDR
 - entry/exit_fees_max : extraire sous forme de string (ex: "2%", "0%", "Non applicable")
 - key_risks : liste des principaux risques mentionnés (max 5, concis)
+- inception_date : date de création/lancement au format ISO AAAA-MM-JJ. Les DICI français
+  écrivent les dates en JJ/MM/AAAA : convertir impérativement (ex: "07/11/2019" → "2019-11-07").
 - Répondre en JSON pur, sans markdown, sans commentaires`;
 
 // Retrouve en base le fonds correspondant au DIC analysé.

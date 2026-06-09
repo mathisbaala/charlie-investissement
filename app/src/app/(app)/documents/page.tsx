@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, X, Search, FileText } from "@/components/ui/icons";
+import { dt } from "@/lib/format";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -330,7 +331,7 @@ export default function DocumentsPage() {
                 <InfoRow label="Benchmark" value={fiche.benchmark} />
                 <InfoRow label="Investisseur cible" value={fiche.target_investor} />
                 {fiche.inception_date && (
-                  <InfoRow label="Date de création" value={new Date(fiche.inception_date).toLocaleDateString("fr-FR")} />
+                  <InfoRow label="Date de création" value={dt(fiche.inception_date)} />
                 )}
               </div>
 

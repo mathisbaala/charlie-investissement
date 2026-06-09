@@ -84,6 +84,15 @@ export function NavChart({ data }: NavChartProps) {
     indexed: parseFloat(((p.nav / base) * 100).toFixed(2)),
   }));
 
+  // Un seul tick (et donc un seul libellé d'année) par année civile : sinon
+  // l'axe X répète « 2023 2023 2023 2024 … » sur tous les points mensuels.
+  const yearTicks: string[] = [];
+  const seenYears = new Set<number>();
+  for (const p of chartData) {
+    const y = new Date(p.date).getFullYear();
+    if (!seenYears.has(y)) { seenYears.add(y); yearTicks.push(p.date); }
+  }
+
   const dataKey = mode === "vl" ? "nav" : "indexed";
   const lineColor = perfPositive ? "#16a34a" : "#dc2626";
   const gradientId = `gradient-${mode}-${perfPositive ? "ok" : "warn"}`;
@@ -155,7 +164,8 @@ export function NavChart({ data }: NavChartProps) {
             tick={{ fontSize: 10, fill: "oklch(0.60 0.010 60)", fontFamily: "var(--font-mono)" }}
             axisLine={false}
             tickLine={false}
-            interval="preserveStartEnd"
+            ticks={yearTicks}
+            interval={0}
           />
           <YAxis
             tick={{ fontSize: 10, fill: "oklch(0.60 0.010 60)", fontFamily: "var(--font-mono)" }}

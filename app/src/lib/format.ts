@@ -88,7 +88,14 @@ export function fmtAumShort(v: number | null | undefined): string {
 
 export function dt(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("fr-FR");
+  // Défensif : une date au format français JJ/MM/AAAA serait interprétée par
+  // `new Date()` comme MM/JJ (convention US) → jour et mois inversés. On la
+  // convertit en ISO avant parsing. (Cas vu sur l'extraction DICI.)
+  const fr = iso.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const norm = fr ? `${fr[3]}-${fr[2]}-${fr[1]}` : iso;
+  const d = new Date(norm);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("fr-FR");
 }
 
 export function dtYear(iso: string | null | undefined): string {

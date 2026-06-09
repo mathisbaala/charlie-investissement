@@ -55,6 +55,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const retroMin= num(p(sp, "retrocession_min")); // en % → diviser par 100 pour fraction DB
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
+  const assetClasses = arr(p(sp, "asset_class"));
   const regions      = arr(p(sp, "region"));
   const sectors      = arr(p(sp, "sector"));
   const mgmtStyles   = arr(p(sp, "management_style"));
@@ -115,6 +116,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // le tri completeness). Une recherche large remonte ainsi des fonds exploitables.
     q = (q as any).not("product_type", "in", "(action,crypto,fps)");
   }
+
+  // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
+  // Distinct de l'univers produit (product_type) : un OPCVM peut être actions ou obligataire.
+  if (assetClasses.length) q = q.in("asset_class_broad", assetClasses);
 
   if (regions.length)      q = q.in("region_normalized", regions);
   if (sectors.length)      q = q.in("sector", sectors);
