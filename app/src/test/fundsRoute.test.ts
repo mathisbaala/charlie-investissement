@@ -60,6 +60,27 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(body.total_pages).toBe(Math.ceil(137 / 50));
   });
 
+  // Régression prod : sur le runtime Vercel, le body du 416 arrive tronqué, donc
+  // JSON.parse échoue dans postgrest-js → l'objet error n'a PAS de `code` PGRST103
+  // (message = corps brut illisible). Seul le status HTTP 416 reste fiable. Le fix
+  // initial testant uniquement error.code laissait passer ce cas en 500 (incident
+  // /api/funds 89 % d'erreurs, crawler charlie-db-dump).
+  it("renvoie 200 + page vide sur un 416 dont le body est illisible (status seul)", async () => {
+    dataResult = {
+      data: null,
+      error: { message: '{"' }, // body tronqué, pas de code
+      count: null,
+      status: 416,
+    };
+    countResult = { data: null, error: null, count: 137 };
+
+    const res = await GET(req("?page=500&per_page=50"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(137);
+  });
+
   it("renvoie toujours 500 pour une erreur Supabase non liée au range", async () => {
     dataResult = {
       data: null,
