@@ -1,0 +1,35 @@
+name: Rafraîchissement hebdomadaire
+
+# Données fraîches chaque lundi matin (prix + métriques perf/vol/Sharpe).
+# Cadence pensée pour des CGP : hebdomadaire, sans suivi quotidien.
+on:
+  schedule:
+    # Lundi 04:00 UTC (≈ 05:00/06:00 Paris) — données prêtes avant la semaine.
+    - cron: "0 4 * * 1"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Pipeline hebdomadaire
+        run: python3 scripts/cron/weekly-pipeline.py

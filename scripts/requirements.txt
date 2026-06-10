@@ -1,0 +1,11 @@
+# Dépendances du pipeline de données Charlie Investissement.
+# Miroir de scripts/setup.sh — utilisé par les workflows GitHub Actions
+# (weekly-refresh / monthly-enrich) pour une installation reproductible.
+supabase
+pdfplumber
+requests
+anthropic
+python-dotenv
+yfinance
+pandas
+numpy

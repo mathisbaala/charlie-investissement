@@ -1,0 +1,35 @@
+name: Enrichissement mensuel
+
+# Comble les champs manquants une fois par mois (fill-only, sans écrasement).
+# N'inclut JAMAIS les scrapers de seeding destructifs.
+on:
+  schedule:
+    # 1er lundi du mois, 05:00 UTC : jour du mois entre 1 et 7 ET un lundi.
+    - cron: "0 5 1-7 * 1"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  monthly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Pipeline mensuel (enrichissement fill-only)
+        run: python3 scripts/cron/monthly-pipeline.py
