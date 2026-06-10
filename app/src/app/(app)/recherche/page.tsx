@@ -422,7 +422,9 @@ function RechercheInner() {
             <span className="text-[12px] font-medium text-ink-2">
               {parsing ? "Analyse de votre recherche…" : loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
             </span>
-            <div className="flex items-center gap-2">
+            {/* flex-wrap aussi sur le groupe : à 320px, Tri/Filtres passent sous
+                le sélecteur au lieu d'être rognés hors écran. */}
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <div className="relative flex items-center">
                 <select
                   value={sortBy}
