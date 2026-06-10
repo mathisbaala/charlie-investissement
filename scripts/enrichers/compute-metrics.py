@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, update_funds_bulk, log_run, get_ecb_rate
+from db import get_client, update_funds_bulk, log_run, get_ecb_rate, isins_with_recent_prices
 
 # ─── Fenêtres temporelles ──────────────────────────────────────────────────────
 
@@ -263,22 +263,9 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             .execute()
         isins = list({r["isin"] for r in (resp.data or [])})
     else:
-        seen: set[str] = set()
-        page_size = 1000
-        offset    = 0
-        while True:
-            resp = client.table("investissement_fund_prices") \
-                .select("isin") \
-                .gte("price_date", DATE_1Y) \
-                .range(offset, offset + page_size - 1) \
-                .execute()
-            batch = resp.data or []
-            for r in batch:
-                seen.add(r["isin"])
-            if len(batch) < page_size:
-                break
-            offset += page_size
-        isins = list(seen)
+        # Découverte robuste via RPC keyset (DISTINCT par isin) : la pagination
+        # par offset sur ~900k lignes dépassait le statement timeout PostgREST.
+        isins = isins_with_recent_prices(since_days=365)
 
     if limit:
         isins = isins[:limit]

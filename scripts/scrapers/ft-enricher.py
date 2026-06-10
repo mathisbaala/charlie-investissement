@@ -322,17 +322,21 @@ def enrich_one(isin: str, currency: str | None, with_holdings: bool = True) -> d
 
 # ─── Sélection des cibles ────────────────────────────────────────────────────
 
-def select_targets(client, limit: int | None):
-    """Fonds avec ISIN valide à qui il manque perf_3y OU des frais.
-    Priorité aux plus gros encours."""
+def select_targets(client, limit: int | None, refresh: bool = False):
+    """Fonds OPCVM/ETF avec ISIN valide, priorité aux plus gros encours.
+
+    Par défaut (peuplement) : ceux à qui il manque perf_3y OU des frais.
+    En mode refresh : tous (on re-fetche la VL courante pour garder les
+    séries de prix fraîches, même sur des fonds déjà complets)."""
     targets, page, size = [], 0, 1000
     while True:
         q = (client.table("investissement_funds")
              .select("isin,currency,name,performance_3y,ongoing_charges,ter")
              .in_("product_type", ["opcvm", "etf"])
-             .or_("performance_3y.is.null,and(ongoing_charges.is.null,ter.is.null)")
              .order("aum_eur", desc=True, nullsfirst=False)
              .range(page * size, page * size + size - 1))
+        if not refresh:
+            q = q.or_("performance_3y.is.null,and(ongoing_charges.is.null,ter.is.null)")
         rows = q.execute().data or []
         for r in rows:
             isin = (r.get("isin") or "").strip()
@@ -403,11 +407,12 @@ def write_breakdowns(client, results: list[dict]) -> dict:
 
 
 def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
-        delay: float, with_holdings: bool = True):
+        delay: float, with_holdings: bool = True, refresh: bool = False):
     print("=" * 64)
     print("  FT Enricher — markets.ft.com (Morningstar)")
     print("=" * 64)
-    print(f"  Mode    : {'APPLY' if apply else 'DRY-RUN'}")
+    print(f"  Mode    : {'APPLY' if apply else 'DRY-RUN'}"
+          f"{' | REFRESH (toutes cibles)' if refresh else ''}")
     client = get_client()
     started = datetime.now(timezone.utc)
 
@@ -419,7 +424,7 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         targets = [{"isin": i, "currency": c}]
     else:
         print("  Sélection des cibles…", flush=True)
-        targets = select_targets(client, limit)
+        targets = select_targets(client, limit, refresh=refresh)
     print(f"  {len(targets)} fonds à traiter   (workers={workers}, delay={delay}s)\n")
 
     results, found, fields_total, prices_total, errors = [], 0, 0, 0, []
@@ -513,6 +518,9 @@ if __name__ == "__main__":
     ap.add_argument("--delay", type=float, default=0.25, help="Pause/req en s (défaut 0.25)")
     ap.add_argument("--no-holdings", action="store_true",
                     help="Ne pas récupérer holdings/secteurs/régions (1 requête/fonds en moins)")
+    ap.add_argument("--refresh", action="store_true",
+                    help="Rafraîchir la VL de TOUS les OPCVM/ETF (pas seulement ceux incomplets)")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
-        workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings)
+        workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
+        refresh=a.refresh)
