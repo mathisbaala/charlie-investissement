@@ -45,6 +45,23 @@ def get_token() -> str:
     return r.json()["access_token"]
 
 
+def _screener_get(params: dict, headers: dict, retries: int = 5):
+    """GET screener résilient : retry sur 5xx/429/erreurs réseau (backoff exponentiel).
+    Retourne le JSON, ou None si échec persistant (le scan bascule alors sur
+    résultats partiels au lieu de crasher tout le run avant l'écriture)."""
+    for attempt in range(retries):
+        try:
+            r = requests.get(SCREENER, params=params, headers=headers, timeout=45)
+            if r.status_code in (429, 500, 502, 503, 504):
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            time.sleep(2 ** attempt)
+    return None
+
+
 def fetch_universe(token: str, universe: str, target: set[str]) -> dict[str, dict]:
     """Scan complet d'un universe, retourne {isin: {champs}} pour les ISINs dans target."""
     bearer  = f"Bearer {token}"
@@ -64,9 +81,10 @@ def fetch_universe(token: str, universe: str, target: set[str]) -> dict[str, dic
         "page":             1,
     }
 
-    r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
-    r.raise_for_status()
-    data  = r.json()
+    data = _screener_get(params, headers)
+    if data is None:
+        print(f"  {universe} : page 1 inaccessible — univers ignoré", flush=True)
+        return {}
     total = data.get("total", 0)
     rows  = data.get("rows", [])
     print(f"  {universe} Page 1 : {len(rows)}/{total}", flush=True)
@@ -135,9 +153,11 @@ def fetch_universe(token: str, universe: str, target: set[str]) -> dict[str, dic
             break
 
         params["page"] = page
-        r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
-        r.raise_for_status()
-        rows = r.json().get("rows", [])
+        data = _screener_get(params, headers)
+        if data is None:
+            print(f"  {universe} Page {page} : abandon (échec persistant) — {len(result)} matchés conservés", flush=True)
+            break
+        rows = data.get("rows", [])
         if page % 10 == 0:
             pct = min((page - 1) * PAGE_SIZE, total)
             print(f"  {universe} Page {page} : ~{pct}/{total} ({len(result)} matchés)", flush=True)
