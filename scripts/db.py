@@ -15,6 +15,7 @@ Requiert dans .env (ou variables d'environnement) :
 import os
 import time
 import hashlib
+from collections import defaultdict
 from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 from typing import Any
@@ -265,22 +266,73 @@ def upsert_funds_bulk(rows: list[dict], batch_size: int = 100) -> tuple[int, int
 def update_funds_bulk(rows: list[dict], batch_size: int = 100) -> tuple[int, int]:
     """
     UPDATE partiel en masse — enrichissement de fonds existants uniquement.
-    N'insère pas de nouvelles lignes (contrairement à upsert_funds_bulk).
-    Chaque row doit contenir 'isin' + les champs à mettre à jour.
+    N'insère JAMAIS de nouvelles lignes (contrairement à upsert_funds_bulk) :
+    `name` étant NOT NULL et jamais fourni ici, toute tentative d'insert d'un
+    ISIN absent échoue → on retombe sur un UPDATE row-par-row qui l'ignore
+    silencieusement (no-op). Chaque row doit contenir 'isin' + les champs à MAJ.
+
+    Perf : upsert batché (on_conflict=isin) au lieu d'un UPDATE par row. Les rows
+    sont d'abord groupées par signature de colonnes — sans ce groupement,
+    PostgREST comble par NULL les colonnes absentes d'une row et ON CONFLICT les
+    écraserait (piège ft-metrics-wipe : une perf existante effacée par None).
 
     Returns:
         (n_success, n_failed)
     """
     client = get_client()
+    now = datetime.now(timezone.utc).isoformat()
     success, failed = 0, 0
 
+    # Normalisation : isin obligatoire + au moins un champ à écrire
+    prepared: list[dict] = []
     for row in rows:
         isin = row.get("isin")
         if not isin:
             failed += 1
             continue
         fields = {k: v for k, v in row.items() if k != "isin"}
-        fields["updated_at"] = datetime.now(timezone.utc).isoformat()
+        if not fields:
+            continue
+        fields["updated_at"] = now
+        prepared.append({"isin": isin, **fields})
+
+    # Groupement par signature de colonnes (évite l'écrasement par NULL)
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for r in prepared:
+        sig = tuple(sorted(k for k in r if k != "isin"))
+        groups[sig].append(r)
+
+    for grp in groups.values():
+        for i in range(0, len(grp), batch_size):
+            batch = grp[i : i + batch_size]
+            done = False
+            for attempt in range(3):
+                try:
+                    client.table("investissement_funds") \
+                        .upsert(batch, on_conflict="isin") \
+                        .execute()
+                    success += len(batch)
+                    done = True
+                    break
+                except Exception:
+                    if attempt < 2:
+                        time.sleep(2 ** attempt)
+            if not done:
+                # Repli row-par-row : préserve le contrat update-only (ISIN absent
+                # = no-op silencieux) et le skip 23502 (name NOT NULL).
+                s, f = _update_funds_rows(batch, client)
+                success += s
+                failed += f
+
+    return success, failed
+
+
+def _update_funds_rows(rows: list[dict], client) -> tuple[int, int]:
+    """Repli UPDATE row-par-row pour update_funds_bulk — n'insère jamais."""
+    success, failed = 0, 0
+    for row in rows:
+        isin = row["isin"]
+        fields = {k: v for k, v in row.items() if k != "isin"}
         for attempt in range(3):
             try:
                 client.table("investissement_funds") \
@@ -298,7 +350,6 @@ def update_funds_bulk(rows: list[dict], batch_size: int = 100) -> tuple[int, int
                         break
                     failed += 1
                     print(f"  ✗ update_fund({isin}) échoué : {e}")
-
     return success, failed
 
 

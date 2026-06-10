@@ -38,17 +38,23 @@ def main():
     D1 = (date.today() - timedelta(days=365)).isoformat()
     D3 = (date.today() - timedelta(days=365 * 3)).isoformat()
 
-    # Liste paginée des ISIN ayant des VL FT
-    ft_isins, off = set(), 0
+    # Liste des ISIN ayant des VL FT — pagination keyset (gt isin) plutôt que
+    # par offset numérique : la table fait ~3,4 M lignes et un deep-offset y
+    # scanne-puis-jette tout le préfixe (lenteur quadratique + statement timeout).
+    # Cf. db.isins_with_recent_prices pour le même pattern.
+    ft_isins, after = set(), ""
     while True:
         rows = (client.table("investissement_fund_prices").select("isin")
                 .eq("source", "financial-times")
-                .range(off, off + 999).execute().data or [])
+                .gt("isin", after).order("isin").limit(1000)
+                .execute().data or [])
+        if not rows:
+            break
         for r in rows:
             ft_isins.add(r["isin"])
         if len(rows) < 1000:
             break
-        off += 1000
+        after = rows[-1]["isin"]
     ft_isins = sorted(ft_isins)
     print(f"  {len(ft_isins)} ISIN FT à calculer", flush=True)
 
