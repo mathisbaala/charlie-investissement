@@ -208,7 +208,7 @@ export default function FavorisPage() {
           Favoris
           <span className="ml-2 text-[13px] text-muted font-sans">({favorites.length})</span>
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {favorites.length > 0 && (
             <>
               <select
