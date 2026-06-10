@@ -168,7 +168,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const overfetch = perPage * 5;
   const offset    = (page - 1) * overfetch;
-  const { data, error, count } = await base()
+  const { data, error, count, status } = await base()
     .order(safeSort, { ascending: sortDir, nullsFirst: false })
     .range(offset, offset + overfetch - 1);
 
@@ -177,7 +177,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // quand l'offset dépasse le nombre de lignes — typiquement un crawler qui
     // pagine au-delà des résultats (?page=500…). On répond une page vide cohérente
     // plutôt qu'un 500 : on récupère juste le total via une requête count-only.
-    if (error.code === "PGRST103") {
+    //
+    // ⚠ On détecte par le STATUS HTTP 416, pas seulement par error.code : en prod
+    // (runtime Vercel) le body du 416 arrive parfois tronqué, JSON.parse échoue
+    // dans postgrest-js et l'objet error perd son `code` (message = corps brut
+    // illisible type `{"`). Le status, lui, reste fiable. Sans ce garde-fou le
+    // 416 retombait en 500 malgré le test sur PGRST103.
+    if (status === 416 || error.code === "PGRST103") {
       const { count: rawCount } = await applyFilters(
         supabase.from(VIEW).select("isin", { count: "exact", head: true }).gte("data_completeness", 50)
       );
