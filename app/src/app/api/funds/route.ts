@@ -82,11 +82,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   ]);
   const safeSort = VALID_SORT.has(sortBy) ? sortBy : "data_completeness";
 
-  let q = supabase
-    .from(VIEW)
-    .select(COLS, { count: "exact" })
-    .gte("data_completeness", 50);
-
+  // Applique tous les filtres de la requête à un builder donné. Factorisé pour pouvoir
+  // le rejouer en requête count-only dans le chemin d'erreur 416 (cf. plus bas).
+  const applyFilters = (q: any) => {
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
@@ -160,14 +158,41 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       q = (q as any).or(searchOrClause(word));
     }
   }
+    return q;
+  };
 
-  q = q.order(safeSort, { ascending: sortDir, nullsFirst: false });
+  const base = () =>
+    applyFilters(
+      supabase.from(VIEW).select(COLS, { count: "exact" }).gte("data_completeness", 50)
+    );
 
   const overfetch = perPage * 5;
   const offset    = (page - 1) * overfetch;
-  const { data, error, count } = await q.range(offset, offset + overfetch - 1);
+  const { data, error, count } = await base()
+    .order(safeSort, { ascending: sortDir, nullsFirst: false })
+    .range(offset, offset + overfetch - 1);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // PostgREST renvoie 416 « Requested range not satisfiable » (code PGRST103)
+    // quand l'offset dépasse le nombre de lignes — typiquement un crawler qui
+    // pagine au-delà des résultats (?page=500…). On répond une page vide cohérente
+    // plutôt qu'un 500 : on récupère juste le total via une requête count-only.
+    if (error.code === "PGRST103") {
+      const { count: rawCount } = await applyFilters(
+        supabase.from(VIEW).select("isin", { count: "exact", head: true }).gte("data_completeness", 50)
+      );
+      const total = rawCount ?? 0;
+      const emptyResp: ScreenerResponse = {
+        data: [],
+        total,
+        page,
+        per_page: perPage,
+        total_pages: Math.ceil(total / perPage),
+      };
+      return NextResponse.json(emptyResp);
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const raw  = (data as unknown as Fund[]) ?? [];
   // Dédup share-classes sur tout l'overfetch (avant la découpe à perPage), pour
