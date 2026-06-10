@@ -322,6 +322,7 @@ export default function MatchingPage() {
           <a
             href={`/api/rapport/pdf?isins=${Array.from(selectedIsins).join(",")}`}
             target="_blank"
+            rel="noopener"
             className="flex items-center gap-2 px-5 py-3 bg-ink text-white rounded-xl shadow-lg hover:bg-ink/80 text-[13px] font-medium transition-colors"
           >
             <span>Rapport PDF</span>
