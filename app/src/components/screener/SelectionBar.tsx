@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSelection, SelectedFund } from "@/components/SelectionProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X, Download } from "@/components/ui/icons";
@@ -97,12 +96,14 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
         CSV
       </Btn>
       {selected.length >= 2 && (
-        <Link href={pdfHref} target="_blank" className="shrink-0">
+        // <a> et non <Link> : route API de téléchargement, pas une page. Un <Link>
+        // déclenche le prefetch RSC de Next (/api/rapport/pdf?_rsc=…) → 400 en console.
+        <a href={pdfHref} target="_blank" rel="noopener" className="shrink-0">
           <Btn variant="outline" size="sm">
             <span className="hidden sm:inline-flex"><Download size={13} /></span>
             PDF
           </Btn>
-        </Link>
+        </a>
       )}
       <Btn
         variant="primary"
