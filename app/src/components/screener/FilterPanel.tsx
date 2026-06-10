@@ -174,7 +174,7 @@ export function FilterPanel({
   }, []);
 
   return (
-    <div className="c-slide-in-l flex flex-col w-[300px] shrink-0 bg-cream border border-line rounded-xl overflow-hidden">
+    <div className="c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto md:w-[300px] md:rounded-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-line shrink-0">
         <div className="flex items-center gap-2">

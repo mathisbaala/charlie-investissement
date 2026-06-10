@@ -68,7 +68,7 @@ export default function LandingPage() {
 
         {/* H1 */}
         <h1
-          className="text-[58px] leading-[1.06] tracking-[-0.025em] text-ink mb-10"
+          className="text-[40px] sm:text-[58px] leading-[1.08] sm:leading-[1.06] tracking-[-0.025em] text-ink mb-7 sm:mb-10"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Trouver{" "}

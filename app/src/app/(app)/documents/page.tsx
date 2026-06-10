@@ -188,7 +188,7 @@ export default function DocumentsPage() {
     <div className="flex flex-col h-full overflow-hidden bg-cream">
 
       {/* Header */}
-      <div className="shrink-0 border-b border-line bg-paper px-6 py-4">
+      <div className="shrink-0 border-b border-line bg-paper px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-[22px] text-ink" style={{ fontFamily: "var(--font-serif)" }}>
@@ -208,7 +208,7 @@ export default function DocumentsPage() {
       </div>
 
       {/* Main */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6">
         <div className="max-w-[740px] mx-auto">
 
           {/* Drop zone — always shown, collapsed after upload */}
@@ -340,7 +340,7 @@ export default function DocumentsPage() {
               {/* Frais */}
               <div className="bg-paper rounded-2xl border border-line px-6 py-5">
                 <h3 className="text-[11px] uppercase tracking-widest font-semibold text-muted mb-3">Frais</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {fiche.entry_fees_max && (
                     <div>
                       <p className="text-[10px] text-muted mb-0.5">Entrée (max)</p>

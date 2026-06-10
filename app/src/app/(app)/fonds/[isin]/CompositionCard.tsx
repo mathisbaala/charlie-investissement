@@ -126,12 +126,12 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
   const colCount = [hasHoldings, hasSectors || hasGeos].filter(Boolean).length;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5 col-span-2">
+    <div className="bg-paper rounded-2xl border border-line px-4 py-4 md:px-6 md:py-5 md:col-span-2">
       <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-5">
         Composition du portefeuille
       </h3>
 
-      <div className={`grid gap-8 ${colCount >= 2 ? "grid-cols-[1fr_1fr]" : "grid-cols-1"}`}>
+      <div className={`grid gap-6 md:gap-8 ${colCount >= 2 ? "grid-cols-1 md:grid-cols-[1fr_1fr]" : "grid-cols-1"}`}>
         {/* Top holdings */}
         {hasHoldings && (
           <div>
@@ -148,7 +148,7 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
 
         {/* Breakdown panels (sectors + geos) */}
         {(hasSectors || hasGeos) && (
-          <div className={`space-y-6 ${!hasHoldings ? "col-span-2 grid grid-cols-2 gap-8 space-y-0" : ""}`}>
+          <div className={`space-y-6 ${!hasHoldings ? "col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 space-y-0" : ""}`}>
             <BreakdownPanel title="Répartition sectorielle" items={sectors} showDonut={hasSectors} />
             <BreakdownPanel title="Zones géographiques"     items={geos}    showDonut={hasGeos} />
           </div>
