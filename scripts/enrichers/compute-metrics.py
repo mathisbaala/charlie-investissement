@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, update_funds_bulk, log_run, get_ecb_rate, isins_with_recent_prices
+from db import get_client, update_funds_bulk, log_run, get_ecb_rate, isins_with_recent_prices, reset_client
 
 # ─── Fenêtres temporelles ──────────────────────────────────────────────────────
 
@@ -277,8 +277,20 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
     computed  = 0
     skipped   = 0
 
+    # Le serveur ferme la connexion HTTP/2 après ~20k streams. À ~2 requêtes
+    # par fonds, on reconnecte proactivement, et on retente une fois sur erreur
+    # réseau (RemoteProtocolError) en repartant d'une connexion fraîche.
+    RECONNECT_EVERY = 1500
+
     for i, isin in enumerate(isins, 1):
-        prices = fetch_prices_for_isin(client, isin)
+        if i % RECONNECT_EVERY == 0:
+            client = reset_client()
+        try:
+            prices = fetch_prices_for_isin(client, isin)
+        except Exception as e:
+            print(f"  ↻ reconnexion après erreur réseau sur {isin} : {str(e)[:80]}")
+            client = reset_client()
+            prices = fetch_prices_for_isin(client, isin)
 
         if len(prices["1y"]) < MIN_POINTS_1Y:
             skipped += 1

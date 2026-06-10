@@ -52,6 +52,19 @@ def get_client() -> Client:
     return _client
 
 
+def reset_client() -> "Client":
+    """Force une nouvelle connexion Supabase au prochain get_client().
+
+    Le serveur ferme la connexion HTTP/2 après ~20 000 streams
+    (RemoteProtocolError: ConnectionTerminated). Les jobs qui font des
+    dizaines de milliers de requêtes (ex. compute-metrics sur ~10k fonds)
+    doivent réinitialiser le client périodiquement et sur erreur réseau.
+    """
+    global _client
+    _client = None
+    return get_client()
+
+
 def isins_with_recent_prices(
     product_type: str | None = None,
     since_days: int = 400,
