@@ -59,9 +59,10 @@ def isins_with_recent_prices(
 ) -> list[str]:
     """ISINs distincts ayant au moins une VL dans les `since_days` derniers jours.
 
-    S'appuie sur la RPC `inv_isins_with_recent_prices` (DISTINCT keyset par isin),
-    bien plus robuste que la pagination par offset sur des centaines de milliers
-    de lignes (qui dépasse le statement timeout PostgREST).
+    Lit la table de couverture `investissement_fund_price_coverage` (1 ligne par
+    ISIN, ~10k lignes) plutôt que de scanner les 3,4 M lignes de prix : robuste à
+    la densité et au VACUUM (un scan DISTINCT explosait le statement timeout après
+    un gros insert de VL). La table est maintenue par `upsert_prices`.
 
     Si `product_type` est fourni, on restreint au type voulu via un lookup sur
     investissement_funds (par chunks d'ISINs).
@@ -71,10 +72,15 @@ def isins_with_recent_prices(
     isins: list[str] = []
     after = ""
     while True:
-        resp = client.rpc(
-            "inv_isins_with_recent_prices",
-            {"p_since": since, "p_after": after, "p_lim": page},
-        ).execute()
+        resp = (
+            client.table("investissement_fund_price_coverage")
+            .select("isin")
+            .gte("last_price_date", since)
+            .gt("isin", after)
+            .order("isin")
+            .limit(page)
+            .execute()
+        )
         rows = resp.data or []
         if not rows:
             break
@@ -419,6 +425,19 @@ def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 
                 else:
                     failed += len(batch)
                     print(f"  ✗ upsert_prices({isin}) batch {i//batch_size + 1} échoué : {e}")
+
+    # Tenir à jour la table de couverture (découverte rapide des fonds pricés).
+    # Les VL sont toujours ajoutées vers l'avant → la date max écrite est la
+    # plus récente connue pour cet ISIN.
+    if inserted and rows:
+        try:
+            max_date = max(r["price_date"] for r in rows)
+            client.table("investissement_fund_price_coverage").upsert(
+                {"isin": isin, "last_price_date": max_date, "updated_at": now_iso()},
+                on_conflict="isin",
+            ).execute()
+        except Exception as e:
+            print(f"  ⚠️  maj coverage({isin}) ignorée : {e}")
 
     return inserted, failed
 
