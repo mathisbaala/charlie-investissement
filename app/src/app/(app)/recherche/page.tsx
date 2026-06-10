@@ -49,9 +49,12 @@ export function buildParams(
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
   if (f.asset_class?.length)         sp.set("asset_class",       f.asset_class.join(","));
   if (f.insurers?.length)            sp.set("insurer",           f.insurers.join(","));
+  if (f.contracts?.length)           sp.set("contracts",         f.contracts.join(","));
   if (f.gestionnaires?.length)       sp.set("gestionnaire_in",   f.gestionnaires.join(","));
   if (f.region?.length)              sp.set("region",            f.region.join(","));
   if (f.sector?.length)              sp.set("sector",            f.sector.join(","));
+  if (f.exclude_sectors?.length)     sp.set("exclude_sector",    f.exclude_sectors.join(","));
+  if (f.exclude_regions?.length)     sp.set("exclude_region",    f.exclude_regions.join(","));
   if (f.management_style?.length)    sp.set("management_style",  f.management_style.join(","));
   if (f.currency?.length)            sp.set("currency",          f.currency.join(","));
   if (f.manager_search)              sp.set("manager_search",    f.manager_search);
@@ -413,8 +416,9 @@ function RechercheInner() {
             </div>
           ) : (<>
 
-          {/* Toolbar */}
-          <div className="shrink-0 flex items-center justify-between py-2.5 text-[11px] text-muted">
+          {/* Toolbar — flex-wrap : sur très petit écran (≤320px) le groupe de
+              contrôles passe sous le compteur au lieu de couper « Filtres ». */}
+          <div className="shrink-0 flex flex-wrap items-center justify-between gap-y-2 py-2.5 text-[11px] text-muted">
             <span className="text-[12px] font-medium text-ink-2">
               {parsing ? "Analyse de votre recherche…" : loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
             </span>

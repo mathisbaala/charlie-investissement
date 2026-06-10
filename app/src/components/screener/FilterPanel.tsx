@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, SlidersHorizontal } from "@/components/ui/icons";
+import { X, SlidersHorizontal, ChevronDown } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/Btn";
 import type { ParsedFilters } from "@/lib/types";
 
@@ -161,17 +161,25 @@ export function FilterPanel({
   // Listes assureurs (référencement) + sociétés de gestion, chargées à la volée.
   const [insurerOptions, setInsurerOptions] = useState<{ company: string; funds: number }[]>([]);
   const [managerOptions, setManagerOptions] = useState<{ company: string; funds: number }[]>([]);
+  const [contractOptions, setContractOptions] =
+    useState<{ company: string; contract: string; key: string; funds: number }[]>([]);
   useEffect(() => {
     let cancelled = false;
-    const load = (url: string, set: (v: { company: string; funds: number }[]) => void) =>
+    const load = <T,>(url: string, set: (v: T[]) => void) =>
       fetch(url)
         .then((r) => r.ok ? r.json() : { data: [] })
         .then((j) => { if (!cancelled) set(j.data ?? []); })
         .catch(() => {});
     load("/api/screener/insurers", setInsurerOptions);
     load("/api/screener/managers", setManagerOptions);
+    load("/api/screener/contracts", setContractOptions);
     return () => { cancelled = true; };
   }, []);
+
+  // Assureur déplié (sélection par contrat) + assureurs dont on montre TOUS les contrats.
+  const [expandedInsurer, setExpandedInsurer] = useState<string | null>(null);
+  const [showAllContracts, setShowAllContracts] = useState<Record<string, boolean>>({});
+  const CONTRACTS_PREVIEW = 10;
 
   return (
     <div className="c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto md:w-[300px] md:rounded-xl">
@@ -293,23 +301,77 @@ export function FilterPanel({
 
         <Divider />
 
-        {/* Assureur (référencement) */}
+        {/* Assureur + contrat (référencement) */}
         {insurerOptions.length > 0 && (
           <>
-            <Section title="Référencé chez (assureur)">
-              <div className="flex gap-1.5 flex-wrap">
-                {insurerOptions.map(({ company, funds }) => (
-                  <SfdrPill
-                    key={company}
-                    label={`${company} (${funds})`}
-                    active={(f.insurers ?? []).includes(company)}
-                    onToggle={() => set("insurers", toggleArr(f.insurers, company))}
-                  />
-                ))}
+            <Section title="Référencé chez (assureur / contrat)">
+              <div className="space-y-1.5">
+                {insurerOptions.map(({ company, funds }) => {
+                  const contracts = contractOptions.filter((c) => c.company === company);
+                  const expanded = expandedInsurer === company;
+                  const selContracts = (f.contracts ?? []).filter((k) => k.startsWith(`${company}::`));
+                  const showAll = showAllContracts[company];
+                  const shown = showAll ? contracts : contracts.slice(0, CONTRACTS_PREVIEW);
+                  return (
+                    <div key={company}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => set("insurers", toggleArr(f.insurers, company))}
+                          className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${
+                            (f.insurers ?? []).includes(company)
+                              ? "bg-brown text-paper border-brown"
+                              : "bg-paper-2 text-ink-2 border-line hover:border-accent/30"
+                          }`}
+                        >
+                          {company} ({funds})
+                          {selContracts.length > 0 && (
+                            <span className="ml-1 opacity-70">
+                              · {selContracts.length} contrat{selContracts.length > 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </button>
+                        {contracts.length > 0 && (
+                          <button
+                            onClick={() => setExpandedInsurer(expanded ? null : company)}
+                            aria-label={`Contrats ${company}`}
+                            className={`w-6 h-6 flex items-center justify-center rounded-md border transition-colors shrink-0 ${
+                              expanded || selContracts.length > 0
+                                ? "border-accent/40 text-accent"
+                                : "border-line text-muted hover:text-ink"
+                            }`}
+                          >
+                            <ChevronDown size={13} className={expanded ? "rotate-180 transition-transform" : "transition-transform"} />
+                          </button>
+                        )}
+                      </div>
+
+                      {expanded && contracts.length > 0 && (
+                        <div className="flex gap-1.5 flex-wrap mt-1.5 pl-2 ml-1 border-l border-line-soft">
+                          {shown.map((c) => (
+                            <SfdrPill
+                              key={c.key}
+                              label={`${c.contract} (${c.funds})`}
+                              active={(f.contracts ?? []).includes(c.key)}
+                              onToggle={() => set("contracts", toggleArr(f.contracts, c.key))}
+                            />
+                          ))}
+                          {contracts.length > CONTRACTS_PREVIEW && (
+                            <button
+                              onClick={() => setShowAllContracts((s) => ({ ...s, [company]: !showAll }))}
+                              className="text-[11px] px-2 py-1 text-accent hover:underline"
+                            >
+                              {showAll ? "Réduire" : `+${contracts.length - CONTRACTS_PREVIEW} contrats`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <p className="text-[10px] text-muted-2 mt-2 leading-snug">
-                Fonds disponibles sur au moins un contrat de l&apos;assureur. Donnée partielle —
-                l&apos;absence ne signifie pas non-référencement.
+                Cliquez sur l&apos;assureur pour le sélectionner, ou sur le chevron pour filtrer par contrat
+                précis. Donnée partielle — l&apos;absence ne signifie pas non-référencement.
               </p>
             </Section>
 

@@ -52,6 +52,61 @@ describe('buildParams — filtre assureur (référencement)', () => {
   })
 })
 
+describe('buildParams — filtre par contrat', () => {
+  it('sérialise contracts (clé composite Assureur::Contrat) vers "contracts"', () => {
+    const f: ParsedFilters = { contracts: ['Suravenir::Linxea Spirit 2'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('contracts')).toBe('Suravenir::Linxea Spirit 2')
+  })
+
+  it('joint plusieurs contrats par des virgules', () => {
+    const f: ParsedFilters = { contracts: ['Suravenir::Linxea Spirit 2', 'AXA France::Coralis Sélection'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('contracts')).toBe('Suravenir::Linxea Spirit 2,AXA France::Coralis Sélection')
+  })
+
+  it('n\'émet pas "contracts" quand il est absent', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('contracts')).toBe(false)
+  })
+})
+
+// Régression feedback #2 : « fonds action monde peu exposé tech/us ». La négation
+// doit produire des EXCLUSIONS (jamais un filtre positif sector/region inversé).
+describe('buildParams — exclusions (négation NL)', () => {
+  it('sérialise exclude_sectors vers "exclude_sector"', () => {
+    const f: ParsedFilters = { exclude_sectors: ['Technologie'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('exclude_sector')).toBe('Technologie')
+    // Ne doit PAS produire un filtre secteur positif.
+    expect(sp.has('sector')).toBe(false)
+  })
+
+  it('sérialise exclude_regions vers "exclude_region"', () => {
+    const f: ParsedFilters = { exclude_regions: ['usa'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('exclude_region')).toBe('usa')
+    expect(sp.has('region')).toBe(false)
+  })
+
+  it('combine region positive (world) et exclusions (tech/us)', () => {
+    const f: ParsedFilters = {
+      asset_class: ['action'], region: ['world'],
+      exclude_sectors: ['Technologie'], exclude_regions: ['usa'],
+    }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('region')).toBe('world')
+    expect(sp.get('exclude_sector')).toBe('Technologie')
+    expect(sp.get('exclude_region')).toBe('usa')
+  })
+
+  it('n\'émet pas les exclusions quand elles sont absentes', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('exclude_sector')).toBe(false)
+    expect(sp.has('exclude_region')).toBe(false)
+  })
+})
+
 describe('buildParams — filtre société de gestion', () => {
   it('sérialise gestionnaires vers "gestionnaire_in"', () => {
     const f: ParsedFilters = { gestionnaires: ['Amundi'] }
