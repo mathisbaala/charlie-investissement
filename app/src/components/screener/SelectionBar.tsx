@@ -75,7 +75,7 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
   const pdfHref = `/api/rapport/pdf?isins=${selected.map((f) => f.isin).join(",")}`;
 
   return (
-    <div className="c-slide-up fixed bottom-4 left-[60px] right-0 mx-auto z-30 flex items-center gap-2 sm:gap-3 bg-paper border border-line rounded-xl px-3 sm:px-4 py-2.5 shadow-[0_4px_16px_oklch(0.22_0.012_60_/_0.12)] max-w-[860px] w-[calc(100%-60px-1.5rem)]">
+    <div className="c-slide-up fixed bottom-4 left-[60px] right-0 mx-auto z-30 flex flex-wrap items-center gap-2 sm:gap-3 bg-paper border border-line rounded-xl px-3 sm:px-4 py-2.5 shadow-[0_4px_16px_oklch(0.22_0.012_60_/_0.12)] max-w-[860px] w-[calc(100%-60px-1.5rem)]">
       <span
         className="text-[15px] text-accent shrink-0"
         style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
@@ -86,19 +86,20 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
       <span className="hidden sm:block text-[12px] text-ink-2 flex-1 min-w-0 truncate">
         {selected.map((f) => f.name).join(" · ")}
       </span>
-      <span className="sm:hidden flex-1 min-w-0" />
-      <Btn variant="ghost" size="sm" onClick={clear} className="shrink-0">
-        <X size={13} />
+      {/* Sur mobile : icônes masquées (boutons texte seul, plus compacts) ;
+          flex-wrap garantit qu'aucune action n'est coupée si ça déborde. */}
+      <Btn variant="ghost" size="sm" onClick={clear} className="shrink-0 ml-auto sm:ml-0">
+        <span className="hidden sm:inline-flex"><X size={13} /></span>
         Vider
       </Btn>
       <Btn variant="outline" size="sm" onClick={() => exportCsv(selected)} className="shrink-0">
-        <Download size={13} />
+        <span className="hidden sm:inline-flex"><Download size={13} /></span>
         CSV
       </Btn>
       {selected.length >= 2 && (
         <Link href={pdfHref} target="_blank" className="shrink-0">
           <Btn variant="outline" size="sm">
-            <Download size={13} />
+            <span className="hidden sm:inline-flex"><Download size={13} /></span>
             PDF
           </Btn>
         </Link>
