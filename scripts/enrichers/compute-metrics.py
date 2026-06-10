@@ -192,15 +192,27 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
 
 
 def fetch_prices_for_isin(client, isin: str) -> dict[str, list[float]]:
-    """Retourne les séries de prix triées par date pour différentes fenêtres."""
-    resp = client.table("investissement_fund_prices") \
-        .select("price_date, nav") \
-        .eq("isin", isin) \
-        .gte("price_date", DATE_5Y) \
-        .order("price_date", desc=False) \
-        .execute()
+    """Retourne les séries de prix triées par date pour différentes fenêtres.
 
-    rows = resp.data or []
+    Pagination obligatoire : PostgREST plafonne à 1000 lignes/requête. Les
+    sources quotidiennes (ex. financial-times) écrivent ~1300 VL/fonds sur 5 ans ;
+    sans pagination, le tri ascendant tronque l'année la plus récente et les
+    perf 1Y/3Y deviennent incalculables (fenêtre vide)."""
+    rows = []
+    offset = 0
+    page_size = 1000
+    while True:
+        page = client.table("investissement_fund_prices") \
+            .select("price_date, nav") \
+            .eq("isin", isin) \
+            .gte("price_date", DATE_5Y) \
+            .order("price_date", desc=False) \
+            .range(offset, offset + page_size - 1) \
+            .execute().data or []
+        rows.extend(page)
+        if len(page) < page_size:
+            break
+        offset += page_size
     all_prices = []
     for r in rows:
         val = r.get("nav") or r.get("close_price")
