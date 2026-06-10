@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Instrument_Serif,
   DM_Sans,
@@ -39,6 +39,12 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   title: "Charlie Investissement",
   description: "L'intelligence la plus profonde sur chaque fonds.",
+};
+
+// Rendu mobile correct : largeur = écran, pas de zoom desktop par défaut.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -106,7 +106,7 @@ export default function MatchingPage() {
   const labelCls = "block text-[11px] font-medium text-muted mb-1.5 uppercase tracking-wide";
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-6 py-6">
+    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-6 py-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-5 flex items-center gap-3">
           <Link href="/recherche" className="text-[12px] text-muted hover:text-accent transition-colors">
@@ -144,7 +144,7 @@ export default function MatchingPage() {
 
             <div className="md:col-span-2 lg:col-span-3">
               <label className={labelCls}>Profil de risque</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {RISK_OPTIONS.map((opt) => (
                   <button key={opt.value} onClick={() => setRiskProfile(opt.value)}
                     className={`p-3 rounded-lg border text-left transition-colors ${

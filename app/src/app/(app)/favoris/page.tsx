@@ -106,7 +106,7 @@ function FavCard({
         </p>
         <button
           onClick={onRemove}
-          className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 text-muted-2 hover:text-ink rounded p-0.5"
+          className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0 text-muted-2 hover:text-ink rounded p-0.5"
           aria-label="Retirer des favoris"
         >
           <X size={13} />
@@ -201,9 +201,9 @@ export default function FavorisPage() {
   });
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-8 py-8">
+    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
         <h1 className="text-[26px] text-ink inline" style={{ fontFamily: "var(--font-serif)" }}>
           Favoris
           <span className="ml-2 text-[13px] text-muted font-sans">({favorites.length})</span>
@@ -240,7 +240,7 @@ export default function FavorisPage() {
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-3 gap-4 max-[900px]:grid-cols-2 pb-24">
+        <div className="mt-6 grid grid-cols-1 min-[520px]:grid-cols-2 lg:grid-cols-3 gap-4 pb-24">
           {sorted.map((f) => (
             <FavCard key={f.isin} f={f} onRemove={() => handleRemove(f.isin)} />
           ))}

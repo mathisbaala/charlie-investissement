@@ -84,7 +84,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
 
   return (
     <div
-      className="c-pop fixed right-4 z-50 w-[360px] bg-cream border border-line rounded-xl shadow-[0_12px_40px_oklch(0.22_0.012_60_/_0.18)] flex flex-col overflow-hidden"
+      className="c-pop fixed right-2 md:right-4 z-50 w-[360px] max-w-[calc(100vw-1rem)] bg-cream border border-line rounded-xl shadow-[0_12px_40px_oklch(0.22_0.012_60_/_0.18)] flex flex-col overflow-hidden"
       style={{
         top: "62px",
         maxHeight: isEmpty ? "190px" : "520px",
