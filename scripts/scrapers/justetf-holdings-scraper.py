@@ -379,11 +379,23 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             print(f"         Top: {top['position_name']} {top['weight']*100:.1f}%")
 
         if apply:
-            try:
-                save_to_db(client, isin, result)
-            except Exception as db_err:
-                stats["db_error"] += 1
-                print(f"         DB ERROR: {db_err}")
+            # Écriture résiliente : sur run long, la connexion Supabase tombe
+            # ("Server disconnected"). On réessaie en reconstruisant le client.
+            for attempt in range(3):
+                try:
+                    save_to_db(client, isin, result)
+                    break
+                except Exception as db_err:
+                    if attempt == 2:
+                        stats["db_error"] += 1
+                        print(f"         DB ERROR (abandon après 3 essais): {db_err}")
+                    else:
+                        print(f"         DB retry {attempt + 1}/2 ({db_err}) — reconnexion")
+                        time.sleep(2 * (attempt + 1))
+                        try:
+                            client = get_client()
+                        except Exception:
+                            pass
 
         if i % 20 == 0:
             elapsed = (datetime.now(timezone.utc) - started).total_seconds()
