@@ -15,7 +15,7 @@ Requiert dans .env (ou variables d'environnement) :
 import os
 import time
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +50,54 @@ def get_client() -> Client:
             )
         _client = create_client(url, key)
     return _client
+
+
+def isins_with_recent_prices(
+    product_type: str | None = None,
+    since_days: int = 400,
+    page: int = 1000,
+) -> list[str]:
+    """ISINs distincts ayant au moins une VL dans les `since_days` derniers jours.
+
+    S'appuie sur la RPC `inv_isins_with_recent_prices` (DISTINCT keyset par isin),
+    bien plus robuste que la pagination par offset sur des centaines de milliers
+    de lignes (qui dépasse le statement timeout PostgREST).
+
+    Si `product_type` est fourni, on restreint au type voulu via un lookup sur
+    investissement_funds (par chunks d'ISINs).
+    """
+    client = get_client()
+    since = (date.today() - timedelta(days=since_days)).isoformat()
+    isins: list[str] = []
+    after = ""
+    while True:
+        resp = client.rpc(
+            "inv_isins_with_recent_prices",
+            {"p_since": since, "p_after": after, "p_lim": page},
+        ).execute()
+        rows = resp.data or []
+        if not rows:
+            break
+        isins.extend(r["isin"] for r in rows)
+        if len(rows) < page:
+            break
+        after = rows[-1]["isin"]
+
+    if product_type is not None:
+        keep: set[str] = set()
+        for i in range(0, len(isins), 500):
+            chunk = isins[i : i + 500]
+            r = (
+                client.table("investissement_funds")
+                .select("isin")
+                .eq("product_type", product_type)
+                .in_("isin", chunk)
+                .execute()
+            )
+            keep.update(x["isin"] for x in (r.data or []))
+        isins = [i for i in isins if i in keep]
+
+    return isins
 
 
 # ─── Score de complétude ───────────────────────────────────────────────────────
