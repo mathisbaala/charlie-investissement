@@ -92,11 +92,13 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - region: tableau de zones géographiques normalisées parmi
   ["world","europe","eurozone","usa","france","emerging","japan","asia","china","uk","germany","switzerland","india","brazil"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
+- exclude_sectors: secteurs à EXCLURE (même liste que sector). Pour les formulations NÉGATIVES : « peu exposé à X », « faible exposition X », « sans X », « hors X », « pas de X », « peu de X », « éviter X ». NE JAMAIS mettre un secteur en positif (sector) quand la phrase est négative — utiliser exclude_sectors.
+- exclude_regions: zones à EXCLURE (même liste que region). Mêmes déclencheurs négatifs appliqués à une zone (« peu exposé aux US », « hors USA », « sans Chine »).
 - insurers: assureurs référençant le fonds, parmi ["BNP Paribas Cardif","Suravenir","Linxea","AXA France","SwissLife France","Allianz France","AG2R La Mondiale","Generali Luxembourg","Swiss Life Luxembourg","Wealins","Cardif Lux Vie","Baloise Life","AXA Wealth Europe"]
   (mapping : "AXA" / "chez AXA" → "AXA France" ; "Swiss Life" / "SwissLife" → "SwissLife France" ;
    "Allianz" → "Allianz France" ; "Cardif" / "BNP" → "BNP Paribas Cardif" ; "Suravenir" → "Suravenir" ;
    "Linxea" → "Linxea" ; "AG2R" / "La Mondiale" → "AG2R La Mondiale" ; déclenché par "référencé chez X",
-   "disponible chez/sur X", "assurance vie X", "contrat X", "je travaille avec X")
+   "disponible chez/sur X", "assurance vie X", "je travaille avec X")
 - management_style: tableau parmi ["passif","actif","smart_beta","alternatif"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
@@ -148,6 +150,11 @@ Règles de mapping :
 - "REIT" / "actions immobilières cotées" → sector:["Immobilier"] (sinon, pour de l'immobilier en direct/SCPI, préférer asset_class:["immobilier"])
 - "environnement" / "eau" / "climat" → sector:["Environnement"]
 - "industrie" → sector:["Industrie"]
+- NÉGATION (IMPORTANT) : une formulation comme « peu exposé à X », « faible exposition X », « sans X »,
+  « hors X », « pas de X », « éviter X » signifie EXCLURE X, jamais le filtrer en positif.
+  → « peu exposé tech » → exclude_sectors:["Technologie"] (et SURTOUT PAS sector:["Technologie"]).
+  → « hors US » / « peu exposé aux US » → exclude_regions:["usa"].
+  Le reste de la phrase garde son sens positif (ex. « actions monde » → asset_class + region:["world"]).
 - "gestion passive" / "index" / "réplication" → management_style:["passif"]
 - "gestion active" / "stock-picking" → management_style:["actif"]
 - "smart beta" / "factoriel" → management_style:["smart_beta"]
@@ -162,6 +169,8 @@ Exemples :
 - "fonds obligataire ISR à faible risque éligible assurance vie" → {"asset_class":["obligation"],"sfdr":[8,9],"sri_max":3,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire","ISR","Risque faible","Assurance-vie"]}
 - "fonds diversifié patrimonial prudent" → {"asset_class":["diversifie"],"sri_max":3,"chips":["Diversifié","Prudent"]}
 - "fonds actions monde référencés chez AXA" → {"asset_class":["action"],"region":["world"],"insurers":["AXA France"],"chips":["Actions","Monde","AXA France"]}
+- "fonds action monde peu exposé tech/US" → {"asset_class":["action"],"region":["world"],"exclude_sectors":["Technologie"],"exclude_regions":["usa"],"chips":["Actions","Monde","Hors tech","Hors US"]}
+- "ETF actions hors Chine sans énergie" → {"universe":["etf"],"asset_class":["action"],"exclude_regions":["china"],"exclude_sectors":["Énergie"],"chips":["ETF","Actions","Hors Chine","Hors énergie"]}
 - "je travaille avec Suravenir, montre les ETF obligataires" → {"universe":["etf"],"asset_class":["obligation"],"insurers":["Suravenir"],"chips":["ETF","Obligataire","Suravenir"]}
 - "SCPI immobilier de rendement" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
 - "fonds monétaire euro" → {"asset_class":["monetaire"],"currency":["EUR"],"chips":["Monétaire","EUR"]}

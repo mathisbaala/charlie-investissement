@@ -21,7 +21,7 @@ const COLS = [
   "ucits_compliant","is_institutional","accessible_retail","hedged",
   "aum_eur","morningstar_rating","currency","inception_date",
   "track_record_years","kid_url","data_completeness","updated_at",
-  "share_class_group_id"
+  "share_class_group_id","insurers","contracts"
 ].join(",");
 
 function p(sp: URLSearchParams, key: string) { return sp.get(key); }
@@ -58,8 +58,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const universe  = arr(p(sp, "universe"));
   const assetClasses = arr(p(sp, "asset_class"));
   const insurers     = arr(p(sp, "insurer"));
+  const contracts    = arr(p(sp, "contracts"));
   const regions      = arr(p(sp, "region"));
   const sectors      = arr(p(sp, "sector"));
+  const exclSectors  = arr(p(sp, "exclude_sector"));
+  const exclRegions  = arr(p(sp, "exclude_region"));
   const mgmtStyles   = arr(p(sp, "management_style"));
   const currency     = arr(p(sp, "currency"));
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
@@ -126,9 +129,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Référencement assureur : fonds disponibles chez au moins un des assureurs choisis.
   if (insurers.length)     q = (q as any).overlaps("insurers", insurers);
+  // Référencement par contrat précis (clé composite "Assureur::Contrat").
+  if (contracts.length)    q = (q as any).overlaps("contracts", contracts);
 
   if (regions.length)      q = q.in("region_normalized", regions);
   if (sectors.length)      q = q.in("sector", sectors);
+  // Exclusions (négation NL : « peu exposé tech / hors US »). On écarte les fonds
+  // CLASSÉS sur ce secteur / cette zone — approximation honnête (l'exposition fine
+  // sous-jacente n'est pas filtrable, donnée trop éparse). Un fonds Monde a
+  // region_normalized='world' donc « not in (usa) » le conserve.
+  // ⚠ Forme null-safe « IS NULL OR NOT IN » : en SQL `NULL NOT IN (...)` vaut NULL
+  // (donc exclu) — sans ce garde-fou on écarterait tous les fonds diversifiés/monde
+  // dont le secteur n'est pas renseigné, soit l'inverse de l'intention.
+  if (exclSectors.length)
+    q = (q as any).or(`sector.is.null,sector.not.in.(${exclSectors.join(",")})`);
+  if (exclRegions.length)
+    q = (q as any).or(`region_normalized.is.null,region_normalized.not.in.(${exclRegions.join(",")})`);
   if (mgmtStyles.length)   q = q.in("management_style", mgmtStyles);
   if (currency.length)     q = q.in("currency", currency);
   if (mgr)              q = q.ilike("gestionnaire", `%${mgr}%`);

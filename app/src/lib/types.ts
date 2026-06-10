@@ -71,6 +71,9 @@ export type Fund = {
   accessible_retail: boolean | null;
   hedged: boolean | null;
 
+  // Référencement assurantiel (assureurs qui référencent le fonds — vue cgp_ref)
+  insurers: string[] | null;
+
   // Labels & qualité
   labels: string[] | null;
   kid_url: string | null;
@@ -307,9 +310,12 @@ export type ParsedFilters = {
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
   insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
+  contracts?: string[];       // contrats précis, clé composite "Assureur::Contrat" (ex: "Suravenir::Linxea Spirit 2")
   gestionnaires?: string[];   // sélection rapide de sociétés de gestion (match exact, ex: "Amundi")
   region?: string[];         // zone géographique normalisée (world, europe, usa…)
   sector?: string[];
+  exclude_sectors?: string[]; // secteurs à EXCLURE (négation : « peu exposé tech » → ["Technologie"])
+  exclude_regions?: string[]; // zones à EXCLURE (négation : « hors US » → ["usa"])
   management_style?: string[];
   currency?: string[];
   morningstar_min?: number;
