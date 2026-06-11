@@ -8,13 +8,25 @@ import { Search, ChevronRight, Shield } from "@/components/ui/icons";
 
 type Insurer = { company: string; funds: number };
 type ContractVariant = { contract: string; key: string };
+type ContractType = "av" | "capi" | "per" | "pea" | "pep";
 type Contract = {
   company: string; contract: string; key: string; funds: number;
   // Repli des doublons : nombre de contrats partageant exactement ce jeu de fonds
   // (le représentant inclus) + libellés des autres variantes (mêmes supports).
   group_size?: number;
   variants?: ContractVariant[];
+  // Type d'enveloppe (ensemble des types des variantes) + statut commercial.
+  types?: ContractType[];
+  closed?: boolean;
 };
+
+// Libellés courts des types d'enveloppe. « av » (assurance vie) est le défaut du
+// domaine → non affiché en badge (implicite), mais filtrable.
+const TYPE_LABEL: Record<ContractType, string> = {
+  av: "AV", capi: "Capi", per: "PER", pea: "PEA", pep: "PEP",
+};
+// Types proposés au filtre (PEP marginal — 1 contrat — exclu de la barre).
+const TYPE_FILTERS: ContractType[] = ["av", "capi", "per", "pea"];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -28,12 +40,15 @@ const CONTRACTS_PREVIEW = 4;
 
 // ─── Carte assureur ─────────────────────────────────────────────────────────────
 
-function InsurerCard({ insurer, contracts }: { insurer: Insurer; contracts: Contract[] }) {
+function InsurerCard(
+  { insurer, contracts, pass }: { insurer: Insurer; contracts: Contract[]; pass: (c: Contract) => boolean },
+) {
   const [showAll, setShowAll] = useState(false);
   // On masque le cas redondant où le seul « contrat » reprend le nom de l'assureur
-  // (fréquent côté AV Luxembourg), comme sur la fiche fonds.
+  // (fréquent côté AV Luxembourg), comme sur la fiche fonds. Puis on applique les
+  // filtres type / statut commercial de la barre.
   const real = contracts.filter(
-    (c) => c.contract && !(contracts.length === 1 && c.contract === insurer.company),
+    (c) => c.contract && !(contracts.length === 1 && c.contract === insurer.company) && pass(c),
   );
   const shown = showAll ? real : real.slice(0, CONTRACTS_PREVIEW);
   const extra = real.length - shown.length;
@@ -65,18 +80,32 @@ function InsurerCard({ insurer, contracts }: { insurer: Insurer; contracts: Cont
           <div className="flex flex-wrap gap-1.5">
             {shown.map((c) => {
               const variants = c.variants ?? [];
+              // Badges de type hors « av » (défaut implicite) — ex. Capi / PER / PEA.
+              const typeBadges = (c.types ?? []).filter((t) => t !== "av");
+              const titleParts = [
+                variants.length ? `Mêmes supports que : ${variants.map((v) => v.contract).join(" · ")}` : "",
+                c.closed ? "Contrat fermé à la commercialisation" : "",
+              ].filter(Boolean);
               return (
                 <Link
                   key={c.key}
                   href={contractHref(c.key)}
                   // Les variantes partagent le même jeu de fonds → le lien sur le
                   // représentant remonte exactement les mêmes supports.
-                  title={variants.length
-                    ? `Mêmes supports que : ${variants.map((v) => v.contract).join(" · ")}`
-                    : undefined}
-                  className="text-[11px] px-2 py-1 rounded-full bg-paper-2 border border-line text-ink-2 hover:border-accent/40 hover:text-accent-ink transition-colors"
+                  title={titleParts.length ? titleParts.join(" — ") : undefined}
+                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                    c.closed
+                      ? "bg-paper border-line-soft text-muted-2 hover:border-line"
+                      : "bg-paper-2 border-line text-ink-2 hover:border-accent/40 hover:text-accent-ink"
+                  }`}
                 >
                   {c.contract} <span className="text-muted-2">({c.funds.toLocaleString("fr-FR")})</span>
+                  {typeBadges.map((t) => (
+                    <span key={t} className="ml-1 text-[9px] uppercase tracking-wide text-accent-ink/70 font-semibold">
+                      {TYPE_LABEL[t]}
+                    </span>
+                  ))}
+                  {c.closed && <span className="ml-1 text-[9px] uppercase tracking-wide text-muted-2">fermé</span>}
                   {variants.length > 0 && (
                     <span className="text-accent ml-1">+{variants.length} variante{variants.length > 1 ? "s" : ""}</span>
                   )}
@@ -113,6 +142,17 @@ export default function AssureursPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading]     = useState(true);
   const [q, setQ]                 = useState("");
+  const [activeTypes, setActiveTypes] = useState<ContractType[]>([]);
+  const [hideClosed, setHideClosed]   = useState(false);
+
+  const toggleType = (t: ContractType) =>
+    setActiveTypes((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+
+  // Un contrat passe les filtres de la barre (type d'enveloppe + statut commercial).
+  const pass = (c: Contract) =>
+    (!hideClosed || !c.closed) &&
+    (activeTypes.length === 0 || (c.types ?? []).some((t) => activeTypes.includes(t)));
+  const filterActive = activeTypes.length > 0 || hideClosed;
 
   useEffect(() => {
     let cancelled = false;
@@ -143,12 +183,18 @@ export default function AssureursPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = needle
+    let list = needle
       ? insurers.filter((i) => i.company.toLowerCase().includes(needle))
       : insurers;
+    // Quand un filtre type/statut est actif, on n'affiche que les assureurs qui
+    // proposent au moins un contrat correspondant.
+    if (filterActive) {
+      list = list.filter((i) => (contractsByCompany.get(i.company) ?? []).some(pass));
+    }
     // Tri par nombre de supports décroissant (les plus gros distributeurs d'abord).
     return [...list].sort((a, b) => b.funds - a.funds);
-  }, [insurers, q]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insurers, q, filterActive, activeTypes, hideClosed, contractsByCompany]);
 
   return (
     <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
@@ -177,6 +223,38 @@ export default function AssureursPage() {
               className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-muted-2 focus:outline-none"
             />
           </div>
+
+          {/* Filtres : type d'enveloppe + statut commercial */}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-muted-2 mr-1">Type&nbsp;:</span>
+            {TYPE_FILTERS.map((t) => {
+              const on = activeTypes.includes(t);
+              return (
+                <button
+                  key={t}
+                  onClick={() => toggleType(t)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    on
+                      ? "bg-accent/10 border-accent/40 text-accent-ink"
+                      : "bg-paper border-line text-muted hover:border-accent/30"
+                  }`}
+                >
+                  {TYPE_LABEL[t]}
+                </button>
+              );
+            })}
+            <span className="mx-1 w-px h-4 bg-line" aria-hidden />
+            <button
+              onClick={() => setHideClosed((v) => !v)}
+              className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                hideClosed
+                  ? "bg-accent/10 border-accent/40 text-accent-ink"
+                  : "bg-paper border-line text-muted hover:border-accent/30"
+              }`}
+            >
+              Masquer les contrats fermés
+            </button>
+          </div>
         </div>
 
         {/* ── Liste ────────────────────────────────────────────────────────────── */}
@@ -203,6 +281,7 @@ export default function AssureursPage() {
                   key={insurer.company}
                   insurer={insurer}
                   contracts={contractsByCompany.get(insurer.company) ?? []}
+                  pass={pass}
                 />
               ))}
             </div>

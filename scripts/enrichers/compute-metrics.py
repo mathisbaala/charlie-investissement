@@ -75,13 +75,22 @@ def _clamp(v: float | None) -> float | None:
 # Bornes de plausibilité de la perf CUMULÉE (en %) par classe d'actifs. Une perf
 # hors bande trahit une série NAV corrompue (point aberrant en début/fin de
 # fenêtre) : on PURGE (écrit None) plutôt que d'écrire une valeur impossible —
-# ex. fonds d'État à -95%, fonds monétaire à +820%. _valid_perf ne rejette que
-# les pertes ≥ 100% et ignore la classe d'actifs, d'où ce garde complémentaire.
-# Pas de borne pour action/diversifie/immobilier/alternatif/matieres_premieres/
-# crypto/action_individuelle : légitimement extrêmes (crypto +5000%, Russie -99%).
+# ex. fonds d'État à -95%, monétaire à +820%, ETF actions clampé à ~9999% sur une
+# VL corrompue. _valid_perf ne rejette que les pertes ≥ 100% et ignore la classe
+# d'actifs, d'où ce garde complémentaire. Les bornes hautes des classes actions
+# sont volontairement larges (lèvent seulement le garbage type clamp, pas le
+# levier 2x/3x). Lower -100 = neutre (déjà couvert par _valid_perf), conservé
+# pour laisser passer les effondrements réels (ETF Russie -99%).
+# Pas de borne pour crypto ni action_individuelle (titres vifs) : légitimement
+# extrêmes (crypto +5000%, D-Wave +3800%).
 PERF_BOUNDS = {
-    "monetaire":  (-25.0, 75.0),
-    "obligation": (-65.0, 250.0),
+    "monetaire":          (-25.0,   75.0),
+    "obligation":         (-65.0,  250.0),
+    "diversifie":         (-90.0,  800.0),
+    "immobilier":         (-90.0,  800.0),
+    "alternatif":         (-95.0,  800.0),
+    "matieres_premieres": (-95.0, 1500.0),
+    "action":            (-100.0, 3000.0),
 }
 
 def _perf_plausible(perf_pct: float | None, asset_class: str | None) -> bool:
