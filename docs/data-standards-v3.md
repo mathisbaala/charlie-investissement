@@ -469,6 +469,22 @@ dans le nom) — restent sans gestionnaire, ce qui est honnête.
 - Screener par défaut validé : Livret A/PEL, iShares Core MSCI World (TER 0,30 %, 19 %/an, vol 12 %),
   PIMCO Income, Pictet Japan — fonds crédibles, métriques réalistes.
 
+### 11.19 Top performers : borne de plausibilité par type (11/06/2026)
+
+- **Artefact d'agglutination ~35,6 %** dans `get_top_performers` pour les titres vifs
+  (`action`). Cause : le plafond anti-aberration `performance_3y <= 150` (perf 3 ans
+  **cumulée**) est pensé pour les fonds diversifiés, mais le tri se fait sur le cumulé
+  décroissant et l'affichage annualise. Pour les actions, +150 % cumulé/3 ans est banal →
+  des milliers de lignes butent au plafond, dont le haut du classement, qui annualise tout
+  à `(1+1,5)^(1/3)−1 ≈ 35,6 %`. La crypto était aussi touchée (BTC & co exclus, BNB plaqué).
+- **Fix** : plafond exempté pour `action` et `crypto` (migration
+  `20260611110000_top_performers_plausibility_per_type`). Conservé pour les fonds
+  (etf/opcvm/obligation/fonds_euros), où il filtre bien le levier/les erreurs ; scpi/livret
+  stockent un taux annuel < 150 %, jamais concernés. Au passage, la RPC — jusqu'ici créée à
+  la main et absente des migrations — est recapturée intégralement (fin du drift).
+- Après fix : actions = vrais leaders dispersés (D-Wave 240 %/an, Rigetti 220 %…), crypto =
+  Bitcoin/Solana remontés, ETF/OPCVM inchangés.
+
 ---
 
 **Version 3.1** — Normalisation + exposition + enrichissement (asset_class_broad 100 %, couche fill-only, GECO +47, secteur 13→77 %, KID plafond gratuit), 05/06/2026, 36 035 fonds.
