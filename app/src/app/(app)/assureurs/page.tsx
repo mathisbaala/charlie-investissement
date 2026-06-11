@@ -7,7 +7,14 @@ import { Search, ChevronRight, Shield } from "@/components/ui/icons";
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
 
 type Insurer = { company: string; funds: number };
-type Contract = { company: string; contract: string; key: string; funds: number };
+type ContractVariant = { contract: string; key: string };
+type Contract = {
+  company: string; contract: string; key: string; funds: number;
+  // Repli des doublons : nombre de contrats partageant exactement ce jeu de fonds
+  // (le représentant inclus) + libellés des autres variantes (mêmes supports).
+  group_size?: number;
+  variants?: ContractVariant[];
+};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -56,15 +63,26 @@ function InsurerCard({ insurer, contracts }: { insurer: Insurer; contracts: Cont
             Par contrat
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {shown.map((c) => (
-              <Link
-                key={c.key}
-                href={contractHref(c.key)}
-                className="text-[11px] px-2 py-1 rounded-full bg-paper-2 border border-line text-ink-2 hover:border-accent/40 hover:text-accent-ink transition-colors"
-              >
-                {c.contract} <span className="text-muted-2">({c.funds.toLocaleString("fr-FR")})</span>
-              </Link>
-            ))}
+            {shown.map((c) => {
+              const variants = c.variants ?? [];
+              return (
+                <Link
+                  key={c.key}
+                  href={contractHref(c.key)}
+                  // Les variantes partagent le même jeu de fonds → le lien sur le
+                  // représentant remonte exactement les mêmes supports.
+                  title={variants.length
+                    ? `Mêmes supports que : ${variants.map((v) => v.contract).join(" · ")}`
+                    : undefined}
+                  className="text-[11px] px-2 py-1 rounded-full bg-paper-2 border border-line text-ink-2 hover:border-accent/40 hover:text-accent-ink transition-colors"
+                >
+                  {c.contract} <span className="text-muted-2">({c.funds.toLocaleString("fr-FR")})</span>
+                  {variants.length > 0 && (
+                    <span className="text-accent ml-1">+{variants.length} variante{variants.length > 1 ? "s" : ""}</span>
+                  )}
+                </Link>
+              );
+            })}
             {!showAll && extra > 0 && (
               <button
                 onClick={() => setShowAll(true)}
