@@ -16,6 +16,7 @@ API GECO (non documentée, reverse-engineered) :
     Retourne JSON paginé, ~100 résultats/page.
 """
 
+import re
 import sys
 import time
 import json
@@ -117,9 +118,18 @@ def map_geco_record(r: dict) -> dict | None:
     inception_raw = r.get("cmpDateCreation") or r.get("dateCreation") or ""
     inception_date = parse_inception_date(inception_raw)
 
-    # ── Type produit : FIA ou UCITS ──
-    prd_faml = r.get("prdFaml", "").upper()
-    product_type = "opcvm"  # on garde opcvm comme type générique
+    # ── Type produit : ETF vs OPCVM ──
+    # NB : prdFaml ('UCITS'/'FIA') NE distingue PAS les ETF — un UCITS peut être
+    # un fonds classique. Le seul signal fiable est le nom. On exclut les
+    # fonds-de-ETF / allocations / coquilles d'ombrelle (cf. migration
+    # 20260611160000) pour ne pas les prendre pour des ETF.
+    _n = name.lower()
+    _is_etf = bool(re.search(r"ucits[\s\-]?etf", _n)) or (
+        re.search(r"\betf\b", _n)
+        and not re.search(r"s[ée]lection|allocation|\bselect\b|portfolio|multi[\s\-]?manager|profil", _n)
+        and not re.search(r"etf\s+(ii\s+)?(icav|plc)\s*$", _n)
+    )
+    product_type = "etf" if _is_etf else "opcvm"
 
     # ── Statut ──
     statut = r.get("cmpStatutCode", "")  # VIV=vivant, LQD=liquidé
