@@ -72,6 +72,30 @@ def _clamp(v: float | None) -> float | None:
     return max(-PERF_MAX, min(PERF_MAX, v))
 
 
+# Bornes de plausibilité de la perf CUMULÉE (en %) par classe d'actifs. Une perf
+# hors bande trahit une série NAV corrompue (point aberrant en début/fin de
+# fenêtre) : on PURGE (écrit None) plutôt que d'écrire une valeur impossible —
+# ex. fonds d'État à -95%, fonds monétaire à +820%. _valid_perf ne rejette que
+# les pertes ≥ 100% et ignore la classe d'actifs, d'où ce garde complémentaire.
+# Pas de borne pour action/diversifie/immobilier/alternatif/matieres_premieres/
+# crypto/action_individuelle : légitimement extrêmes (crypto +5000%, Russie -99%).
+PERF_BOUNDS = {
+    "monetaire":  (-25.0, 75.0),
+    "obligation": (-65.0, 250.0),
+}
+
+def _perf_plausible(perf_pct: float | None, asset_class: str | None) -> bool:
+    """Vrai si la perf cumulée est plausible pour la classe d'actifs. Sert à
+    écarter les séries NAV corrompues sur les classes peu volatiles."""
+    if perf_pct is None:
+        return False
+    bounds = PERF_BOUNDS.get(asset_class or "")
+    if bounds is None:
+        return True
+    lo, hi = bounds
+    return lo <= perf_pct <= hi
+
+
 def volatility_annualized(prices: list[float]) -> float | None:
     """Volatilité annualisée des rendements hebdomadaires."""
     if len(prices) < 4:
@@ -121,7 +145,8 @@ def _valid_perf(prices: list[float], min_points: int, span_days: int, min_span: 
     return p is not None and p > -1.0
 
 
-def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=None) -> dict:
+def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=None,
+                         asset_class=None) -> dict:
     metrics = {}
     spans = spans or {"1y": 0, "3y": 0, "5y": 0}
 
@@ -131,8 +156,9 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
     # les valeurs aberrantes écrites par les scrapers (au lieu de les laisser).
 
     # ── 1Y ──
-    if _valid_perf(prices_1y, MIN_POINTS_1Y, spans["1y"], MIN_SPAN_1Y):
-        metrics["performance_1y"]  = _clamp(round(perf_total(prices_1y) * 100, 4))
+    p1y = _clamp(round(perf_total(prices_1y) * 100, 4)) if _valid_perf(prices_1y, MIN_POINTS_1Y, spans["1y"], MIN_SPAN_1Y) else None
+    if _perf_plausible(p1y, asset_class):
+        metrics["performance_1y"]  = p1y
         dd = max_drawdown(prices_1y)
         if dd is not None:
             metrics["max_drawdown_1y"] = round(dd * 100, 4)
@@ -145,8 +171,9 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
         metrics["performance_1y"] = None
 
     # ── 3Y ──
-    if _valid_perf(prices_3y, MIN_POINTS_3Y, spans["3y"], MIN_SPAN_3Y):
-        metrics["performance_3y"]  = _clamp(round(perf_total(prices_3y) * 100, 4))
+    p3y = _clamp(round(perf_total(prices_3y) * 100, 4)) if _valid_perf(prices_3y, MIN_POINTS_3Y, spans["3y"], MIN_SPAN_3Y) else None
+    if _perf_plausible(p3y, asset_class):
+        metrics["performance_3y"]  = p3y
         dd3 = max_drawdown(prices_3y)
         if dd3 is not None:
             metrics["max_drawdown_3y"] = round(dd3 * 100, 4)
@@ -159,8 +186,9 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
         metrics["performance_3y"] = None
 
     # ── 5Y ──
-    if _valid_perf(prices_5y, MIN_POINTS_5Y, spans["5y"], MIN_SPAN_5Y):
-        metrics["performance_5y"] = _clamp(round(perf_total(prices_5y) * 100, 4))
+    p5y = _clamp(round(perf_total(prices_5y) * 100, 4)) if _valid_perf(prices_5y, MIN_POINTS_5Y, spans["5y"], MIN_SPAN_5Y) else None
+    if _perf_plausible(p5y, asset_class):
+        metrics["performance_5y"] = p5y
     else:
         metrics["performance_5y"] = None
 
@@ -233,6 +261,21 @@ def fetch_prices_for_isin(client, isin: str) -> dict[str, list[float]]:
     }
 
 
+def fetch_asset_classes(client, isins: list[str]) -> dict[str, str | None]:
+    """Map isin → asset_class_broad, pour borner la plausibilité des perfs
+    (cf. PERF_BOUNDS). Récupéré par lots pour éviter le plafond PostgREST."""
+    out: dict[str, str | None] = {}
+    CHUNK = 500
+    for i in range(0, len(isins), CHUNK):
+        rows = client.table("investissement_funds") \
+            .select("isin, asset_class_broad") \
+            .in_("isin", isins[i:i + CHUNK]) \
+            .execute().data or []
+        for r in rows:
+            out[r["isin"]] = r.get("asset_class_broad")
+    return out
+
+
 def run(apply: bool, limit: int | None, isin_filter: str | None):
     print("=" * 60)
     print("  Compute Metrics — Sharpe, Volatilité, Performances")
@@ -264,6 +307,10 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
         isins = isins[:limit]
 
     print(f"  {len(isins)} fonds avec historique de prix à traiter")
+
+    # Classe d'actifs par ISIN → garde de plausibilité des perfs (PERF_BOUNDS).
+    acb_map = fetch_asset_classes(client, isins)
+    print(f"  {len(acb_map)} classes d'actifs chargées (garde plausibilité)")
     print()
 
     updates   = []
@@ -296,6 +343,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             prices_all=prices["all"],
             rf=rf,
             spans=prices["span"],
+            asset_class=acb_map.get(isin),
         )
 
         if not metrics:
