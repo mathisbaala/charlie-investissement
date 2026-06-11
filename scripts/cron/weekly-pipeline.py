@@ -39,6 +39,9 @@ WEEKLY_STEPS = [
      ["--refresh", "--no-holdings", "--limit", TOP_BY_AUM,
       "--workers", "6", "--delay", "0.15"]),
     ("enrichers/compute-metrics.py", []),
+    # Encours rafraîchis ci-dessus → recalcule le représentant share-class
+    # (is_primary_share_class) qui porte la dédup de /api/funds.
+    ("enrichers/refresh-primary-share-class.py", []),
 ]
 
 

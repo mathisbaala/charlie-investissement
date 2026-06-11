@@ -9,6 +9,10 @@ let countResult: any;
 // Capture les bornes du dernier .range(from, to) de la requête de données (pas de la
 // requête count-only head), pour vérifier le calcul d'offset de la pagination.
 let lastRange: { from: number; to: number } | null;
+// Capture les .eq(col, val) par type de requête (données vs count-only head), pour
+// vérifier que la dédup is_primary_share_class est appliquée des deux côtés.
+let eqData: Array<[string, any]>;
+let eqHead: Array<[string, any]>;
 
 function makeBuilder() {
   let isHead = false;
@@ -21,9 +25,14 @@ function makeBuilder() {
       Promise.resolve(isHead ? countResult : dataResult).then(resolve),
   };
   // Toutes les méthodes de filtre/tri renvoient le builder.
-  for (const m of ["gte", "lte", "eq", "in", "or", "not", "overlaps", "ilike", "order"]) {
+  for (const m of ["gte", "lte", "in", "or", "not", "overlaps", "ilike", "order"]) {
     builder[m] = () => builder;
   }
+  // eq : on enregistre (col, val) selon le type de requête.
+  builder.eq = (col: string, val: any) => {
+    (isHead ? eqHead : eqData).push([col, val]);
+    return builder;
+  };
   // range : on enregistre les bornes (uniquement pour la requête de données).
   builder.range = (from: number, to: number) => {
     if (!isHead) lastRange = { from, to };
@@ -48,6 +57,8 @@ describe("GET /api/funds — robustesse pagination", () => {
     dataResult = { data: null, error: null, count: null };
     countResult = { data: null, error: null, count: null };
     lastRange = null;
+    eqData = [];
+    eqHead = [];
   });
 
   // Régression : un crawler paginant au-delà des résultats (?page=500) provoquait
@@ -155,5 +166,30 @@ describe("GET /api/funds — robustesse pagination", () => {
     // total = count brut exact, indépendant de la dédup intra-page.
     expect(body.total).toBe(137);
     expect(body.total_pages).toBe(Math.ceil(137 / 50));
+  });
+
+  // Dédup share-class portée par la DB : la requête de données doit filtrer
+  // is_primary_share_class = true (un seul représentant par groupe) → OFFSET/LIMIT
+  // exacts sur les fonds uniques.
+  it("filtre is_primary_share_class sur la requête de données", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+
+    await GET(req("?page=1&per_page=50"));
+    expect(eqData).toContainEqual(["is_primary_share_class", true]);
+  });
+
+  // Le même filtre doit s'appliquer à la requête count-only du chemin 416, sinon le
+  // `total` d'une page hors-limites compterait les share-classes (≠ fonds uniques).
+  it("filtre is_primary_share_class aussi sur la requête count-only (416)", async () => {
+    dataResult = {
+      data: null,
+      error: { code: "PGRST103", message: "Requested range not satisfiable" },
+      count: null,
+    };
+    countResult = { data: null, error: null, count: 137 };
+
+    const res = await GET(req("?page=500&per_page=50"));
+    expect(res.status).toBe(200);
+    expect(eqHead).toContainEqual(["is_primary_share_class", true]);
   });
 });
