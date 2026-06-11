@@ -15,7 +15,10 @@ concurrency:
 jobs:
   weekly:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360 # rotation FT (~2h45) + filet ETF JustETF (~45min) + métriques
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -33,3 +36,24 @@ jobs:
 
       - name: Pipeline hebdomadaire
         run: python3 scripts/cron/weekly-pipeline.py
+
+      # Alerte persistante si une étape ci-dessus a échoué : commente l'issue
+      # ouverte existante (pas de spam) ou en crée une. GITHUB_TOKEN intégré,
+      # aucun secret externe requis.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-pipeline-hebdo]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement hebdomadaire a échoué." \
+              "Run : $RUN_URL" \
+              "À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement hebdomadaire en échec" --body-file -
+          fi
