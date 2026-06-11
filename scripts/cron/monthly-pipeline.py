@@ -36,6 +36,10 @@ MONTHLY_STEPS = [
     # Gap-fill complet ci-dessus (encours + nouveaux groupes) → recalcule le
     # représentant share-class (is_primary_share_class) qui porte la dédup de /api/funds.
     ("enrichers/refresh-primary-share-class.py", []),
+    # Tracking difference des ETF : rafraîchit d'abord les séries d'indices de
+    # référence (Yahoo), puis recalcule la TD 1Y/3Y/5Y vs indice TR. Après
+    # compute-metrics (a besoin de VL/perfs à jour). Fill/recompute, non destructif.
+    ("enrichers/td-enricher.py", ["--refresh-indices"]),
 ]
 
 

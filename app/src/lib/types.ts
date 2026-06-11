@@ -364,6 +364,13 @@ export type FundDetailHF = {
   max_drawdown_3y: number | null;
   ongoing_charges: number | null;
   ter: number | null;
+  // Tracking difference (migration 20260611100000) — coût réel d'un ETF vs son
+  // indice net TR. Stockée déjà annualisée en % (négatif = sous-performance).
+  benchmark_index: string | null;
+  benchmark_variant: string | null;   // 'net' | 'gross' | 'price'
+  tracking_diff_1y: number | null;
+  tracking_diff_3y: number | null;
+  tracking_diff_5y: number | null;
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;
