@@ -73,7 +73,9 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
           <p className="text-[10px] text-muted-2 mt-3 leading-snug">
             TD = performance de l&apos;ETF − performance de l&apos;indice. Une valeur
             négative signale une sous-performance (coût implicite) ; une valeur
-            légèrement positive, une réplication optimisée (ex. prêt de titres).
+            légèrement positive, une réplication optimisée (swap, prêt de titres).
+            Estimation indicative, calculée vs l&apos;indice {variant} converti dans
+            la devise de la part — à confirmer par la donnée officielle de l&apos;émetteur.
           </p>
         </>
       ) : (
