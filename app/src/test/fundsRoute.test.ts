@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // (select avec { head: true }) déclenchée dans le chemin d'erreur 416.
 let dataResult: any;
 let countResult: any;
+// Capture les bornes du dernier .range(from, to) de la requête de données (pas de la
+// requête count-only head), pour vérifier le calcul d'offset de la pagination.
+let lastRange: { from: number; to: number } | null;
 
 function makeBuilder() {
   let isHead = false;
@@ -17,10 +20,15 @@ function makeBuilder() {
     then: (resolve: (v: any) => any) =>
       Promise.resolve(isHead ? countResult : dataResult).then(resolve),
   };
-  // Toutes les méthodes de filtre/tri/range renvoient le builder.
-  for (const m of ["gte", "lte", "eq", "in", "or", "not", "overlaps", "ilike", "order", "range"]) {
+  // Toutes les méthodes de filtre/tri renvoient le builder.
+  for (const m of ["gte", "lte", "eq", "in", "or", "not", "overlaps", "ilike", "order"]) {
     builder[m] = () => builder;
   }
+  // range : on enregistre les bornes (uniquement pour la requête de données).
+  builder.range = (from: number, to: number) => {
+    if (!isHead) lastRange = { from, to };
+    return builder;
+  };
   return builder;
 }
 
@@ -39,6 +47,7 @@ describe("GET /api/funds — robustesse pagination", () => {
   beforeEach(() => {
     dataResult = { data: null, error: null, count: null };
     countResult = { data: null, error: null, count: null };
+    lastRange = null;
   });
 
   // Régression : un crawler paginant au-delà des résultats (?page=500) provoquait
@@ -110,5 +119,41 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(body.data[0].isin).toBe("FR0000000001");
     // Frontière API : frais fraction (DB) → % (×100).
     expect(body.data[0].ter).toBeCloseTo(1);
+  });
+
+  // Régression : l'offset doit avancer de perPage par page, PAS de perPage×5.
+  // L'ancien overfetch ×5 (offset = (page-1)·perPage·5) sautait 5× trop loin →
+  // ~80 % des pages annoncées renvoyaient une liste vide et ~76 % des fonds
+  // étaient inatteignables. page=3, per_page=50 → range(100, 149).
+  it("l'offset suit perPage et non perPage×5", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+
+    await GET(req("?page=3&per_page=50"));
+    expect(lastRange).toEqual({ from: 100, to: 149 });
+  });
+
+  // Régression : total = count exact (count: "exact"), pas une estimation par ratio
+  // de dédup ; total_pages couvre toutes les pages. La dédup share-class reste
+  // appliquée à l'intérieur de la page (g1 dédupliqué → garde le plus gros encours).
+  it("total = count exact et dédup share-class intra-page", async () => {
+    dataResult = {
+      data: [
+        { isin: "FR0000000001", aum_eur: 2000, share_class_group_id: "g1", ter: 0.01, ongoing_charges: 0.012 },
+        { isin: "FR0000000002", aum_eur: 1000, share_class_group_id: "g1", ter: 0.02, ongoing_charges: 0.022 },
+        { isin: "FR0000000003", aum_eur: 5000, share_class_group_id: "g2", ter: 0.03, ongoing_charges: 0.032 },
+      ],
+      error: null,
+      count: 137,
+    };
+
+    const res = await GET(req("?page=1&per_page=50"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // g1 fusionné (garde l'encours 2000 = FR0000000001), g2 conservé.
+    expect(body.data).toHaveLength(2);
+    expect(body.data.map((f: any) => f.isin)).toEqual(["FR0000000001", "FR0000000003"]);
+    // total = count brut exact, indépendant de la dédup intra-page.
+    expect(body.total).toBe(137);
+    expect(body.total_pages).toBe(Math.ceil(137 / 50));
   });
 });
