@@ -120,6 +120,15 @@ def classify(name: str, product_type: str | None, asset_class: str | None,
         out["asset_class_broad"] = "immobilier"
     elif product_type == "crypto":
         out["asset_class_broad"] = "crypto"
+    elif (re.search(r"\b(bitcoin|btc|ethereum|crypto(currenc\w*|monnaie)?|stablecoin|digital\s+asset)\b", nm)
+          and product_type != "action"  # titres vifs (Bitcoin Group SE…) restent action_individuelle
+          and not re.search(r"\b(equit(y|ies)|actions?|stock)\b", nm)):  # ETF d'ACTIONS de sociétés crypto restent action
+        # Exposition crypto directe nommée (Bitcoin/BTC/crypto…, ETP physique,
+        # fonds Bitcoin) — la catégorie source AMF les range souvent en
+        # « diversifie »/« actions »/« alternatif » faute de catégorie crypto.
+        # NB : « Bitcoin Equities »/« Blockchain Equity » (actions de sociétés)
+        # ne matchent PAS ici → restent action, par design.
+        out["asset_class_broad"] = "crypto"
     elif product_type == "action" and "etf" not in nm:
         # Action individuelle
         out["asset_class_broad"] = "action_individuelle"
