@@ -322,13 +322,18 @@ def enrich_one(isin: str, currency: str | None, with_holdings: bool = True) -> d
 
 # ─── Sélection des cibles ────────────────────────────────────────────────────
 
-def select_targets(client, limit: int | None, refresh: bool = False):
+def select_targets(client, limit: int | None, refresh: bool = False,
+                   offset: int = 0):
     """Fonds OPCVM/ETF avec ISIN valide, priorité aux plus gros encours.
 
     Par défaut (peuplement) : ceux à qui il manque perf_3y OU des frais.
     En mode refresh : tous (on re-fetche la VL courante pour garder les
-    séries de prix fraîches, même sur des fonds déjà complets)."""
-    targets, page, size = [], 0, 1000
+    séries de prix fraîches, même sur des fonds déjà complets).
+
+    offset : saute les N premières cibles éligibles (après tri par encours
+    décroissant) avant de collecter. Permet le balayage par rotation de la
+    longue traîne — voir weekly-pipeline.py."""
+    targets, page, size, skipped = [], 0, 1000, 0
     while True:
         q = (client.table("investissement_funds")
              .select("isin,currency,name,performance_3y,ongoing_charges,ter")
@@ -341,6 +346,9 @@ def select_targets(client, limit: int | None, refresh: bool = False):
         for r in rows:
             isin = (r.get("isin") or "").strip()
             if re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", isin):
+                if skipped < offset:
+                    skipped += 1
+                    continue
                 targets.append({"isin": isin, "currency": r.get("currency")})
                 if limit and len(targets) >= limit:
                     return targets
@@ -407,7 +415,8 @@ def write_breakdowns(client, results: list[dict]) -> dict:
 
 
 def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
-        delay: float, with_holdings: bool = True, refresh: bool = False):
+        delay: float, with_holdings: bool = True, refresh: bool = False,
+        offset: int = 0):
     print("=" * 64)
     print("  FT Enricher — markets.ft.com (Morningstar)")
     print("=" * 64)
@@ -424,7 +433,7 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         targets = [{"isin": i, "currency": c}]
     else:
         print("  Sélection des cibles…", flush=True)
-        targets = select_targets(client, limit, refresh=refresh)
+        targets = select_targets(client, limit, refresh=refresh, offset=offset)
     print(f"  {len(targets)} fonds à traiter   (workers={workers}, delay={delay}s)\n")
 
     results, found, fields_total, prices_total, errors = [], 0, 0, 0, []
@@ -520,7 +529,9 @@ if __name__ == "__main__":
                     help="Ne pas récupérer holdings/secteurs/régions (1 requête/fonds en moins)")
     ap.add_argument("--refresh", action="store_true",
                     help="Rafraîchir la VL de TOUS les OPCVM/ETF (pas seulement ceux incomplets)")
+    ap.add_argument("--offset", type=int, default=0,
+                    help="Sauter les N premières cibles (tri encours décroissant) — rotation longue traîne")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
         workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
-        refresh=a.refresh)
+        refresh=a.refresh, offset=a.offset)
