@@ -506,6 +506,28 @@ def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 
     return inserted, failed
 
 
+# ─── Référencement assureur ─────────────────────────────────────────────────────
+
+def refresh_fund_insurers_mv() -> bool:
+    """
+    Rafraîchit la matview investissement_fund_insurers_mv (référencement
+    fonds ↔ assureur/contrat) via le RPC inv_refresh_fund_insurers_mv.
+
+    À appeler après tout run de scraper d'éligibilité, ou en fin de pipeline
+    modifiant share_class_group_id / is_primary_share_class / data_completeness
+    (la MV propage le référencement au groupe de share-classes et n'est lue que
+    sur la primaire — cf. migration 20260611200000). Sans ça, le screener
+    affiche un référencement périmé. Non bloquant : log + False en cas d'échec.
+    """
+    client = get_client()
+    try:
+        client.rpc("inv_refresh_fund_insurers_mv").execute()
+        return True
+    except Exception as e:
+        print(f"  ⚠️  refresh_fund_insurers_mv échoué (non bloquant) : {e}")
+        return False
+
+
 # ─── Log pipeline ──────────────────────────────────────────────────────────────
 
 def log_run(
