@@ -59,18 +59,27 @@ TD_MAX = 9999.9999  # plafond numeric(8,4)
 # `variant` ∈ {net, gross, price} : qualité de l'indice comme référence de coût.
 #   - net   : reinvestit les dividendes NETS de retenue à la source → référence idéale.
 #   - gross : dividendes BRUTS → surévalue légèrement l'indice (TD un peu pessimiste).
-#   - price : hors dividendes → NE PAS conclure sur le coût (signalé comme approx.).
-# On reste conservateur : on ne mappe que sur signal clair (mots-clés présents
-# dans la catégorie/le nom de l'ETF), pour ne jamais attribuer un mauvais indice.
+#   - price : hors dividendes → INTERDIT pour la TD (voir garde plus bas).
+#
+# ⚠️ La TD n'a de sens QUE contre un indice TOTAL RETURN (dividendes réinvestis).
+# Contre un indice « price » (hors dividendes), la TD ressort faussement très
+# positive (≈ le rendement du dividende) — l'inverse d'une mesure de coût. On ne
+# garde donc QUE des indices net/gross dont le ticker Yahoo est fiable :
+#   - ^SP500TR : S&P 500 gross TR (US → pas de retenue, ≈ net). 1500+ points.
+#   - ^GDAXI   : DAX, indice de PERFORMANCE = gross TR (réinvestit les dividendes).
+# Les indices européens net/gross (EURO STOXX 50, STOXX 600, CAC 40 GR/NR…) et le
+# Nasdaq 100 TR ne sont pas exposés en gratuit sur Yahoo (404 / 1 point) : à
+# rebrancher quand une source TR fiable est disponible. On reste conservateur :
+# mapping uniquement sur signal clair (mots-clés), jamais un indice approché.
+# ⚠️ DEVISE : l'indice est libellé dans UNE devise (`ccy`). Comparer un ETF
+# d'une AUTRE devise mesure le change, PAS le coût (un ETF S&P 500 en EUR vs
+# l'indice en USD ressort à ±15 % = mouvement EUR/USD). On ne calcule donc la TD
+# QUE si la devise de la part de l'ETF == la devise de l'indice.
 INDEX_CATALOG: dict[str, dict] = {
-    "sp500":      {"label": "S&P 500",            "ticker": "^SP500TR",  "variant": "gross", "kw": ["s&p 500", "sp 500", "s&p500", "sp500"]},
-    "nasdaq100":  {"label": "Nasdaq 100",         "ticker": "^XNDX",     "variant": "gross", "kw": ["nasdaq 100", "nasdaq-100", "nasdaq100"]},
-    "eurostoxx50":{"label": "EURO STOXX 50",      "ticker": "^SX5T",     "variant": "net",   "kw": ["euro stoxx 50", "eurostoxx 50", "euro stoxx50"]},
-    "stoxx600":   {"label": "STOXX Europe 600",   "ticker": "^SXXR",     "variant": "net",   "kw": ["stoxx europe 600", "stoxx 600", "stoxx600"]},
-    "dax":        {"label": "DAX",                "ticker": "^GDAXI",    "variant": "gross", "kw": ["dax 40", " dax ", "dax index"]},
-    "cac40":      {"label": "CAC 40",             "ticker": "^FCHI",     "variant": "price", "kw": ["cac 40", "cac40"]},
-    "ftse100":    {"label": "FTSE 100",           "ticker": "^FTSE",     "variant": "price", "kw": ["ftse 100", "ftse100"]},
-    "nikkei225":  {"label": "Nikkei 225",         "ticker": "^N225",     "variant": "price", "kw": ["nikkei 225", "nikkei225"]},
+    "sp500": {"label": "S&P 500", "ticker": "^SP500TR", "variant": "gross", "ccy": "USD",
+              "kw": ["s&p 500", "sp 500", "s&p500", "sp500"]},
+    "dax":   {"label": "DAX",     "ticker": "^GDAXI",   "variant": "gross", "ccy": "EUR",
+              "kw": ["dax 40", " dax ", "dax index"]},
 }
 
 
@@ -289,12 +298,23 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     client = get_client()
 
     # ETF candidats (passifs/indiciels) avec catégorie pour le mapping d'indice.
-    q = client.table("investissement_funds") \
-        .select("isin, name, category, category_normalized, product_type, management_style") \
-        .eq("product_type", "etf")
+    # Pagination obligatoire : PostgREST plafonne à 1000 lignes/requête et
+    # l'univers compte ~2000 ETF (sans ça, la moitié était ignorée).
+    funds: list[dict] = []
+    sel = "isin, name, category, category_normalized, product_type, management_style, currency"
     if isin_filter:
-        q = q.eq("isin", isin_filter)
-    funds = q.execute().data or []
+        funds = client.table("investissement_funds").select(sel) \
+            .eq("product_type", "etf").eq("isin", isin_filter).execute().data or []
+    else:
+        offset, page = 0, 1000
+        while True:
+            chunk = client.table("investissement_funds").select(sel) \
+                .eq("product_type", "etf") \
+                .order("isin").range(offset, offset + page - 1).execute().data or []
+            funds.extend(chunk)
+            if len(chunk) < page:
+                break
+            offset += page
     if limit:
         funds = funds[:limit]
     print(f"  {len(funds)} ETF à examiner")
@@ -302,7 +322,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     # Pré-charge les séries d'indices utilisées (une fois chacune).
     idx_cache: dict[str, IndexSeries] = {}
     updates: list[dict] = []
-    mapped = unmapped = computed = 0
+    mapped = unmapped = computed = mismatch_ccy = 0
 
     for i, fund in enumerate(funds, 1):
         if i % 1500 == 0:
@@ -311,6 +331,15 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         code = map_index(fund)
         if not code:
             unmapped += 1
+            continue
+        meta = INDEX_CATALOG[code]
+        # Garde-fou 1 : jamais de TD contre un indice price-only (TD trompeuse).
+        if meta["variant"] == "price":
+            unmapped += 1
+            continue
+        # Garde-fou 2 : devise ETF == devise indice, sinon on mesure le change.
+        if (fund.get("currency") or "").upper() != meta["ccy"]:
+            mismatch_ccy += 1
             continue
         mapped += 1
 
@@ -335,7 +364,6 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if td1 is None and td3 is None and td5 is None:
             continue
 
-        meta = INDEX_CATALOG[code]
         updates.append({
             "isin": fund["isin"],
             "benchmark_index": meta["label"],
@@ -350,8 +378,8 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if i % 200 == 0:
             print(f"  [{i:5d}/{len(funds)}] mappés:{mapped} calculés:{computed}")
 
-    print(f"\n  → {mapped} ETF mappés à un indice, {unmapped} non mappés, "
-          f"{computed} TD calculées")
+    print(f"\n  → {mapped} ETF mappés (devise OK), {unmapped} non mappés, "
+          f"{mismatch_ccy} écartés (devise ≠ indice), {computed} TD calculées")
 
     if apply and updates:
         print(f"  Écriture dans Supabase ({len(updates)} ETF)…", end=" ", flush=True)
