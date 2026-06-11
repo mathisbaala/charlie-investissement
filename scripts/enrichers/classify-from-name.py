@@ -128,12 +128,33 @@ def classify(name: str, product_type: str | None, asset_class: str | None,
     elif product_type == "obligation":
         out["asset_class_broad"] = "obligation"
     else:
-        for pattern, broad, allowed_types in ASSET_CLASS_RULES:
-            if allowed_types and product_type and product_type not in allowed_types:
-                continue
-            if re.search(pattern, nm, re.IGNORECASE):
-                out["asset_class_broad"] = broad
-                break
+        # La catégorie source (plus fiable que l'heuristique nom) prime quand elle
+        # désigne nettement une classe d'actifs — sinon les règles ordonnées sur le
+        # nom mal-classent (« Actions Dynamique » → diversifie, « Actions Or » →
+        # matieres_premieres, fonds oblig à part « ACTION » → action). Cf. migration
+        # 20260611210000.
+        cat_l = _norm(category or "")
+        cat_broad = None
+        if re.search(r"\bmon[ée]taire\b|money\s*market", cat_l):
+            cat_broad = "monetaire"
+        elif re.search(r"\boblig", cat_l):
+            cat_broad = "obligation"
+        elif re.search(r"\bimmobil|\bscpi\b|\bopci\b|real\s*estate", cat_l):
+            cat_broad = "immobilier"
+        elif (re.search(r"\bactions?\b", cat_l)
+              and not re.search(r"mixte|divers|allocation|flexible", cat_l)
+              and not re.search(r"absolute\s*return|long\s*short|market\s*neutral|hedge|\bshort\b|inverse|2x|3x|levier|leverage", nm)):
+            cat_broad = "action"
+
+        if cat_broad:
+            out["asset_class_broad"] = cat_broad
+        else:
+            for pattern, broad, allowed_types in ASSET_CLASS_RULES:
+                if allowed_types and product_type and product_type not in allowed_types:
+                    continue
+                if re.search(pattern, nm, re.IGNORECASE):
+                    out["asset_class_broad"] = broad
+                    break
 
     # region
     for pattern, region in REGION_RULES:
