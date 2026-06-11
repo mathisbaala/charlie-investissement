@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
 import { searchWords, searchOrClause } from "@/lib/search";
+import { logEvent, activeFilters } from "@/lib/analytics";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -232,5 +233,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     per_page: perPage,
     total_pages: Math.ceil(total / perPage),
   };
+
+  // Télémétrie : on ne journalise que les recherches « signifiantes » — première page
+  // (= une visite du screener) ou toute requête filtrée. La pagination profonde (page>1
+  // sans filtre) est du bruit (crawlers, défilement) et est ignorée.
+  const filters = activeFilters({
+    sfdr, sri_min: sriMin, sri_max: sriMax, ter_max: terMax,
+    perf_1y_min: p1yMin, perf_3y_min: p3yMin, vol_max: volMax, sharpe_min: shMin,
+    aum_min: aumMin, track_record_min: trMin, morningstar_min: mstarMin,
+    retrocession_min: retroMin, envelopes, universe, asset_class: assetClasses,
+    insurer: insurers, contracts, region: regions, sector: sectors,
+    exclude_sector: exclSectors, exclude_region: exclRegions,
+    management_style: mgmtStyles, currency, manager_search: mgr,
+    gestionnaire_in: gestIn, has_kid: hasKid || undefined,
+  });
+  if (page === 1 || filters || search) {
+    logEvent(req, {
+      event_type: "search",
+      query: search || null,
+      filters,
+      result_count: total,
+      meta: { sort_by: safeSort, page },
+    });
+  }
+
   return NextResponse.json(resp);
 }
