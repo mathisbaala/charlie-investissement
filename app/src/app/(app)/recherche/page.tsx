@@ -148,8 +148,10 @@ function RechercheInner() {
 
   const initialEnvelopes = searchParams.get("envelopes");
   const initialUniverse  = searchParams.get("universe");
+  const initialInsurer   = searchParams.get("insurer");
+  const initialContracts = searchParams.get("contracts");
   const initialSortBy    = searchParams.get("sort_by");
-  const hasInitialFilter = !!(initialQ || initialEnvelopes || initialUniverse);
+  const hasInitialFilter = !!(initialQ || initialEnvelopes || initialUniverse || initialInsurer || initialContracts);
   const [hasSearched, setHasSearched] = useState(hasInitialFilter);
 
   // Results
@@ -177,6 +179,7 @@ function RechercheInner() {
     const cache = loadSearchCache();
     const canRestore =
       cache && !initialUniverse && !initialEnvelopes &&
+      !initialInsurer && !initialContracts &&
       (!initialQ || initialQ === cache.query);
     if (canRestore && cache) {
       skipNextFetch.current = true;
@@ -200,6 +203,13 @@ function RechercheInner() {
     } else if (initialEnvelopes) {
       const envelopes = initialEnvelopes.split(",").filter(Boolean) as ParsedFilters["envelopes"];
       setFilters({ envelopes });
+    } else if (initialInsurer || initialContracts) {
+      // Arrivée depuis l'annuaire des assurances vie (/assureurs) : on amorce
+      // directement le filtre assureur / contrat, sans passer par l'analyse NLP.
+      const next: ParsedFilters = {};
+      if (initialInsurer)   next.insurers  = initialInsurer.split(",").filter(Boolean);
+      if (initialContracts) next.contracts = initialContracts.split(",").filter(Boolean);
+      setFilters(next);
     } else if (initialQ) {
       setQuery(initialQ);
       setParsing(true);
@@ -210,7 +220,7 @@ function RechercheInner() {
         setParsing(false);
       });
     }
-  }, [initialized, initialQ, initialEnvelopes, initialUniverse]);
+  }, [initialized, initialQ, initialEnvelopes, initialUniverse, initialInsurer, initialContracts]);
 
   // Persist profile changes
   useEffect(() => {
