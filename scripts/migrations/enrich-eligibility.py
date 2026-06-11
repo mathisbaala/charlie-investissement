@@ -42,9 +42,13 @@ CTO_NOT_ELIGIBLE_TYPES = frozenset({"fonds_euros", "livret"})
 AV_FR_ELIGIBLE_TYPES  = frozenset({"opcvm", "etf", "fcp", "sicav", "fonds_euros"})
 AV_FR_ELIGIBLE_ISINS  = ("FR", "LU", "IE")   # domiciles UCITS courants
 
+# PEA-PME = agrément réglementaire (≥75 % de titres de PME-ETI européennes
+# éligibles), déclaré fonds par fonds — PAS dérivable de « small cap ».
+# On ne retient donc QUE les noms explicitement PME / PEA-PME / PME-ETI, sinon
+# on génère des faux positifs massifs (cf. migration 20260611130000).
 PEA_PME_KEYWORDS = re.compile(
-    r"pea[\s\-]?pme|small\s*cap|petites?\s*(?:et\s*moyennes?\s*)?entreprises?|"
-    r"\bpme\b|mid[\s\-]?cap|micro[\s\-]?cap|valeurs?\s*moyennes?",
+    r"pea[\s\-]?pme|pme[\s\-]?eti|"
+    r"petites?\s*(?:et\s*moyennes?\s*)?entreprises?|\bpme\b",
     re.IGNORECASE,
 )
 
