@@ -64,6 +64,8 @@ def compute_eligibility(fund: dict) -> dict:
     result: dict[str, bool | None] = {
         "cto_eligible": None,
         "av_fr_eligible": None,
+        "av_lux_eligible": None,
+        "per_eligible": None,
         "pea_pme_eligible": None,
     }
 
@@ -83,6 +85,13 @@ def compute_eligibility(fund: dict) -> dict:
             result["av_fr_eligible"] = False
     elif pt in ("action", "obligation", "crypto", "livret"):
         result["av_fr_eligible"] = False
+
+    # PER & AV-Luxembourg : aucune de ces enveloppes ne détient de titres vifs
+    # en direct (uniquement des supports/fonds). On marque donc négatif les
+    # types « securité en direct » (cf. migration 20260611190000).
+    if pt in ("action", "obligation", "crypto", "livret"):
+        result["per_eligible"] = False
+        result["av_lux_eligible"] = False
 
     # PEA-PME
     if pt in CTO_NOT_ELIGIBLE_TYPES or pt in ("action", "obligation", "crypto", "livret", "fps", "fpci", "fcpr"):
@@ -108,7 +117,7 @@ def run(apply: bool, recalc: bool) -> None:
 
     fields = (
         "isin,product_type,name,category_normalized,"
-        "pea_eligible,av_fr_eligible,pea_pme_eligible,cto_eligible"
+        "pea_eligible,av_fr_eligible,av_lux_eligible,per_eligible,pea_pme_eligible,cto_eligible"
     )
 
     offset  = 0
