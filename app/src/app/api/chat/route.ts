@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { logEvent } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const limited = await aiRateLimit(req, AI_COST.chat);
     if (limited) return limited;
+
+    // Télémétrie : usage du chat (volume + longueur de conversation). On ne journalise
+    // PAS le contenu des messages (questions du CGP), seulement le nombre de tours.
+    logEvent(req, { event_type: "chat", meta: { turns: messages.length } });
 
     const stream = await client.messages.stream({
       model: "claude-sonnet-4-6",

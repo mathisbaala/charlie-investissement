@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct, annualizeForType } from "@/lib/format";
+import { logEvent } from "@/lib/analytics";
 import type { FundDetailHF, FundHoldingHF, FundBreakdownHF, NavPointHF } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 const ISIN_RE = /^[A-Z0-9][A-Z0-9_]{1,29}$/i;
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ isin: string }> }
 ): Promise<NextResponse> {
   const { isin } = await params;
@@ -167,6 +168,13 @@ export async function GET(
     sectors,
     geos,
   };
+
+  // Télémétrie : consultation d'une fiche fonds (alimente le top des fonds les plus vus).
+  logEvent(req, {
+    event_type: "fund_view",
+    isin: fund.isin,
+    meta: { name: fund.name, product_type: fund.product_type },
+  });
 
   return NextResponse.json(
     { data: detail },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { scoreFunds, ClientProfile } from "@/lib/matching";
 import { feeFracToPct } from "@/lib/format";
+import { logEvent } from "@/lib/analytics";
 import type { MatchingResponse } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -52,6 +53,17 @@ export async function POST(req: NextRequest) {
   }));
 
   const ranked = scoreFunds(normalized, profile).slice(0, 20);
+
+  // Télémétrie : usage de l'outil matching + profils clients recherchés.
+  logEvent(req, {
+    event_type: "matching",
+    filters: {
+      risk_profile: profile.risk_profile,
+      envelopes: profile.envelopes,
+      esg_preference: profile.esg_preference,
+    },
+    result_count: ranked.length,
+  });
 
   const response: MatchingResponse = { results: ranked, profile };
   return NextResponse.json(response);

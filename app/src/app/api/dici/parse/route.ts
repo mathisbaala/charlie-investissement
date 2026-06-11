@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { logEvent } from "@/lib/analytics";
 import { EXTRACTION_MODEL } from "@/lib/claude";
 
 export const runtime = "nodejs";
@@ -122,6 +123,13 @@ export async function POST(req: NextRequest) {
     // pour pouvoir ouvrir directement sa fiche produit complète. ISIN d'abord
     // (correspondance exacte, fiable), repli sur le nom sinon.
     const match = await matchFund(fiche.isin, fiche.name);
+
+    // Télémétrie : upload/analyse d'un DICI (usage + taux de matching en base).
+    logEvent(req, {
+      event_type: "dici",
+      isin: match?.isin ?? null,
+      meta: { matched: Boolean(match), product_type: fiche.product_type ?? null },
+    });
 
     return NextResponse.json({ ...fiche, matched_isin: match?.isin ?? null, matched_name: match?.name ?? null });
   } catch (err) {
