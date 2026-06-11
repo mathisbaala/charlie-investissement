@@ -166,11 +166,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       supabase.from(VIEW).select(COLS, { count: "exact" }).gte("data_completeness", 50)
     );
 
-  const overfetch = perPage * 5;
-  const offset    = (page - 1) * overfetch;
+  // Pagination exacte sur les lignes brutes : page P = lignes [(P-1)·perPage, P·perPage).
+  // Avant, l'offset avançait de perPage·5 (un overfetch ×5 destiné à la dédup share-class,
+  // supposant ~5 doublons par fonds). Or le ratio de dédup réel est ~0,85 (peu de doublons) :
+  // l'offset sautait donc ~5× trop loin → seules ~1/5 des pages contenaient des données,
+  // les autres (≈80 %) renvoyaient une liste vide et ~76 % des fonds étaient inatteignables
+  // alors que total_pages les annonçait. On pagine désormais 1 page = perPage lignes ; la
+  // dédup share-class reste appliquée À L'INTÉRIEUR de la page (deux classes d'un même fonds
+  // présentes sur la même page sont fusionnées en gardant le plus gros encours).
+  const offset = (page - 1) * perPage;
   const { data, error, count, status } = await base()
     .order(safeSort, { ascending: sortDir, nullsFirst: false })
-    .range(offset, offset + overfetch - 1);
+    .range(offset, offset + perPage - 1);
 
   if (error) {
     // PostgREST renvoie 416 « Requested range not satisfiable » (code PGRST103)
@@ -200,20 +207,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const raw  = (data as unknown as Fund[]) ?? [];
-  // Dédup share-classes sur tout l'overfetch (avant la découpe à perPage), pour
-  // estimer le bon ratio de dédup — sinon `total` est plafonné par perPage et
-  // sous-compté dès que le résultat dépasse une page.
-  const uniqueAll = dedup(raw);
-  // Frontière API : convertir les frais fraction (DB) → % (contrat Fund, cf. types.ts).
-  const deduped = uniqueAll.slice(0, perPage).map((f) => ({
+  const raw = (data as unknown as Fund[]) ?? [];
+  // Dédup share-classes intra-page (garde le plus gros encours par groupe) +
+  // frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
+  const deduped = dedup(raw).map((f) => ({
     ...f,
     ter: feeFracToPct(f.ter),
     ongoing_charges: feeFracToPct(f.ongoing_charges),
   }));
-  const rawCount = count ?? 0;
-  const ratio = raw.length > 0 ? uniqueAll.length / raw.length : 1;
-  const total = Math.round(rawCount * ratio);
+  // total = nombre exact de lignes correspondantes (count: "exact"). Inclut les
+  // share-classes ; total_pages couvre ainsi toutes les pages, sans page vide en plein milieu.
+  const total = count ?? 0;
 
   const resp: ScreenerResponse = {
     data: deduped,
