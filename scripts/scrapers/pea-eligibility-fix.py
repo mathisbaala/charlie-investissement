@@ -113,13 +113,22 @@ def run(apply: bool):
                 continue
             name_lower = (r.get("name") or "").lower()
             prefix = isin[:2]
-            # Domicile UE/EEE
+            # Domicile UE/EEE (nécessaire mais NON suffisant : IE/LU sont des hubs
+            # UCITS, le domicile ne dit rien des sous-jacents).
             if prefix not in PEA_COUNTRY_PREFIXES:
                 continue
-            # Filtre négatif : exclure si clairement non-EU
+            # ETF synthétique labellisé PEA (réplication swap d'indices hors-UE,
+            # ex. Amundi PEA S&P 500) ou « european » → toujours éligible.
+            if "pea" in name_lower:
+                etf_update.append(isin)
+                continue
+            # Sinon : exiger un signal POSITIF d'univers UE et aucun signal hors-UE.
+            # Le domicile seul ne suffit pas (sinon MSCI Korea/Brazil/World… domiciliés
+            # IE/LU passent à tort — cf. migration 20260611140000).
             if any(kw in name_lower for kw in ETF_NON_PEA_KEYWORDS):
                 continue
-            # Filtre positif optionnel — ne pas forcer si pas de signal clair
+            if not any(kw in name_lower for kw in ETF_EU_PEA_KEYWORDS):
+                continue
             etf_update.append(isin)
         if len(rows) < 1000:
             break
