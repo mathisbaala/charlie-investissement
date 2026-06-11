@@ -447,7 +447,10 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     # Pagination obligatoire : PostgREST plafonne à 1000 lignes/requête et
     # l'univers compte ~2000 ETF (sans ça, la moitié était ignorée).
     funds: list[dict] = []
-    sel = "isin, name, category, category_normalized, product_type, management_style, currency, hedged"
+    # `benchmark_index` est lu pour savoir si un ETF porte DÉJÀ une TD en base :
+    # s'il n'est plus mappé (filtre resserré, fonds renommé…), on la purge.
+    sel = ("isin, name, category, category_normalized, product_type, "
+           "management_style, currency, hedged, benchmark_index")
     if isin_filter:
         funds = client.table("investissement_funds").select(sel) \
             .eq("product_type", "etf").eq("isin", isin_filter).execute().data or []
@@ -470,7 +473,24 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     fx_cache: dict[str, IndexSeries | None] = {}      # "fx:SRCDST" → série de change
     conv_cache: dict[tuple[str, str], IndexSeries | None] = {}  # (code, ccy) → indice converti
     updates: list[dict] = []
+    clears: list[dict] = []   # ETF dé-mappés portant encore une TD → à remettre à NULL
     mapped = unmapped = computed = mismatch_ccy = 0
+
+    # Auto-nettoyage : l'enricher écrit (fill/recompute) mais ne purgeait jamais.
+    # Un ETF qui n'est PLUS mappé (filtre resserré, renommage) gardait donc une TD
+    # obsolète calculée par un run antérieur. On émet ici une mise à NULL ciblée —
+    # uniquement sur les verdicts DÉTERMINISTES de dé-mapping (non mappé / indice
+    # price-only / hedged), jamais sur une simple indisponibilité de données
+    # (devise non convertible, prix insuffisants), où l'on garde la dernière valeur.
+    def record_clear(fund: dict) -> None:
+        if fund.get("benchmark_index") is None:
+            return  # rien à purger
+        clears.append({
+            "isin": fund["isin"],
+            "benchmark_index": None, "benchmark_code": None, "benchmark_variant": None,
+            "tracking_diff_1y": None, "tracking_diff_3y": None, "tracking_diff_5y": None,
+            "tracking_diff_computed_at": None,
+        })
 
     def index_in_ccy(code: str, ccy: str) -> "IndexSeries | None":
         """Série de l'indice `code` exprimée dans la devise `ccy` (native ou
@@ -500,16 +520,19 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         code = map_index(fund)
         if not code:
             unmapped += 1
+            record_clear(fund)   # dé-mappé (filtre/keywords) → purge si TD obsolète
             continue
         meta = INDEX_CATALOG[code]
         # Garde-fou : jamais de TD contre un indice price-only (TD trompeuse).
         if meta["variant"] == "price":
             unmapped += 1
+            record_clear(fund)
             continue
         # Parts couvertes en devise (hedged) : le hedge neutralise le FX et fausse
         # la comparaison avec notre indice converti → on s'abstient.
         if fund.get("hedged") is True:
             unmapped += 1
+            record_clear(fund)
             continue
         # Indice exprimé dans la devise de la part d'ETF (native ou converti via
         # change) : sans ça la TD mesurerait le FX, pas le coût.
@@ -550,19 +573,30 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             print(f"  [{i:5d}/{len(funds)}] mappés:{mapped} calculés:{computed}")
 
     print(f"\n  → {mapped} ETF mappés (devise OK), {unmapped} non mappés, "
-          f"{mismatch_ccy} écartés (devise ≠ indice), {computed} TD calculées")
+          f"{mismatch_ccy} écartés (devise ≠ indice), {computed} TD calculées, "
+          f"{len(clears)} dé-mappés à purger")
 
-    if apply and updates:
-        print(f"  Écriture dans Supabase ({len(updates)} ETF)…", end=" ", flush=True)
-        ok, fail = update_funds_bulk(updates, batch_size=200)
-        print(f"✓ {ok} OK, {fail} échec")
-        log_run(scraper="td-enricher", status="success",
-                records_processed=ok, records_failed=fail, started_at=started)
-    elif not apply and updates:
-        print("\n  Aperçu (5 premiers) :")
-        for r in updates[:5]:
-            print(f"  {r['isin']} | {r['benchmark_index']:16} ({r['benchmark_variant']}) | "
-                  f"TD 1Y:{r['tracking_diff_1y']} 3Y:{r['tracking_diff_3y']} 5Y:{r['tracking_diff_5y']}")
+    if apply:
+        if updates:
+            print(f"  Écriture dans Supabase ({len(updates)} ETF)…", end=" ", flush=True)
+            ok, fail = update_funds_bulk(updates, batch_size=200)
+            print(f"✓ {ok} OK, {fail} échec")
+            log_run(scraper="td-enricher", status="success",
+                    records_processed=ok, records_failed=fail, started_at=started)
+        if clears:
+            print(f"  Purge des ETF dé-mappés ({len(clears)})…", end=" ", flush=True)
+            ok_c, fail_c = update_funds_bulk(clears, batch_size=200)
+            print(f"✓ {ok_c} purgés, {fail_c} échec")
+    else:
+        if updates:
+            print("\n  Aperçu (5 premiers) :")
+            for r in updates[:5]:
+                print(f"  {r['isin']} | {r['benchmark_index']:16} ({r['benchmark_variant']}) | "
+                      f"TD 1Y:{r['tracking_diff_1y']} 3Y:{r['tracking_diff_3y']} 5Y:{r['tracking_diff_5y']}")
+        if clears:
+            print(f"\n  {len(clears)} ETF seraient purgés (dé-mappés, TD obsolète) :")
+            for r in clears[:10]:
+                print(f"    {r['isin']}")
 
 
 if __name__ == "__main__":
