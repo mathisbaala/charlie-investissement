@@ -33,6 +33,9 @@ SCRIPTS_DIR = Path(__file__).parent.parent
 MONTHLY_STEPS = [
     ("scrapers/ft-enricher.py", ["--workers", "6", "--delay", "0.15"]),
     ("enrichers/compute-metrics.py", []),
+    # Gap-fill complet ci-dessus (encours + nouveaux groupes) → recalcule le
+    # représentant share-class (is_primary_share_class) qui porte la dédup de /api/funds.
+    ("enrichers/refresh-primary-share-class.py", []),
 ]
 
 

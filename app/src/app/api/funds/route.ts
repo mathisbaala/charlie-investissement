@@ -161,19 +161,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return q;
   };
 
-  const base = () =>
-    applyFilters(
-      supabase.from(VIEW).select(COLS, { count: "exact" }).gte("data_completeness", 50)
-    );
+  // Filtres de base communs à la requête de données ET à la requête count-only (416) :
+  //  - data_completeness >= 50 : on n'expose que des fonds suffisamment renseignés ;
+  //  - is_primary_share_class : DÉDUP share-class côté DB. La colonne marque, dans chaque
+  //    groupe de share-classes, un unique représentant (frère screener-éligible en priorité,
+  //    puis plus gros encours), maintenu par inv_refresh_primary_share_class() en fin de
+  //    pipeline. → OFFSET/LIMIT et count: "exact" portent directement sur les fonds uniques,
+  //    donc pagination et total exacts, sans dédup applicative ni estimation par ratio.
+  const baseFilters = (q: any) =>
+    applyFilters(q.gte("data_completeness", 50).eq("is_primary_share_class", true));
+  const base = () => baseFilters(supabase.from(VIEW).select(COLS, { count: "exact" }));
 
-  // Pagination exacte sur les lignes brutes : page P = lignes [(P-1)·perPage, P·perPage).
-  // Avant, l'offset avançait de perPage·5 (un overfetch ×5 destiné à la dédup share-class,
-  // supposant ~5 doublons par fonds). Or le ratio de dédup réel est ~0,85 (peu de doublons) :
-  // l'offset sautait donc ~5× trop loin → seules ~1/5 des pages contenaient des données,
-  // les autres (≈80 %) renvoyaient une liste vide et ~76 % des fonds étaient inatteignables
-  // alors que total_pages les annonçait. On pagine désormais 1 page = perPage lignes ; la
-  // dédup share-class reste appliquée À L'INTÉRIEUR de la page (deux classes d'un même fonds
-  // présentes sur la même page sont fusionnées en gardant le plus gros encours).
+  // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). Avant, l'offset
+  // avançait de perPage·5 (un overfetch ×5 destiné à une dédup share-class APPLICATIVE,
+  // supposant ~5 doublons par fonds). Or le ratio réel est ~0,85 : l'offset sautait ~5× trop
+  // loin → seules ~1/5 des pages contenaient des données, les autres (≈80 %) étaient vides et
+  // ~76 % des fonds inatteignables. La dédup étant désormais portée par is_primary_share_class
+  // (cf. baseFilters), 1 page = perPage lignes suffit.
   const offset = (page - 1) * perPage;
   const { data, error, count, status } = await base()
     .order(safeSort, { ascending: sortDir, nullsFirst: false })
@@ -191,8 +195,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // illisible type `{"`). Le status, lui, reste fiable. Sans ce garde-fou le
     // 416 retombait en 500 malgré le test sur PGRST103.
     if (status === 416 || error.code === "PGRST103") {
-      const { count: rawCount } = await applyFilters(
-        supabase.from(VIEW).select("isin", { count: "exact", head: true }).gte("data_completeness", 50)
+      const { count: rawCount } = await baseFilters(
+        supabase.from(VIEW).select("isin", { count: "exact", head: true })
       );
       const total = rawCount ?? 0;
       const emptyResp: ScreenerResponse = {
@@ -208,15 +212,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const raw = (data as unknown as Fund[]) ?? [];
-  // Dédup share-classes intra-page (garde le plus gros encours par groupe) +
-  // frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
+  // La dédup est portée par is_primary_share_class côté DB : `raw` ne contient déjà qu'un
+  // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
+  // double-primary transitoire entre deux refreshs) — no-op en régime normal.
+  // + frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
   const deduped = dedup(raw).map((f) => ({
     ...f,
     ter: feeFracToPct(f.ter),
     ongoing_charges: feeFracToPct(f.ongoing_charges),
   }));
-  // total = nombre exact de lignes correspondantes (count: "exact"). Inclut les
-  // share-classes ; total_pages couvre ainsi toutes les pages, sans page vide en plein milieu.
+  // total = nombre exact de fonds uniques correspondants (count: "exact" sur les primaires) :
+  // total_pages couvre toutes les pages, sans page vide en plein milieu.
   const total = count ?? 0;
 
   const resp: ScreenerResponse = {
