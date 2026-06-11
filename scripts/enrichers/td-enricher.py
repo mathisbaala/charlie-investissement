@@ -54,6 +54,17 @@ MIN_SPAN_5Y = 365 * 5 - 120
 
 TD_MAX = 9999.9999  # plafond numeric(8,4)
 
+# Borne de plausibilité : la TD d'un ETF répliquant un indice 1× est petite
+# (typiquement -2 % à +0,5 %/an). Au-delà de ±MAX_PLAUSIBLE_TD %, c'est un
+# artefact (série NAV éparse, devise erronée, produit non-vanille) et non une
+# vraie tracking difference → on n'écrit RIEN plutôt qu'un chiffre trompeur.
+MAX_PLAUSIBLE_TD = 5.0
+
+# Marqueurs de produits NON 1× (levier/inverse) : à ne jamais comparer à
+# l'indice simple. Détectés dans le nom/catégorie.
+EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
+              "short", "inverse", "bear", "ultra"]
+
 # ─── Catalogue d'indices de référence ───────────────────────────────────────────
 # code interne → (libellé, ticker Yahoo, variante, mots-clés de détection).
 # `variant` ∈ {net, gross, price} : qualité de l'indice comme référence de coût.
@@ -97,6 +108,8 @@ def map_index(fund: dict) -> str | None:
         str(fund.get(k) or "") for k in ("category", "category_normalized", "name")
     ).lower()
     hay = f" {hay} "
+    if any(k in hay for k in EXCLUDE_KW):
+        return None  # levier / inverse : ne réplique pas l'indice 1×
     for code, meta in INDEX_CATALOG.items():
         if any(kw in hay for kw in meta["kw"]):
             return code
@@ -196,8 +209,13 @@ def td_for_window(fund_pairs: list[tuple[str, float]], idx: IndexSeries,
         x = annualize(idx_total, sd)
         if f is None or x is None:
             return None
-        return _clamp((f - x) * 100)
-    return _clamp((fund_total - idx_total) * 100)
+        td = (f - x) * 100
+    else:
+        td = (fund_total - idx_total) * 100
+    # Borne de plausibilité : au-delà, artefact de données → ne rien afficher.
+    if abs(td) > MAX_PLAUSIBLE_TD:
+        return None
+    return _clamp(td)
 
 
 # ─── Lecture des séries ──────────────────────────────────────────────────────────
@@ -328,7 +346,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     # Pagination obligatoire : PostgREST plafonne à 1000 lignes/requête et
     # l'univers compte ~2000 ETF (sans ça, la moitié était ignorée).
     funds: list[dict] = []
-    sel = "isin, name, category, category_normalized, product_type, management_style, currency"
+    sel = "isin, name, category, category_normalized, product_type, management_style, currency, hedged"
     if isin_filter:
         funds = client.table("investissement_funds").select(sel) \
             .eq("product_type", "etf").eq("isin", isin_filter).execute().data or []
@@ -385,6 +403,11 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         meta = INDEX_CATALOG[code]
         # Garde-fou : jamais de TD contre un indice price-only (TD trompeuse).
         if meta["variant"] == "price":
+            unmapped += 1
+            continue
+        # Parts couvertes en devise (hedged) : le hedge neutralise le FX et fausse
+        # la comparaison avec notre indice converti → on s'abstient.
+        if fund.get("hedged") is True:
             unmapped += 1
             continue
         # Indice exprimé dans la devise de la part d'ETF (native ou converti via
