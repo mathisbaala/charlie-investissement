@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 const VALID_SORT = new Set([
   "performance_3y",
   "performance_1y",
-  "average_performance",
   "sharpe_3y",
   "aum_eur",
 ]);
@@ -19,7 +18,7 @@ const VALID_SORT = new Set([
 //   type             — product_type filtre (opcvm, etf, scpi…)
 //   category         — category_normalized
 //   region           — region_normalized
-//   sort_by          — performance_3y (défaut) | performance_1y | average_performance | sharpe_3y | aum_eur
+//   sort_by          — performance_3y (défaut) | performance_1y | sharpe_3y | aum_eur
 //   limit            — 1–50, défaut 10
 //   min_completeness — 0–100, défaut 70
 //   min_aum          — encours minimum en euros
