@@ -82,6 +82,10 @@ INDEX_CATALOG: dict[str, dict] = {
               "kw": ["dax 40", " dax ", "dax index"]},
 }
 
+# Devises de parts d'ETF vers lesquelles on convertit les indices (via change),
+# pour pouvoir comparer un ETF EUR à un indice USD sans contaminer la TD par le FX.
+FX_TARGETS = ["EUR", "USD", "GBP", "CHF"]
+
 
 def map_index(fund: dict) -> str | None:
     """Détecte l'indice de référence d'un ETF via sa catégorie / son nom.
@@ -152,6 +156,20 @@ class IndexSeries:
         """Valeur de l'indice à la date d (sinon dernière connue avant d)."""
         i = bisect.bisect_right(self._dates, d) - 1
         return self._vals[i] if i >= 0 else None
+
+    def points(self) -> list[tuple[str, float]]:
+        return list(zip(self._dates, self._vals))
+
+
+def convert_series(base: "IndexSeries", fx: "IndexSeries") -> "IndexSeries":
+    """Convertit une série d'indice dans une autre devise via une série de change
+    (fx.at(d) = devise cible pour 1 unité de devise source). Forward-fill du change."""
+    pts = []
+    for d, v in base.points():
+        f = fx.at(d)
+        if f:
+            pts.append({"price_date": d, "value": v * f})
+    return IndexSeries(pts)
 
 
 def td_for_window(fund_pairs: list[tuple[str, float]], idx: IndexSeries,
@@ -239,34 +257,31 @@ def refresh_indices(apply: bool) -> None:
 
     client = get_client()
     start = (TODAY - timedelta(days=365 * 6)).isoformat()
-    for code, meta in INDEX_CATALOG.items():
-        ticker = meta["ticker"]
-        print(f"  · {code:12} {ticker:10} ({meta['variant']}) …", end=" ", flush=True)
+
+    def _store(code: str, ticker: str, label: str) -> None:
+        print(f"  · {label:22} {ticker:10} …", end=" ", flush=True)
         try:
             df = yf.download(ticker, start=start, interval="1d",
                              progress=False, auto_adjust=False)
         except Exception as e:
             print(f"échec téléchargement : {str(e)[:60]}")
-            continue
+            return
         if df is None or df.empty:
             print("aucune donnée")
-            continue
-
-        # yficance renvoie un MultiIndex de colonnes pour un seul ticker depuis
-        # la v0.2.28 (« Price »/« Ticker ») : on aplatit au niveau 0 pour
-        # retrouver une colonne « Close » scalaire.
+            return
+        # yfinance renvoie un MultiIndex de colonnes pour un seul ticker depuis
+        # la v0.2.28 : on aplatit au niveau 0 pour retrouver « Close » scalaire.
         if getattr(df.columns, "nlevels", 1) > 1:
             df.columns = df.columns.get_level_values(0)
         if "Close" not in df.columns:
             print("colonne Close absente")
-            continue
-
-        rows = []
-        for ts, val in df["Close"].dropna().items():
-            rows.append({"index_code": code, "price_date": ts.date().isoformat(),
-                         "value": float(val), "source": f"yahoo:{ticker}"})
+            return
+        rows = [
+            {"index_code": code, "price_date": ts.date().isoformat(),
+             "value": float(val), "source": f"yahoo:{ticker}"}
+            for ts, val in df["Close"].dropna().items()
+        ]
         print(f"{len(rows)} points", end="")
-
         if apply and rows:
             ok = 0
             for i in range(0, len(rows), 500):
@@ -274,8 +289,7 @@ def refresh_indices(apply: bool) -> None:
                 for attempt in range(3):
                     try:
                         client.table("investissement_index_prices") \
-                            .upsert(batch, on_conflict="index_code,price_date") \
-                            .execute()
+                            .upsert(batch, on_conflict="index_code,price_date").execute()
                         ok += len(batch)
                         break
                     except Exception:
@@ -284,6 +298,19 @@ def refresh_indices(apply: bool) -> None:
             print(f" → {ok} écrits")
         else:
             print(" (dry-run)")
+
+    # 1) Séries d'indices
+    for code, meta in INDEX_CATALOG.items():
+        _store(code, meta["ticker"], f"{code} ({meta['variant']})")
+
+    # 2) Séries de change : convertir chaque indice (sa devise) vers les devises
+    # de parts d'ETF courantes. Ticker Yahoo {SRC}{DST}=X = DST pour 1 SRC →
+    # value_DST = value_SRC × fx. Stockées sous index_code "fx:SRCDST".
+    index_ccys = {m["ccy"] for m in INDEX_CATALOG.values()}
+    for src in index_ccys:
+        for dst in FX_TARGETS:
+            if src != dst:
+                _store(f"fx:{src}{dst}", f"{src}{dst}=X", f"fx {src}→{dst}")
 
 
 # ─── Étape 2 : calcul de la TD par ETF ──────────────────────────────────────────
@@ -319,10 +346,33 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         funds = funds[:limit]
     print(f"  {len(funds)} ETF à examiner")
 
-    # Pré-charge les séries d'indices utilisées (une fois chacune).
+    # Caches : série d'indice native (par code) + série convertie (par code+devise).
     idx_cache: dict[str, IndexSeries] = {}
+    fx_cache: dict[str, IndexSeries | None] = {}      # "fx:SRCDST" → série de change
+    conv_cache: dict[tuple[str, str], IndexSeries | None] = {}  # (code, ccy) → indice converti
     updates: list[dict] = []
     mapped = unmapped = computed = mismatch_ccy = 0
+
+    def index_in_ccy(code: str, ccy: str) -> "IndexSeries | None":
+        """Série de l'indice `code` exprimée dans la devise `ccy` (native ou
+        convertie via change). None si indice absent ou change indisponible."""
+        meta = INDEX_CATALOG[code]
+        if code not in idx_cache:
+            idx_cache[code] = fetch_index_series(client, code)
+        base = idx_cache[code]
+        if len(base) == 0 or not ccy:
+            return None
+        if ccy == meta["ccy"]:
+            return base
+        key = (code, ccy)
+        if key not in conv_cache:
+            fxkey = f"fx:{meta['ccy']}{ccy}"
+            if fxkey not in fx_cache:
+                s = fetch_index_series(client, fxkey)
+                fx_cache[fxkey] = s if len(s) > 0 else None
+            fx = fx_cache[fxkey]
+            conv_cache[key] = convert_series(base, fx) if fx else None
+        return conv_cache[key]
 
     for i, fund in enumerate(funds, 1):
         if i % 1500 == 0:
@@ -333,21 +383,18 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             unmapped += 1
             continue
         meta = INDEX_CATALOG[code]
-        # Garde-fou 1 : jamais de TD contre un indice price-only (TD trompeuse).
+        # Garde-fou : jamais de TD contre un indice price-only (TD trompeuse).
         if meta["variant"] == "price":
             unmapped += 1
             continue
-        # Garde-fou 2 : devise ETF == devise indice, sinon on mesure le change.
-        if (fund.get("currency") or "").upper() != meta["ccy"]:
-            mismatch_ccy += 1
+        # Indice exprimé dans la devise de la part d'ETF (native ou converti via
+        # change) : sans ça la TD mesurerait le FX, pas le coût.
+        ccy = (fund.get("currency") or "").upper()
+        idx = index_in_ccy(code, ccy)
+        if idx is None or len(idx) == 0:
+            mismatch_ccy += 1   # devise non convertible (change absent) ou indice manquant
             continue
         mapped += 1
-
-        if code not in idx_cache:
-            idx_cache[code] = fetch_index_series(client, code)
-        idx = idx_cache[code]
-        if len(idx) == 0:
-            continue  # indice pas encore rafraîchi
 
         try:
             fp = fetch_fund_prices(client, fund["isin"])
