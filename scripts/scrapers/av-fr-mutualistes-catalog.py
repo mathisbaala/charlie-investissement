@@ -31,7 +31,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client
+from db import get_client, refresh_fund_insurers_mv
 
 H = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 ISIN_RE = re.compile(r"\b([A-Z]{2}[A-Z0-9]{9}\d)\b")
@@ -147,7 +147,9 @@ def main():
         client.table("investissement_av_lux_eligibility").upsert(batch, on_conflict="isin,contract_name").execute()
         ok += len(batch)
     print(f"\nÉligibilité écrite : {ok} lignes.")
-    print("⚠️ Pense à : REFRESH MATERIALIZED VIEW investissement_fund_insurers_mv;")
+    # Propage le nouveau référencement à la matview lue par le screener.
+    if refresh_fund_insurers_mv():
+        print("✓ matview investissement_fund_insurers_mv rafraîchie.")
 
 
 if __name__ == "__main__":

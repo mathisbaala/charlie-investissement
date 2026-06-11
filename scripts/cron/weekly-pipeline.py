@@ -42,6 +42,9 @@ WEEKLY_STEPS = [
     # Encours rafraîchis ci-dessus → recalcule le représentant share-class
     # (is_primary_share_class) qui porte la dédup de /api/funds.
     ("enrichers/refresh-primary-share-class.py", []),
+    # is_primary_share_class / data_completeness ayant pu changer, on repropage
+    # le référencement assureur sur la primaire (sinon screener AV périmé).
+    ("enrichers/refresh-insurer-mv.py", []),
 ]
 
 

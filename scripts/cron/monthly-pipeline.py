@@ -41,6 +41,9 @@ MONTHLY_STEPS = [
     # Japan), puis recalcule la TD 1Y/3Y/5Y vs indice TR. Après
     # compute-metrics (a besoin de VL/perfs à jour). Fill/recompute, non destructif.
     ("enrichers/td-enricher.py", ["--refresh-indices"]),
+    # is_primary_share_class / data_completeness ayant pu changer, on repropage
+    # le référencement assureur sur la primaire (sinon screener AV périmé).
+    ("enrichers/refresh-insurer-mv.py", []),
 ]
 
 
