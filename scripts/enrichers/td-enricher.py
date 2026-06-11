@@ -16,11 +16,12 @@ Pipeline en deux temps :
      communes, calcule la TD 1Y/3Y/5Y et écrit le résultat dans
      investissement_funds (fill/recompute, jamais d'insert).
 
-⚠️ Couverture indices NET total return : partielle. Les indices net TR (MSCI,
-   FTSE…) sont propriétaires et peu disponibles en source gratuite. On utilise
-   les meilleurs tickers Yahoo disponibles, et on STOCKE la variante employée
-   (net / gross / price) dans benchmark_variant pour rester transparent. Élargir
-   INDEX_CATALOG au fil des sources.
+Sources des indices de référence :
+   - Yahoo : S&P 500 (^SP500TR) et DAX (^GDAXI), seuls TR fiables en gratuit.
+   - MSCI (app2.msci.com) : indices NET total return officiels (World, EM, USA,
+     Europe, Japan), servis en EUR natif → pas de bruit FX pour les ETF EUR.
+   On STOCKE la variante employée (net / gross / price) dans benchmark_variant
+   pour rester transparent. Élargir INDEX_CATALOG au fil des sources.
 
 Usage :
     python3 scripts/enrichers/td-enricher.py --refresh-indices [--apply]
@@ -65,6 +66,32 @@ MAX_PLAUSIBLE_TD = 5.0
 EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
               "short", "inverse", "bear", "ultra"]
 
+# Marqueurs de produits à exposition MODIFIÉE : ESG/SRI, facteurs (value,
+# momentum, quality, min vol…), sectoriels, ou classes d'actifs non-actions
+# captées par erreur via un mot générique (« emerging » d'un fonds obligataire).
+# Ces produits répliquent un indice DIFFÉRENT de l'indice parent cap-weighted
+# net → les comparer à ce dernier transforme un écart d'exposition en faux
+# « coût ». Conformément à la philosophie du module (sous-couvrir plutôt que
+# publier un chiffre trompeur), on ne mappe PAS quand un de ces termes apparaît.
+NON_VANILLA_KW = [
+    # exposition durable / éthique
+    "esg", "sri", "sustainab", "socially", "ethical", "climat", "paris",
+    "screen", "sociétal", "low carbon", "carbon",
+    # facteurs / smart beta
+    "value", "momentum", "quality", "min vol", "minimum vol", "volatilit",
+    "small cap", "small-cap", "mid cap", "equal weight", "equal-weight",
+    "high dividend", "dividend", "buyback", "growth", "factor", "multifactor",
+    "sector", " ex ", "ex-usa", "ex-uk", "ex-emu", "ex usa",
+    # secteurs GICS (un ETF « MSCI World Information Technology » réplique le
+    # secteur, pas l'indice parent — son nom ne contient pas le mot « sector »)
+    "information technology", "health care", "healthcare", "financials",
+    "consumer", "industrials", "materials", "utilities", "energy",
+    "communication services", "real estate", "santé", "immobil",
+    # non-actions captées par un mot-clé générique
+    "bond", "oblig", "govt", "gov ", "govies", "aggregate", "treasur",
+    "corporate", "credit",
+]
+
 # ─── Catalogue d'indices de référence ───────────────────────────────────────────
 # code interne → (libellé, ticker Yahoo, variante, mots-clés de détection).
 # `variant` ∈ {net, gross, price} : qualité de l'indice comme référence de coût.
@@ -75,22 +102,49 @@ EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
 # ⚠️ La TD n'a de sens QUE contre un indice TOTAL RETURN (dividendes réinvestis).
 # Contre un indice « price » (hors dividendes), la TD ressort faussement très
 # positive (≈ le rendement du dividende) — l'inverse d'une mesure de coût. On ne
-# garde donc QUE des indices net/gross dont le ticker Yahoo est fiable :
-#   - ^SP500TR : S&P 500 gross TR (US → pas de retenue, ≈ net). 1500+ points.
-#   - ^GDAXI   : DAX, indice de PERFORMANCE = gross TR (réinvestit les dividendes).
-# Les indices européens net/gross (EURO STOXX 50, STOXX 600, CAC 40 GR/NR…) et le
-# Nasdaq 100 TR ne sont pas exposés en gratuit sur Yahoo (404 / 1 point) : à
-# rebrancher quand une source TR fiable est disponible. On reste conservateur :
+# garde donc QUE des indices net/gross issus d'une source TR fiable :
+#   - Yahoo : ^SP500TR (S&P 500 gross≈net, US sans retenue) et ^GDAXI (DAX,
+#     indice de PERFORMANCE = gross TR). Seuls indices TR fiables en gratuit
+#     sur Yahoo ; les variantes TR européennes y renvoient 404 / 1 point.
+#   - MSCI (app2.msci.com) : indices NET total return officiels (variant NETR)
+#     pour World / Emerging Markets / USA / Europe / Japan, servis en EUR natif.
+#     C'est la source net TR licenciée, en accès public — la meilleure référence
+#     de coût. Élargir via msci_code (cf. INDEX_CATALOG).
+# Restent non couverts faute de source TR gratuite : EURO STOXX 50, STOXX 600,
+# CAC 40, FTSE 100, Nasdaq 100 (faibles volumes). On reste conservateur :
 # mapping uniquement sur signal clair (mots-clés), jamais un indice approché.
 # ⚠️ DEVISE : l'indice est libellé dans UNE devise (`ccy`). Comparer un ETF
 # d'une AUTRE devise mesure le change, PAS le coût (un ETF S&P 500 en EUR vs
 # l'indice en USD ressort à ±15 % = mouvement EUR/USD). On ne calcule donc la TD
 # QUE si la devise de la part de l'ETF == la devise de l'indice.
+# `source` ∈ {yahoo, msci} : d'où provient la série.
+#   - yahoo : yf.download(ticker). Seuls S&P 500 (gross≈net, US) et DAX (gross)
+#     sont fiables en gratuit sur Yahoo (cf. note ci-dessus).
+#   - msci  : endpoint public app2.msci.com (getLevelDataForGraph). Fournit les
+#     indices NET total return officiels (variant NETR), par code MSCI, et —
+#     décisif — SERVIS DIRECTEMENT EN EUR (currency_symbol=EUR). Comme la quasi-
+#     totalité des ETF mappés sont en EUR, on lit l'indice en EUR natif et on
+#     ÉVITE toute conversion FX (donc le bruit de change). Les rares parts USD
+#     repassent par la conversion via change, comme pour les autres indices.
 INDEX_CATALOG: dict[str, dict] = {
-    "sp500": {"label": "S&P 500", "ticker": "^SP500TR", "variant": "gross", "ccy": "USD",
+    "sp500": {"label": "S&P 500", "source": "yahoo", "ticker": "^SP500TR",
+              "variant": "gross", "ccy": "USD",
               "kw": ["s&p 500", "sp 500", "s&p500", "sp500"]},
-    "dax":   {"label": "DAX",     "ticker": "^GDAXI",   "variant": "gross", "ccy": "EUR",
+    "dax":   {"label": "DAX", "source": "yahoo", "ticker": "^GDAXI",
+              "variant": "gross", "ccy": "EUR",
               "kw": ["dax 40", " dax ", "dax index"]},
+    # ── Famille MSCI — indices NET total return, source officielle gratuite ──
+    "msci_world":  {"label": "MSCI World", "source": "msci", "msci_code": "990100",
+                    "variant": "net", "ccy": "EUR", "kw": ["msci world"]},
+    "msci_em":     {"label": "MSCI Emerging Markets", "source": "msci", "msci_code": "891800",
+                    "variant": "net", "ccy": "EUR",
+                    "kw": ["msci em ", "emerging", "émergent", "emergent"]},
+    "msci_usa":    {"label": "MSCI USA", "source": "msci", "msci_code": "984000",
+                    "variant": "net", "ccy": "EUR", "kw": ["msci usa"]},
+    "msci_europe": {"label": "MSCI Europe", "source": "msci", "msci_code": "990500",
+                    "variant": "net", "ccy": "EUR", "kw": ["msci europe"]},
+    "msci_japan":  {"label": "MSCI Japan", "source": "msci", "msci_code": "990400",
+                    "variant": "net", "ccy": "EUR", "kw": ["msci japan", "msci japon"]},
 }
 
 # Devises de parts d'ETF vers lesquelles on convertit les indices (via change),
@@ -110,6 +164,8 @@ def map_index(fund: dict) -> str | None:
     hay = f" {hay} "
     if any(k in hay for k in EXCLUDE_KW):
         return None  # levier / inverse : ne réplique pas l'indice 1×
+    if any(k in hay for k in NON_VANILLA_KW):
+        return None  # ESG / facteur / sectoriel / obligataire : pas l'indice parent net
     for code, meta in INDEX_CATALOG.items():
         if any(kw in hay for kw in meta["kw"]):
             return code
@@ -266,40 +322,68 @@ def fetch_index_series(client, code: str) -> IndexSeries:
 
 # ─── Étape 1 : rafraîchir les séries d'indices (Yahoo) ──────────────────────────
 
+# Endpoint public MSCI alimentant les graphes de performance de msci.com.
+# index_variant : NETR (net TR) / GRTR (gross TR) / STRD (price). On choisit
+# selon le `variant` du catalogue. Réponse JSON : indexes.INDEX_LEVELS = liste
+# de {level_eod, calc_date(int yyyymmdd)}.
+MSCI_ENDPOINT = ("https://app2.msci.com/products/service/index/indexmaster/"
+                 "getLevelDataForGraph")
+MSCI_VARIANT = {"net": "NETR", "gross": "GRTR", "price": "STRD"}
+
+
+def fetch_msci_rows(code: str, meta: dict, start_ymd: str, end_ymd: str) -> list[dict]:
+    """Série d'un indice MSCI (net/gross/price) dans la devise du catalogue,
+    via l'endpoint public app2.msci.com. Lève en cas d'erreur réseau/format."""
+    import urllib.request
+    import json
+    variant = MSCI_VARIANT[meta["variant"]]
+    url = (f"{MSCI_ENDPOINT}?currency_symbol={meta['ccy']}"
+           f"&index_variant={variant}&start_date={start_ymd}&end_date={end_ymd}"
+           f"&data_frequency=DAILY&index_codes={meta['msci_code']}")
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0", "Accept": "application/json",
+        "Referer": "https://www.msci.com/"})
+    raw = urllib.request.urlopen(req, timeout=30).read().decode()
+    levels = json.loads(raw)["indexes"]["INDEX_LEVELS"]
+    src = f"msci:{meta['msci_code']}:{variant}"
+    rows: list[dict] = []
+    for lv in levels:
+        v = lv.get("level_eod")
+        if v is None:
+            continue
+        cd = str(lv["calc_date"])  # yyyymmdd
+        iso = f"{cd[0:4]}-{cd[4:6]}-{cd[6:8]}"
+        rows.append({"index_code": code, "price_date": iso,
+                     "value": float(v), "source": src})
+    return rows
+
+
 def refresh_indices(apply: bool) -> None:
-    try:
-        import yfinance as yf
-    except ImportError:
-        print("  ✗ yfinance non installé — pip install yfinance")
-        return
-
     client = get_client()
-    start = (TODAY - timedelta(days=365 * 6)).isoformat()
+    start_iso = (TODAY - timedelta(days=365 * 6)).isoformat()
+    start_ymd = start_iso.replace("-", "")
+    end_ymd = TODAY.isoformat().replace("-", "")
 
-    def _store(code: str, ticker: str, label: str) -> None:
-        print(f"  · {label:22} {ticker:10} …", end=" ", flush=True)
-        try:
-            df = yf.download(ticker, start=start, interval="1d",
-                             progress=False, auto_adjust=False)
-        except Exception as e:
-            print(f"échec téléchargement : {str(e)[:60]}")
-            return
+    def _yahoo_rows(code: str, ticker: str) -> list[dict]:
+        import yfinance as yf
+        df = yf.download(ticker, start=start_iso, interval="1d",
+                         progress=False, auto_adjust=False)
         if df is None or df.empty:
-            print("aucune donnée")
-            return
+            return []
         # yfinance renvoie un MultiIndex de colonnes pour un seul ticker depuis
         # la v0.2.28 : on aplatit au niveau 0 pour retrouver « Close » scalaire.
         if getattr(df.columns, "nlevels", 1) > 1:
             df.columns = df.columns.get_level_values(0)
         if "Close" not in df.columns:
-            print("colonne Close absente")
-            return
-        rows = [
+            return []
+        return [
             {"index_code": code, "price_date": ts.date().isoformat(),
              "value": float(val), "source": f"yahoo:{ticker}"}
             for ts, val in df["Close"].dropna().items()
         ]
-        print(f"{len(rows)} points", end="")
+
+    def _store(code: str, rows: list[dict], label: str) -> None:
+        print(f"  · {label:28} {len(rows)} points", end="")
         if apply and rows:
             ok = 0
             for i in range(0, len(rows), 500):
@@ -317,18 +401,35 @@ def refresh_indices(apply: bool) -> None:
         else:
             print(" (dry-run)")
 
-    # 1) Séries d'indices
+    # 1) Séries d'indices (routées selon la source du catalogue)
     for code, meta in INDEX_CATALOG.items():
-        _store(code, meta["ticker"], f"{code} ({meta['variant']})")
+        label = f"{code} ({meta['variant']}/{meta.get('source', 'yahoo')})"
+        try:
+            if meta.get("source") == "msci":
+                rows = fetch_msci_rows(code, meta, start_ymd, end_ymd)
+            else:
+                rows = _yahoo_rows(code, meta["ticker"])
+        except Exception as e:
+            print(f"  · {label:28} échec : {str(e)[:60]}")
+            continue
+        _store(code, rows, label)
 
     # 2) Séries de change : convertir chaque indice (sa devise) vers les devises
     # de parts d'ETF courantes. Ticker Yahoo {SRC}{DST}=X = DST pour 1 SRC →
-    # value_DST = value_SRC × fx. Stockées sous index_code "fx:SRCDST".
+    # value_DST = value_SRC × fx. Stockées sous index_code "fx:SRCDST". Toujours
+    # via Yahoo (les paires de change majeures y sont fiables).
     index_ccys = {m["ccy"] for m in INDEX_CATALOG.values()}
     for src in index_ccys:
         for dst in FX_TARGETS:
-            if src != dst:
-                _store(f"fx:{src}{dst}", f"{src}{dst}=X", f"fx {src}→{dst}")
+            if src == dst:
+                continue
+            code = f"fx:{src}{dst}"
+            try:
+                rows = _yahoo_rows(code, f"{src}{dst}=X")
+            except Exception as e:
+                print(f"  · {code:28} échec : {str(e)[:50]}")
+                continue
+            _store(code, rows, f"fx {src}→{dst}")
 
 
 # ─── Étape 2 : calcul de la TD par ETF ──────────────────────────────────────────

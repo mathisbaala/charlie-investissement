@@ -1,7 +1,8 @@
 name: Tracking difference ETF
 
 # Calcule la tracking difference des ETF (coût réel vs indice TR) :
-# rafraîchit les séries d'indices (Yahoo) puis recalcule la TD 1Y/3Y/5Y.
+# rafraîchit les séries d'indices (Yahoo pour S&P 500/DAX ; MSCI net TR pour
+# World/EM/USA/Europe/Japan) puis recalcule la TD 1Y/3Y/5Y.
 # Fill/recompute, non destructif. Déclenchable à la main pour peupler la donnée
 # sans relancer tout le sweep mensuel (qui l'inclut déjà en dernière étape).
 on:
