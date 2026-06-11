@@ -45,6 +45,7 @@ export default function AccueilPage() {
   const [topEtf,   setTopEtf]   = useState<TopFund[]>([]);
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
   const [topScpi,  setTopScpi]  = useState<TopFund[]>([]);
+  const [insurers, setInsurers] = useState<{ company: string; funds: number }[]>([]);
 
   // Client profile
   const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -70,6 +71,11 @@ export default function AccueilPage() {
     fetch("/api/screener/top-performers?type=scpi&sort_by=performance_3y&limit=5&min_completeness=50")
       .then((r) => r.json())
       .then((d) => setTopScpi(d.data ?? []))
+      .catch(() => {});
+
+    fetch("/api/screener/insurers")
+      .then((r) => r.json())
+      .then((d) => setInsurers(d.data ?? []))
       .catch(() => {});
   }, []);
 
@@ -161,8 +167,8 @@ export default function AccueilPage() {
           )}
         </div>
 
-        {/* ── 3-column grid ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        {/* ── navigation grid ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
 
           {/* Recherches récentes */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
@@ -254,6 +260,37 @@ export default function AccueilPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Par assureur */}
+          <div className="bg-paper rounded-xl border border-line px-5 py-4">
+            <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
+              Par assureur
+            </p>
+            {insurers.length === 0 ? (
+              <p className="text-[12px] text-muted italic">Annuaire indisponible</p>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {insurers.slice(0, 6).map(({ company, funds }) => (
+                  <button
+                    key={company}
+                    onClick={() => router.push(`/recherche?insurer=${encodeURIComponent(company)}`)}
+                    className="flex items-center justify-between gap-2 px-2 py-2 rounded-lg hover:bg-paper-2 transition-colors text-left group"
+                  >
+                    <span className="text-[12px] text-ink-2 group-hover:text-ink font-medium truncate">{company}</span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
+                        {funds.toLocaleString("fr-FR")}
+                      </span>
+                      <ChevronRight size={12} className="text-muted group-hover:text-ink-2" />
+                    </span>
+                  </button>
+                ))}
+                <Link href="/assureurs" className="text-[10px] text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
+                  Voir l'annuaire complet <ChevronRight size={10} />
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
