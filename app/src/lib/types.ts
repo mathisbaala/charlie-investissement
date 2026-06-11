@@ -32,7 +32,6 @@ export type Fund = {
   performance_1y: number | null;
   performance_3y: number | null;
   performance_5y: number | null;
-  average_performance: number | null;
 
   // Métriques de risque
   volatility_1y: number | null;
@@ -201,7 +200,6 @@ export type SortField =
   | 'performance_3y'
   | 'performance_1y'
   | 'performance_5y'
-  | 'average_performance'
   | 'ter'
   | 'aum_eur'
   | 'sharpe_1y'
@@ -355,7 +353,6 @@ export type FundDetailHF = {
   performance_1y: number | null;
   performance_3y: number | null;
   performance_5y: number | null;
-  average_performance: number | null;
   volatility_1y: number | null;
   volatility_3y: number | null;
   sharpe_1y: number | null;

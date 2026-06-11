@@ -13,7 +13,7 @@ const COLS = [
   "isin","name","product_type","asset_class_broad","asset_class",
   "category_normalized","region_normalized","sector","management_style",
   "gestionnaire","ter","ongoing_charges","performance_1y","performance_3y",
-  "performance_5y","average_performance","volatility_1y","volatility_3y",
+  "performance_5y","volatility_1y","volatility_3y",
   "sharpe_1y","sharpe_3y","max_drawdown_1y","max_drawdown_3y","risk_score",
   "sfdr_article","labels","pea_eligible","pea_pme_eligible","per_eligible",
   "av_fr_eligible","av_lux_eligible","cto_eligible",

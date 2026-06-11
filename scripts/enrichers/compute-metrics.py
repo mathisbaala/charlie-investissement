@@ -164,13 +164,6 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
     else:
         metrics["performance_5y"] = None
 
-    # ── Average performance (moyenne des perf 1Y/3Y/5Y en %) ──
-    p1 = metrics.get("performance_1y")
-    p3 = metrics.get("performance_3y")
-    p5 = metrics.get("performance_5y")
-    avgs = [v for v in [p1, p3, p5] if v is not None]
-    metrics["average_performance"] = _clamp(round(sum(avgs) / len(avgs), 4)) if avgs else None
-
     # ── Track record ──
     if prices_all:
         metrics["track_record_years"] = round(len(prices_all) / 52, 1)

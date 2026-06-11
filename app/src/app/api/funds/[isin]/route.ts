@@ -28,7 +28,7 @@ export async function GET(
       currency, inception_date, track_record_years,
       hedged, distributor_france, ucits_compliant, data_source, field_sources,
       sfdr_article, sri, srri, risk_level,
-      performance_1y, performance_3y, performance_5y, average_performance,
+      performance_1y, performance_3y, performance_5y,
       volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
       max_drawdown_1y, max_drawdown_3y,
       ongoing_charges, ter,
@@ -133,7 +133,6 @@ export async function GET(
     // conditionnelle, alignée avec inv_annualize_pt SQL / vue CGP.
     performance_3y: annualizeForType(fund.performance_3y, 3, fund.product_type),
     performance_5y: annualizeForType(fund.performance_5y, 5, fund.product_type),
-    average_performance: fund.average_performance ?? null,
     volatility_1y: fund.volatility_1y,
     volatility_3y: fund.volatility_3y,
     sharpe_1y: fund.sharpe_1y,
