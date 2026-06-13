@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SEARCH_COLUMNS, searchWords, searchOrClause } from '../lib/search'
+import { SEARCH_COLUMNS, searchWords, searchOrClause, asExactIsin } from '../lib/search'
 
 describe('searchWords', () => {
   it('splits on whitespace', () => expect(searchWords('ETF France')).toEqual(['ETF', 'France']))
@@ -30,4 +30,29 @@ describe('searchOrClause', () => {
     const parts = searchOrClause('x').split(',')
     expect(parts).toHaveLength(SEARCH_COLUMNS.length)
   })
+  // Régression « la recherche par ISIN ne fonctionne jamais » : une saisie
+  // partielle d'ISIN doit pouvoir matcher la colonne isin (le cas exact, lui,
+  // passe par asExactIsin / le raccourci API).
+  it('searches the isin column too', () => {
+    expect(searchOrClause('FR0010')).toContain('isin.ilike.%FR0010%')
+  })
+})
+
+describe('asExactIsin', () => {
+  // Régression : un ISIN complet doit être reconnu pour router vers la recherche
+  // exacte (avant ce correctif, l'ISIN n'était cherché nulle part).
+  it('recognises a well-formed ISIN', () =>
+    expect(asExactIsin('FR0010315770')).toBe('FR0010315770'))
+  it('normalises case and surrounding whitespace', () =>
+    expect(asExactIsin('  lu0496786574 ')).toBe('LU0496786574'))
+  it('rejects strings that are too short', () =>
+    expect(asExactIsin('FR001031577')).toBeNull())
+  it('rejects strings that are too long', () =>
+    expect(asExactIsin('FR00103157700')).toBeNull())
+  it('rejects a missing country prefix (must start with two letters)', () =>
+    expect(asExactIsin('1R0010315770')).toBeNull())
+  it('rejects a non-digit check character', () =>
+    expect(asExactIsin('FR001031577X')).toBeNull())
+  it('rejects ordinary text queries', () =>
+    expect(asExactIsin('ETF France')).toBeNull())
 })

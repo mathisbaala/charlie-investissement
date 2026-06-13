@@ -14,6 +14,7 @@ import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X, Search } from "@/components/ui/icons";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
 import { handledRateLimit } from "@/lib/rateLimitClient";
+import { asExactIsin } from "@/lib/search";
 import {
   type RichClientProfile,
   EMPTY_PROFILE,
@@ -212,13 +213,19 @@ function RechercheInner() {
       setFilters(next);
     } else if (initialQ) {
       setQuery(initialQ);
-      setParsing(true);
-      parseQuery(initialQ).then((parsed) => {
-        const hasFilters = Object.keys(parsed).length > 0;
-        setFilters(hasFilters ? parsed : { free_text: initialQ });
-        setNlpFailed(!hasFilters);
-        setParsing(false);
-      });
+      // ISIN exact (lien partagé, rechargement) : recherche ciblée sans NLP.
+      if (asExactIsin(initialQ)) {
+        setFilters({ free_text: initialQ });
+        setNlpFailed(false);
+      } else {
+        setParsing(true);
+        parseQuery(initialQ).then((parsed) => {
+          const hasFilters = Object.keys(parsed).length > 0;
+          setFilters(hasFilters ? parsed : { free_text: initialQ });
+          setNlpFailed(!hasFilters);
+          setParsing(false);
+        });
+      }
     }
   }, [initialized, initialQ, initialEnvelopes, initialUniverse, initialInsurer, initialContracts]);
 
@@ -271,10 +278,21 @@ function RechercheInner() {
     setParsing(true);     // affiche l'état de chargement, gèle le fetch
     setFunds([]);         // vide la liste précédente → aucun chevauchement visuel
     setPage(1);
+    const raw = query.trim();
+    // Un ISIN exact part directement en recherche ciblée, sans analyse NLP : le
+    // LLM pourrait le déformer (p. ex. lire « FR… » comme la zone France) et c'est
+    // un aller-retour inutile. L'API le traite alors par correspondance exacte.
+    if (asExactIsin(raw)) {
+      setFilters({ free_text: raw });
+      setNlpFailed(false);
+      setParsing(false);
+      router.replace(`/recherche?q=${encodeURIComponent(raw)}`, { scroll: false });
+      return;
+    }
     const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
     const fullQuery = profileCtx
-      ? `${query.trim()} — contexte client: ${profileCtx}`
-      : query.trim();
+      ? `${raw} — contexte client: ${profileCtx}`
+      : raw;
 
     const parsed = await parseQuery(fullQuery);
     const hasFilters = Object.keys(parsed).length > 0;
