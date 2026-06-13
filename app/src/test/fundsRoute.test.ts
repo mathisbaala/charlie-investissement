@@ -25,7 +25,7 @@ function makeBuilder() {
       Promise.resolve(isHead ? countResult : dataResult).then(resolve),
   };
   // Toutes les méthodes de filtre/tri renvoient le builder.
-  for (const m of ["gte", "lte", "in", "or", "not", "overlaps", "ilike", "order"]) {
+  for (const m of ["gte", "lte", "in", "or", "not", "overlaps", "ilike", "order", "limit"]) {
     builder[m] = () => builder;
   }
   // eq : on enregistre (col, val) selon le type de requête.
@@ -191,5 +191,49 @@ describe("GET /api/funds — robustesse pagination", () => {
     const res = await GET(req("?page=500&per_page=50"));
     expect(res.status).toBe(200);
     expect(eqHead).toContainEqual(["is_primary_share_class", true]);
+  });
+
+  // Régression « la recherche par ISIN ne fonctionne jamais » : un ISIN exact doit
+  // déclencher une recherche ciblée par eq("isin", …) qui IGNORE les garde-fous de
+  // l'univers curé — sinon une part secondaire ou peu renseignée reste introuvable.
+  it("recherche par ISIN exact : eq(isin) sans garde-fou is_primary_share_class", async () => {
+    dataResult = {
+      data: [{ isin: "FR0010315770", aum_eur: 500, ter: 0.015, ongoing_charges: 0.017 }],
+      error: null,
+      count: null,
+    };
+
+    const res = await GET(req("?search=FR0010315770"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].isin).toBe("FR0010315770");
+    expect(body.total).toBe(1);
+    expect(body.total_pages).toBe(1);
+    // Frontière API : frais fraction (DB) → % (×100).
+    expect(body.data[0].ter).toBeCloseTo(1.5);
+    // Correspondance exacte sur l'ISIN, et AUCUN garde-fou d'univers curé.
+    expect(eqData).toContainEqual(["isin", "FR0010315770"]);
+    expect(eqData).not.toContainEqual(["is_primary_share_class", true]);
+  });
+
+  // L'ISIN est normalisé (minuscules + espaces) avant la correspondance exacte.
+  it("recherche par ISIN : normalise casse et espaces", async () => {
+    dataResult = { data: [{ isin: "LU0496786574", ter: 0, ongoing_charges: 0 }], error: null, count: null };
+
+    await GET(req(`?search=${encodeURIComponent("  lu0496786574 ")}`));
+    expect(eqData).toContainEqual(["isin", "LU0496786574"]);
+  });
+
+  // ISIN exact introuvable : page vide cohérente (total 0), pas d'erreur.
+  it("recherche par ISIN sans correspondance : page vide", async () => {
+    dataResult = { data: [], error: null, count: null };
+
+    const res = await GET(req("?search=FR0000000000"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(0);
+    expect(body.total_pages).toBe(0);
   });
 });

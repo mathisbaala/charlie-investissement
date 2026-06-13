@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { searchWords, searchOrClause } from "@/lib/search";
+import { searchWords, searchOrClause, asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
@@ -69,6 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
   const gestIn  = arr(p(sp, "gestionnaire_in"));
   const search  = p(sp, "search")?.trim() ?? "";
+  const exactIsin = asExactIsin(search);
   const hasKid  = p(sp, "has_kid") === "true";
   const sortBy  = p(sp, "sort_by") ?? "data_completeness";
   const sortDir = p(sp, "sort_dir") === "asc";
@@ -82,6 +83,35 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     "retrocession_cgp","entry_fee_max"
   ]);
   const safeSort = VALID_SORT.has(sortBy) ? sortBy : "data_completeness";
+
+  // ── Raccourci recherche par ISIN exact ──────────────────────────────────────
+  // Coller un ISIN = « trouve-moi CE fonds précisément ». On court-circuite donc
+  // les autres filtres ET les garde-fous de l'univers curé (data_completeness,
+  // is_primary_share_class, exclusion action/crypto/fps) : l'ISIN d'un DIC pointe
+  // souvent une part secondaire ou peu renseignée, qui sinon serait masquée — d'où
+  // le « la recherche par ISIN ne fonctionne jamais » remonté par les utilisateurs.
+  // L'ISIN étant unique par part, on borne à 1 ligne.
+  if (exactIsin) {
+    const { data, error } = await supabase
+      .from(VIEW).select(COLS).eq("isin", exactIsin).limit(1);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const hit = (data as unknown as Fund[] | null)?.[0];
+    const mapped = hit
+      ? [{ ...hit, ter: feeFracToPct(hit.ter), ongoing_charges: feeFracToPct(hit.ongoing_charges) }]
+      : [];
+    logEvent(req, {
+      event_type: "search",
+      query: search,
+      filters: null,
+      result_count: mapped.length,
+      meta: { sort_by: safeSort, page: 1, isin: true },
+    });
+    const resp: ScreenerResponse = {
+      data: mapped, total: mapped.length, page: 1, per_page: perPage,
+      total_pages: mapped.length ? 1 : 0,
+    };
+    return NextResponse.json(resp);
+  }
 
   // Applique tous les filtres de la requête à un builder donné. Factorisé pour pouvoir
   // le rejouer en requête count-only dans le chemin d'erreur 416 (cf. plus bas).
