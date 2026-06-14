@@ -16,8 +16,12 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
           {refs.map((r) => {
             // Contrats à montrer (on masque le cas redondant où le seul "contrat"
             // reprend le nom de l'assureur, fréquent côté AV Luxembourg).
-            const contracts = r.contracts.filter(
-              (c) => c && !(r.contracts.length === 1 && c === r.company),
+            // `contracts` peut être null côté RPC (assureur référencé sans liste
+            // de contrats détaillée) → garde obligatoire, sinon .filter crashe
+            // la fiche entière (TypeError) au rendu SSR et client.
+            const all = r.contracts ?? [];
+            const contracts = all.filter(
+              (c) => c && !(all.length === 1 && c === r.company),
             );
             const MAX = 6;
             const shown = contracts.slice(0, MAX);
