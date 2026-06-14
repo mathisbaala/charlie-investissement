@@ -17,10 +17,17 @@ Ce que ce scraper récupère, SANS rendu JS (HTTP brut, rapide) :
 Les frais sont stockés en FRACTION (0.0145 = 1.45%) conformément aux CHECK
 chk_ongoing_fraction / chk_ter_fraction et aux colonnes générées *_pct.
 
+Outre l'enrichissement (fill-only), un mode --refresh-breakdowns rafraîchit les
+VENTILATIONS périmées (holdings/secteurs/régions) : sélection par péremption
+(updated_at > --max-age-days), remplacement par ISIN UNIQUEMENT si FT renvoie des
+données (jamais d'écrasement par du vide). Câblé dans monthly-pipeline (rotation
+trimestrielle), miroir de la rotation des cours côté hebdo.
+
 Usage :
     python3 scripts/scrapers/ft-enricher.py --dry-run --limit 10
     python3 scripts/scrapers/ft-enricher.py --apply --limit 500
     python3 scripts/scrapers/ft-enricher.py --apply --isin DE0009848119:EUR
+    python3 scripts/scrapers/ft-enricher.py --apply --refresh-breakdowns --limit 1000
 
 Après un --apply, lancer le calcul des métriques sur les ISIN enrichis :
     python3 scripts/enrichers/compute-metrics.py --apply
@@ -32,7 +39,7 @@ import json
 import time
 import argparse
 import threading
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -358,6 +365,78 @@ def select_targets(client, limit: int | None, refresh: bool = False,
     return targets
 
 
+def _breakdown_age(client, isins: list[str]) -> dict:
+    """Pour chaque ISIN, la date de MAJ la plus récente parmi ses lignes de
+    ventilation (holdings/secteurs/régions). ISIN absent → pas de ventilation.
+
+    Les trois tables étant écrites ensemble pour un ISIN donné, leur updated_at
+    est cohérent ; on prend le max par sécurité (sources mixtes possibles)."""
+    age = {}
+    for table in ("investissement_fund_sectors", "investissement_fund_geos",
+                  "investissement_fund_holdings"):
+        for i in range(0, len(isins), 300):
+            chunk = isins[i:i + 300]
+            try:
+                r = (client.table(table).select("isin,updated_at")
+                     .in_("isin", chunk).execute())
+                for row in (r.data or []):
+                    u = row.get("updated_at")
+                    if not u:
+                        continue
+                    cur = age.get(row["isin"])
+                    if cur is None or u > cur:
+                        age[row["isin"]] = u
+            except Exception as e:
+                print(f"  ✗ lecture {table} : {e}")
+    return age
+
+
+def select_breakdown_refresh_targets(client, limit: int | None,
+                                     max_age_days: int):
+    """Fonds dont les ventilations sont PÉRIMÉES (MAJ la plus récente plus
+    vieille que max_age_days), triés par encours décroissant.
+
+    La péremption pilote la rotation à elle seule : un fonds rafraîchi
+    redevient « frais » et sort de la sélection ~max_age_days, le temps que
+    les autres passent. Pas besoin d'offset (cf. weekly-pipeline) : il suffit
+    de prendre les plus vieux par encours à chaque run."""
+    cutoff = (datetime.now(timezone.utc)
+              - timedelta(days=max_age_days)).isoformat()
+    targets, page, size = [], 0, 1000
+    scanned = stale_seen = 0
+    while True:
+        rows = (client.table("investissement_funds")
+                .select("isin,currency")
+                .in_("product_type", ["opcvm", "etf"])
+                .order("aum_eur", desc=True, nullsfirst=False)
+                .range(page * size, page * size + size - 1)
+                .execute().data or [])
+        valid = [r for r in rows
+                 if re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]",
+                                 (r.get("isin") or "").strip())]
+        ages = _breakdown_age(client, [r["isin"].strip() for r in valid])
+        for r in valid:
+            isin = r["isin"].strip()
+            updated = ages.get(isin)
+            if updated is None:        # pas de ventilation → géré par le fill-only
+                continue
+            scanned += 1
+            if updated >= cutoff:      # encore frais → ignoré
+                continue
+            stale_seen += 1
+            targets.append({"isin": isin, "currency": r.get("currency")})
+            if limit and len(targets) >= limit:
+                print(f"    {stale_seen} ISIN périmés retenus "
+                      f"(sur {scanned} fonds avec ventilation scannés)")
+                return targets
+        if len(rows) < size:
+            break
+        page += 1
+    print(f"    {stale_seen} ISIN périmés retenus "
+          f"(sur {scanned} fonds avec ventilation scannés)")
+    return targets
+
+
 # ─── Run ─────────────────────────────────────────────────────────────────────
 
 def _existing_isins(client, table: str, isins: list[str]) -> set:
@@ -374,10 +453,19 @@ def _existing_isins(client, table: str, isins: list[str]) -> set:
     return out
 
 
-def write_breakdowns(client, results: list[dict]) -> dict:
-    """Écrit holdings/secteurs/régions en FILL-ONLY : uniquement pour les ISIN
-    qui n'ont AUCUNE ligne existante dans la table concernée."""
-    stats = {"holdings": 0, "sectors": 0, "geos": 0}
+def write_breakdowns(client, results: list[dict], replace: bool = False) -> dict:
+    """Écrit holdings/secteurs/régions.
+
+    Mode par défaut — FILL-ONLY : uniquement pour les ISIN qui n'ont AUCUNE
+    ligne existante dans la table concernée (peuplement initial).
+
+    Mode replace=True — RAFRAÎCHISSEMENT : pour chaque ISIN, on remplace les
+    lignes existantes (delete + reinsert) table par table, MAIS UNIQUEMENT si
+    FT a réellement renvoyé des données pour cette dimension. Garde-fou crucial
+    (cf. piège ft-metrics-wipe) : une réponse FT vide ne doit JAMAIS effacer une
+    ventilation existante — on garde l'ancienne plutôt que de la perdre."""
+    stats = {"holdings": 0, "sectors": 0, "geos": 0,
+             "replaced_h": 0, "replaced_s": 0, "replaced_g": 0}
     isins = [r["isin"] for r in results if r.get("breakdown")]
     if not isins:
         return stats
@@ -385,19 +473,45 @@ def write_breakdowns(client, results: list[dict]) -> dict:
     have_s = _existing_isins(client, "investissement_fund_sectors", isins)
     have_g = _existing_isins(client, "investissement_fund_geos", isins)
 
+    def _del(table, isin):
+        try:
+            client.table(table).delete().eq("isin", isin).execute()
+        except Exception as e:
+            print(f"  ✗ delete {table} {isin} : {e}")
+
     h_rows, s_rows, g_rows = [], [], []
     for r in results:
         isin = r["isin"]
         b = r.get("breakdown") or {}
+        holdings, sectors, geos = (b.get("holdings", []),
+                                   b.get("sectors", []), b.get("geos", []))
+        # Holdings
         if isin not in have_h:
-            for h in b.get("holdings", []):
+            for h in holdings:
                 h_rows.append({"isin": isin, **h, "source": SOURCE})
+        elif replace and holdings:                 # remplacement seulement si frais
+            _del("investissement_fund_holdings", isin)
+            for h in holdings:
+                h_rows.append({"isin": isin, **h, "source": SOURCE})
+            stats["replaced_h"] += 1
+        # Secteurs
         if isin not in have_s:
-            for s in b.get("sectors", []):
+            for s in sectors:
                 s_rows.append({"isin": isin, **s, "source": SOURCE})
+        elif replace and sectors:
+            _del("investissement_fund_sectors", isin)
+            for s in sectors:
+                s_rows.append({"isin": isin, **s, "source": SOURCE})
+            stats["replaced_s"] += 1
+        # Régions
         if isin not in have_g:
-            for g in b.get("geos", []):
+            for g in geos:
                 g_rows.append({"isin": isin, **g, "source": SOURCE})
+        elif replace and geos:
+            _del("investissement_fund_geos", isin)
+            for g in geos:
+                g_rows.append({"isin": isin, **g, "source": SOURCE})
+            stats["replaced_g"] += 1
 
     def _flush(rows, table, conflict, key):
         for i in range(0, len(rows), 500):
@@ -416,12 +530,21 @@ def write_breakdowns(client, results: list[dict]) -> dict:
 
 def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         delay: float, with_holdings: bool = True, refresh: bool = False,
-        offset: int = 0):
+        offset: int = 0, refresh_breakdowns: bool = False,
+        max_age_days: int = 90):
+    # En mode rafraîchissement des ventilations, on a forcément besoin de
+    # l'onglet holdings (c'est lui qui porte breakdown).
+    if refresh_breakdowns:
+        with_holdings = True
     print("=" * 64)
     print("  FT Enricher — markets.ft.com (Morningstar)")
     print("=" * 64)
-    print(f"  Mode    : {'APPLY' if apply else 'DRY-RUN'}"
-          f"{' | REFRESH (toutes cibles)' if refresh else ''}")
+    mode = "APPLY" if apply else "DRY-RUN"
+    if refresh_breakdowns:
+        mode += f" | REFRESH VENTILATIONS (périmées > {max_age_days}j)"
+    elif refresh:
+        mode += " | REFRESH (toutes cibles)"
+    print(f"  Mode    : {mode}")
     client = get_client()
     started = datetime.now(timezone.utc)
 
@@ -431,6 +554,9 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         else:
             i, c = isin_arg, "EUR"
         targets = [{"isin": i, "currency": c}]
+    elif refresh_breakdowns:
+        print("  Sélection des ventilations périmées…", flush=True)
+        targets = select_breakdown_refresh_targets(client, limit, max_age_days)
     else:
         print("  Sélection des cibles…", flush=True)
         targets = select_targets(client, limit, refresh=refresh, offset=offset)
@@ -502,8 +628,9 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
     print(f"    VL insérées/maj : {ins}  (échecs {fail})")
 
     if with_holdings:
-        print("  Écriture fill-only des breakdowns…", flush=True)
-        bstats = write_breakdowns(client, results)
+        label = "remplacement" if refresh_breakdowns else "fill-only"
+        print(f"  Écriture {label} des breakdowns…", flush=True)
+        bstats = write_breakdowns(client, results, replace=refresh_breakdowns)
         print(f"    {bstats}")
 
     log_run(
@@ -531,7 +658,13 @@ if __name__ == "__main__":
                     help="Rafraîchir la VL de TOUS les OPCVM/ETF (pas seulement ceux incomplets)")
     ap.add_argument("--offset", type=int, default=0,
                     help="Sauter les N premières cibles (tri encours décroissant) — rotation longue traîne")
+    ap.add_argument("--refresh-breakdowns", action="store_true",
+                    help="Rafraîchir les VENTILATIONS périmées (holdings/secteurs/régions) : "
+                         "remplace par ISIN si FT renvoie des données. Cible par péremption.")
+    ap.add_argument("--max-age-days", type=int, default=90,
+                    help="Seuil de péremption des ventilations en jours (défaut 90, avec --refresh-breakdowns)")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
         workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
-        refresh=a.refresh, offset=a.offset)
+        refresh=a.refresh, offset=a.offset,
+        refresh_breakdowns=a.refresh_breakdowns, max_age_days=a.max_age_days)
