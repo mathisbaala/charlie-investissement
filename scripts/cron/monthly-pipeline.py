@@ -9,7 +9,13 @@ le top par encours du run hebdo :
      Financial Times tous les fonds encore incomplets (NAV + frais +
      catégorie + holdings/secteurs/régions), en FILL-ONLY. Pas de
      --refresh ni de --limit → toutes les cibles incomplètes.
-  2. compute-metrics : recalcul perf/vol/Sharpe/SRRI sur tous les fonds
+  2. ft-enricher --refresh-breakdowns : rafraîchit les VENTILATIONS
+     (holdings/secteurs/régions) PÉRIMÉES (> BREAKDOWN_MAX_AGE_DAYS).
+     Remplace par ISIN uniquement si FT renvoie des données (jamais
+     d'écrasement par du vide). La péremption pilote la rotation : un
+     bucket par mois → tout l'univers ventilé (~2,6 k fonds) couvert en
+     ~3 mois, comme la rotation des cours pour les VL.
+  3. compute-metrics : recalcul perf/vol/Sharpe/SRRI sur tous les fonds
      ayant un historique de prix (découverte via table de couverture,
      reconnexion périodique → robuste sur des dizaines de milliers de
      requêtes).
@@ -29,9 +35,22 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).parent.parent
 
+# Rotation des ventilations : un bucket par mois, trié par encours. Avec un
+# seuil de péremption de 90j (≈ 3 mois), un bucket ≥ univers/3 garantit que
+# tout fonds ventilé est rafraîchi au moins une fois par trimestre. Univers
+# actuel ~2,6 k → 1000/mois couvre largement (3×1000 ≥ 2633) avec marge.
+BREAKDOWN_BUCKET = 1000
+BREAKDOWN_MAX_AGE_DAYS = 90
+
 # (chemin relatif à SCRIPTS_DIR, arguments). --apply est ajouté automatiquement.
 MONTHLY_STEPS = [
     ("scrapers/ft-enricher.py", ["--workers", "6", "--delay", "0.15"]),
+    # Rafraîchissement des ventilations périmées (rotation trimestrielle).
+    ("scrapers/ft-enricher.py",
+     ["--refresh-breakdowns",
+      "--max-age-days", str(BREAKDOWN_MAX_AGE_DAYS),
+      "--limit", str(BREAKDOWN_BUCKET),
+      "--workers", "6", "--delay", "0.15"]),
     ("enrichers/compute-metrics.py", []),
     # Gap-fill complet ci-dessus (encours + nouveaux groupes) → recalcule le
     # représentant share-class (is_primary_share_class) qui porte la dédup de /api/funds.
