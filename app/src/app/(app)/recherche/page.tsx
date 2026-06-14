@@ -381,7 +381,7 @@ function RechercheInner() {
                 type="button"
                 onClick={() => setShowProfilePanel((v) => !v)}
                 title="Importer un profil client"
-                className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
+                className={`shrink-0 flex items-center justify-center w-9 h-9 md:w-7 md:h-7 rounded-full border transition-colors ${
                   showProfilePanel
                     ? "bg-accent-soft text-accent-ink border-accent/20"
                     : "border-line text-muted hover:bg-paper hover:text-ink-2"
