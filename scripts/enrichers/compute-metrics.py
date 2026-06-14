@@ -154,8 +154,30 @@ def _valid_perf(prices: list[float], min_points: int, span_days: int, min_span: 
     return p is not None and p > -1.0
 
 
+def _track_record_years(inception: str | None, span_days_5y: int) -> float | None:
+    """Ancienneté du fonds, en années.
+
+    Source fiable = inception_date (années depuis l'émission). Repli sans
+    inception : amplitude réelle de la série de prix (span en jours sur la
+    fenêtre 5 ans). On ne compte JAMAIS les points de prix : les VL sont
+    quotidiennes (~252/an), len(prices)/52 surévaluait l'ancienneté ~5×
+    (ex. 1825 VL / 52 = 35,1 ans pour un fonds réellement âgé de ~10 ans) et
+    plafonnait de toute façon à la fenêtre 5 ans."""
+    if inception:
+        try:
+            inc = date.fromisoformat(inception[:10])
+            yrs = round((date.today() - inc).days / 365.25, 1)
+            if 0 <= yrs <= 100:
+                return yrs
+        except (ValueError, TypeError):
+            pass
+    if span_days_5y and span_days_5y > 0:
+        return round(span_days_5y / 365.25, 1)
+    return None
+
+
 def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=None,
-                         asset_class=None) -> dict:
+                         asset_class=None, inception=None) -> dict:
     metrics = {}
     spans = spans or {"1y": 0, "3y": 0, "5y": 0}
 
@@ -201,9 +223,10 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
     else:
         metrics["performance_5y"] = None
 
-    # ── Track record ──
-    if prices_all:
-        metrics["track_record_years"] = round(len(prices_all) / 52, 1)
+    # ── Track record (ancienneté) ──
+    tr = _track_record_years(inception, spans.get("5y", 0))
+    if tr is not None:
+        metrics["track_record_years"] = tr
 
     # ── SRRI (KIID risk indicator 1-7 from annualized volatility in %) ──
     vol = metrics.get("volatility_3y") or metrics.get("volatility_1y")
@@ -270,18 +293,23 @@ def fetch_prices_for_isin(client, isin: str) -> dict[str, list[float]]:
     }
 
 
-def fetch_asset_classes(client, isins: list[str]) -> dict[str, str | None]:
-    """Map isin → asset_class_broad, pour borner la plausibilité des perfs
-    (cf. PERF_BOUNDS). Récupéré par lots pour éviter le plafond PostgREST."""
-    out: dict[str, str | None] = {}
+def fetch_fund_meta(client, isins: list[str]) -> dict[str, dict]:
+    """Map isin → {asset_class_broad, inception_date}, par lots (plafond PostgREST).
+
+    asset_class_broad borne la plausibilité des perfs (cf. PERF_BOUNDS) ;
+    inception_date sert au calcul de l'ancienneté (track_record_years)."""
+    out: dict[str, dict] = {}
     CHUNK = 500
     for i in range(0, len(isins), CHUNK):
         rows = client.table("investissement_funds") \
-            .select("isin, asset_class_broad") \
+            .select("isin, asset_class_broad, inception_date") \
             .in_("isin", isins[i:i + CHUNK]) \
             .execute().data or []
         for r in rows:
-            out[r["isin"]] = r.get("asset_class_broad")
+            out[r["isin"]] = {
+                "asset_class_broad": r.get("asset_class_broad"),
+                "inception_date": r.get("inception_date"),
+            }
     return out
 
 
@@ -317,9 +345,10 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
 
     print(f"  {len(isins)} fonds avec historique de prix à traiter")
 
-    # Classe d'actifs par ISIN → garde de plausibilité des perfs (PERF_BOUNDS).
-    acb_map = fetch_asset_classes(client, isins)
-    print(f"  {len(acb_map)} classes d'actifs chargées (garde plausibilité)")
+    # Métadonnées par ISIN : classe d'actifs (garde plausibilité PERF_BOUNDS)
+    # + inception_date (ancienneté track_record_years).
+    meta_map = fetch_fund_meta(client, isins)
+    print(f"  {len(meta_map)} métadonnées chargées (classe d'actifs + inception)")
     print()
 
     updates   = []
@@ -345,6 +374,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             skipped += 1
             continue
 
+        meta = meta_map.get(isin) or {}
         metrics = compute_fund_metrics(
             prices_1y=prices["1y"],
             prices_3y=prices["3y"],
@@ -352,7 +382,8 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             prices_all=prices["all"],
             rf=rf,
             spans=prices["span"],
-            asset_class=acb_map.get(isin),
+            asset_class=meta.get("asset_class_broad"),
+            inception=meta.get("inception_date"),
         )
 
         if not metrics:
