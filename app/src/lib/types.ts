@@ -395,7 +395,9 @@ export type FundDetailHF = {
 // Référencement d'un fonds chez un assureur (sortie get_fund_insurers)
 export type FundInsurerRef = {
   company: string;
-  contracts: string[];
+  // Peut être null : get_fund_insurers renvoie un assureur référencé sans
+  // liste de contrats détaillée. Toujours garder avec `?? []` avant .filter/.map.
+  contracts: string[] | null;
 };
 
 export type FundHoldingHF = {
