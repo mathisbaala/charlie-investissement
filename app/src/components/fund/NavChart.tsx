@@ -7,11 +7,13 @@ import {
 } from "recharts";
 import type { NavPointHF } from "@/lib/types";
 
-const PERIODS = [
-  { label: "1A",  months: 12 },
-  { label: "3A",  months: 36 },
-  { label: "5A",  months: 60 },
-  { label: "Max", months: 9999 },
+export type Period = { label: string; months: number; years: number };
+
+export const PERIODS: Period[] = [
+  { label: "1A",  months: 12,   years: 1 },
+  { label: "3A",  months: 36,   years: 3 },
+  { label: "5A",  months: 60,   years: 5 },
+  { label: "Max", months: 9999, years: 0 },
 ];
 
 interface NavChartProps {
@@ -23,6 +25,30 @@ function filterByPeriod(data: NavPointHF[], months: number): NavPointHF[] {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
   return data.filter((d) => new Date(d.date) >= cutoff);
+}
+
+// Amplitude réelle de la série, en années (du plus ancien au plus récent point).
+export function seriesSpanYears(data: NavPointHF[]): number {
+  if (data.length < 2) return 0;
+  let min = Infinity, max = -Infinity;
+  for (const d of data) {
+    const t = new Date(d.date).getTime();
+    if (Number.isNaN(t)) continue;
+    if (t < min) min = t;
+    if (t > max) max = t;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return 0;
+  return (max - min) / (365.25 * 24 * 60 * 60 * 1000);
+}
+
+// Un bouton de période n'a de sens que si le fonds a réellement cet historique.
+// Sinon sa fenêtre couvre toute la série → c'est un doublon de « Max » au libellé
+// trompeur (un fonds de 4 ans affichant « 5A : +79,8 % » sur ~4 ans de données).
+// Même garde-fou que KpiStrip.hasPeriod (tolérance 0,25 an). « Max » reste actif
+// dès qu'il y a au moins 2 points.
+export function periodEnabled(data: NavPointHF[], p: Period): boolean {
+  if (filterByPeriod(data, p.months).length < 2) return false;
+  return p.label === "Max" || seriesSpanYears(data) >= p.years - 0.25;
 }
 
 function formatDate(dateStr: string): string {
@@ -56,7 +82,13 @@ function CustomTooltip({ active, payload, label, mode }: {
 }
 
 export function NavChart({ data }: NavChartProps) {
-  const [period, setPeriod] = useState<string>("3A");
+  // Période initiale = la plus parlante disponible (3A par défaut, repli si trop jeune).
+  const [period, setPeriod] = useState<string>(() => {
+    const span = seriesSpanYears(data);
+    if (span >= 3 - 0.25) return "3A";
+    if (span >= 1 - 0.25) return "1A";
+    return "Max";
+  });
   const [mode, setMode] = useState<"vl" | "base100">("base100");
 
   const selectedPeriod = PERIODS.find((p) => p.label === period) ?? PERIODS[1];
@@ -103,12 +135,11 @@ export function NavChart({ data }: NavChartProps) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-0.5 bg-paper-2 border border-line rounded-lg p-0.5">
           {PERIODS.map((p) => {
-            const pts = filterByPeriod(data, p.months);
             return (
               <button
                 key={p.label}
                 onClick={() => setPeriod(p.label)}
-                disabled={pts.length < 2}
+                disabled={!periodEnabled(data, p)}
                 className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                   period === p.label
                     ? "bg-paper text-ink shadow-sm border border-line"
