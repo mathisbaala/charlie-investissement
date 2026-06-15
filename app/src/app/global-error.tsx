@@ -25,8 +25,8 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#FBF6EE",
-          color: "#1A1A1A",
+          backgroundColor: "#F4EFE4",
+          color: "#2B2722",
           fontFamily: "Georgia, 'Times New Roman', serif",
           padding: "1.5rem",
         }}
@@ -35,7 +35,7 @@ export default function GlobalError({
           <p style={{ fontSize: "28px", fontStyle: "italic", margin: "0 0 0.75rem" }}>
             Une erreur inattendue est survenue.
           </p>
-          <p style={{ fontSize: "14px", color: "#6B6B6B", margin: "0 0 1.5rem" }}>
+          <p style={{ fontSize: "14px", color: "#5C544A", margin: "0 0 1.5rem" }}>
             Recharge la page pour continuer.
           </p>
           <button
@@ -45,8 +45,8 @@ export default function GlobalError({
               padding: "0.5rem 1rem",
               borderRadius: "0.5rem",
               border: "none",
-              backgroundColor: "#B23A1E",
-              color: "#fff",
+              backgroundColor: "#9A4222",
+              color: "#FCFAF4",
               fontSize: "14px",
               cursor: "pointer",
             }}

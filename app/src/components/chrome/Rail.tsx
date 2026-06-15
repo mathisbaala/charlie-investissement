@@ -31,6 +31,8 @@ export function Rail() {
               key={href}
               href={href}
               title={label}
+              aria-label={label}
+              aria-current={active ? "page" : undefined}
               className={`relative flex items-center justify-center w-11 h-11 rounded-[9px] transition-colors group ${
                 active
                   ? "bg-brown text-paper"
