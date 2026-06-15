@@ -32,7 +32,7 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
       {/* Brand — no logo mark here, just wordmark */}
       <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
         <span
-          className="text-ink text-[19px] leading-none"
+          className="text-ink text-title leading-none"
           style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
         >
           Charlie
@@ -48,7 +48,7 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
               {i > 0 && <ChevronRight size={12} strokeWidth={1.8} />}
               <Link
                 href={c.href}
-                className="text-[12px] font-medium text-muted hover:text-ink-2 transition-colors"
+                className="text-meta font-medium text-muted hover:text-ink-2 transition-colors"
               >
                 {c.label}
               </Link>

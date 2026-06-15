@@ -61,10 +61,10 @@ function InsurerCard(
         className="group flex items-start justify-between gap-2 -mx-1 px-1 py-1 rounded-lg hover:bg-paper-2 transition-colors"
       >
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-ink group-hover:text-accent-ink truncate">
+          <p className="text-body-lg font-semibold text-ink group-hover:text-accent-ink truncate">
             {insurer.company}
           </p>
-          <p className="text-[11px] text-muted mt-0.5">
+          <p className="text-label text-muted mt-0.5">
             {insurer.funds.toLocaleString("fr-FR")} support{insurer.funds > 1 ? "s" : ""} référencé{insurer.funds > 1 ? "s" : ""}
           </p>
         </div>
@@ -74,7 +74,7 @@ function InsurerCard(
       {/* Contrats : chaque puce → supports du contrat précis */}
       {real.length > 0 && (
         <div className="mt-3 pt-3 border-t border-line-soft">
-          <p className="text-[10px] uppercase tracking-widest text-muted-2 font-semibold mb-2">
+          <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-2">
             Par contrat
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -93,7 +93,7 @@ function InsurerCard(
                   // Les variantes partagent le même jeu de fonds → le lien sur le
                   // représentant remonte exactement les mêmes supports.
                   title={titleParts.length ? titleParts.join(" — ") : undefined}
-                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                  className={`text-label px-2 py-1 rounded-full border transition-colors ${
                     c.closed
                       ? "bg-paper border-line-soft text-muted-2 hover:border-line"
                       : "bg-paper-2 border-line text-ink-2 hover:border-accent/40 hover:text-accent-ink"
@@ -101,11 +101,11 @@ function InsurerCard(
                 >
                   {c.contract} <span className="text-muted-2">({c.funds.toLocaleString("fr-FR")})</span>
                   {typeBadges.map((t) => (
-                    <span key={t} className="ml-1 text-[9px] uppercase tracking-wide text-accent-ink/70 font-semibold">
+                    <span key={t} className="ml-1 text-caption uppercase tracking-wide text-accent-ink/70 font-semibold">
                       {TYPE_LABEL[t]}
                     </span>
                   ))}
-                  {c.closed && <span className="ml-1 text-[9px] uppercase tracking-wide text-muted-2">fermé</span>}
+                  {c.closed && <span className="ml-1 text-caption uppercase tracking-wide text-muted-2">fermé</span>}
                   {variants.length > 0 && (
                     <span className="text-accent ml-1">+{variants.length} variante{variants.length > 1 ? "s" : ""}</span>
                   )}
@@ -115,7 +115,7 @@ function InsurerCard(
             {!showAll && extra > 0 && (
               <button
                 onClick={() => setShowAll(true)}
-                className="text-[11px] px-2 py-1 text-accent hover:underline"
+                className="text-label px-2 py-1 text-accent hover:underline"
               >
                 +{extra} contrat{extra > 1 ? "s" : ""}
               </button>
@@ -123,7 +123,7 @@ function InsurerCard(
             {showAll && real.length > CONTRACTS_PREVIEW && (
               <button
                 onClick={() => setShowAll(false)}
-                className="text-[11px] px-2 py-1 text-muted hover:underline"
+                className="text-label px-2 py-1 text-muted hover:underline"
               >
                 Réduire
               </button>
@@ -204,11 +204,11 @@ export default function AssureursPage() {
         <div className="mb-6">
           <div className="flex items-center gap-2.5 mb-1.5">
             <Shield size={22} className="text-accent-ink" strokeWidth={1.7} />
-            <h1 className="text-[26px] text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
+            <h1 className="text-display text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
               Assurances vie
             </h1>
           </div>
-          <p className="text-[13px] text-muted max-w-[640px]">
+          <p className="text-body text-muted max-w-[640px]">
             Sélectionnez un assureur ou un contrat pour afficher tous les supports
             (UC) qui y sont référencés.
           </p>
@@ -220,20 +220,20 @@ export default function AssureursPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Rechercher un assureur…"
-              className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-muted-2 focus:outline-none"
+              className="flex-1 bg-transparent text-body text-ink placeholder:text-muted-2 focus:outline-none"
             />
           </div>
 
           {/* Filtres : type d'enveloppe + statut commercial */}
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-muted-2 mr-1">Type&nbsp;:</span>
+            <span className="text-label text-muted-2 mr-1">Type&nbsp;:</span>
             {TYPE_FILTERS.map((t) => {
               const on = activeTypes.includes(t);
               return (
                 <button
                   key={t}
                   onClick={() => toggleType(t)}
-                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  className={`text-label px-2.5 py-1 rounded-full border transition-colors ${
                     on
                       ? "bg-accent/10 border-accent/40 text-accent-ink"
                       : "bg-paper border-line text-muted hover:border-accent/30"
@@ -246,7 +246,7 @@ export default function AssureursPage() {
             <span className="mx-1 w-px h-4 bg-line" aria-hidden />
             <button
               onClick={() => setHideClosed((v) => !v)}
-              className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+              className={`text-label px-2.5 py-1 rounded-full border transition-colors ${
                 hideClosed
                   ? "bg-accent/10 border-accent/40 text-accent-ink"
                   : "bg-paper border-line text-muted hover:border-accent/30"
@@ -264,7 +264,7 @@ export default function AssureursPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center gap-2">
-            <p className="text-[13px] text-muted">
+            <p className="text-body text-muted">
               {insurers.length === 0
                 ? "Aucun assureur référencé pour le moment."
                 : `Aucun assureur ne correspond à « ${q.trim()} ».`}
@@ -272,7 +272,7 @@ export default function AssureursPage() {
           </div>
         ) : (
           <>
-            <p className="text-[11px] text-muted-2 mb-3">
+            <p className="text-label text-muted-2 mb-3">
               {filtered.length.toLocaleString("fr-FR")} assureur{filtered.length > 1 ? "s" : ""}
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,7 +288,7 @@ export default function AssureursPage() {
           </>
         )}
 
-        <p className="text-[10px] text-muted-2 mt-6 leading-snug max-w-[640px]">
+        <p className="text-caption text-muted-2 mt-6 leading-snug max-w-[640px]">
           Donnée partielle. L&apos;absence d&apos;un assureur ou d&apos;un contrat ne signifie pas
           qu&apos;un fonds n&apos;y est pas référencé.
         </p>

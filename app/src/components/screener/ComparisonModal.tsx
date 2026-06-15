@@ -145,7 +145,7 @@ function NavChart({ funds }: { funds: SelectedFund[] }) {
 
   if (!hasData) {
     return (
-      <div className="flex items-center justify-center h-[220px] text-[12px] text-muted italic">
+      <div className="flex items-center justify-center h-[220px] text-meta text-muted italic">
         Historique de valeur liquidative indisponible pour ces fonds.
       </div>
     );
@@ -225,7 +225,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
 
         {/* Head */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-line shrink-0">
-          <h2 className="text-[22px] text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+          <h2 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-serif)" }}>
             Comparer{" "}
             <em className="text-accent" style={{ fontStyle: "italic" }}>
               {selected.length} fonds.
@@ -240,7 +240,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
 
           {/* NAV chart */}
           <div className="px-6 pt-5 pb-3">
-            <p className="text-[10px] uppercase tracking-[0.1em] text-muted font-semibold mb-3">
+            <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-3">
               Performance relative · base 100 · 3 ans
             </p>
             <NavChart funds={selected} />
@@ -260,12 +260,12 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                       style={{ backgroundColor: FUND_COLORS[i] }}
                     />
                     <p
-                      className="text-[15px] font-medium text-ink leading-tight"
+                      className="text-body-lg font-medium text-ink leading-tight"
                       style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
                     >
                       {f.name}
                     </p>
-                    <p className="text-[10px] text-muted font-mono uppercase tracking-wider mt-1">
+                    <p className="text-caption text-muted font-mono uppercase tracking-wider mt-1">
                       {f.isin}{f.gestionnaire ? ` · ${f.gestionnaire}` : ""}
                     </p>
                   </th>
@@ -278,7 +278,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                 <React.Fragment key={section}>
                   <tr>
                     <td colSpan={selected.length + 1} className="px-6 pt-5 pb-2">
-                      <span className="text-[10px] uppercase tracking-[0.1em] text-muted font-semibold">
+                      <span className="text-caption uppercase tracking-[0.1em] text-muted font-semibold">
                         {section}
                       </span>
                     </td>
@@ -287,7 +287,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                     const { bestIdx, worstIdx } = getBestWorstIdx(row, selected);
                     return (
                       <tr key={row.key} className="border-b border-dashed border-line-soft">
-                        <td className="px-6 py-3 text-[12px] text-ink-2 w-40 shrink-0">
+                        <td className="px-6 py-3 text-meta text-ink-2 w-40 shrink-0">
                           {row.label}
                         </td>
                         {selected.map((f, idx) => {
@@ -299,7 +299,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                           return (
                             <td
                               key={f.isin}
-                              className={`px-4 py-3 text-[13px] font-mono font-medium ${
+                              className={`px-4 py-3 text-body font-mono font-medium ${
                                 isTrue
                                   ? "text-ok"
                                   : isFalse

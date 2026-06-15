@@ -76,13 +76,13 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
   return (
     <div className="c-slide-up fixed bottom-4 left-[60px] right-0 mx-auto z-30 flex flex-wrap items-center gap-2 sm:gap-3 bg-paper border border-line rounded-xl px-3 sm:px-4 py-2.5 shadow-[0_4px_16px_oklch(0.22_0.012_60_/_0.12)] max-w-[860px] w-[calc(100%-60px-1.5rem)]">
       <span
-        className="text-[15px] text-accent shrink-0"
+        className="text-body-lg text-accent shrink-0"
         style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
       >
         {selected.length}
       </span>
       {/* Liste des noms masquée sur mobile : laisse la place aux actions */}
-      <span className="hidden sm:block text-[12px] text-ink-2 flex-1 min-w-0 truncate">
+      <span className="hidden sm:block text-meta text-ink-2 flex-1 min-w-0 truncate">
         {selected.map((f) => f.name).join(" · ")}
       </span>
       {/* Sur mobile : icônes masquées (boutons texte seul, plus compacts) ;

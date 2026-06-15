@@ -21,7 +21,7 @@ function Divider() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-4">
-      <p className="text-[10px] uppercase tracking-[0.08em] text-muted font-semibold mb-3">
+      <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold mb-3">
         {title}
       </p>
       {children}
@@ -35,7 +35,7 @@ function SfdrPill({
   return (
     <button
       onClick={onToggle}
-      className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${
+      className={`px-3.5 py-1.5 rounded-full text-meta font-medium border transition-colors ${
         active
           ? "bg-brown text-paper border-brown"
           : "bg-paper-2 text-ink-2 border-line hover:border-accent/30"
@@ -101,7 +101,7 @@ function SriSlider({
       </div>
       <div className="flex justify-between mt-1.5 px-0.5">
         {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-          <span key={n} className="text-[10px] text-muted-2 font-mono">{n}</span>
+          <span key={n} className="text-caption text-muted-2 font-mono">{n}</span>
         ))}
       </div>
     </div>
@@ -121,10 +121,10 @@ function NumPairInputs({
   placeholderA?: string; placeholderB?: string;
   suffix?: string;
 }) {
-  const cls = "w-full border border-line rounded-lg px-2.5 py-1.5 text-[12px] font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors";
+  const cls = "w-full border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors";
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2.5 text-[10px] text-muted uppercase tracking-wider font-semibold">
+      <div className="grid grid-cols-2 gap-2.5 text-caption text-muted uppercase tracking-wider font-semibold">
         <span>{labelA}</span>
         <span>{labelB}</span>
       </div>
@@ -132,12 +132,12 @@ function NumPairInputs({
         <div className="flex items-center gap-1">
           <input type="number" value={valueA} onChange={(e) => onChangeA(e.target.value)}
             placeholder={placeholderA} className={cls} />
-          <span className="text-[11px] text-muted shrink-0">{suffix}</span>
+          <span className="text-label text-muted shrink-0">{suffix}</span>
         </div>
         <div className="flex items-center gap-1">
           <input type="number" value={valueB} onChange={(e) => onChangeB(e.target.value)}
             placeholder={placeholderB} className={cls} />
-          <span className="text-[11px] text-muted shrink-0">{suffix}</span>
+          <span className="text-label text-muted shrink-0">{suffix}</span>
         </div>
       </div>
     </div>
@@ -187,7 +187,7 @@ export function FilterPanel({
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-line shrink-0">
         <div className="flex items-center gap-2">
           <SlidersHorizontal size={14} className="text-muted" strokeWidth={1.7} />
-          <span className="text-[13px] font-semibold text-ink">Ajuster les filtres</span>
+          <span className="text-body font-semibold text-ink">Ajuster les filtres</span>
         </div>
         <button
           onClick={onClose}
@@ -236,9 +236,9 @@ export function FilterPanel({
               value={String(f.ter_max ?? "")}
               onChange={(e) => set("ter_max", e.target.value ? +e.target.value : undefined)}
               placeholder="2,0"
-              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-[12px] font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
             />
-            <span className="text-[12px] text-muted">%</span>
+            <span className="text-meta text-muted">%</span>
           </div>
         </Section>
 
@@ -317,7 +317,7 @@ export function FilterPanel({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => set("insurers", toggleArr(f.insurers, company))}
-                          className={`px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${
+                          className={`px-3 py-1.5 rounded-full text-meta font-medium border transition-colors ${
                             (f.insurers ?? []).includes(company)
                               ? "bg-brown text-paper border-brown"
                               : "bg-paper-2 text-ink-2 border-line hover:border-accent/30"
@@ -358,7 +358,7 @@ export function FilterPanel({
                           {contracts.length > CONTRACTS_PREVIEW && (
                             <button
                               onClick={() => setShowAllContracts((s) => ({ ...s, [company]: !showAll }))}
-                              className="text-[11px] px-2 py-1 text-accent hover:underline"
+                              className="text-label px-2 py-1 text-accent hover:underline"
                             >
                               {showAll ? "Réduire" : `+${contracts.length - CONTRACTS_PREVIEW} contrats`}
                             </button>
@@ -369,7 +369,7 @@ export function FilterPanel({
                   );
                 })}
               </div>
-              <p className="text-[10px] text-muted-2 mt-2 leading-snug">
+              <p className="text-caption text-muted-2 mt-2 leading-snug">
                 Cliquez sur l&apos;assureur pour le sélectionner, ou sur le chevron pour filtrer par contrat
                 précis. Donnée partielle — l&apos;absence ne signifie pas non-référencement.
               </p>
@@ -498,7 +498,7 @@ export function FilterPanel({
               <button
                 key={n}
                 onClick={() => set("morningstar_min", f.morningstar_min === n ? undefined : n)}
-                className={`text-xl leading-none transition-colors ${
+                className={`text-title-lg leading-none transition-colors ${
                   (f.morningstar_min ?? 0) >= n ? "text-warn" : "text-muted-2"
                 }`}
               >
@@ -519,9 +519,9 @@ export function FilterPanel({
               value={String(f.retrocession_min ?? "")}
               onChange={(e) => set("retrocession_min", e.target.value ? +e.target.value : undefined)}
               placeholder="0,5"
-              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-[12px] font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
             />
-            <span className="text-[12px] text-muted">%</span>
+            <span className="text-meta text-muted">%</span>
           </div>
         </Section>
 
@@ -536,7 +536,7 @@ export function FilterPanel({
             >
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.has_kid ? "translate-x-5" : "translate-x-0.5"}`} />
             </div>
-            <span className="text-[12px] text-ink-2 group-hover:text-ink">DICI disponible uniquement</span>
+            <span className="text-meta text-ink-2 group-hover:text-ink">DICI disponible uniquement</span>
           </label>
         </Section>
 
@@ -561,7 +561,7 @@ export function FilterPanel({
             value={f.manager_search ?? ""}
             onChange={(e) => set("manager_search", e.target.value || undefined)}
             placeholder="Autre société de gestion…"
-            className="w-full border border-line rounded-lg px-3 py-2 text-[12px] text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+            className="w-full border border-line rounded-lg px-3 py-2 text-meta text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
           />
         </Section>
 

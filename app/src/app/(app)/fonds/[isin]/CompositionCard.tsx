@@ -61,8 +61,8 @@ function LegendRow({ label, weight, color }: { label: string; weight: number; co
   return (
     <div className="flex items-center gap-1.5">
       <span className="shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-      <span className="text-[10.5px] text-muted flex-1 truncate">{label}</span>
-      <span className="text-[10.5px] font-mono text-ink-2 shrink-0">{pctStr(weight)}</span>
+      <span className="text-caption text-muted flex-1 truncate">{label}</span>
+      <span className="text-caption font-mono text-ink-2 shrink-0">{pctStr(weight)}</span>
     </div>
   );
 }
@@ -77,7 +77,7 @@ function BreakdownPanel({
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-semibold">{title}</p>
+      <p className="text-caption uppercase tracking-wider text-muted-2 mb-3 font-semibold">{title}</p>
       {showDonut ? (
         <div className="flex gap-3 items-start">
           <DonutChart items={top} size={72} />
@@ -102,15 +102,15 @@ function HoldingRow({ holding, rank }: { holding: FundHoldingHF; rank: number })
   const barPct = Math.min(holding.weight * 100 / 15, 100);
   return (
     <div className="flex items-center gap-2.5 py-1 border-b border-line-soft last:border-0">
-      <span className="text-[10px] text-muted-2 font-mono w-4 shrink-0 text-right">{rank}</span>
+      <span className="text-caption text-muted-2 font-mono w-4 shrink-0 text-right">{rank}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-[11px] text-ink-2 truncate leading-tight">{holding.position_name}</div>
+        <div className="text-label text-ink-2 truncate leading-tight">{holding.position_name}</div>
         <div
           className="mt-0.5 h-[3px] rounded-full bg-accent/25"
           style={{ width: `${barPct}%` }}
         />
       </div>
-      <span className="text-[11px] font-mono text-ink shrink-0 font-medium">{pctStr(holding.weight)}</span>
+      <span className="text-label font-mono text-ink shrink-0 font-medium">{pctStr(holding.weight)}</span>
     </div>
   );
 }
@@ -127,7 +127,7 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-4 py-4 md:px-6 md:py-5 md:col-span-2">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-5">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-5">
         Composition du portefeuille
       </h3>
 
@@ -135,7 +135,7 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
         {/* Top holdings */}
         {hasHoldings && (
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-2 mb-3 font-semibold">
+            <p className="text-caption uppercase tracking-wider text-muted-2 mb-3 font-semibold">
               Top {holdings.length} positions
             </p>
             <div>

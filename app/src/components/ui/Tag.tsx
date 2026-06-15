@@ -11,7 +11,7 @@ interface TagProps {
 export function Tag({ label, onRemove, className = "" }: TagProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-accent-soft text-accent-ink border border-accent/20 whitespace-nowrap ${className}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-meta font-medium bg-accent-soft text-accent-ink border border-accent/20 whitespace-nowrap ${className}`}
     >
       {label}
       {onRemove && (

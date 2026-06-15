@@ -5,12 +5,12 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-4">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Référencement assureur
       </h3>
 
       {refs.length === 0 ? (
-        <p className="text-[12px] text-muted text-center py-4">Aucun référencement renseigné</p>
+        <p className="text-meta text-muted text-center py-4">Aucun référencement renseigné</p>
       ) : (
         <div className="space-y-3">
           {refs.map((r) => {
@@ -29,9 +29,9 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
             return (
               <div key={r.company}>
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-[12.5px] font-semibold text-ink">{r.company}</p>
+                  <p className="text-meta font-semibold text-ink">{r.company}</p>
                   {contracts.length > 0 && (
-                    <span className="text-[10px] text-muted-2 shrink-0">
+                    <span className="text-caption text-muted-2 shrink-0">
                       {contracts.length} contrat{contracts.length > 1 ? "s" : ""}
                     </span>
                   )}
@@ -41,13 +41,13 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
                     {shown.map((c) => (
                       <span
                         key={c}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-paper-2 border border-line-soft text-muted"
+                        className="text-caption px-1.5 py-0.5 rounded bg-paper-2 border border-line-soft text-muted"
                       >
                         {c}
                       </span>
                     ))}
                     {extra > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 text-muted-2">+{extra} autres</span>
+                      <span className="text-caption px-1.5 py-0.5 text-muted-2">+{extra} autres</span>
                     )}
                   </div>
                 )}
@@ -57,7 +57,7 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
         </div>
       )}
 
-      <p className="text-[10px] text-muted-2 mt-4 leading-snug">
+      <p className="text-caption text-muted-2 mt-4 leading-snug">
         Donnée partielle. L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas
         référencé.
       </p>

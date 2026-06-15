@@ -104,7 +104,7 @@ export default function AccueilPage() {
 
         {/* ── Hero ──────────────────────────────────────────────────────────── */}
         <div className="mb-8">
-          <h1 className="text-[32px] text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
+          <h1 className="text-display-md text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
             Charlie.
           </h1>
 
@@ -123,7 +123,7 @@ export default function AccueilPage() {
               <button
                 type="button"
                 onClick={() => setShowProfilePanel((v) => !v)}
-                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-[11px] font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
+                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-label font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
               >
                 <span>Profil actif</span>
                 <X
@@ -174,11 +174,11 @@ export default function AccueilPage() {
 
           {/* Recherches récentes */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Recherches récentes
             </p>
             {searches.length === 0 ? (
-              <p className="text-[12px] text-muted italic">Aucune recherche récente</p>
+              <p className="text-meta text-muted italic">Aucune recherche récente</p>
             ) : (
               <div className="flex flex-col gap-0.5">
                 {searches.slice(0, 6).map((s, i) => (
@@ -187,15 +187,15 @@ export default function AccueilPage() {
                     className="cursor-pointer group rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
                     onClick={() => router.push("/recherche?q=" + encodeURIComponent(s.query))}
                   >
-                    <p className="text-[12px] text-ink-2 group-hover:text-ink truncate">{s.query}</p>
-                    <p className="text-[10px] text-muted-2 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>
+                    <p className="text-meta text-ink-2 group-hover:text-ink truncate">{s.query}</p>
+                    <p className="text-caption text-muted-2 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>
                       {dt(s.searched_at)}
                     </p>
                   </div>
                 ))}
                 <button
                   onClick={() => { clearSearches(); setSearches([]); }}
-                  className="text-[10px] text-muted hover:text-ink mt-2 text-left px-2 transition-colors"
+                  className="text-caption text-muted hover:text-ink mt-2 text-left px-2 transition-colors"
                 >
                   Effacer l'historique
                 </button>
@@ -205,11 +205,11 @@ export default function AccueilPage() {
 
           {/* Favoris récents */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Favoris récents
             </p>
             {favorites.length === 0 ? (
-              <p className="text-[12px] text-muted italic">Aucun favori enregistré</p>
+              <p className="text-meta text-muted italic">Aucun favori enregistré</p>
             ) : (
               <div className="flex flex-col gap-0.5">
                 {favorites.slice(0, 6).map((f) => (
@@ -219,19 +219,19 @@ export default function AccueilPage() {
                     onClick={() => router.push(`/fonds/${f.isin}`)}
                   >
                     <div className="flex items-center gap-2">
-                      <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium flex-1">
+                      <p className="text-meta text-ink-2 group-hover:text-ink truncate font-medium flex-1">
                         {f.name}
                       </p>
                       {f.performance_3y != null && (
-                        <span className={`text-[11px] font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                        <span className={`text-label font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
                           {pct(f.performance_3y, true)}
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted truncate px-0.5">{f.gestionnaire ?? "—"}</p>
+                    <p className="text-caption text-muted truncate px-0.5">{f.gestionnaire ?? "—"}</p>
                   </div>
                 ))}
-                <Link href="/favoris" className="text-[10px] text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
+                <Link href="/favoris" className="text-caption text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
                   Voir tous les favoris <ChevronRight size={10} />
                 </Link>
               </div>
@@ -240,7 +240,7 @@ export default function AccueilPage() {
 
           {/* Par enveloppe */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Par enveloppe
             </p>
             <div className="flex flex-col gap-0.5">
@@ -257,7 +257,7 @@ export default function AccueilPage() {
                   onClick={() => router.push(`/recherche?envelopes=${env}`)}
                   className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-paper-2 transition-colors text-left group"
                 >
-                  <span className="text-[12px] text-ink-2 group-hover:text-ink font-medium">{label}</span>
+                  <span className="text-meta text-ink-2 group-hover:text-ink font-medium">{label}</span>
                   <ChevronRight size={12} className="text-muted group-hover:text-ink-2 shrink-0" />
                 </button>
               ))}
@@ -266,13 +266,13 @@ export default function AccueilPage() {
 
           {/* Par assureur */}
           <div className="bg-paper rounded-xl border border-line px-5 py-4">
-            <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Par assureur
             </p>
             {insurersLoading ? (
-              <p className="text-[12px] text-muted italic">Chargement…</p>
+              <p className="text-meta text-muted italic">Chargement…</p>
             ) : insurers.length === 0 ? (
-              <p className="text-[12px] text-muted italic">Annuaire indisponible</p>
+              <p className="text-meta text-muted italic">Annuaire indisponible</p>
             ) : (
               <div className="flex flex-col gap-0.5">
                 {insurers.slice(0, 6).map(({ company, funds }) => (
@@ -281,16 +281,16 @@ export default function AccueilPage() {
                     onClick={() => router.push(`/recherche?insurer=${encodeURIComponent(company)}`)}
                     className="flex items-center justify-between gap-2 px-2 py-2 rounded-lg hover:bg-paper-2 transition-colors text-left group"
                   >
-                    <span className="text-[12px] text-ink-2 group-hover:text-ink font-medium truncate">{company}</span>
+                    <span className="text-meta text-ink-2 group-hover:text-ink font-medium truncate">{company}</span>
                     <span className="flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
+                      <span className="text-caption text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
                         {funds.toLocaleString("fr-FR")}
                       </span>
                       <ChevronRight size={12} className="text-muted group-hover:text-ink-2" />
                     </span>
                   </button>
                 ))}
-                <Link href="/assureurs" className="text-[10px] text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
+                <Link href="/assureurs" className="text-caption text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
                   Voir l'annuaire complet <ChevronRight size={10} />
                 </Link>
               </div>
@@ -305,8 +305,8 @@ export default function AccueilPage() {
             {topEtf.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top ETF · Perf 3A</p>
-                  <Link href="/recherche?universe=etf&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top ETF · Perf 3A</p>
+                  <Link href="/recherche?universe=etf&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
@@ -314,19 +314,19 @@ export default function AccueilPage() {
                   {topEtf.map((f) => (
                     <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
-                        <p className="text-[10px] text-muted-2 truncate">
+                        <p className="text-meta text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
+                        <p className="text-caption text-muted-2 truncate">
                           {f.gestionnaire ?? f.isin}
                           {f.ter != null && <span className="ml-1.5 font-mono">{pct(f.ter)}</span>}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
-                        <p className="text-[10px] text-muted-2">3 ans</p>
+                        <p className="text-caption text-muted-2">3 ans</p>
                       </div>
                     </Link>
                   ))}
@@ -337,8 +337,8 @@ export default function AccueilPage() {
             {topOpcvm.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top OPCVM · Perf 3A</p>
-                  <Link href="/recherche?universe=opcvm&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top OPCVM · Perf 3A</p>
+                  <Link href="/recherche?universe=opcvm&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
@@ -346,19 +346,19 @@ export default function AccueilPage() {
                   {topOpcvm.map((f) => (
                     <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
-                        <p className="text-[10px] text-muted-2 truncate">
+                        <p className="text-meta text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
+                        <p className="text-caption text-muted-2 truncate">
                           {f.gestionnaire ?? f.isin}
                           {f.sfdr_article && <span className="ml-1.5">Art.{f.sfdr_article}</span>}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
-                        <p className="text-[10px] text-muted-2">3 ans</p>
+                        <p className="text-caption text-muted-2">3 ans</p>
                       </div>
                     </Link>
                   ))}
@@ -369,8 +369,8 @@ export default function AccueilPage() {
             {topScpi.length > 0 && (
               <div className="bg-paper rounded-xl border border-line px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-muted font-semibold">Top SCPI · Perf 3A</p>
-                  <Link href="/recherche?universe=scpi&sort_by=performance_3y" className="text-[10px] text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
+                  <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top SCPI · Perf 3A</p>
+                  <Link href="/recherche?universe=scpi&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
                     Voir tout <ChevronRight size={10} />
                   </Link>
                 </div>
@@ -378,16 +378,16 @@ export default function AccueilPage() {
                   {topScpi.map((f) => (
                     <Link key={f.isin} href={`/fonds/${f.isin}`} className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
-                        <p className="text-[10px] text-muted-2 truncate">{f.gestionnaire ?? f.isin}</p>
+                        <p className="text-meta text-ink-2 group-hover:text-ink truncate font-medium">{f.name}</p>
+                        <p className="text-caption text-muted-2 truncate">{f.gestionnaire ?? f.isin}</p>
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-[13px] font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
-                        <p className="text-[10px] text-muted-2">3 ans</p>
+                        <p className="text-caption text-muted-2">3 ans</p>
                       </div>
                     </Link>
                   ))}

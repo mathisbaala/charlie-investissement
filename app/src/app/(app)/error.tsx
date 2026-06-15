@@ -21,12 +21,12 @@ export default function AppError({
     <div className="h-full flex items-center justify-center bg-cream px-6">
       <div className="max-w-md text-center">
         <p
-          className="text-[28px] text-ink italic mb-3"
+          className="text-display text-ink italic mb-3"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Une erreur est survenue.
         </p>
-        <p className="text-[13px] text-muted mb-6">
+        <p className="text-body text-muted mb-6">
           Quelque chose s'est mal passé en chargeant cette page. Tu peux
           réessayer — tes favoris et recherches sont conservés.
         </p>
@@ -34,19 +34,19 @@ export default function AppError({
           <button
             type="button"
             onClick={reset}
-            className="px-4 py-2 rounded-lg bg-accent text-paper text-[13px] font-medium hover:bg-accent/90 transition-colors"
+            className="px-4 py-2 rounded-lg bg-accent text-paper text-body font-medium hover:bg-accent/90 transition-colors"
           >
             Réessayer
           </button>
           <Link
             href="/accueil"
-            className="px-4 py-2 rounded-lg border border-line text-ink-2 text-[13px] font-medium hover:bg-paper-2 transition-colors"
+            className="px-4 py-2 rounded-lg border border-line text-ink-2 text-body font-medium hover:bg-paper-2 transition-colors"
           >
             Retour à l'accueil
           </Link>
         </div>
         {error.digest && (
-          <p className="mt-6 text-[10px] text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
+          <p className="mt-6 text-caption text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
             ref: {error.digest}
           </p>
         )}

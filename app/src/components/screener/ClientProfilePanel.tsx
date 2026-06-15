@@ -34,7 +34,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all ${
+      className={`px-3 py-1.5 rounded-lg text-meta font-medium border transition-all ${
         active
           ? "bg-brown text-paper border-brown shadow-sm"
           : "bg-paper text-ink-2 border-line hover:border-brown/30 hover:text-ink"
@@ -48,7 +48,7 @@ function Chip({
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-medium text-muted uppercase tracking-widest">{label}</p>
+      <p className="text-label font-medium text-muted uppercase tracking-widest">{label}</p>
       {children}
     </div>
   );
@@ -168,9 +168,9 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-line bg-paper-2">
         <div className="flex items-center gap-3">
-          <p className="text-[12px] font-semibold text-ink tracking-wide">Profil client</p>
+          <p className="text-meta font-semibold text-ink tracking-wide">Profil client</p>
           {importSource && !importing && (
-            <span className="inline-flex items-center gap-1.5 text-[10px] text-ok bg-ok-soft border border-ok/20 rounded-full px-2 py-0.5">
+            <span className="inline-flex items-center gap-1.5 text-caption text-ok bg-ok-soft border border-ok/20 rounded-full px-2 py-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-ok inline-block" />
               {importSource.length > 28 ? importSource.slice(0, 28) + "…" : importSource}
               <button type="button" onClick={() => setImportSource(null)} className="hover:text-ok/70">
@@ -184,7 +184,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 hover:bg-cream hover:border-brown/30 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 hover:bg-cream hover:border-brown/30 transition-colors disabled:opacity-50"
           >
             {importing ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
             {importing ? "Analyse…" : "Importer"}
@@ -210,7 +210,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
           onDragOver={(e) => e.preventDefault()}
           onDragLeave={() => setDragging(false)}
         >
-          <p className="text-[16px] font-medium text-accent">Relâchez pour importer</p>
+          <p className="text-subhead font-medium text-accent">Relâchez pour importer</p>
         </div>
       )}
 
@@ -231,7 +231,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
                 value={profile.age ?? ""}
                 onChange={(e) => set("age", e.target.value ? Number(e.target.value) : null)}
                 placeholder="ex: 45"
-                className="w-full border border-line rounded-lg px-3 py-2 text-[13px] bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
+                className="w-full border border-line rounded-lg px-3 py-2 text-body bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
               />
             </div>
           </FieldGroup>
@@ -243,7 +243,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
               value={profile.amount_eur ?? ""}
               onChange={(e) => set("amount_eur", e.target.value ? Number(e.target.value) : null)}
               placeholder="ex: 50 000"
-              className="w-full border border-line rounded-lg px-3 py-2 text-[13px] bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
+              className="w-full border border-line rounded-lg px-3 py-2 text-body bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors"
             />
           </FieldGroup>
         </div>
@@ -298,8 +298,8 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
                     : "bg-paper text-ink-2 border-line hover:border-brown/30"
                 }`}
               >
-                <span className="text-[12px] font-medium">{label}</span>
-                <span className={`text-[10px] font-mono mt-0.5 ${profile.risk_profile === value ? "text-paper/70" : color}`}>
+                <span className="text-meta font-medium">{label}</span>
+                <span className={`text-caption font-mono mt-0.5 ${profile.risk_profile === value ? "text-paper/70" : color}`}>
                   {desc}
                 </span>
               </button>
@@ -434,7 +434,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
         <button
           type="button"
           onClick={() => { onChange(EMPTY_PROFILE); setImportSource(null); }}
-          className="text-[11px] text-muted hover:text-ink transition-colors"
+          className="text-label text-muted hover:text-ink transition-colors"
         >
           Effacer le profil
         </button>

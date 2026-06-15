@@ -363,7 +363,7 @@ function RechercheInner() {
               <button
                 type="button"
                 onClick={() => setShowProfilePanel((v) => !v)}
-                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-[11px] font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
+                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-label font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
               >
                 <span>Profil actif</span>
                 <X
@@ -409,7 +409,7 @@ function RechercheInner() {
 
         <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
         {nlpFailed && query.trim() && (
-          <p className="text-[11px] text-muted px-1">
+          <p className="text-label text-muted px-1">
             Filtres intelligents indisponibles — recherche par nom. Utilisez les{" "}
             <button onClick={() => setShowFilters(true)} className="underline hover:text-ink-2 transition-colors">
               filtres manuels
@@ -440,14 +440,14 @@ function RechercheInner() {
               <div className="w-12 h-12 rounded-2xl bg-paper-2 border border-line flex items-center justify-center">
                 <Search size={20} className="text-muted" strokeWidth={1.5} />
               </div>
-              <p className="text-[14px] font-medium text-ink-2">Recherchez dans la base de données</p>
+              <p className="text-body-lg font-medium text-ink-2">Recherchez dans la base de données</p>
             </div>
           ) : (<>
 
           {/* Toolbar — flex-wrap : sur très petit écran (≤320px) le groupe de
               contrôles passe sous le compteur au lieu de couper « Filtres ». */}
-          <div className="shrink-0 flex flex-wrap items-center justify-between gap-y-2 py-2.5 text-[11px] text-muted">
-            <span className="text-[12px] font-medium text-ink-2">
+          <div className="shrink-0 flex flex-wrap items-center justify-between gap-y-2 py-2.5 text-label text-muted">
+            <span className="text-meta font-medium text-ink-2">
               {parsing ? "Analyse de votre recherche…" : loading ? "Chargement…" : `${total.toLocaleString("fr-FR")} fonds`}
             </span>
             {/* flex-wrap aussi sur le groupe : à 320px, Tri/Filtres passent sous
@@ -457,7 +457,7 @@ function RechercheInner() {
                 <select
                   value={sortBy}
                   onChange={(e) => handleSortByChange(e.target.value)}
-                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none transition-colors hover:bg-paper-2"
+                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none transition-colors hover:bg-paper-2"
                 >
                   <option value="data_completeness">Complétude</option>
                   <option value="performance_3y">Perf 3A</option>
@@ -474,14 +474,14 @@ function RechercheInner() {
               </div>
               <button
                 onClick={handleSortDirToggle}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border transition-colors bg-paper text-ink-2 border-line hover:bg-paper-2"
               >
                 <ArrowUpDown size={12} />
                 {sortDir === "desc" ? "Déc." : "Crois."}
               </button>
               <button
                 onClick={() => setShowFilters((v) => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border transition-colors ${
                   showFilters ? "bg-accent-soft text-accent-ink border-accent/20" : "bg-paper text-ink-2 border-line hover:bg-paper-2"
                 }`}
               >
@@ -498,9 +498,9 @@ function RechercheInner() {
                 <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               </div>
             ) : funds.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted text-sm gap-2">
+              <div className="flex flex-col items-center justify-center h-40 text-muted text-body-lg gap-2">
                 <p>Aucun fonds ne correspond à votre recherche.</p>
-                <button onClick={handleFiltersReset} className="text-accent text-xs hover:underline">
+                <button onClick={handleFiltersReset} className="text-accent text-meta hover:underline">
                   Réinitialiser les filtres
                 </button>
               </div>
@@ -518,7 +518,7 @@ function RechercheInner() {
             )}
 
             {!loading && !parsing && totalPages > 1 && (
-              <div className="flex items-center justify-between px-3 py-3 text-[11px] text-muted">
+              <div className="flex items-center justify-between px-3 py-3 text-label text-muted">
                 <span>Page {page} / {totalPages}</span>
                 <div className="flex gap-1">
                   <button disabled={page <= 1} onClick={goToPrevPage} className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors" aria-label="Page précédente">
