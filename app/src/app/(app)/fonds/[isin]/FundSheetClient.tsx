@@ -6,6 +6,7 @@ import { ArrowLeft, Star, Download } from "@/components/ui/icons";
 import { NavChart } from "@/components/fund/NavChart";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
 import { Btn } from "@/components/ui/Btn";
+import { Card } from "@/components/ui/Card";
 import { addFavorite, removeFavorite, isFavorite } from "@/lib/favorites";
 import { useToast } from "@/components/ui/Toast";
 import type { FundDetailHF } from "@/lib/types";
@@ -84,7 +85,7 @@ export function FundSheetClient({ fund }: Props) {
         </Link>
 
         {/* Banner */}
-        <div className="bg-paper rounded-2xl border border-line px-5 py-5 md:px-7 md:py-6 mb-5">
+        <Card className="px-5 py-5 md:px-7 md:py-6 mb-5">
           <div className="flex flex-col md:flex-row items-start gap-4 md:gap-6">
             <div className="flex-1 min-w-0">
               {/* Product type chip */}
@@ -180,16 +181,16 @@ export function FundSheetClient({ fund }: Props) {
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* KPI strip */}
         <KpiStrip fund={fund} />
 
         {/* NAV Chart */}
         {fund.nav_history.length > 1 && (
-          <div className="bg-paper rounded-2xl border border-line px-4 py-4 md:px-7 md:py-5 mt-5">
+          <Card className="px-4 py-4 md:px-7 md:py-5 mt-5">
             <NavChart data={fund.nav_history} />
-          </div>
+          </Card>
         )}
 
         {/* Grille de cartes : 1 colonne sur mobile, 2 sur desktop */}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { pct } from "@/lib/format";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import type { SimilarFund } from "@/lib/types";
 
 interface Props { isin: string }
@@ -23,7 +24,7 @@ export function SimilarFundsCard({ isin }: Props) {
   if (loading || funds.length === 0) return null;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5 col-span-2">
+    <Card className="px-6 py-5 col-span-2">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Fonds similaires
       </h3>
@@ -66,6 +67,6 @@ export function SimilarFundsCard({ isin }: Props) {
           </Link>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }

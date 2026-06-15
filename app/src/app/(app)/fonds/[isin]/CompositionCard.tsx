@@ -1,5 +1,6 @@
 import React from "react";
 import type { FundDetailHF, FundHoldingHF, FundBreakdownHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 function pctStr(v: number) {
   return `${(v * 100).toFixed(1)}%`;
@@ -126,7 +127,7 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
   const colCount = [hasHoldings, hasSectors || hasGeos].filter(Boolean).length;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-4 py-4 md:px-6 md:py-5 md:col-span-2">
+    <Card className="px-4 py-4 md:px-6 md:py-5 md:col-span-2">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-5">
         Composition du portefeuille
       </h3>
@@ -154,6 +155,6 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

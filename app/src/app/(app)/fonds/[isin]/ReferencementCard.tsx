@@ -1,10 +1,11 @@
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
   const refs = fund.insurers ?? [];
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Référencement assureur
       </h3>
@@ -61,6 +62,6 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
         Donnée partielle. L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas
         référencé.
       </p>
-    </div>
+    </Card>
   );
 }

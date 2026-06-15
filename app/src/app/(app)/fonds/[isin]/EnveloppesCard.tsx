@@ -1,4 +1,5 @@
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 function EnvRow({
   label,
@@ -32,7 +33,7 @@ export function EnveloppesCard({ fund }: { fund: FundDetailHF }) {
     fund.cto_eligible == null;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Éligibilités</h3>
       {allNull ? (
         <p className="text-meta text-muted text-center py-4">Éligibilités non renseignées</p>
@@ -46,6 +47,6 @@ export function EnveloppesCard({ fund }: { fund: FundDetailHF }) {
           <EnvRow label="AV Luxembourg" eligible={fund.av_lux_eligible} />
         </div>
       )}
-    </div>
+    </Card>
   );
 }

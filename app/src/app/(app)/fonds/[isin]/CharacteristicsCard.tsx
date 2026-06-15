@@ -1,5 +1,6 @@
 import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 const STYLE_LABELS: Record<string, string> = {
   actif:      "Gestion active",
@@ -113,7 +114,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
   const styleLabel = fund.management_style ? (STYLE_LABELS[fund.management_style] ?? capitalize(fund.management_style)) : null;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Caractéristiques</h3>
       <table className="w-full">
         <tbody>
@@ -134,6 +135,6 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <LabelsRow labels={fund.labels} />
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
