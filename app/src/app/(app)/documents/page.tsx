@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, X, Search, FileText } from "@/components/ui/icons";
+import { Card } from "@/components/ui/Card";
 import { dt } from "@/lib/format";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 
@@ -282,7 +283,7 @@ export default function DocumentsPage() {
             <div className="space-y-4">
 
               {/* Banner */}
-              <div className="bg-paper rounded-xl border border-line px-6 py-5">
+              <Card className="px-6 py-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -323,10 +324,10 @@ export default function DocumentsPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Détails */}
-              <div className="bg-paper rounded-xl border border-line px-6 py-5">
+              <Card className="px-6 py-5">
                 <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Informations clés</h3>
                 <InfoRow label="Objectif" value={fiche.investment_objective} />
                 <InfoRow label="Durée recommandée" value={fiche.recommended_holding_period} />
@@ -335,10 +336,10 @@ export default function DocumentsPage() {
                 {fiche.inception_date && (
                   <InfoRow label="Date de création" value={dt(fiche.inception_date)} />
                 )}
-              </div>
+              </Card>
 
               {/* Frais */}
-              <div className="bg-paper rounded-xl border border-line px-6 py-5">
+              <Card className="px-6 py-5">
                 <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Frais</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {fiche.entry_fees_max && (
@@ -366,11 +367,11 @@ export default function DocumentsPage() {
                     <p className="text-meta text-ink-2">{fiche.performance_fees}</p>
                   </div>
                 )}
-              </div>
+              </Card>
 
               {/* Risques */}
               {fiche.key_risks && fiche.key_risks.length > 0 && (
-                <div className="bg-paper rounded-xl border border-line px-6 py-5">
+                <Card className="px-6 py-5">
                   <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Principaux risques</h3>
                   <div className="flex flex-wrap gap-2">
                     {fiche.key_risks.map((r, i) => (
@@ -379,7 +380,7 @@ export default function DocumentsPage() {
                       </span>
                     ))}
                   </div>
-                </div>
+                </Card>
               )}
 
               {/* Reliure base de données */}

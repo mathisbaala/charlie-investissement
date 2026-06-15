@@ -321,7 +321,7 @@ export default function AccueilPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             {topEtf.length > 0 && (
-              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+              <Card className="px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top ETF · Perf 3A</p>
                   <Link href="/recherche?universe=etf&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
@@ -349,11 +349,11 @@ export default function AccueilPage() {
                     </Link>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {topOpcvm.length > 0 && (
-              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+              <Card className="px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top OPCVM · Perf 3A</p>
                   <Link href="/recherche?universe=opcvm&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
@@ -381,11 +381,11 @@ export default function AccueilPage() {
                     </Link>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
 
             {topScpi.length > 0 && (
-              <div className="bg-paper rounded-xl border border-line px-5 py-4">
+              <Card className="px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-caption uppercase tracking-widest text-muted font-semibold">Top SCPI · Perf 3A</p>
                   <Link href="/recherche?universe=scpi&sort_by=performance_3y" className="text-caption text-muted hover:text-accent-ink transition-colors flex items-center gap-0.5">
@@ -410,7 +410,7 @@ export default function AccueilPage() {
                     </Link>
                   ))}
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         )}
