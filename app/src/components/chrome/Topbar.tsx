@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Logo, ChevronRight } from "@/components/ui/icons";
+import { Sparkle, ChevronRight } from "@/components/ui/icons";
 
 
 function breadcrumb(pathname: string): { label: string; href: string }[] {
@@ -59,17 +59,19 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
 
       <div className="flex-1" />
 
-      {/* Chat trigger — logo mark */}
+      {/* Chat trigger — action explicite vers l'assistant Charlie */}
       <button
         onClick={onChatToggle}
-        className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+        title="Demander à Charlie"
+        className={`h-9 flex items-center gap-1.5 pl-2.5 pr-3 rounded-lg border transition-colors cursor-pointer ${
           chatOpen
-            ? "border-accent/30 bg-paper-2"
-            : "border-line bg-paper hover:bg-paper-2"
+            ? "border-accent/30 bg-accent-soft text-accent-ink"
+            : "border-line bg-paper text-ink-2 hover:bg-paper-2"
         }`}
-        aria-label="Ouvrir Charlie"
+        aria-label="Demander à Charlie"
       >
-        <Logo size={24} />
+        <Sparkle size={14} className="text-accent" />
+        <span className="hidden sm:inline text-meta font-medium">Demander à Charlie</span>
       </button>
     </header>
   );
