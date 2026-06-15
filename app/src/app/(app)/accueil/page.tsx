@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
-import { Search, ChevronRight, Plus, X } from "@/components/ui/icons";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Search, ChevronRight, Plus, X, Star } from "@/components/ui/icons";
 import { getFavorites } from "@/lib/favorites";
 import { getRecentSearches, addSearch, clearSearches } from "@/lib/searches";
 import type { FavoriteEntry } from "@/lib/favorites";
@@ -173,12 +176,16 @@ export default function AccueilPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
 
           {/* Recherches récentes */}
-          <div className="bg-paper rounded-xl border border-line px-5 py-4">
+          <Card className="px-5 py-4 flex flex-col">
             <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Recherches récentes
             </p>
             {searches.length === 0 ? (
-              <p className="text-meta text-muted italic">Aucune recherche récente</p>
+              <EmptyState
+                icon={<Search size={16} />}
+                title="Aucune recherche récente"
+                hint="Vos dernières recherches apparaîtront ici."
+              />
             ) : (
               <div className="flex flex-col gap-0.5">
                 {searches.slice(0, 6).map((s, i) => (
@@ -201,15 +208,19 @@ export default function AccueilPage() {
                 </button>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Favoris récents */}
-          <div className="bg-paper rounded-xl border border-line px-5 py-4">
+          <Card className="px-5 py-4 flex flex-col">
             <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Favoris récents
             </p>
             {favorites.length === 0 ? (
-              <p className="text-meta text-muted italic">Aucun favori enregistré</p>
+              <EmptyState
+                icon={<Star size={16} />}
+                title="Aucun favori enregistré"
+                hint="Ajoutez des fonds en favori depuis leur fiche."
+              />
             ) : (
               <div className="flex flex-col gap-0.5">
                 {favorites.slice(0, 6).map((f) => (
@@ -236,10 +247,10 @@ export default function AccueilPage() {
                 </Link>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Par enveloppe */}
-          <div className="bg-paper rounded-xl border border-line px-5 py-4">
+          <Card className="px-5 py-4 flex flex-col">
             <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Par enveloppe
             </p>
@@ -262,17 +273,24 @@ export default function AccueilPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Par assureur */}
-          <div className="bg-paper rounded-xl border border-line px-5 py-4">
+          <Card className="px-5 py-4 flex flex-col">
             <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
               Par assureur
             </p>
             {insurersLoading ? (
-              <p className="text-meta text-muted italic">Chargement…</p>
+              <div className="flex flex-col gap-0.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between px-2 py-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-6" />
+                  </div>
+                ))}
+              </div>
             ) : insurers.length === 0 ? (
-              <p className="text-meta text-muted italic">Annuaire indisponible</p>
+              <EmptyState title="Annuaire indisponible" />
             ) : (
               <div className="flex flex-col gap-0.5">
                 {insurers.slice(0, 6).map(({ company, funds }) => (
@@ -295,7 +313,7 @@ export default function AccueilPage() {
                 </Link>
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* ── Top performers ──────────────────────────────────────────────────── */}
