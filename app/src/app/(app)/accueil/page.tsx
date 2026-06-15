@@ -112,7 +112,7 @@ export default function AccueilPage() {
           </h1>
 
           {/* Search bar */}
-          <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3">
+          <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
             <Search size={16} className="text-muted shrink-0" />
             <TypingPrompt
               value={query}

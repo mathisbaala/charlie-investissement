@@ -110,6 +110,14 @@ body {
   outline-offset: 2px;
 }
 
+/* Les champs texte gèrent leur focus via leur conteneur (focus-within) ou leur
+   propre bordure — pas d'anneau interne disgracieux. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
 /* Respect de prefers-reduced-motion : neutralise keyframes & transitions */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -80,7 +80,7 @@ export default function LandingPage() {
         </h1>
 
         {/* Search card */}
-        <div className="w-full bg-paper rounded-2xl border border-line shadow-[0_4px_24px_oklch(0.22_0.012_60_/_0.07)] px-5 py-4 flex items-center gap-3">
+        <div className="w-full bg-paper rounded-2xl border border-line shadow-[0_4px_24px_oklch(0.22_0.012_60_/_0.07)] px-5 py-4 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
           <TypingPrompt
             value={query}
             onChange={setQuery}
