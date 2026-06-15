@@ -282,7 +282,7 @@ export default function DocumentsPage() {
             <div className="space-y-4">
 
               {/* Banner */}
-              <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+              <div className="bg-paper rounded-xl border border-line px-6 py-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -326,7 +326,7 @@ export default function DocumentsPage() {
               </div>
 
               {/* Détails */}
-              <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+              <div className="bg-paper rounded-xl border border-line px-6 py-5">
                 <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Informations clés</h3>
                 <InfoRow label="Objectif" value={fiche.investment_objective} />
                 <InfoRow label="Durée recommandée" value={fiche.recommended_holding_period} />
@@ -338,7 +338,7 @@ export default function DocumentsPage() {
               </div>
 
               {/* Frais */}
-              <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+              <div className="bg-paper rounded-xl border border-line px-6 py-5">
                 <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Frais</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {fiche.entry_fees_max && (
@@ -370,7 +370,7 @@ export default function DocumentsPage() {
 
               {/* Risques */}
               {fiche.key_risks && fiche.key_risks.length > 0 && (
-                <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+                <div className="bg-paper rounded-xl border border-line px-6 py-5">
                   <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Principaux risques</h3>
                   <div className="flex flex-wrap gap-2">
                     {fiche.key_risks.map((r, i) => (

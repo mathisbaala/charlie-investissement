@@ -1,5 +1,6 @@
 import { pct } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 // Un ETF / fonds indiciel : la tracking difference n'a de sens que pour une
 // gestion qui réplique un indice (pas pour un fonds actif sans benchmark TR).
@@ -43,7 +44,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
     : "indice net TR";
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-2">
         Coût réel · Tracking difference
       </h3>
@@ -85,6 +86,6 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
           sur son coût.
         </p>
       )}
-    </div>
+    </Card>
   );
 }

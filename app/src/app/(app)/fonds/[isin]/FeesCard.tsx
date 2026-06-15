@@ -1,5 +1,6 @@
 import { pct } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 function FeeRow({
   label,
@@ -37,16 +38,16 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
 
   if (!hasData) {
     return (
-      <div className="bg-paper rounded-2xl border border-line px-6 py-5 flex items-center justify-center text-muted text-meta">
+      <Card className="px-6 py-5 flex items-center justify-center text-muted text-meta">
         Frais non renseignés
-      </div>
+      </Card>
     );
   }
 
   const ter = fund.ongoing_charges ?? fund.ter;
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Frais</h3>
       <table className="w-full">
         <tbody>
@@ -70,6 +71,6 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           )}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }

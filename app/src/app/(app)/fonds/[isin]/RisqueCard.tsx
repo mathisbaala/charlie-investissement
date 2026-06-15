@@ -1,5 +1,6 @@
 import { pct, fmtSharpe } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
+import { Card } from "@/components/ui/Card";
 
 function SriScale({ value }: { value: number }) {
   return (
@@ -30,14 +31,14 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
 
   if (!hasData) {
     return (
-      <div className="bg-paper rounded-2xl border border-line px-6 py-5 flex items-center justify-center text-muted text-meta">
+      <Card className="px-6 py-5 flex items-center justify-center text-muted text-meta">
         Données de risque non disponibles
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-paper rounded-2xl border border-line px-6 py-5">
+    <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Risque</h3>
 
       {sri != null && (
@@ -87,6 +88,6 @@ export function RisqueCard({ fund }: { fund: FundDetailHF }) {
           )}
         </tbody>
       </table>
-    </div>
+    </Card>
   );
 }
