@@ -98,7 +98,7 @@ function FavCard({
       {/* Top row */}
       <div className="flex items-start justify-between gap-2">
         <p
-          className="text-[13px] font-medium text-ink truncate flex-1"
+          className="text-body font-medium text-ink truncate flex-1"
           style={{ fontFamily: "var(--font-serif)" }}
           title={f.name}
         >
@@ -115,11 +115,11 @@ function FavCard({
 
       {/* Gestionnaire */}
       {f.gestionnaire && (
-        <p className="text-muted text-[11px] -mt-2">{f.gestionnaire}</p>
+        <p className="text-muted text-label -mt-2">{f.gestionnaire}</p>
       )}
 
       {/* ISIN */}
-      <p className="text-[10px] text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
+      <p className="text-caption text-muted-2" style={{ fontFamily: "var(--font-mono)" }}>
         {f.isin}
       </p>
 
@@ -133,9 +133,9 @@ function FavCard({
       {/* Metrics */}
       <div className="flex items-center gap-4 flex-wrap">
         <div>
-          <p className="text-[10px] text-muted mb-0.5">Perf. 3A</p>
+          <p className="text-caption text-muted mb-0.5">Perf. 3A</p>
           <p
-            className={`text-[12px] font-medium font-mono ${
+            className={`text-meta font-medium font-mono ${
               f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
             }`}
           >
@@ -143,29 +143,29 @@ function FavCard({
           </p>
         </div>
         <div>
-          <p className="text-[10px] text-muted mb-0.5">TER</p>
-          <p className="text-[12px] text-ink-2 font-mono">{pct(f.ongoing_charges)}</p>
+          <p className="text-caption text-muted mb-0.5">TER</p>
+          <p className="text-meta text-ink-2 font-mono">{pct(f.ongoing_charges)}</p>
         </div>
       </div>
 
       {/* Eligibility pills */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {f.pea_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA</span>}
-        {f.pea_pme_eligible && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA-PME</span>}
-        {f.per_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">PER</span>}
-        {f.av_fr_eligible   && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV FR</span>}
-        {f.av_lux_eligible  && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV Lux</span>}
-        {f.cto_eligible     && <span className="text-[10px] bg-ok-soft text-ok px-2 py-0.5 rounded-full">CTO</span>}
+        {f.pea_eligible     && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA</span>}
+        {f.pea_pme_eligible && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">PEA-PME</span>}
+        {f.per_eligible     && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">PER</span>}
+        {f.av_fr_eligible   && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV FR</span>}
+        {f.av_lux_eligible  && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">AV Lux</span>}
+        {f.cto_eligible     && <span className="text-caption bg-ok-soft text-ok px-2 py-0.5 rounded-full">CTO</span>}
       </div>
 
       {/* Footer */}
       <div className="flex items-center gap-2 mt-auto pt-1">
-        <Link href={`/fonds/${f.isin}`} className="text-accent text-[11px] hover:underline flex-1">
+        <Link href={`/fonds/${f.isin}`} className="text-accent text-label hover:underline flex-1">
           Voir la fiche →
         </Link>
         <button
           onClick={() => toggle(toSelectedFund(f))}
-          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors ${
+          className={`text-label px-2.5 py-1 rounded-lg border transition-colors ${
             sel
               ? "bg-accent-soft text-accent-ink border-accent/20"
               : "border-line text-muted hover:border-accent/30 hover:text-ink-2"
@@ -204,9 +204,9 @@ export default function FavorisPage() {
     <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-6 sm:py-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-        <h1 className="text-[26px] text-ink inline" style={{ fontFamily: "var(--font-serif)" }}>
+        <h1 className="text-display text-ink inline" style={{ fontFamily: "var(--font-serif)" }}>
           Favoris
-          <span className="ml-2 text-[13px] text-muted font-sans">({favorites.length})</span>
+          <span className="ml-2 text-body text-muted font-sans">({favorites.length})</span>
         </h1>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {favorites.length > 0 && (
@@ -214,7 +214,7 @@ export default function FavorisPage() {
               <select
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
-                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none hover:bg-paper-2"
+                className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none hover:bg-paper-2"
               >
                 <option value="added">Récemment ajoutés</option>
                 <option value="perf">Perf 3A</option>
@@ -233,8 +233,8 @@ export default function FavorisPage() {
       {favorites.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-muted">
           <Star size={32} strokeWidth={1} className="mb-4 text-muted-2" />
-          <p className="text-[14px]">Aucun favori enregistré</p>
-          <p className="text-[12px] mt-1">Ajoutez des fonds depuis la recherche ou les fiches</p>
+          <p className="text-body-lg">Aucun favori enregistré</p>
+          <p className="text-meta mt-1">Ajoutez des fonds depuis la recherche ou les fiches</p>
           <Link href="/recherche" className="mt-4">
             <Btn variant="primary" size="sm">Rechercher des fonds</Btn>
           </Link>

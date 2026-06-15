@@ -57,7 +57,7 @@ export default function LandingPage() {
       <div className="absolute top-5 right-6">
         <a
           href="/accueil"
-          className="text-[11px] text-muted hover:text-ink transition-colors"
+          className="text-label text-muted hover:text-ink transition-colors"
         >
           Déjà CGP ? →
         </a>
@@ -68,7 +68,7 @@ export default function LandingPage() {
 
         {/* H1 */}
         <h1
-          className="text-[40px] sm:text-[58px] leading-[1.08] sm:leading-[1.06] tracking-[-0.025em] text-ink mb-7 sm:mb-10"
+          className="text-display-lg sm:text-display-xl leading-[1.08] sm:leading-[1.06] tracking-[-0.025em] text-ink mb-7 sm:mb-10"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Trouver{" "}
@@ -85,11 +85,11 @@ export default function LandingPage() {
             value={query}
             onChange={setQuery}
             onSubmit={handleSubmit}
-            className="flex-1 text-[15px]"
+            className="flex-1 text-body-lg"
           />
           <button
             onClick={handleSubmit}
-            className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-paper transition-colors"
+            className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-body font-semibold text-paper transition-colors"
             style={{ background: "var(--color-brown)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-brown-2)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-brown)")}
@@ -103,7 +103,7 @@ export default function LandingPage() {
         <div className="w-full flex items-center gap-4 my-5">
           <div className="flex-1 h-px bg-line-soft" />
           <span
-            className="text-[17px] text-muted-2 leading-none"
+            className="text-subhead text-muted-2 leading-none"
             style={{ fontFamily: "var(--font-hand)" }}
           >
             ou
@@ -120,12 +120,12 @@ export default function LandingPage() {
             <Upload size={18} strokeWidth={1.6} />
           </div>
           <span
-            className="flex-1 text-[14px] text-muted"
+            className="flex-1 text-body-lg text-muted"
             style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
           >
             Glisser un profil client
           </span>
-          <span className="shrink-0 text-[12px] font-medium text-ink-2 border border-line rounded-lg px-3 py-1.5 bg-paper-2 hover:bg-paper transition-colors">
+          <span className="shrink-0 text-meta font-medium text-ink-2 border border-line rounded-lg px-3 py-1.5 bg-paper-2 hover:bg-paper transition-colors">
             Parcourir…
           </span>
         </button>

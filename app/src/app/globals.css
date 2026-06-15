@@ -36,6 +36,22 @@
   --font-sans:   "DM Sans", system-ui, sans-serif;
   --font-hand:   "Caveat", cursive;
   --font-mono:   "DM Mono", "Courier New", monospace;
+
+  /* Échelle typographique — noms sémantiques (pas de collision avec les
+     défauts Tailwind), font-size uniquement : le line-height reste piloté
+     par les utilitaires leading-* / l'héritage, comme avec les valeurs px. */
+  --text-caption:     10px; /* badges, axes, méta minuscule */
+  --text-label:       11px; /* labels, eyebrows uppercase, captions */
+  --text-meta:        12px; /* cellules de tableau, texte secondaire */
+  --text-body:        13px; /* corps */
+  --text-body-lg:     14px; /* corps accentué, champs de saisie */
+  --text-subhead:     16px; /* sous-titres, valeurs KPI */
+  --text-title:       18px; /* titres de section */
+  --text-title-lg:    22px; /* titres de page */
+  --text-display:     28px; /* grands titres */
+  --text-display-md:  32px;
+  --text-display-lg:  40px;
+  --text-display-xl:  58px; /* hero serif */
 }
 
 *, *::before, *::after { box-sizing: border-box; }

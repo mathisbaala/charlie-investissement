@@ -20,16 +20,16 @@ interface FundPreviewDrawerProps {
 function KpiTile({ label, value, sub, ok }: { label: string; value: string; sub?: string; ok?: boolean | null }) {
   return (
     <div className="flex-1 bg-paper-2 rounded-lg p-3 min-w-0">
-      <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-1">{label}</p>
+      <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1">{label}</p>
       <p
-        className={`text-[16px] leading-none font-medium ${
+        className={`text-subhead leading-none font-medium ${
           ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
       >
         {value}
       </p>
-      {sub && <p className="text-[10px] text-muted font-mono mt-1">{sub}</p>}
+      {sub && <p className="text-caption text-muted font-mono mt-1">{sub}</p>}
     </div>
   );
 }
@@ -90,11 +90,11 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
       {/* Head */}
       <div className="flex items-start gap-3 px-4 pt-4 pb-3 border-b border-line shrink-0">
         <div className="flex-1 min-w-0">
-          <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-1">Aperçu</p>
+          <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1">Aperçu</p>
           {loading ? (
             <div className="h-5 w-3/4 bg-paper-2 rounded animate-pulse" />
           ) : (
-            <p className="text-[14px] font-medium text-ink leading-tight truncate" style={{ fontFamily: "var(--font-serif)" }}>
+            <p className="text-body-lg font-medium text-ink leading-tight truncate" style={{ fontFamily: "var(--font-serif)" }}>
               {fund?.name ?? "—"}
             </p>
           )}
@@ -102,7 +102,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
         {/* Favoris pill */}
         <button
           onClick={toggleFav}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label font-medium border transition-colors shrink-0 ${
             fav
               ? "bg-accent-soft text-accent-ink border-accent/30"
               : "border-line text-ink-2 hover:border-accent/40"
@@ -127,7 +127,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             av_fr_eligible: fund.av_fr_eligible, av_lux_eligible: fund.av_lux_eligible,
             cto_eligible: fund.cto_eligible,
           })}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label font-medium border transition-colors shrink-0 ${
             sel
               ? "bg-accent-soft text-accent-ink border-accent/30"
               : "border-line text-ink-2 hover:border-accent/40"
@@ -161,7 +161,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
           )}
 
           {/* Meta */}
-          <div className="space-y-0.5 text-[11px] text-ink-2">
+          <div className="space-y-0.5 text-label text-ink-2">
             <p className="font-mono text-muted">{fund.isin}</p>
             {fund.gestionnaire && <p>{fund.gestionnaire}</p>}
             {fund.category_normalized && <p>{fund.category_normalized}</p>}
@@ -192,31 +192,31 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
           {/* Sparkline */}
           {fund.nav_history.length > 1 && (
             <div className="bg-paper-2 rounded-lg p-3">
-              <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">Historique VL</p>
+              <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Historique VL</p>
               <Sparkline data={fund.nav_history} width={320} height={50} />
             </div>
           )}
 
           {/* Éligibilités */}
           <div>
-            <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">Éligibilités</p>
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Éligibilités</p>
             <div className="flex gap-2 flex-wrap">
-              {fund.pea_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA</span>}
-              {fund.pea_pme_eligible && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA-PME</span>}
-              {fund.per_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PER</span>}
-              {fund.av_fr_eligible   && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV France</span>}
-              {fund.av_lux_eligible  && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV Lux</span>}
-              {fund.cto_eligible     && <span className="text-[11px] text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ CTO</span>}
+              {fund.pea_eligible     && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA</span>}
+              {fund.pea_pme_eligible && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PEA-PME</span>}
+              {fund.per_eligible     && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ PER</span>}
+              {fund.av_fr_eligible   && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV France</span>}
+              {fund.av_lux_eligible  && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ AV Lux</span>}
+              {fund.cto_eligible     && <span className="text-label text-ok bg-ok-soft px-2 py-0.5 rounded font-medium">✓ CTO</span>}
               {!fund.pea_eligible && !fund.pea_pme_eligible && !fund.per_eligible && !fund.av_fr_eligible && !fund.av_lux_eligible && !fund.cto_eligible && (
-                <span className="text-[11px] text-muted">Aucune éligibilité confirmée</span>
+                <span className="text-label text-muted">Aucune éligibilité confirmée</span>
               )}
             </div>
           </div>
 
           {/* Caractéristiques */}
           <div>
-            <p className="text-[9.5px] uppercase tracking-widest text-muted font-semibold mb-2">Caractéristiques</p>
-            <table className="w-full text-[11px]">
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Caractéristiques</p>
+            <table className="w-full text-label">
               <tbody>
                 {[
                   ["AUM", fmtAum(fund.aum_eur)],
@@ -239,14 +239,14 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             href={`/fonds/${fund.isin}`}
             className="flex items-center justify-between w-full bg-paper-2 hover:bg-accent-soft/40 border border-line hover:border-accent/30 rounded-lg px-4 py-3 transition-colors group"
           >
-            <span className="text-[12.5px] font-medium text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+            <span className="text-meta font-medium text-ink" style={{ fontFamily: "var(--font-serif)" }}>
               Voir la fiche complète
             </span>
             <ChevronRight size={15} className="text-muted group-hover:text-accent-ink transition-colors" />
           </Link>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-muted text-sm">
+        <div className="flex-1 flex items-center justify-center text-muted text-body-lg">
           Fonds introuvable
         </div>
       )}

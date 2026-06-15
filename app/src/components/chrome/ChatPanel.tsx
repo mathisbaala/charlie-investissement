@@ -94,7 +94,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
       {/* Header — sans séparateur */}
       <div className="flex items-center justify-between px-5 pt-4 pb-1 shrink-0">
         <span
-          className="text-[14px] text-ink"
+          className="text-body-lg text-ink"
           style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
         >
           Charlie
@@ -108,7 +108,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
       <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2.5 min-h-0">
         {isEmpty ? (
           <p
-            className="text-[24px] text-ink leading-tight pt-1"
+            className="text-title-lg text-ink leading-tight pt-1"
             style={{ fontFamily: "var(--font-serif)" }}
           >
             Bonjour.
@@ -117,7 +117,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
           messages.map((m, i) => (
             <div
               key={i}
-              className={`text-[13px] leading-relaxed ${
+              className={`text-body leading-relaxed ${
                 m.role === "user"
                   ? "self-end bg-paper rounded-lg px-3 py-1.5 max-w-[85%] text-ink-2"
                   : "self-start text-ink max-w-full"
@@ -154,7 +154,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
             placeholder="Écrire à Charlie…"
             disabled={streaming}
-            className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-muted outline-none"
+            className="flex-1 bg-transparent text-body text-ink placeholder:text-muted outline-none"
             style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
           />
           <button

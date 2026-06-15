@@ -70,7 +70,7 @@ function CustomTooltip({ active, payload, label, mode }: {
   if (!active || !payload?.length) return null;
   const val = payload[0].value;
   return (
-    <div className="bg-paper border border-line rounded-lg px-3 py-2 shadow-sm text-[11px] font-mono">
+    <div className="bg-paper border border-line rounded-lg px-3 py-2 shadow-sm text-label font-mono">
       <p className="text-muted mb-0.5">{label ? new Date(label).toLocaleDateString("fr-FR") : ""}</p>
       <p className="text-ink font-medium">
         {mode === "base100"
@@ -96,7 +96,7 @@ export function NavChart({ data }: NavChartProps) {
 
   if (!data.length) {
     return (
-      <div className="flex items-center justify-center h-48 text-muted text-sm">
+      <div className="flex items-center justify-center h-48 text-muted text-body-lg">
         Données historiques non disponibles
       </div>
     );
@@ -140,7 +140,7 @@ export function NavChart({ data }: NavChartProps) {
                 key={p.label}
                 onClick={() => setPeriod(p.label)}
                 disabled={!periodEnabled(data, p)}
-                className={`px-3 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                className={`px-3 py-1 rounded-md text-label font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                   period === p.label
                     ? "bg-paper text-ink shadow-sm border border-line"
                     : "text-muted hover:text-ink-2"
@@ -154,11 +154,11 @@ export function NavChart({ data }: NavChartProps) {
 
         <div className="flex items-center gap-3">
           {sampled.length > 1 && (
-            <span className={`text-[13px] font-mono font-semibold ${perfPositive ? "text-ok" : "text-warn"}`}>
+            <span className={`text-body font-mono font-semibold ${perfPositive ? "text-ok" : "text-warn"}`}>
               {formatPct(perfTotal)}
             </span>
           )}
-          <div className="flex bg-paper-2 border border-line rounded-lg p-0.5 text-[10px]">
+          <div className="flex bg-paper-2 border border-line rounded-lg p-0.5 text-caption">
             <button
               onClick={() => setMode("base100")}
               className={`px-2.5 py-1 rounded-md transition-all ${mode === "base100" ? "bg-paper text-ink shadow-sm border border-line" : "text-muted hover:text-ink-2"}`}

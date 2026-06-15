@@ -41,11 +41,11 @@ export function RateLimitDialog() {
           <RefreshCw size={19} className="text-accent-ink" />
         </div>
 
-        <h2 className="text-[16px] font-semibold text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+        <h2 className="text-subhead font-semibold text-ink" style={{ fontFamily: "var(--font-serif)" }}>
           {day ? "Crédits du jour épuisés" : "Petite pause"}
         </h2>
 
-        <p className="text-[12.5px] text-muted mt-2 leading-relaxed">
+        <p className="text-meta text-muted mt-2 leading-relaxed">
           {day
             ? "Vous avez utilisé vos crédits de découverte. Ils se réinitialisent sous 24 h — revenez demain pour continuer."
             : "Vous avez beaucoup exploré. Réessayez dans une heure."}
@@ -53,7 +53,7 @@ export function RateLimitDialog() {
 
         <button
           onClick={() => setOpen(false)}
-          className="mt-5 w-full bg-brown text-paper rounded-lg py-2 text-[12.5px] font-medium hover:bg-ink transition-colors"
+          className="mt-5 w-full bg-brown text-paper rounded-lg py-2 text-meta font-medium hover:bg-ink transition-colors"
         >
           Compris
         </button>

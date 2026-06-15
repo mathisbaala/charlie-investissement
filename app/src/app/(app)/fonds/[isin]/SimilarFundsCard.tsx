@@ -24,7 +24,7 @@ export function SimilarFundsCard({ isin }: Props) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5 col-span-2">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-4">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Fonds similaires
       </h3>
       <div className="grid grid-cols-2 gap-3">
@@ -36,17 +36,17 @@ export function SimilarFundsCard({ isin }: Props) {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium text-ink leading-tight truncate group-hover:text-accent transition-colors">
+                <p className="text-meta font-medium text-ink leading-tight truncate group-hover:text-accent transition-colors">
                   {f.name}
                 </p>
-                <p className="text-[10px] text-muted font-mono mt-0.5">{f.isin}</p>
+                <p className="text-caption text-muted font-mono mt-0.5">{f.isin}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <SfdrBadge article={f.sfdr_article} />
                 <SriBadge sri={f.risk_score} />
               </div>
             </div>
-            <div className="flex items-center gap-3 text-[11px] flex-wrap">
+            <div className="flex items-center gap-3 text-label flex-wrap">
               {f.ter != null && (
                 <span className="text-muted">
                   TER <span className="font-mono text-ink-2">{pct(f.ter)}</span>

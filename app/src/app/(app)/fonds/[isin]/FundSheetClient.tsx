@@ -77,7 +77,7 @@ export function FundSheetClient({ fund }: Props) {
         {/* Back link */}
         <Link
           href="/recherche"
-          className="inline-flex items-center gap-1.5 text-[11px] text-muted hover:text-ink-2 transition-colors mb-6"
+          className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors mb-6"
         >
           <ArrowLeft size={12} />
           Retour à la recherche
@@ -89,23 +89,23 @@ export function FundSheetClient({ fund }: Props) {
             <div className="flex-1 min-w-0">
               {/* Product type chip */}
               {fund.product_type && (
-                <span className="inline-block text-[10px] uppercase tracking-widest font-semibold text-muted bg-paper-2 border border-line rounded-full px-2.5 py-0.5 mb-3">
+                <span className="inline-block text-caption uppercase tracking-widest font-semibold text-muted bg-paper-2 border border-line rounded-full px-2.5 py-0.5 mb-3">
                   {fund.product_type.toUpperCase()}
                 </span>
               )}
               {/* Fund name */}
               <h1
-                className="text-[28px] leading-[1.2] text-ink font-normal"
+                className="text-display leading-[1.2] text-ink font-normal"
                 style={{ fontFamily: "var(--font-serif)" }}
               >
                 {fund.name}
               </h1>
               {/* Gestionnaire + ISIN */}
-              <div className="flex items-center gap-3 mt-2 text-[12px] text-muted">
+              <div className="flex items-center gap-3 mt-2 text-meta text-muted">
                 {fund.gestionnaire && <span>{fund.gestionnaire}</span>}
                 <span className="font-mono text-muted-2">{fund.isin}</span>
                 {fund.currency && (
-                  <span className="bg-paper-2 border border-line rounded px-1.5 py-0.5 text-[10px] font-mono">
+                  <span className="bg-paper-2 border border-line rounded px-1.5 py-0.5 text-caption font-mono">
                     {fund.currency}
                   </span>
                 )}
@@ -118,7 +118,7 @@ export function FundSheetClient({ fund }: Props) {
                 {fund.labels && fund.labels.filter(l => LABEL_DISPLAY[l.toLowerCase()]).map(l => (
                   <span
                     key={l}
-                    className="text-[10px] px-2 py-0.5 rounded-full font-medium border bg-ok-soft text-ok border-ok/20"
+                    className="text-caption px-2 py-0.5 rounded-full font-medium border bg-ok-soft text-ok border-ok/20"
                   >
                     {LABEL_DISPLAY[l.toLowerCase()]}
                   </span>
@@ -158,7 +158,7 @@ export function FundSheetClient({ fund }: Props) {
 
           {/* AUM quick stat */}
           {fund.aum_eur != null && (
-            <div className="mt-4 pt-4 border-t border-line-soft flex flex-wrap items-center gap-x-5 gap-y-1 md:gap-6 text-[11px]">
+            <div className="mt-4 pt-4 border-t border-line-soft flex flex-wrap items-center gap-x-5 gap-y-1 md:gap-6 text-label">
               <span className="text-muted">Encours</span>
               <span className="font-mono text-ink-2 font-medium">
                 {fund.aum_eur >= 1_000_000_000

@@ -60,7 +60,7 @@ function TypeTag({ type }: { type: string | null }) {
     type === "scpi" ? "bg-ok-soft text-ok" :
     "bg-paper-2 text-ink-2";
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wide border border-transparent ${cls}`}>
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-label font-semibold uppercase tracking-wide border border-transparent ${cls}`}>
       {label}
     </span>
   );
@@ -73,7 +73,7 @@ function SfdrTag({ article }: { article: number | null }) {
     article === 8 ? "bg-accent-soft text-accent-ink border-accent/20" :
     "bg-paper-2 text-muted border-line";
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium border ${cls}`}>
+    <span className={`inline-flex px-2 py-0.5 rounded-full text-label font-medium border ${cls}`}>
       Art. {article}
     </span>
   );
@@ -95,7 +95,7 @@ function SriBar({ sri }: { sri: number | null }) {
           />
         ))}
       </div>
-      <span className="text-[12px] font-mono font-medium text-ink-2">{sri}/7</span>
+      <span className="text-meta font-mono font-medium text-ink-2">{sri}/7</span>
     </div>
   );
 }
@@ -104,8 +104,8 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-line-soft last:border-0">
-      <span className="text-[11px] text-muted w-36 shrink-0 pt-0.5">{label}</span>
-      <span className="text-[12px] text-ink-2 flex-1 leading-relaxed">{value}</span>
+      <span className="text-label text-muted w-36 shrink-0 pt-0.5">{label}</span>
+      <span className="text-meta text-ink-2 flex-1 leading-relaxed">{value}</span>
     </div>
   );
 }
@@ -191,14 +191,14 @@ export default function DocumentsPage() {
       <div className="shrink-0 border-b border-line bg-paper px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-[22px] text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+            <h1 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-serif)" }}>
               Documents
             </h1>
           </div>
           {fiche && (
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
             >
               <X size={12} />
               Nouvelle analyse
@@ -230,10 +230,10 @@ export default function DocumentsPage() {
                 <Upload size={24} className={dragging ? "text-accent" : "text-muted"} />
               </div>
               <div>
-                <p className="text-[14px] font-medium text-ink-2">
+                <p className="text-body-lg font-medium text-ink-2">
                   {dragging ? "Relâchez pour analyser" : "Glissez votre DICI ici"}
                 </p>
-                <p className="text-[12px] text-muted mt-1">
+                <p className="text-meta text-muted mt-1">
                   ou <span className="text-accent-ink underline underline-offset-2">cliquez pour sélectionner</span> un fichier PDF
                 </p>
               </div>
@@ -252,8 +252,8 @@ export default function DocumentsPage() {
             <div className="flex flex-col items-center justify-center gap-4 py-20">
               <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
               <div className="text-center">
-                <p className="text-[13px] font-medium text-ink-2">Analyse en cours…</p>
-                <p className="text-[11px] text-muted mt-1">
+                <p className="text-body font-medium text-ink-2">Analyse en cours…</p>
+                <p className="text-label text-muted mt-1">
                   {fileName && <span className="font-mono">{fileName}</span>}
                 </p>
               </div>
@@ -263,12 +263,12 @@ export default function DocumentsPage() {
           {/* Error */}
           {error && !loading && (
             <div className="mt-4 flex items-start gap-3 bg-warn/10 border border-warn/20 rounded-xl px-4 py-3">
-              <span className="text-warn text-[14px] shrink-0">⚠</span>
+              <span className="text-warn text-body-lg shrink-0">⚠</span>
               <div>
-                <p className="text-[12px] font-medium text-ink-2">{error}</p>
+                <p className="text-meta font-medium text-ink-2">{error}</p>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-[11px] text-accent-ink hover:underline mt-1"
+                  className="text-label text-accent-ink hover:underline mt-1"
                 >
                   Essayer un autre fichier
                 </button>
@@ -289,18 +289,18 @@ export default function DocumentsPage() {
                       <TypeTag type={fiche.product_type} />
                       <SfdrTag article={fiche.sfdr_article} />
                       {fiche.currency && (
-                        <span className="text-[10px] font-mono bg-paper-2 border border-line rounded px-1.5 py-0.5 text-ink-2">
+                        <span className="text-caption font-mono bg-paper-2 border border-line rounded px-1.5 py-0.5 text-ink-2">
                           {fiche.currency}
                         </span>
                       )}
                     </div>
                     <h2
-                      className="text-[22px] leading-tight text-ink font-normal"
+                      className="text-title-lg leading-tight text-ink font-normal"
                       style={{ fontFamily: "var(--font-serif)" }}
                     >
                       {fiche.name}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[12px] text-muted">
+                    <div className="flex flex-wrap items-center gap-3 mt-1.5 text-meta text-muted">
                       {fiche.gestionnaire && <span>{fiche.gestionnaire}</span>}
                       {fiche.isin && <span className="font-mono text-muted-2">{fiche.isin}</span>}
                       {fiche.domicile && <span>{fiche.domicile}</span>}
@@ -309,14 +309,14 @@ export default function DocumentsPage() {
                   <div className="text-right shrink-0">
                     {fiche.sri && (
                       <div className="mb-2">
-                        <p className="text-[10px] text-muted mb-1">Risque (SRI)</p>
+                        <p className="text-caption text-muted mb-1">Risque (SRI)</p>
                         <SriBar sri={fiche.sri} />
                       </div>
                     )}
                     {fiche.ongoing_charges != null && (
                       <div>
-                        <p className="text-[10px] text-muted">Frais courants</p>
-                        <p className="text-[18px] font-mono font-medium text-ink-2">
+                        <p className="text-caption text-muted">Frais courants</p>
+                        <p className="text-title font-mono font-medium text-ink-2">
                           {fiche.ongoing_charges.toFixed(2)} %
                         </p>
                       </div>
@@ -327,7 +327,7 @@ export default function DocumentsPage() {
 
               {/* Détails */}
               <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-                <h3 className="text-[11px] uppercase tracking-widest font-semibold text-muted mb-3">Informations clés</h3>
+                <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Informations clés</h3>
                 <InfoRow label="Objectif" value={fiche.investment_objective} />
                 <InfoRow label="Durée recommandée" value={fiche.recommended_holding_period} />
                 <InfoRow label="Benchmark" value={fiche.benchmark} />
@@ -339,31 +339,31 @@ export default function DocumentsPage() {
 
               {/* Frais */}
               <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-                <h3 className="text-[11px] uppercase tracking-widest font-semibold text-muted mb-3">Frais</h3>
+                <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Frais</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {fiche.entry_fees_max && (
                     <div>
-                      <p className="text-[10px] text-muted mb-0.5">Entrée (max)</p>
-                      <p className="text-[16px] font-mono font-medium text-ink-2">{fiche.entry_fees_max}</p>
+                      <p className="text-caption text-muted mb-0.5">Entrée (max)</p>
+                      <p className="text-subhead font-mono font-medium text-ink-2">{fiche.entry_fees_max}</p>
                     </div>
                   )}
                   {fiche.ongoing_charges != null && (
                     <div>
-                      <p className="text-[10px] text-muted mb-0.5">Frais courants</p>
-                      <p className="text-[16px] font-mono font-medium text-ink-2">{fiche.ongoing_charges.toFixed(2)} %</p>
+                      <p className="text-caption text-muted mb-0.5">Frais courants</p>
+                      <p className="text-subhead font-mono font-medium text-ink-2">{fiche.ongoing_charges.toFixed(2)} %</p>
                     </div>
                   )}
                   {fiche.exit_fees_max && (
                     <div>
-                      <p className="text-[10px] text-muted mb-0.5">Sortie (max)</p>
-                      <p className="text-[16px] font-mono font-medium text-ink-2">{fiche.exit_fees_max}</p>
+                      <p className="text-caption text-muted mb-0.5">Sortie (max)</p>
+                      <p className="text-subhead font-mono font-medium text-ink-2">{fiche.exit_fees_max}</p>
                     </div>
                   )}
                 </div>
                 {fiche.performance_fees && (
                   <div className="mt-3 pt-3 border-t border-line-soft">
-                    <p className="text-[10px] text-muted mb-0.5">Commissions de performance</p>
-                    <p className="text-[12px] text-ink-2">{fiche.performance_fees}</p>
+                    <p className="text-caption text-muted mb-0.5">Commissions de performance</p>
+                    <p className="text-meta text-ink-2">{fiche.performance_fees}</p>
                   </div>
                 )}
               </div>
@@ -371,10 +371,10 @@ export default function DocumentsPage() {
               {/* Risques */}
               {fiche.key_risks && fiche.key_risks.length > 0 && (
                 <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-                  <h3 className="text-[11px] uppercase tracking-widest font-semibold text-muted mb-3">Principaux risques</h3>
+                  <h3 className="text-label uppercase tracking-widest font-semibold text-muted mb-3">Principaux risques</h3>
                   <div className="flex flex-wrap gap-2">
                     {fiche.key_risks.map((r, i) => (
-                      <span key={i} className="text-[11px] bg-warn/8 border border-warn/15 text-warn-dark rounded-lg px-3 py-1.5">
+                      <span key={i} className="text-label bg-warn/8 border border-warn/15 text-warn-dark rounded-lg px-3 py-1.5">
                         {r}
                       </span>
                     ))}
@@ -385,8 +385,8 @@ export default function DocumentsPage() {
               {/* Reliure base de données */}
               {fiche.matched_isin ? (
                 <div className="flex items-start gap-2.5 bg-ok-soft border border-ok/20 rounded-xl px-4 py-3">
-                  <span className="text-ok text-[14px] shrink-0 leading-5">✓</span>
-                  <p className="text-[12px] text-ink-2 leading-relaxed">
+                  <span className="text-ok text-body-lg shrink-0 leading-5">✓</span>
+                  <p className="text-meta text-ink-2 leading-relaxed">
                     Fonds identifié dans la base&nbsp;:{" "}
                     <span className="font-medium">{fiche.matched_name}</span>{" "}
                     <span className="font-mono text-muted">{fiche.matched_isin}</span>.
@@ -395,8 +395,8 @@ export default function DocumentsPage() {
                 </div>
               ) : (
                 <div className="flex items-start gap-2.5 bg-paper-2 border border-line rounded-xl px-4 py-3">
-                  <span className="text-muted text-[14px] shrink-0 leading-5">○</span>
-                  <p className="text-[12px] text-muted leading-relaxed">
+                  <span className="text-muted text-body-lg shrink-0 leading-5">○</span>
+                  <p className="text-meta text-muted leading-relaxed">
                     Ce fonds n'a pas été retrouvé automatiquement dans la base. Vous pouvez le
                     rechercher manuellement dans le screener.
                   </p>
@@ -408,7 +408,7 @@ export default function DocumentsPage() {
                 {fiche.matched_isin ? (
                   <button
                     onClick={handleViewFund}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
                   >
                     <Search size={13} />
                     Voir la fiche produit complète
@@ -416,7 +416,7 @@ export default function DocumentsPage() {
                 ) : (
                   <button
                     onClick={handleSearchFund}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
                   >
                     <Search size={13} />
                     Rechercher ce fonds dans le screener
@@ -424,7 +424,7 @@ export default function DocumentsPage() {
                 )}
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
                 >
                   <FileText size={13} />
                   Analyser un autre DICI

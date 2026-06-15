@@ -20,7 +20,7 @@ interface FundTableProps {
 function EligPill({ label, active }: { label: string; active: boolean | null }) {
   if (!active) return null;
   return (
-    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-ok-soft text-ok">
+    <span className="inline-block px-1.5 py-0.5 rounded text-caption font-medium bg-ok-soft text-ok">
       {label}
     </span>
   );
@@ -38,13 +38,13 @@ function InsurerChips({ insurers, max = 3 }: { insurers: string[] | null; max?: 
       {shown.map((c) => (
         <span
           key={c}
-          className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-paper-2 border border-line-soft text-muted"
+          className="inline-block px-1.5 py-0.5 rounded text-caption font-medium bg-paper-2 border border-line-soft text-muted"
         >
           {c}
         </span>
       ))}
       {extra > 0 && (
-        <span title={list.join(" · ")} className="text-[10px] text-muted-2">+{extra}</span>
+        <span title={list.join(" · ")} className="text-caption text-muted-2">+{extra}</span>
       )}
     </div>
   );
@@ -59,7 +59,7 @@ function SortTh({
   children?: React.ReactNode;
 }) {
   const active = sortBy === field;
-  const cls = `px-3 py-3 text-[10px] uppercase tracking-widest font-semibold whitespace-nowrap select-none ${
+  const cls = `px-3 py-3 text-caption uppercase tracking-widest font-semibold whitespace-nowrap select-none ${
     onSort ? "cursor-pointer hover:text-ink transition-colors" : ""
   } ${active ? "text-ink" : "text-muted"} text-${align}`;
 
@@ -93,7 +93,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="font-medium text-ink leading-tight">{decodeHtml(f.name)}</div>
-              <div className="text-[11px] text-muted font-mono mt-0.5 truncate">
+              <div className="text-label text-muted font-mono mt-0.5 truncate">
                 {f.isin} · {f.gestionnaire ?? "—"}
               </div>
               <InsurerChips insurers={f.insurers} />
@@ -104,15 +104,15 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5">
             <SfdrBadge article={f.sfdr_article} />
             <SriBadge sri={f.risk_score} />
-            <span className="font-mono text-[11.5px] text-muted">TER {pct(f.ongoing_charges ?? f.ter)}</span>
-            <span className={`font-mono text-[11.5px] font-medium ${
+            <span className="font-mono text-label text-muted">TER {pct(f.ongoing_charges ?? f.ter)}</span>
+            <span className={`font-mono text-label font-medium ${
               f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-warn"
             }`}>1A {pct(f.performance_1y, true)}</span>
-            <span className={`font-mono text-[11.5px] font-medium ${
+            <span className={`font-mono text-label font-medium ${
               f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
             }`}>3A {pct(f.performance_3y, true)}</span>
             {f.aum_eur != null && (
-              <span className="font-mono text-[11.5px] text-muted">{fmtAumShort(f.aum_eur)}</span>
+              <span className="font-mono text-label text-muted">{fmtAumShort(f.aum_eur)}</span>
             )}
           </div>
 
@@ -130,19 +130,19 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
 
     {/* ── Desktop : tableau complet ── */}
     <div className="hidden md:block overflow-x-auto">
-      <table className="w-full text-[12.5px] border-collapse min-w-[900px]">
+      <table className="w-full text-meta border-collapse min-w-[900px]">
         <thead>
           <tr className="border-b border-line">
             <th className="w-8 px-3 py-3 whitespace-nowrap" />
-            <th className="text-left px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Fonds</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SFDR</th>
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SRI</th>
+            <th className="text-left px-3 py-3 text-caption uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Fonds</th>
+            <th className="px-3 py-3 text-caption uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SFDR</th>
+            <th className="px-3 py-3 text-caption uppercase tracking-widest text-muted font-semibold text-center whitespace-nowrap">SRI</th>
             <SortTh field="ter" label="TER" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="performance_1y" label="Perf 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="performance_3y" label="Perf 3A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="volatility_1y" label="Vol 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="aum_eur" label="Encours" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
-            <th className="px-3 py-3 text-[10px] uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
+            <th className="px-3 py-3 text-caption uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
             <th className="w-8 whitespace-nowrap" />
           </tr>
         </thead>
@@ -209,7 +209,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                       />
                     )}
                   </div>
-                  <div className="text-[11px] text-muted font-mono mt-0.5">
+                  <div className="text-label text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}
                   </div>
                   <InsurerChips insurers={f.insurers} />
@@ -237,7 +237,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   {pct(f.volatility_1y)}
                 </td>
 
-                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap text-[11.5px]">
+                <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap text-label">
                   {fmtAumShort(f.aum_eur)}
                 </td>
 

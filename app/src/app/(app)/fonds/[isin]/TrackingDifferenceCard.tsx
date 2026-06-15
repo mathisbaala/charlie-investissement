@@ -16,8 +16,8 @@ function TdRow({ label, value }: { label: string; value: number | null }) {
     value == null ? "text-muted-2" : value < 0 ? "text-warn" : "text-ok";
   return (
     <tr className="border-b border-line-soft last:border-0">
-      <td className="py-2.5 text-[12px] text-muted pr-4">{label}</td>
-      <td className={`py-2.5 text-[12px] text-right font-mono font-medium ${color}`}>
+      <td className="py-2.5 text-meta text-muted pr-4">{label}</td>
+      <td className={`py-2.5 text-meta text-right font-mono font-medium ${color}`}>
         {value == null ? "—" : pct(value, true)}
       </td>
     </tr>
@@ -44,12 +44,12 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-2">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-2">
         Coût réel · Tracking difference
       </h3>
 
       {/* Le message clé : les frais courants ne disent pas le coût réel d'un ETF. */}
-      <p className="text-[11.5px] text-ink-2 leading-snug mb-4">
+      <p className="text-label text-ink-2 leading-snug mb-4">
         Pour un ETF, les frais courants (TER) ne reflètent pas le coût réel. Ce
         dernier se mesure à la <span className="font-semibold">tracking difference</span> :
         l&apos;écart de performance avec son {variant}, qui intègre frais, fiscalité
@@ -59,7 +59,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
       {hasTd ? (
         <>
           {fund.benchmark_index && (
-            <p className="text-[11px] text-muted mb-2">
+            <p className="text-label text-muted mb-2">
               Indice de référence : <span className="text-ink-2 font-medium">{fund.benchmark_index}</span>
             </p>
           )}
@@ -70,7 +70,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
               <TdRow label="TD 5 ans (annualisée)" value={fund.tracking_diff_5y} />
             </tbody>
           </table>
-          <p className="text-[10px] text-muted-2 mt-3 leading-snug">
+          <p className="text-caption text-muted-2 mt-3 leading-snug">
             TD = performance de l&apos;ETF − performance de l&apos;indice. Une valeur
             négative signale une sous-performance (coût implicite) ; une valeur
             légèrement positive, une réplication optimisée (swap, prêt de titres).
@@ -79,7 +79,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
           </p>
         </>
       ) : (
-        <p className="text-[11px] text-muted-2 italic leading-snug">
+        <p className="text-label text-muted-2 italic leading-snug">
           Tracking difference en cours de collecte pour ce support. Comparez la
           performance de l&apos;ETF à celle de son indice net TR avant de conclure
           sur son coût.

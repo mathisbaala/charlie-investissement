@@ -39,7 +39,7 @@ export function Rail() {
             >
               <Icon size={18} strokeWidth={active ? 2 : 1.7} />
               {/* Tooltip */}
-              <span className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 bg-ink text-paper text-[11px] font-medium px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              <span className="pointer-events-none absolute left-[52px] top-1/2 -translate-y-1/2 bg-ink text-paper text-label font-medium px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
                 {label}
               </span>
             </Link>

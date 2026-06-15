@@ -12,8 +12,8 @@ function FeeRow({
 }) {
   return (
     <tr className="border-b border-line-soft last:border-0">
-      <td className="py-2.5 text-[12px] text-muted pr-4">{label}</td>
-      <td className={`py-2.5 text-[12px] text-right font-mono font-medium ${
+      <td className="py-2.5 text-meta text-muted pr-4">{label}</td>
+      <td className={`py-2.5 text-meta text-right font-mono font-medium ${
         value == null
           ? "text-muted-2"
           : highlight
@@ -37,7 +37,7 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
 
   if (!hasData) {
     return (
-      <div className="bg-paper rounded-2xl border border-line px-6 py-5 flex items-center justify-center text-muted text-[12px]">
+      <div className="bg-paper rounded-2xl border border-line px-6 py-5 flex items-center justify-center text-muted text-meta">
         Frais non renseignés
       </div>
     );
@@ -47,13 +47,13 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-4">Frais</h3>
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Frais</h3>
       <table className="w-full">
         <tbody>
           {ter != null && (
             <tr className="border-b border-line-soft">
-              <td className="py-2.5 text-[12px] text-muted pr-4">Frais courants (OCF/TER)</td>
-              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">{pct(ter)}</td>
+              <td className="py-2.5 text-meta text-muted pr-4">Frais courants (OCF/TER)</td>
+              <td className="py-2.5 text-meta text-ink-2 text-right font-mono font-medium">{pct(ter)}</td>
             </tr>
           )}
           <FeeRow label="Frais d'entrée max"        value={fund.entry_fee_max} />
@@ -62,8 +62,8 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           <FeeRow label="Rétrocession CGP"           value={fund.retrocession_cgp} highlight />
           {fund.holding_period_years != null && (
             <tr>
-              <td className="py-2.5 text-[12px] text-muted pr-4">Durée recommandée</td>
-              <td className="py-2.5 text-[12px] text-ink-2 text-right font-mono font-medium">
+              <td className="py-2.5 text-meta text-muted pr-4">Durée recommandée</td>
+              <td className="py-2.5 text-meta text-ink-2 text-right font-mono font-medium">
                 {fund.holding_period_years} ans
               </td>
             </tr>

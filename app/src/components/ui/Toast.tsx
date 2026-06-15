@@ -84,9 +84,9 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: () => void
     >
       {icon}
       <div className="flex-1 min-w-0">
-        <p className="text-[12.5px] font-medium text-ink leading-tight">{item.title}</p>
+        <p className="text-meta font-medium text-ink leading-tight">{item.title}</p>
         {item.subtitle && (
-          <p className="text-[11px] text-muted mt-0.5 leading-tight">{item.subtitle}</p>
+          <p className="text-label text-muted mt-0.5 leading-tight">{item.subtitle}</p>
         )}
       </div>
       <button

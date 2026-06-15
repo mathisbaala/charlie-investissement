@@ -39,8 +39,8 @@ function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <tr className="border-b border-line-soft">
-      <td className="py-2.5 text-[12px] text-muted pr-4 align-top">{label}</td>
-      <td className="py-2.5 text-[12px] text-ink-2 text-right font-medium">{value}</td>
+      <td className="py-2.5 text-meta text-muted pr-4 align-top">{label}</td>
+      <td className="py-2.5 text-meta text-ink-2 text-right font-medium">{value}</td>
     </tr>
   );
 }
@@ -50,8 +50,8 @@ function BoolRow({ label, value, yes = "Oui", no = "Non" }: { label: string; val
   if (value == null) return null;
   return (
     <tr className="border-b border-line-soft">
-      <td className="py-2.5 text-[12px] text-muted pr-4 align-top">{label}</td>
-      <td className={`py-2.5 text-[12px] text-right font-medium ${value ? "text-ink-2" : "text-muted-2"}`}>
+      <td className="py-2.5 text-meta text-muted pr-4 align-top">{label}</td>
+      <td className={`py-2.5 text-meta text-right font-medium ${value ? "text-ink-2" : "text-muted-2"}`}>
         {value ? yes : no}
       </td>
     </tr>
@@ -77,13 +77,13 @@ function LabelsRow({ labels }: { labels: string[] | null }) {
   if (visible.length === 0) return null;
   return (
     <tr className="border-b border-line-soft">
-      <td className="py-2.5 text-[12px] text-muted pr-4 align-top">Labels</td>
+      <td className="py-2.5 text-meta text-muted pr-4 align-top">Labels</td>
       <td className="py-2.5 text-right">
         <div className="flex flex-wrap gap-1 justify-end">
           {visible.map(l => (
             <span
               key={l}
-              className="text-[10px] px-1.5 py-0.5 rounded border font-medium bg-ok-soft text-ok border-ok/20"
+              className="text-caption px-1.5 py-0.5 rounded border font-medium bg-ok-soft text-ok border-ok/20"
             >
               {LABEL_DISPLAY[l.toLowerCase()]}
             </span>
@@ -98,9 +98,9 @@ function MorningstarRow({ rating }: { rating: number | null }) {
   if (!rating) return null;
   return (
     <tr className="border-b border-line-soft">
-      <td className="py-2.5 text-[12px] text-muted pr-4">Morningstar</td>
+      <td className="py-2.5 text-meta text-muted pr-4">Morningstar</td>
       <td className="py-2.5 text-right">
-        <span className="text-[14px] text-warn leading-none">
+        <span className="text-body-lg text-warn leading-none">
           {"★".repeat(rating)}
           <span className="text-muted-2">{"★".repeat(5 - rating)}</span>
         </span>
@@ -114,7 +114,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <div className="bg-paper rounded-2xl border border-line px-6 py-5">
-      <h3 className="text-[11px] uppercase tracking-widest text-muted font-semibold mb-4">Caractéristiques</h3>
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">Caractéristiques</h3>
       <table className="w-full">
         <tbody>
           <Row label="Type" value={productTypeLabel(fund.product_type)} />
