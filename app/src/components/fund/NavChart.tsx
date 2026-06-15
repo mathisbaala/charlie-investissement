@@ -126,7 +126,7 @@ export function NavChart({ data }: NavChartProps) {
   }
 
   const dataKey = mode === "vl" ? "nav" : "indexed";
-  const lineColor = perfPositive ? "#16a34a" : "#dc2626";
+  const lineColor = perfPositive ? "var(--color-ok)" : "var(--color-warn)";
   const gradientId = `gradient-${mode}-${perfPositive ? "ok" : "warn"}`;
 
   return (
