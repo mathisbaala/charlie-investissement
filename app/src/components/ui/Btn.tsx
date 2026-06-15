@@ -21,9 +21,9 @@ const variants: Record<BtnVariant, string> = {
 };
 
 const sizes: Record<BtnSize, string> = {
-  sm: "px-3 py-1.5 text-meta gap-1.5 rounded-md",
-  md: "px-4 py-2 text-meta gap-2 rounded-lg",
-  lg: "px-5 py-2.5 text-body-lg gap-2 rounded-lg",
+  sm: "min-h-8 px-3 py-1.5 text-meta gap-1.5 rounded-md",
+  md: "min-h-9 px-4 py-2 text-meta gap-2 rounded-lg",
+  lg: "min-h-11 px-5 py-2.5 text-body-lg gap-2 rounded-lg",
 };
 
 export function Btn({
