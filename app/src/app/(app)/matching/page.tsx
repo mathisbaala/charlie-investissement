@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
 import type { ClientProfile, Envelope, EsgPreference, MatchResult } from "@/lib/matching";
 
 const RISK_OPTIONS: { value: ClientProfile["risk_profile"]; label: string; desc: string }[] = [
@@ -120,7 +121,7 @@ export default function MatchingPage() {
         </div>
 
         {/* Formulaire profil */}
-        <div className="bg-paper rounded-xl border border-line p-5 mb-5">
+        <Card className="p-5 mb-5">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
             <div className="flex gap-3">
@@ -203,7 +204,7 @@ export default function MatchingPage() {
           >
             {loading ? "Analyse en cours…" : "Trouver les fonds adaptés"}
           </button>
-        </div>
+        </Card>
 
         {/* Résultats */}
         {searched && (
@@ -213,12 +214,12 @@ export default function MatchingPage() {
             </p>
 
             {results.length === 0 ? (
-              <div className="bg-paper rounded-xl border border-line p-12 text-center">
+              <Card className="p-12 text-center">
                 <p className="text-muted text-body-lg">Aucun fonds correspondant à ce profil.</p>
                 <p className="text-label text-muted mt-1">Essayez d&apos;assouplir les critères.</p>
-              </div>
+              </Card>
             ) : (
-              <div className="bg-paper rounded-xl border border-line overflow-hidden">
+              <Card className="overflow-hidden">
                 {/* Mobile : cartes (le tableau déborderait sur un téléphone) */}
                 <div className="md:hidden divide-y divide-line-soft">
                   {results.map((f) => (
@@ -310,7 +311,7 @@ export default function MatchingPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
             )}
           </div>
         )}

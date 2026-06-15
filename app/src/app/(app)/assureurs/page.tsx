@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Shield } from "@/components/ui/icons";
+import { Card } from "@/components/ui/Card";
 
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
 
@@ -54,7 +55,7 @@ function InsurerCard(
   const extra = real.length - shown.length;
 
   return (
-    <div className="bg-paper rounded-xl border border-line px-5 py-4 flex flex-col">
+    <Card className="px-5 py-4 flex flex-col">
       {/* En-tête : clic → tous les supports de l'assureur */}
       <Link
         href={insurerHref(insurer.company)}
@@ -131,7 +132,7 @@ function InsurerCard(
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
