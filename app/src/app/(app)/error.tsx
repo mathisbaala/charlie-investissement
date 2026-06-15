@@ -34,7 +34,7 @@ export default function AppError({
           <button
             type="button"
             onClick={reset}
-            className="px-4 py-2 rounded-lg bg-accent text-white text-[13px] font-medium hover:bg-accent/90 transition-colors"
+            className="px-4 py-2 rounded-lg bg-accent text-paper text-[13px] font-medium hover:bg-accent/90 transition-colors"
           >
             Réessayer
           </button>

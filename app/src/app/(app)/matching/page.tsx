@@ -28,9 +28,9 @@ const ENVELOPE_OPTIONS: { value: Envelope; label: string }[] = [
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {
   const color =
-    score >= 75 ? "bg-green-100 text-green-800" :
-    score >= 60 ? "bg-yellow-50 text-yellow-800" :
-    score >= 45 ? "bg-orange-50 text-orange-700" :
+    score >= 75 ? "bg-ok-soft text-ok" :
+    score >= 60 ? "bg-accent-soft text-accent-ink" :
+    score >= 45 ? "bg-warn-soft text-warn" :
     "bg-paper-2 text-muted";
   return (
     <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg ${color}`}>
@@ -167,7 +167,7 @@ export default function MatchingPage() {
                   <button key={opt.value} onClick={() => toggleEnvelope(opt.value)}
                     className={`px-4 py-2 rounded-lg text-[12px] font-medium border transition-colors ${
                       envelopes.includes(opt.value)
-                        ? "bg-accent text-white border-accent"
+                        ? "bg-accent text-paper border-accent"
                         : "border-line text-ink-2 hover:border-line-soft bg-paper"
                     }`}
                   >
@@ -184,7 +184,7 @@ export default function MatchingPage() {
                   <button key={opt.value} onClick={() => setEsg(opt.value)}
                     className={`px-4 py-2 rounded-lg text-[12px] font-medium border transition-colors ${
                       esg === opt.value
-                        ? "bg-accent text-white border-accent"
+                        ? "bg-accent text-paper border-accent"
                         : "border-line text-ink-2 hover:border-line-soft bg-paper"
                     }`}
                   >
@@ -196,10 +196,10 @@ export default function MatchingPage() {
 
           </div>
 
-          {error && <p className="mt-4 text-[12px] text-red-600">{error}</p>}
+          {error && <p className="mt-4 text-[12px] text-warn">{error}</p>}
 
           <button onClick={search} disabled={loading}
-            className="mt-5 px-6 py-2.5 bg-accent text-white rounded-lg text-[13px] font-medium hover:bg-accent/90 disabled:opacity-50 transition-colors"
+            className="mt-5 px-6 py-2.5 bg-accent text-paper rounded-lg text-[13px] font-medium hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             {loading ? "Analyse en cours…" : "Trouver les fonds adaptés"}
           </button>
@@ -232,14 +232,14 @@ export default function MatchingPage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5 text-[11.5px]">
                         {f.sfdr_article && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700">Art.{f.sfdr_article}</span>
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-ok-soft text-ok">Art.{f.sfdr_article}</span>
                         )}
                         {f.risk_score && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700">{f.risk_score}/7</span>
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-warn-soft text-warn">{f.risk_score}/7</span>
                         )}
                         <span className="text-muted">TER {fmt(f.ongoing_charges)}</span>
-                        <span className={`font-medium ${f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-green-600" : "text-red-500"}`}>1A {fmt(f.performance_1y)}</span>
-                        <span className={`font-medium ${f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-green-600" : "text-red-500"}`}>3A {fmt(f.performance_3y)}</span>
+                        <span className={`font-medium ${f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-warn"}`}>1A {fmt(f.performance_1y)}</span>
+                        <span className={`font-medium ${f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>3A {fmt(f.performance_3y)}</span>
                       </div>
                       {f.match_summary && <p className="text-[11px] text-muted mt-2 leading-snug">{f.match_summary}</p>}
                     </Link>
@@ -280,25 +280,25 @@ export default function MatchingPage() {
                         <td className="px-3 py-3 text-center">
                           {f.sfdr_article ? (
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${
-                              f.sfdr_article === 9 ? "bg-green-100 text-green-700" :
-                              f.sfdr_article === 8 ? "bg-emerald-50 text-emerald-700" :
+                              f.sfdr_article === 9 ? "bg-ok text-paper" :
+                              f.sfdr_article === 8 ? "bg-ok-soft text-ok" :
                               "bg-paper-2 text-muted"
                             }`}>Art.{f.sfdr_article}</span>
                           ) : <span className="text-muted">—</span>}
                         </td>
                         <td className="px-3 py-3 text-center">
                           {f.risk_score ? (
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700">
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-warn-soft text-warn">
                               {f.risk_score}/7
                             </span>
                           ) : <span className="text-muted">—</span>}
                         </td>
                         <td className="px-3 py-3 text-right text-ink-2">{fmt(f.ongoing_charges)}</td>
                         <td className={`px-3 py-3 text-right font-medium ${
-                          f.performance_1y == null ? "" : f.performance_1y >= 0 ? "text-green-600" : "text-red-500"
+                          f.performance_1y == null ? "" : f.performance_1y >= 0 ? "text-ok" : "text-warn"
                         }`}>{fmt(f.performance_1y)}</td>
                         <td className={`px-3 py-3 text-right font-medium ${
-                          f.performance_3y == null ? "" : f.performance_3y >= 0 ? "text-green-600" : "text-red-500"
+                          f.performance_3y == null ? "" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
                         }`}>{fmt(f.performance_3y)}</td>
                         <td className="px-4 py-3 text-[11px] text-muted max-w-xs truncate">{f.match_summary}</td>
                         <td className="px-3 py-3">
@@ -323,10 +323,10 @@ export default function MatchingPage() {
             href={`/api/rapport/pdf?isins=${Array.from(selectedIsins).join(",")}`}
             target="_blank"
             rel="noopener"
-            className="flex items-center gap-2 px-5 py-3 bg-ink text-white rounded-xl shadow-lg hover:bg-ink/80 text-[13px] font-medium transition-colors"
+            className="flex items-center gap-2 px-5 py-3 bg-ink text-paper rounded-xl shadow-lg hover:bg-ink/80 text-[13px] font-medium transition-colors"
           >
             <span>Rapport PDF</span>
-            <span className="bg-white text-ink text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-paper text-ink text-[10px] font-bold px-2 py-0.5 rounded-full">
               {selectedIsins.size}
             </span>
           </a>
