@@ -350,7 +350,7 @@ function RechercheInner() {
 
         {/* Search bar */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 min-w-0 flex items-center gap-2 md:gap-3 bg-paper-2 rounded-xl border border-line px-3 md:px-4 py-2.5">
+          <div className="flex-1 min-w-0 flex items-center gap-2 md:gap-3 bg-paper-2 rounded-xl border border-line px-3 md:px-4 py-2.5 focus-within:border-accent/50 transition-colors">
             <TypingPrompt
               value={query}
               onChange={setQuery}
