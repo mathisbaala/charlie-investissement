@@ -54,12 +54,12 @@ export function SimilarFundsCard({ isin }: Props) {
                 </span>
               )}
               {f.performance_3y != null && (
-                <span className={`font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                <span className={`font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-danger"}`}>
                   {pct(f.performance_3y, true)} 3A
                 </span>
               )}
               {f.performance_1y != null && f.performance_3y == null && (
-                <span className={`font-mono font-medium ${f.performance_1y >= 0 ? "text-ok" : "text-warn"}`}>
+                <span className={`font-mono font-medium ${f.performance_1y >= 0 ? "text-ok" : "text-danger"}`}>
                   {pct(f.performance_1y, true)} 1A
                 </span>
               )}

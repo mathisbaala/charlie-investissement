@@ -9,7 +9,7 @@ function KpiTile({ label, value, ok, accent }: { label: string; value: string; o
       <p className="text-caption md:text-caption uppercase tracking-widest text-muted font-semibold mb-1.5 md:mb-2 truncate">{label}</p>
       <p
         className={`text-title md:text-title-lg leading-none font-normal ${
-          accent ? "text-accent font-semibold" : ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
+          accent ? "text-accent font-semibold" : ok == null ? "text-ink" : ok ? "text-ok" : "text-danger"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
       >

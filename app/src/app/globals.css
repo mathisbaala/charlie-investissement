@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 @theme {
+  /* Convention couleur (volontaire) : les ANCRES de marque sont en hex (valeurs
+     exactes de l'ADN — cream, paper, ink, accent, line), les DÉRIVÉS calculés
+     (soft, ink, status) sont en oklch pour raisonner la clarté/chroma. Ne pas
+     convertir une ancre en oklch sans vérifier le rendu : risque de glissement
+     visible de la couleur de marque sur toute l'app. */
+
   /* Surfaces — palette terre Charlie (hex de référence de l'ADN) */
   --color-cream:       #F4EFE4; /* fond global chaud */
   --color-paper:       #FCFAF4; /* cartes & panneaux (blanc cassé chaud) */
@@ -30,6 +36,8 @@
   --color-ok-soft:     oklch(0.93  0.04  150);
   --color-warn:        oklch(0.62  0.13  65);
   --color-warn-soft:   oklch(0.94  0.06  75);
+  --color-danger:      oklch(0.52  0.18  27); /* rouge brique — échecs, erreurs, pertes (≠ warn) */
+  --color-danger-soft: oklch(0.93  0.05  27);
 
   /* Typographie */
   --font-serif:  "Instrument Serif", Georgia, serif;
@@ -38,8 +46,11 @@
   --font-mono:   "DM Mono", "Courier New", monospace;
 
   /* Échelle typographique — noms sémantiques (pas de collision avec les
-     défauts Tailwind), font-size uniquement : le line-height reste piloté
-     par les utilitaires leading-* / l'héritage, comme avec les valeurs px. */
+     défauts Tailwind). Les petites tailles (caption→subhead) héritent du
+     line-height 1.45 du body, adapté au corps et aux cellules. Les tailles
+     titre/display embarquent leur propre interligne serré : un titre serif à
+     1.45 paraît creux, donc l'interligne est intrinsèque à la taille (plus
+     besoin d'ajouter leading-* à la main à chaque usage). */
   --text-caption:     10px; /* badges, axes, méta minuscule */
   --text-label:       11px; /* labels, eyebrows uppercase, captions */
   --text-meta:        12px; /* cellules de tableau, texte secondaire */
@@ -47,11 +58,17 @@
   --text-body-lg:     14px; /* corps accentué, champs de saisie */
   --text-subhead:     16px; /* sous-titres, valeurs KPI */
   --text-title:       18px; /* titres de section */
+  --text-title--line-height:      1.3;
   --text-title-lg:    22px; /* titres de page */
+  --text-title-lg--line-height:   1.2;
   --text-display:     28px; /* grands titres */
+  --text-display--line-height:    1.15;
   --text-display-md:  32px;
+  --text-display-md--line-height: 1.12;
   --text-display-lg:  40px;
+  --text-display-lg--line-height: 1.08;
   --text-display-xl:  58px; /* hero serif */
+  --text-display-xl--line-height: 1.05;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

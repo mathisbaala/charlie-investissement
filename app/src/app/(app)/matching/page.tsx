@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageShell, PageHeader } from "@/components/ui/Page";
+import { SlidersHorizontal } from "@/components/ui/icons";
 import type { ClientProfile, Envelope, EsgPreference, MatchResult } from "@/lib/matching";
 
 const RISK_OPTIONS: { value: ClientProfile["risk_profile"]; label: string; desc: string }[] = [
@@ -28,11 +31,14 @@ const ENVELOPE_OPTIONS: { value: Envelope; label: string }[] = [
 ];
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {
+  // Rampe monotone de sévérité : fort → correct → faible → insuffisant.
+  // Pas d'accent de marque (réservé aux liens/CTA) ; chaque palier est
+  // visuellement distinct (vert / neutre / ambre / rouge).
   const color =
     score >= 75 ? "bg-ok-soft text-ok" :
-    score >= 60 ? "bg-accent-soft text-accent-ink" :
+    score >= 60 ? "bg-paper-2 text-ink-2" :
     score >= 45 ? "bg-warn-soft text-warn" :
-    "bg-paper-2 text-muted";
+    "bg-danger-soft text-danger";
   return (
     <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg ${color}`}>
       <span className="text-title font-bold leading-none">{score}</span>
@@ -107,18 +113,15 @@ export default function MatchingPage() {
   const labelCls = "block text-label font-medium text-muted mb-1.5 uppercase tracking-wide";
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-6 py-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-5 flex items-center gap-3">
+    <PageShell>
+      <PageHeader
+        title="Matching client"
+        backlink={
           <Link href="/recherche" className="text-meta text-muted hover:text-accent transition-colors">
             ← Screener
           </Link>
-          <div>
-            <h1 className="text-title-lg font-semibold text-ink" style={{ fontFamily: "var(--font-serif)" }}>
-              Matching client
-            </h1>
-          </div>
-        </div>
+        }
+      />
 
         {/* Formulaire profil */}
         <Card className="p-5 mb-5">
@@ -197,7 +200,7 @@ export default function MatchingPage() {
 
           </div>
 
-          {error && <p className="mt-4 text-meta text-warn">{error}</p>}
+          {error && <p className="mt-4 text-meta text-danger">{error}</p>}
 
           <button onClick={search} disabled={loading}
             className="mt-5 px-6 py-2.5 bg-accent text-paper rounded-lg text-body font-medium hover:bg-accent/90 disabled:opacity-50 transition-colors"
@@ -214,9 +217,12 @@ export default function MatchingPage() {
             </p>
 
             {results.length === 0 ? (
-              <Card className="p-12 text-center">
-                <p className="text-muted text-body-lg">Aucun fonds correspondant à ce profil.</p>
-                <p className="text-label text-muted mt-1">Essayez d&apos;assouplir les critères.</p>
+              <Card className="py-10">
+                <EmptyState
+                  icon={<SlidersHorizontal size={16} />}
+                  title="Aucun fonds correspondant à ce profil."
+                  hint="Essayez d'assouplir les critères (risque, enveloppe, ESG)."
+                />
               </Card>
             ) : (
               <Card className="overflow-hidden">
@@ -239,8 +245,8 @@ export default function MatchingPage() {
                           <span className="inline-block px-2 py-0.5 rounded text-caption font-medium bg-warn-soft text-warn">{f.risk_score}/7</span>
                         )}
                         <span className="text-muted">TER {fmt(f.ongoing_charges)}</span>
-                        <span className={`font-medium ${f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-warn"}`}>1A {fmt(f.performance_1y)}</span>
-                        <span className={`font-medium ${f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>3A {fmt(f.performance_3y)}</span>
+                        <span className={`font-medium ${f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-danger"}`}>1A {fmt(f.performance_1y)}</span>
+                        <span className={`font-medium ${f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-danger"}`}>3A {fmt(f.performance_3y)}</span>
                       </div>
                       {f.match_summary && <p className="text-label text-muted mt-2 leading-snug">{f.match_summary}</p>}
                     </Link>
@@ -296,10 +302,10 @@ export default function MatchingPage() {
                         </td>
                         <td className="px-3 py-3 text-right text-ink-2">{fmt(f.ongoing_charges)}</td>
                         <td className={`px-3 py-3 text-right font-medium ${
-                          f.performance_1y == null ? "" : f.performance_1y >= 0 ? "text-ok" : "text-warn"
+                          f.performance_1y == null ? "" : f.performance_1y >= 0 ? "text-ok" : "text-danger"
                         }`}>{fmt(f.performance_1y)}</td>
                         <td className={`px-3 py-3 text-right font-medium ${
-                          f.performance_3y == null ? "" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
+                          f.performance_3y == null ? "" : f.performance_3y >= 0 ? "text-ok" : "text-danger"
                         }`}>{fmt(f.performance_3y)}</td>
                         <td className="px-4 py-3 text-label text-muted max-w-xs truncate">{f.match_summary}</td>
                         <td className="px-3 py-3">
@@ -315,7 +321,6 @@ export default function MatchingPage() {
             )}
           </div>
         )}
-      </div>
 
       {/* Bouton rapport PDF flottant */}
       {selectedIsins.size >= 2 && (
@@ -333,6 +338,6 @@ export default function MatchingPage() {
           </a>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

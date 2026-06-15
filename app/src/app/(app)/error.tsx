@@ -28,7 +28,7 @@ export default function AppError({
         </p>
         <p className="text-body text-muted mb-6">
           Quelque chose s'est mal passé en chargeant cette page. Tu peux
-          réessayer — tes favoris et recherches sont conservés.
+          réessayer.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button

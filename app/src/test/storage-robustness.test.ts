@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { getRecentSearches, addSearch, clearSearches } from '../lib/searches'
-import { getFavorites } from '../lib/favorites'
 
 // Régression : un localStorage corrompu (JSON valide mais pas un tableau, ex.
 // `{}`) faisait renvoyer cette valeur, et le .filter()/.slice() en aval
-// plantait le rendu (accueil, favoris). Les getters doivent toujours renvoyer
+// plantait le rendu (accueil). Les getters doivent toujours renvoyer
 // un tableau, quoi qu'il y ait en storage.
 // Trouvé par /qa le 2026-06-05.
 
@@ -46,28 +45,5 @@ describe('getRecentSearches — robustesse localStorage', () => {
     expect(() => addSearch({ query: 'test', chips: [], count: 0 })).not.toThrow()
     expect(getRecentSearches()[0].query).toBe('test')
     clearSearches()
-  })
-})
-
-describe('getFavorites — robustesse localStorage', () => {
-  beforeEach(() => localStorage.clear())
-
-  it('renvoie [] quand le storage est vide', () => {
-    expect(getFavorites()).toEqual([])
-  })
-
-  it('renvoie [] quand le storage contient un objet au lieu d\'un tableau', () => {
-    localStorage.setItem('charlie_favorites', '{"isin":"FR000"}')
-    expect(getFavorites()).toEqual([])
-  })
-
-  it('filtre les entrées sans isin', () => {
-    localStorage.setItem(
-      'charlie_favorites',
-      JSON.stringify([{ isin: 'FR0000120271', name: 'X' }, {}, null]),
-    )
-    const out = getFavorites()
-    expect(out).toHaveLength(1)
-    expect(out[0].isin).toBe('FR0000120271')
   })
 })

@@ -154,7 +154,7 @@ export function NavChart({ data }: NavChartProps) {
 
         <div className="flex items-center gap-3">
           {sampled.length > 1 && (
-            <span className={`text-body font-mono font-semibold ${perfPositive ? "text-ok" : "text-warn"}`}>
+            <span className={`text-body font-mono font-semibold ${perfPositive ? "text-ok" : "text-danger"}`}>
               {formatPct(perfTotal)}
             </span>
           )}

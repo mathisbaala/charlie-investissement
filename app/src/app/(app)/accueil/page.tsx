@@ -9,12 +9,9 @@ import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Search, ChevronRight, Plus, X, Star } from "@/components/ui/icons";
-import { getFavorites } from "@/lib/favorites";
-import { getRecentSearches, addSearch, clearSearches } from "@/lib/searches";
-import type { FavoriteEntry } from "@/lib/favorites";
-import type { SearchEntry } from "@/lib/searches";
-import { pct, dt } from "@/lib/format";
+import { Search, ChevronRight, Plus, X } from "@/components/ui/icons";
+import { addSearch } from "@/lib/searches";
+import { pct } from "@/lib/format";
 import {
   type RichClientProfile,
   EMPTY_PROFILE,
@@ -43,8 +40,6 @@ type TopFund = {
 export default function AccueilPage() {
   const router = useRouter();
   const [query,   setQuery]   = useState("");
-  const [searches, setSearches] = useState<SearchEntry[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
   const [topEtf,   setTopEtf]   = useState<TopFund[]>([]);
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
   const [topScpi,  setTopScpi]  = useState<TopFund[]>([]);
@@ -57,8 +52,6 @@ export default function AccueilPage() {
   const [profileLoaded,    setProfileLoaded]    = useState(false);
 
   useEffect(() => {
-    setSearches(getRecentSearches());
-    setFavorites(getFavorites());
     setProfile(loadStoredProfile());
     setProfileLoaded(true);
 
@@ -173,81 +166,7 @@ export default function AccueilPage() {
         </div>
 
         {/* ── navigation grid ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-
-          {/* Recherches récentes */}
-          <Card className="px-5 py-4 flex flex-col">
-            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
-              Recherches récentes
-            </p>
-            {searches.length === 0 ? (
-              <EmptyState
-                icon={<Search size={16} />}
-                title="Aucune recherche récente"
-                hint="Vos dernières recherches apparaîtront ici."
-              />
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {searches.slice(0, 6).map((s, i) => (
-                  <div
-                    key={i}
-                    className="cursor-pointer group rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
-                    onClick={() => router.push("/recherche?q=" + encodeURIComponent(s.query))}
-                  >
-                    <p className="text-meta text-ink-2 group-hover:text-ink truncate">{s.query}</p>
-                    <p className="text-caption text-muted-2 mt-0.5" style={{ fontFamily: "var(--font-mono)" }}>
-                      {dt(s.searched_at)}
-                    </p>
-                  </div>
-                ))}
-                <button
-                  onClick={() => { clearSearches(); setSearches([]); }}
-                  className="text-caption text-muted hover:text-ink mt-2 text-left px-2 transition-colors"
-                >
-                  Effacer l'historique
-                </button>
-              </div>
-            )}
-          </Card>
-
-          {/* Favoris récents */}
-          <Card className="px-5 py-4 flex flex-col">
-            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-3">
-              Favoris récents
-            </p>
-            {favorites.length === 0 ? (
-              <EmptyState
-                icon={<Star size={16} />}
-                title="Aucun favori enregistré"
-                hint="Ajoutez des fonds en favori depuis leur fiche."
-              />
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {favorites.slice(0, 6).map((f) => (
-                  <div
-                    key={f.isin}
-                    className="cursor-pointer group rounded-lg px-2 py-2 hover:bg-paper-2 transition-colors"
-                    onClick={() => router.push(`/fonds/${f.isin}`)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <p className="text-meta text-ink-2 group-hover:text-ink truncate font-medium flex-1">
-                        {f.name}
-                      </p>
-                      {f.performance_3y != null && (
-                        <span className={`text-label font-mono shrink-0 font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
-                          {pct(f.performance_3y, true)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-caption text-muted truncate px-0.5">{f.gestionnaire ?? "—"}</p>
-                  </div>
-                ))}
-                <Link href="/favoris" className="text-caption text-muted hover:text-accent-ink mt-2 px-2 flex items-center gap-1 transition-colors">
-                  Voir tous les favoris <ChevronRight size={10} />
-                </Link>
-              </div>
-            )}
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
 
           {/* Par enveloppe */}
           <Card className="px-5 py-4 flex flex-col">
@@ -340,7 +259,7 @@ export default function AccueilPage() {
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-danger"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
@@ -372,7 +291,7 @@ export default function AccueilPage() {
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-danger"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
@@ -401,7 +320,7 @@ export default function AccueilPage() {
                       </div>
                       <div className="text-right shrink-0">
                         {f.performance_3y != null && (
-                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-warn"}`}>
+                          <span className={`text-body font-mono font-medium ${f.performance_3y >= 0 ? "text-ok" : "text-danger"}`}>
                             {pct(f.performance_3y, true)}
                           </span>
                         )}
