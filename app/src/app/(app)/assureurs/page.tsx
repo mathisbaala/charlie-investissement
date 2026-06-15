@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Shield } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageShell, PageHeader } from "@/components/ui/Page";
 
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
 
@@ -198,24 +200,13 @@ export default function AssureursPage() {
   }, [insurers, q, filterActive, activeTypes, hideClosed, contractsByCompany]);
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
-      <div className="max-w-[1040px] mx-auto">
+    <PageShell>
+      <PageHeader title="Assurances vie" />
 
-        {/* ── En-tête ──────────────────────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <Shield size={22} className="text-accent-ink" strokeWidth={1.7} />
-            <h1 className="text-display text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
-              Assurances vie
-            </h1>
-          </div>
-          <p className="text-body text-muted max-w-[640px]">
-            Sélectionnez un assureur ou un contrat pour afficher tous les supports
-            (UC) qui y sont référencés.
-          </p>
-
+      {/* Recherche + filtres */}
+      <div className="mb-6">
           {/* Recherche assureur */}
-          <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-4 py-2.5 flex items-center gap-3 max-w-[420px]">
+          <div className="bg-paper rounded-xl border border-line shadow-sm px-4 py-2.5 flex items-center gap-3 max-w-[420px]">
             <Search size={15} className="text-muted shrink-0" />
             <input
               value={q}
@@ -264,12 +255,20 @@ export default function AssureursPage() {
             <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-center gap-2">
-            <p className="text-body text-muted">
-              {insurers.length === 0
-                ? "Aucun assureur référencé pour le moment."
-                : `Aucun assureur ne correspond à « ${q.trim()} ».`}
-            </p>
+          <div className="flex h-40">
+            <EmptyState
+              icon={<Shield size={16} />}
+              title={
+                insurers.length === 0
+                  ? "Aucun assureur référencé pour le moment."
+                  : `Aucun assureur ne correspond à « ${q.trim()} ».`
+              }
+              hint={
+                insurers.length === 0
+                  ? undefined
+                  : "Vérifiez l'orthographe ou élargissez votre recherche."
+              }
+            />
           </div>
         ) : (
           <>
@@ -293,7 +292,6 @@ export default function AssureursPage() {
           Donnée partielle. L&apos;absence d&apos;un assureur ou d&apos;un contrat ne signifie pas
           qu&apos;un fonds n&apos;y est pas référencé.
         </p>
-      </div>
-    </div>
+    </PageShell>
   );
 }

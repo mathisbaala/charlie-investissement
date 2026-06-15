@@ -106,10 +106,10 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
             <SriBadge sri={f.risk_score} />
             <span className="font-mono text-label text-muted">TER {pct(f.ongoing_charges ?? f.ter)}</span>
             <span className={`font-mono text-label font-medium ${
-              f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-warn"
+              f.performance_1y == null ? "text-muted" : f.performance_1y >= 0 ? "text-ok" : "text-danger"
             }`}>1A {pct(f.performance_1y, true)}</span>
             <span className={`font-mono text-label font-medium ${
-              f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-warn"
+              f.performance_3y == null ? "text-muted" : f.performance_3y >= 0 ? "text-ok" : "text-danger"
             }`}>3A {pct(f.performance_3y, true)}</span>
             {f.aum_eur != null && (
               <span className="font-mono text-label text-muted">{fmtAumShort(f.aum_eur)}</span>
@@ -223,13 +223,13 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                 </td>
                 <td className={`px-3 py-3 text-right font-mono font-medium whitespace-nowrap ${
                   f.performance_1y == null ? "text-muted" :
-                  f.performance_1y >= 0 ? "text-ok" : "text-warn"
+                  f.performance_1y >= 0 ? "text-ok" : "text-danger"
                 }`}>
                   {pct(f.performance_1y, true)}
                 </td>
                 <td className={`px-3 py-3 text-right font-mono font-medium whitespace-nowrap ${
                   f.performance_3y == null ? "text-muted" :
-                  f.performance_3y >= 0 ? "text-ok" : "text-warn"
+                  f.performance_3y >= 0 ? "text-ok" : "text-danger"
                 }`}>
                   {pct(f.performance_3y, true)}
                 </td>

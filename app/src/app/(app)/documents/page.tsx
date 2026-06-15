@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, X, Search, FileText } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
+import { PageShell, PageHeader } from "@/components/ui/Page";
 import { dt } from "@/lib/format";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 
@@ -186,31 +187,22 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-cream">
-
-      {/* Header */}
-      <div className="shrink-0 border-b border-line bg-paper px-4 sm:px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-serif)" }}>
-              Documents
-            </h1>
-          </div>
-          {fiche && (
+    <PageShell>
+      <PageHeader
+        title="Documents"
+        action={
+          fiche && (
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 hover:bg-paper-2 transition-colors shrink-0"
             >
               <X size={12} />
               Nouvelle analyse
             </button>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
-      {/* Main */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-6">
-        <div className="max-w-[740px] mx-auto">
 
           {/* Drop zone — always shown, collapsed after upload */}
           {!fiche && !loading && (
@@ -435,8 +427,6 @@ export default function DocumentsPage() {
             </div>
           )}
 
-        </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

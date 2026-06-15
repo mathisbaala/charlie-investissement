@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Star, Download } from "@/components/ui/icons";
+import { ArrowLeft, Download } from "@/components/ui/icons";
 import { NavChart } from "@/components/fund/NavChart";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
 import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
-import { addFavorite, removeFavorite, isFavorite } from "@/lib/favorites";
-import { useToast } from "@/components/ui/Toast";
 import type { FundDetailHF } from "@/lib/types";
 import { KpiStrip } from "./KpiStrip";
 import { CharacteristicsCard } from "./CharacteristicsCard";
@@ -35,42 +32,6 @@ const LABEL_DISPLAY: Record<string, string> = {
 interface Props { fund: FundDetailHF; }
 
 export function FundSheetClient({ fund }: Props) {
-  const [fav, setFav] = useState(false);
-  const toast = useToast();
-
-  useEffect(() => {
-    setFav(isFavorite(fund.isin));
-  }, [fund.isin]);
-
-  function toggleFav() {
-    if (fav) {
-      removeFavorite(fund.isin);
-      setFav(false);
-      toast({ title: "Retiré des favoris", tone: "default" });
-    } else {
-      addFavorite({
-        isin: fund.isin,
-        name: fund.name,
-        gestionnaire: fund.gestionnaire,
-        sfdr_article: fund.sfdr_article,
-        risk_score: fund.risk_score,
-        performance_3y: fund.performance_3y,
-        ongoing_charges: fund.ongoing_charges,
-        retrocession_cgp: fund.retrocession_cgp,
-        pea_eligible: fund.pea_eligible,
-        pea_pme_eligible: fund.pea_pme_eligible,
-        per_eligible: fund.per_eligible,
-        av_fr_eligible: fund.av_fr_eligible,
-        av_lux_eligible: fund.av_lux_eligible,
-        cto_eligible: fund.cto_eligible,
-        morningstar_rating: fund.morningstar_rating,
-        added_at: new Date().toISOString(),
-      });
-      setFav(true);
-      toast({ title: "Ajouté aux favoris", tone: "ok" });
-    }
-  }
-
   return (
     <div className="h-full overflow-y-auto bg-cream">
       <div className="max-w-[1100px] mx-auto px-4 py-5 md:px-8 md:py-8">
@@ -128,14 +89,6 @@ export function FundSheetClient({ fund }: Props) {
             </div>
             {/* Actions */}
             <div className="flex flex-row flex-wrap md:flex-col gap-2 shrink-0 w-full md:w-auto">
-              <Btn
-                variant={fav ? "accent-soft" : "outline"}
-                size="sm"
-                onClick={toggleFav}
-              >
-                <Star size={13} className={fav ? "fill-current" : ""} />
-                {fav ? "En favoris" : "Favoris"}
-              </Btn>
               {fund.kid_url && (
                 <Btn
                   variant="outline"

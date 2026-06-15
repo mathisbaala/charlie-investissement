@@ -12,6 +12,7 @@ import { ComparisonModal } from "@/components/screener/ComparisonModal";
 import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Plus, X, Search } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
@@ -498,11 +499,17 @@ function RechercheInner() {
                 <span className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               </div>
             ) : funds.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted text-body-lg gap-2">
-                <p>Aucun fonds ne correspond à votre recherche.</p>
-                <button onClick={handleFiltersReset} className="text-accent text-meta hover:underline">
-                  Réinitialiser les filtres
-                </button>
+              <div className="flex h-40">
+                <EmptyState
+                  icon={<Search size={16} />}
+                  title="Aucun fonds ne correspond à votre recherche."
+                  hint="Élargissez ou réinitialisez vos filtres pour voir plus de fonds."
+                  action={
+                    <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
+                      Réinitialiser les filtres
+                    </button>
+                  }
+                />
               </div>
             ) : (
               <div className="border border-line rounded-xl overflow-hidden">

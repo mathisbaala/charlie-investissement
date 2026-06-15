@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { X, Star, Download, Check, ChevronRight } from "@/components/ui/icons";
+import { X, Download, Check, ChevronRight } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
 import { Btn } from "@/components/ui/Btn";
 import { useSelection } from "@/components/SelectionProvider";
-import { useToast } from "@/components/ui/Toast";
 import { Sparkline } from "@/components/ui/Sparkline";
-import { addFavorite, removeFavorite, isFavorite } from "@/lib/favorites";
 import { pct, fmtAum, dt } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 
@@ -23,7 +21,7 @@ function KpiTile({ label, value, sub, ok }: { label: string; value: string; sub?
       <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1">{label}</p>
       <p
         className={`text-subhead leading-none font-medium ${
-          ok == null ? "text-ink" : ok ? "text-ok" : "text-warn"
+          ok == null ? "text-ink" : ok ? "text-ok" : "text-danger"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
       >
@@ -37,49 +35,16 @@ function KpiTile({ label, value, sub, ok }: { label: string; value: string; sub?
 export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
   const [fund, setFund] = useState<FundDetailHF | null>(null);
   const [loading, setLoading] = useState(false);
-  const [fav, setFav] = useState(false);
   const { toggle, isSelected } = useSelection();
-  const toast = useToast();
 
   useEffect(() => {
     if (!isin) { setFund(null); return; }
     setLoading(true);
-    setFav(isFavorite(isin));
     fetch(`/api/funds/${isin}`)
       .then((r) => r.json())
       .then((d) => { setFund(d.data ?? null); setLoading(false); })
       .catch(() => setLoading(false));
   }, [isin]);
-
-  function toggleFav() {
-    if (!fund) return;
-    if (fav) {
-      removeFavorite(fund.isin);
-      setFav(false);
-      toast({ title: "Retiré des favoris", tone: "default" });
-    } else {
-      addFavorite({
-        isin: fund.isin,
-        name: fund.name,
-        gestionnaire: fund.gestionnaire,
-        sfdr_article: fund.sfdr_article,
-        risk_score: fund.risk_score,
-        performance_3y: fund.performance_3y,
-        ongoing_charges: fund.ongoing_charges,
-        retrocession_cgp: fund.retrocession_cgp,
-        pea_eligible: fund.pea_eligible,
-        pea_pme_eligible: fund.pea_pme_eligible,
-        per_eligible: fund.per_eligible,
-        av_fr_eligible: fund.av_fr_eligible,
-        av_lux_eligible: fund.av_lux_eligible,
-        cto_eligible: fund.cto_eligible,
-        morningstar_rating: fund.morningstar_rating,
-        added_at: new Date().toISOString(),
-      });
-      setFav(true);
-      toast({ title: "Ajouté aux favoris", tone: "ok" });
-    }
-  }
 
   if (!isin) return null;
 
@@ -99,18 +64,6 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             </p>
           )}
         </div>
-        {/* Favoris pill */}
-        <button
-          onClick={toggleFav}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-label font-medium border transition-colors shrink-0 ${
-            fav
-              ? "bg-accent-soft text-accent-ink border-accent/30"
-              : "border-line text-ink-2 hover:border-accent/40"
-          }`}
-        >
-          <Star size={11} className={fav ? "fill-current" : ""} />
-          Favoris
-        </button>
         {/* Compare pill */}
         <button
           onClick={() => fund && toggle({
