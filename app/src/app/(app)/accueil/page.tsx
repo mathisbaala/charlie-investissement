@@ -46,6 +46,7 @@ export default function AccueilPage() {
   const [topOpcvm, setTopOpcvm] = useState<TopFund[]>([]);
   const [topScpi,  setTopScpi]  = useState<TopFund[]>([]);
   const [insurers, setInsurers] = useState<{ company: string; funds: number }[]>([]);
+  const [insurersLoading, setInsurersLoading] = useState(true);
 
   // Client profile
   const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -76,7 +77,8 @@ export default function AccueilPage() {
     fetch("/api/screener/insurers")
       .then((r) => r.json())
       .then((d) => setInsurers(d.data ?? []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setInsurersLoading(false));
   }, []);
 
   // Persist profile changes
@@ -267,7 +269,9 @@ export default function AccueilPage() {
             <p className="text-[10px] uppercase tracking-widest text-muted font-semibold mb-3">
               Par assureur
             </p>
-            {insurers.length === 0 ? (
+            {insurersLoading ? (
+              <p className="text-[12px] text-muted italic">Chargement…</p>
+            ) : insurers.length === 0 ? (
               <p className="text-[12px] text-muted italic">Annuaire indisponible</p>
             ) : (
               <div className="flex flex-col gap-0.5">
