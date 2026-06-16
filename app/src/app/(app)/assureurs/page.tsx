@@ -186,7 +186,13 @@ function EnvelopeTabs(
   return (
     // Scrollable horizontalement sur mobile : les libellés complets restent,
     // l'onglet actif est visible au montage (le navigateur garde le focus en vue).
-    <div role="tablist" aria-label="Type d'enveloppe" className="flex gap-1 border-b border-line overflow-x-auto -mb-px">
+    // Dégradé de bord droit (mobile uniquement) : signale qu'il reste des onglets
+    // à scroller (sinon PEA est coupé net, sans indice). Retiré en md+ où tout tient.
+    <div
+      role="tablist"
+      aria-label="Type d'enveloppe"
+      className="flex gap-1 border-b border-line overflow-x-auto -mb-px [mask-image:linear-gradient(to_right,black_86%,transparent)] md:[mask-image:none]"
+    >
       {ENVELOPES.map((env, idx) => {
         const on = env.key === active;
         return (
