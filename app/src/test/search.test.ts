@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SEARCH_COLUMNS, searchWords, searchOrClause, asExactIsin } from '../lib/search'
+import { SEARCH_COLUMNS, searchWords, searchOrClause, asExactIsin, asTickerToken, tickerWordPattern } from '../lib/search'
 
 describe('searchWords', () => {
   it('splits on whitespace', () => expect(searchWords('ETF France')).toEqual(['ETF', 'France']))
@@ -36,6 +36,12 @@ describe('searchOrClause', () => {
   it('searches the isin column too', () => {
     expect(searchOrClause('FR0010')).toContain('isin.ilike.%FR0010%')
   })
+  // Régression « les tickers d'ETF ne sont pas reconnus » (retour utilisateur :
+  // « DCAM » pour l'Amundi PEA Monde) : la recherche doit couvrir la colonne
+  // tickers_search (codes de cotation concaténés, cf. migration 20260616130000).
+  it('searches the ETF tickers column', () => {
+    expect(searchOrClause('DCAM')).toContain('tickers_search.ilike.%DCAM%')
+  })
 })
 
 describe('asExactIsin', () => {
@@ -55,4 +61,27 @@ describe('asExactIsin', () => {
     expect(asExactIsin('FR001031577X')).toBeNull())
   it('rejects ordinary text queries', () =>
     expect(asExactIsin('ETF France')).toBeNull())
+})
+
+describe('asTickerToken', () => {
+  // Pertinence : un mot unique court (ticker) déclenche la priorité au match exact.
+  it('recognises a single ticker-like token', () => {
+    expect(asTickerToken('DCAM')).toBe('DCAM')
+    expect(asTickerToken('CW8')).toBe('CW8')
+    expect(asTickerToken('  vwce ')).toBe('vwce')
+  })
+  it('rejects multi-word queries (relevance only for a lone ticker)', () =>
+    expect(asTickerToken('ETF CW8')).toBeNull())
+  it('rejects tokens too long to be a ticker', () =>
+    expect(asTickerToken('Carmignac')).toBeNull())
+  it('rejects a single character', () =>
+    expect(asTickerToken('A')).toBeNull())
+  it('returns null on blank input', () =>
+    expect(asTickerToken('   ')).toBeNull())
+})
+
+describe('tickerWordPattern', () => {
+  // Match en MOT ENTIER : « CSPX » ne doit pas matcher le token « CSPXJ ».
+  it('wraps the token in POSIX word boundaries', () =>
+    expect(tickerWordPattern('CSPX')).toBe('\\yCSPX\\y'))
 })

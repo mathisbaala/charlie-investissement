@@ -105,7 +105,11 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - retrocession_min: rétrocession CGP min en % ex: 0.5
 - manager_search: nom du gestionnaire (ex: "Amundi", "BlackRock", "Carmignac")
 - has_kid: true si l'utilisateur veut uniquement des fonds avec DICI disponible
-- free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques)
+- free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques).
+  Y mettre AUSSI un ticker / code de cotation boursière isolé : un jeton court tout
+  en majuscules/chiffres sans espace qui n'est ni une zone, ni un secteur, ni un
+  gestionnaire connu (ex: "DCAM", "CW8", "ESE", "PUST"). Ne JAMAIS l'interpréter
+  comme une zone ou une classe d'actif.
 - chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
 
 Règles de mapping :
@@ -185,6 +189,8 @@ Exemples :
 - "fonds technologie innovants" → {"sector":["Technologie"],"chips":["Technologie"]}
 - "ETF santé pharma article 9" → {"universe":["etf"],"sector":["Santé"],"sfdr":[9],"chips":["ETF","Santé","Article 9"]}
 - "fonds énergie renouvelable ESG" → {"sector":["Énergie"],"sfdr":[8,9],"chips":["Énergie","ESG"]}
+- "DCAM" → {"free_text":"DCAM","chips":["DCAM"]}
+- "ETF CW8" → {"universe":["etf"],"free_text":"CW8","chips":["ETF","CW8"]}
 
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
