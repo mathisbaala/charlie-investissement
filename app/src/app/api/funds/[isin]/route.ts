@@ -54,7 +54,7 @@ export async function GET(
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const since = threeYearsAgo.toISOString().split("T")[0];
 
-  const [pricesRes, holdingsRes, sectorsRes, geosRes] = await Promise.all([
+  const [pricesRes, holdingsRes, sectorsRes, geosRes, insurersRes] = await Promise.all([
     supabase
       .from("investissement_fund_prices")
       .select("price_date, nav")
@@ -77,6 +77,10 @@ export async function GET(
       .select("country_label, country_code, weight")
       .eq("isin", upper)
       .order("weight", { ascending: false }),
+    // Référencement assureur (mêmes données que la fiche /fonds/[isin]) : permet au
+    // drawer d'aperçu d'afficher « chez quel assureur le fonds est référencé »
+    // sans appel séparé. Réponse mise en cache 300s comme le reste du détail.
+    supabase.rpc("get_fund_insurers", { p_isin: upper }),
   ]);
 
   const nav_history: NavPointHF[] = (pricesRes.data ?? []).map((p: any) => ({
@@ -167,6 +171,9 @@ export async function GET(
     holdings,
     sectors,
     geos,
+    insurers: Array.isArray(insurersRes.data)
+      ? (insurersRes.data as FundDetailHF["insurers"])
+      : [],
   };
 
   // Télémétrie : consultation d'une fiche fonds (alimente le top des fonds les plus vus).
