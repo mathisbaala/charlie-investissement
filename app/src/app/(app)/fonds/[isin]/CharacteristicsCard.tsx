@@ -119,6 +119,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
       <table className="w-full">
         <tbody>
           <Row label="Type" value={productTypeLabel(fund.product_type)} />
+          <Row label="Ticker" value={fund.tickers?.length ? fund.tickers.join(" · ") : null} />
           <Row label="Style" value={styleLabel} />
           <Row label="Classe d'actif" value={assetClassLabel(fund.asset_class_broad, fund.asset_class)} />
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />

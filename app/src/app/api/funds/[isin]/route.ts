@@ -24,7 +24,7 @@ export async function GET(
   const { data: fund, error: fundErr } = await supabase
     .from("investissement_funds")
     .select(`
-      isin, name, management_company, management_company_normalized,
+      isin, name, management_company, management_company_normalized, tickers,
       product_type, category, category_normalized, asset_class_broad, asset_class, region_normalized, region_exposure, management_style,
       currency, inception_date, track_record_years,
       hedged, distributor_france, ucits_compliant, data_source, field_sources,
@@ -115,6 +115,7 @@ export async function GET(
     gestionnaire: fund.management_company_normalized ?? fund.management_company,
     management_company: fund.management_company,
     product_type: fund.product_type,
+    tickers: (fund as any).tickers ?? null,
     category_normalized: fund.category_normalized,
     asset_class_broad: (fund as any).asset_class_broad ?? null,
     asset_class: fund.asset_class,

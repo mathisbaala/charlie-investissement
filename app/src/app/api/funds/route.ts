@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { searchWords, searchOrClause, asExactIsin } from "@/lib/search";
+import { searchWords, searchOrClause, asExactIsin, asTickerToken, tickerWordPattern } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
@@ -22,7 +22,7 @@ const COLS = [
   "ucits_compliant","is_institutional","accessible_retail","hedged",
   "aum_eur","morningstar_rating","currency","inception_date",
   "track_record_years","kid_url","data_completeness","updated_at",
-  "share_class_group_id","insurers","contracts"
+  "share_class_group_id","insurers","contracts","tickers"
 ].join(",");
 
 function p(sp: URLSearchParams, key: string) { return sp.get(key); }
@@ -242,16 +242,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const raw = (data as unknown as Fund[]) ?? [];
+  let raw = (data as unknown as Fund[]) ?? [];
+
+  // Pertinence ticker : si la requête est un ticker (mot unique court), sur la 1re
+  // page et avec le tri par défaut, on remonte en tête les fonds dont c'est
+  // EXACTEMENT le ticker (match mot entier dans tickers_search), classés par encours
+  // décroissant. Ces fonds sont un sous-ensemble des résultats `ilike` → le total est
+  // inchangé. On les préprend : dedup() conserve l'ordre de première insertion, donc
+  // ils se retrouvent en tête (cf. lib/search.ts pour le pourquoi).
+  const tickerToken = asTickerToken(search);
+  if (tickerToken && page === 1 && safeSort === "data_completeness" && raw.length) {
+    const { data: prioData } = await baseFilters(supabase.from(VIEW).select(COLS))
+      .filter("tickers_search", "imatch", tickerWordPattern(tickerToken))
+      .order("aum_eur", { ascending: false, nullsFirst: false })
+      .limit(perPage);
+    const prio = (prioData as unknown as Fund[]) ?? [];
+    if (prio.length) raw = [...prio, ...raw];
+  }
+
   // La dédup est portée par is_primary_share_class côté DB : `raw` ne contient déjà qu'un
   // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
-  // double-primary transitoire entre deux refreshs) — no-op en régime normal.
+  // double-primary transitoire entre deux refreshs, ou les doublons prio↔page ci-dessus).
   // + frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
   const deduped = dedup(raw).map((f) => ({
     ...f,
     ter: feeFracToPct(f.ter),
     ongoing_charges: feeFracToPct(f.ongoing_charges),
-  }));
+  })).slice(0, perPage);
   // total = nombre exact de fonds uniques correspondants (count: "exact" sur les primaires) :
   // total_pages couvre toutes les pages, sans page vide en plein milieu.
   const total = count ?? 0;
