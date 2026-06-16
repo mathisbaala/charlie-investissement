@@ -52,3 +52,12 @@ export function isInsurerVisible(
 export function otherEnvelopes(c: ContractLike, env: Envelope): ContractType[] {
   return typesOf(c).filter((t) => t !== env);
 }
+
+// Décompose une clé de contrat « Assureur::Contrat » en nom lisibles. Split sur
+// le PREMIER « :: » (le nom de contrat peut lui-même contenir « :: »). Fallback
+// si la clé ne contient pas « :: » : tout est le nom de contrat, assureur = null.
+export function parseContractKey(key: string): { company: string | null; contract: string } {
+  const i = key.indexOf("::");
+  if (i === -1) return { company: null, contract: key };
+  return { company: key.slice(0, i), contract: key.slice(i + 2) };
+}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X, Download, Check, ChevronRight } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
+import { InsurerChips } from "@/components/screener/InsurerChips";
 import { Btn } from "@/components/ui/Btn";
 import { useSelection } from "@/components/SelectionProvider";
 import { Sparkline } from "@/components/ui/Sparkline";
@@ -164,6 +165,23 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
                 <span className="text-label text-muted">Aucune éligibilité confirmée</span>
               )}
             </div>
+          </div>
+
+          {/* Référencement assureur : « chez quel(s) assureur(s) le fonds est
+              référencé » (réponse au retour CGP). Noms d'assureurs en chips,
+              cohérent avec le tableau et la fiche. */}
+          <div>
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Référencement assureur</p>
+            {(fund.insurers ?? []).length > 0 ? (
+              <>
+                <InsurerChips insurers={(fund.insurers ?? []).map((r) => r.company)} max={6} />
+                <p className="text-caption text-muted-2 mt-2 leading-snug">
+                  Donnée partielle. L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas référencé.
+                </p>
+              </>
+            ) : (
+              <p className="text-label text-muted">Aucun référencement renseigné</p>
+            )}
           </div>
 
           {/* Caractéristiques */}

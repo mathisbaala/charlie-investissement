@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   typesOf, inEnvelope, realContracts, visibleContracts,
-  isInsurerVisible, otherEnvelopes, type ContractLike,
+  isInsurerVisible, otherEnvelopes, parseContractKey, type ContractLike,
 } from "@/lib/insurer-envelope";
 
 const c = (over: Partial<ContractLike>): ContractLike => ({
@@ -94,5 +94,20 @@ describe("otherEnvelopes", () => {
   });
   it("vide quand le contrat n'a que l'enveloppe active", () => {
     expect(otherEnvelopes(c({ types: ["av"] }), "av")).toEqual([]);
+  });
+});
+
+describe("parseContractKey", () => {
+  it("décompose « Assureur::Contrat »", () => {
+    expect(parseContractKey("Suravenir::Linxea Spirit 2"))
+      .toEqual({ company: "Suravenir", contract: "Linxea Spirit 2" });
+  });
+  it("split sur le PREMIER « :: » (le nom de contrat peut en contenir)", () => {
+    expect(parseContractKey("Generali::Contrat :: Edition 2"))
+      .toEqual({ company: "Generali", contract: "Contrat :: Edition 2" });
+  });
+  it("fallback sans « :: » : assureur null, clé = nom de contrat", () => {
+    expect(parseContractKey("Linxea Spirit 2"))
+      .toEqual({ company: null, contract: "Linxea Spirit 2" });
   });
 });

@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ChevronRight, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
+import { InsurerChips } from "@/components/screener/InsurerChips";
 import { useSelection } from "@/components/SelectionProvider";
 import { pct, fmtAumShort, decodeHtml } from "@/lib/format";
 import type { Fund } from "@/lib/types";
@@ -23,30 +24,6 @@ function EligPill({ label, active }: { label: string; active: boolean | null }) 
     <span className="inline-block px-1.5 py-0.5 rounded text-caption font-medium bg-ok-soft text-ok">
       {label}
     </span>
-  );
-}
-
-// Référencement assureur : « chez quel(s) assureur(s) le fonds est référencé ».
-// Teinte neutre pour ne pas concurrencer les pills d'éligibilité (vertes).
-function InsurerChips({ insurers, max = 3 }: { insurers: string[] | null; max?: number }) {
-  const list = insurers ?? [];
-  if (list.length === 0) return null;
-  const shown = list.slice(0, max);
-  const extra = list.length - shown.length;
-  return (
-    <div className="flex flex-wrap items-center gap-1 mt-1">
-      {shown.map((c) => (
-        <span
-          key={c}
-          className="inline-block px-1.5 py-0.5 rounded text-caption font-medium bg-paper-2 border border-line-soft text-muted"
-        >
-          {c}
-        </span>
-      ))}
-      {extra > 0 && (
-        <span title={list.join(" · ")} className="text-caption text-muted-2">+{extra}</span>
-      )}
-    </div>
   );
 }
 
@@ -96,7 +73,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
               <div className="text-label text-muted font-mono mt-0.5 truncate">
                 {f.isin} · {f.gestionnaire ?? "—"}
               </div>
-              <InsurerChips insurers={f.insurers} />
+              <InsurerChips insurers={f.insurers} className="mt-1" />
             </div>
             <ChevronRight size={16} className="shrink-0 text-muted mt-0.5" />
           </div>
@@ -212,7 +189,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   <div className="text-label text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}
                   </div>
-                  <InsurerChips insurers={f.insurers} />
+                  <InsurerChips insurers={f.insurers} className="mt-1" />
                 </td>
 
                 <td className="px-3 py-3 text-center"><SfdrBadge article={f.sfdr_article} /></td>

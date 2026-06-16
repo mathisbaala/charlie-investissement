@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
+import { parseContractKey } from "@/lib/insurer-envelope";
 import {
   type RichClientProfile,
   EMPTY_PROFILE,
@@ -322,6 +323,18 @@ function RechercheInner() {
     }));
   }, []);
 
+  // Retire le filtre de référencement (assureur / contrat) arrivé par l'URL
+  // depuis l'onglet Assurances vie. Le fetch se redéclenche sur `filters`.
+  const clearReferencingFilter = useCallback(() => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      delete next.insurers;
+      delete next.contracts;
+      return next;
+    });
+    setPage(1);
+  }, []);
+
   // ─── Sort / pagination ─────────────────────────────────────────────────────
 
   const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPage(1); }, []);
@@ -340,6 +353,23 @@ function RechercheInner() {
   const handleRowClick = useCallback((f: Fund) => setActiveFund((prev) => prev === f.isin ? null : f.isin), []);
 
   const profileActive = isProfileActive(profile);
+
+  // Bandeau de contexte « référencement » : libellé lisible quand le screener est
+  // filtré sur un contrat (clé « Assureur::Contrat ») ou un assureur, depuis
+  // l'onglet Assurances vie. null si aucun filtre de référencement actif.
+  const refContracts = filters.contracts ?? [];
+  const refInsurers  = filters.insurers ?? [];
+  let referencingLabel: string | null = null;
+  if (refContracts.length === 1) {
+    const { company, contract } = parseContractKey(refContracts[0]);
+    referencingLabel = `Supports logeables dans ${contract}${company ? ` (${company})` : ""}`;
+  } else if (refContracts.length > 1) {
+    referencingLabel = `${refContracts.length} contrats sélectionnés`;
+  } else if (refInsurers.length === 1) {
+    referencingLabel = `Supports référencés chez ${refInsurers[0]}`;
+  } else if (refInsurers.length > 1) {
+    referencingLabel = `${refInsurers.length} assureurs sélectionnés`;
+  }
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -408,6 +438,22 @@ function RechercheInner() {
           />
         )}
 
+        {referencingLabel && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
+            <p className="text-label text-accent-ink min-w-0 truncate">
+              <span className="font-semibold">{referencingLabel}</span>
+              {!parsing && !loading && (
+                <span className="text-accent-ink/70"> — {total.toLocaleString("fr-FR")} fonds</span>
+              )}
+            </p>
+            <button
+              onClick={clearReferencingFilter}
+              className="text-label text-accent-ink/80 hover:text-accent-ink underline shrink-0"
+            >
+              retirer le filtre
+            </button>
+          </div>
+        )}
         <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
         {nlpFailed && query.trim() && (
           <p className="text-label text-muted px-1">
