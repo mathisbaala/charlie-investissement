@@ -73,6 +73,10 @@ export type Fund = {
   // Référencement assurantiel (assureurs qui référencent le fonds — vue cgp_ref)
   insurers: string[] | null;
 
+  // Tickers boursiers (ETF cotés ; multi-bourses : DCAM, DCAMEUR…). Sert à
+  // retrouver un ETF par son code de cotation. Null pour les fonds non cotés.
+  tickers: string[] | null;
+
   // Labels & qualité
   labels: string[] | null;
   kid_url: string | null;
@@ -332,6 +336,7 @@ export type FundDetailHF = {
   gestionnaire: string | null;
   management_company: string | null;
   product_type: string | null;
+  tickers: string[] | null;            // tickers boursiers (ETF cotés : DCAM, DCAMEUR…)
   category: string | null;             // catégorie brute (non normalisée)
   category_normalized: string | null;
   asset_class_broad: string | null;    // classe d'actif large, normalisée (colonne de référence)
