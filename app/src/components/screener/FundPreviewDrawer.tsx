@@ -40,11 +40,15 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
 
   useEffect(() => {
     if (!isin) { setFund(null); return; }
+    // Guard d'annulation : sur clics rapides (ligne A puis B), la réponse de A
+    // ne doit pas écraser le fonds B affiché (sinon mauvais référencement montré).
+    let cancelled = false;
     setLoading(true);
     fetch(`/api/funds/${isin}`)
       .then((r) => r.json())
-      .then((d) => { setFund(d.data ?? null); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then((d) => { if (!cancelled) { setFund(d.data ?? null); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [isin]);
 
   if (!isin) return null;

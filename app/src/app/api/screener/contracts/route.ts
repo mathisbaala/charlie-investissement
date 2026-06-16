@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 // de filtre (cf. colonne contracts[] de la vue investissement_funds_cgp_ref).
 export async function GET(): Promise<NextResponse> {
   const { data, error } = await supabase.rpc("get_contracts_list");
-  if (error) return NextResponse.json({ data: [] }, { status: 200 });
+  // 500 (et non 200 + []) sur erreur RPC : voir route insurers. Source principale
+  // de /assureurs → une panne ne doit pas se déguiser en « aucun contrat ».
+  if (error) return NextResponse.json({ error: "rpc_failed" }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
 }

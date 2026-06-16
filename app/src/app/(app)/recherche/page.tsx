@@ -325,6 +325,8 @@ function RechercheInner() {
 
   // Retire le filtre de référencement (assureur / contrat) arrivé par l'URL
   // depuis l'onglet Assurances vie. Le fetch se redéclenche sur `filters`.
+  // On nettoie aussi l'URL (sinon un reload réapplique le filtre retiré),
+  // en préservant la requête texte `q=` si présente.
   const clearReferencingFilter = useCallback(() => {
     setFilters((prev) => {
       const next = { ...prev };
@@ -333,7 +335,9 @@ function RechercheInner() {
       return next;
     });
     setPage(1);
-  }, []);
+    const q = query.trim();
+    router.replace(q ? `/recherche?q=${encodeURIComponent(q)}` : "/recherche", { scroll: false });
+  }, [router, query]);
 
   // ─── Sort / pagination ─────────────────────────────────────────────────────
 

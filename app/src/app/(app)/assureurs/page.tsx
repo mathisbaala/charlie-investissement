@@ -76,9 +76,19 @@ function InsurerCard(
             {insurer.company}
           </p>
           <p className="text-label text-muted mt-0.5">
-            {insurer.funds.toLocaleString("fr-FR")} support{insurer.funds > 1 ? "s" : ""} référencé{insurer.funds > 1 ? "s" : ""}
-            {visible.length > 0 && (
-              <> · {visible.length} contrat{visible.length > 1 ? "s" : ""}</>
+            {/* Le total `insurer.funds` est l'union toutes enveloppes confondues.
+                On ne l'affiche que sous l'onglet AV (enveloppe dominante, où il
+                approxime l'union AV). Sous Capi/PER/PEA, il surcompterait → on
+                montre seulement le nombre de contrats de l'enveloppe (exact). */}
+            {env === "av" ? (
+              <>
+                {insurer.funds.toLocaleString("fr-FR")} support{insurer.funds > 1 ? "s" : ""} référencé{insurer.funds > 1 ? "s" : ""}
+                {visible.length > 0 && (
+                  <> · {visible.length} contrat{visible.length > 1 ? "s" : ""}</>
+                )}
+              </>
+            ) : (
+              <>{visible.length} contrat{visible.length > 1 ? "s" : ""} en {ENV_LABEL[env]}</>
             )}
           </p>
         </div>
@@ -94,7 +104,9 @@ function InsurerCard(
           </div>
           <ul>
             {shown.map((c) => {
-              const others = otherEnvelopes(c, env).filter((t) => t in TYPE_SHORT);
+              // PEP exclu du marqueur « aussi X » (cohérent avec son exclusion
+              // des onglets d'enveloppe primaires).
+              const others = otherEnvelopes(c, env).filter((t) => t !== "pep" && t in TYPE_SHORT);
               const variants = c.variants ?? [];
               const title = [
                 variants.length ? `Mêmes supports que : ${variants.map((v) => v.contract).join(" · ")}` : "",
