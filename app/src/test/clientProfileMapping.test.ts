@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { toMatchingProfile, EMPTY_PROFILE, type RichClientProfile } from "../lib/clientProfile";
+import {
+  toMatchingProfile,
+  profileToScreenerFilters,
+  EMPTY_PROFILE,
+  type RichClientProfile,
+} from "../lib/clientProfile";
 
 // toMatchingProfile convertit le profil PARTAGÉ (RichClientProfile) vers le payload
 // attendu par /api/matching (ClientProfile). C'est le pont qui unifie le profil
@@ -53,5 +58,53 @@ describe("toMatchingProfile", () => {
   it("mappe les classes d'actifs vers asset_class_broad", () => {
     const out = toMatchingProfile({ ...EMPTY_PROFILE, asset_classes: ["actions", "scpi", "multi_actifs"] });
     expect(out.preferred_asset_classes).toEqual(["action", "immobilier", "diversifie"]);
+  });
+});
+
+// profileToScreenerFilters traduit le profil PARTAGÉ en filtres durs du screener
+// (« Trouver les fonds adaptés » redirige vers /recherche pré-filtré). Ne traduit
+// que les champs à équivalent filtre ; âge/horizon/objectif/montant/TMI restent
+// du contexte NLP.
+describe("profileToScreenerFilters", () => {
+  it("ne produit aucun filtre pour un profil vide", () => {
+    expect(profileToScreenerFilters(EMPTY_PROFILE)).toEqual({});
+  });
+
+  it("traduit le risque en PLAFOND SRI (pas de plancher)", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "prudent" }).sri_max).toBe(3);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "modere" }).sri_max).toBe(4);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "equilibre" }).sri_max).toBe(5);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "dynamique" }).sri_max).toBe(6);
+  });
+
+  it("n'impose aucun plafond SRI pour un profil offensif", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "offensif" }).sri_max).toBeUndefined();
+  });
+
+  it("traduit la préférence ESG en classification SFDR", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, esg: "art8" }).sfdr).toEqual([8, 9]);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, esg: "art9" }).sfdr).toEqual([9]);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, esg: "indifferent" }).sfdr).toBeUndefined();
+  });
+
+  it("traduit la tolérance de perte en drawdown_max (illimitée → aucun filtre)", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, perte_max: "20" }).drawdown_max).toBe(20);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, perte_max: "illimitee" }).drawdown_max).toBeUndefined();
+  });
+
+  it("reporte les enveloppes telles quelles", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, envelopes: ["PEA", "PER"] }).envelopes).toEqual(["PEA", "PER"]);
+  });
+
+  it("mappe les classes d'actifs vers asset_class_broad", () => {
+    const out = profileToScreenerFilters({ ...EMPTY_PROFILE, asset_classes: ["actions", "scpi", "multi_actifs"] });
+    expect(out.asset_class).toEqual(["action", "immobilier", "diversifie"]);
+  });
+
+  it("combine plusieurs champs en un seul jeu de filtres", () => {
+    const out = profileToScreenerFilters({
+      ...EMPTY_PROFILE, risk_profile: "equilibre", esg: "art8", perte_max: "10", envelopes: ["PEA"],
+    });
+    expect(out).toEqual({ sri_max: 5, sfdr: [8, 9], drawdown_max: 10, envelopes: ["PEA"] });
   });
 });

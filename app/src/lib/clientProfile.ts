@@ -1,6 +1,7 @@
 // ─── Client profile — shared types, serialisation, localStorage ──────────────
 
 import type { ClientProfile, Envelope } from "./matching";
+import type { ParsedFilters } from "./types";
 
 export type RiskProfile = "prudent" | "modere" | "equilibre" | "dynamique" | "offensif";
 export type EsgPref = "indifferent" | "art8" | "art9";
@@ -163,6 +164,50 @@ const ASSET_CLASS_TO_BROAD: Record<string, string> = {
   monetaire: "monetaire",
   multi_actifs: "diversifie",
 };
+
+// ─── Conversion vers les filtres du screener ─────────────────────────────────
+// « Trouver les fonds adaptés » depuis la page Profil client redirige vers le
+// screener avec ces filtres pré-remplis. On ne traduit que les champs qui ont
+// un équivalent FILTRE DUR ; l'âge, l'horizon, l'objectif, le montant et la TMI
+// restent dans le profil (contexte NLP, sérialisé par serializeForNlp) sans
+// devenir des filtres rigides.
+
+// Profil de risque → PLAFOND SRI. Logique d'adéquation MIF : on ne propose jamais
+// un fonds plus risqué que la tolérance du client. Pas de plancher (un prudent peut
+// vouloir voir des fonds très sûrs). « offensif » = aucun plafond (null).
+const RISK_TO_SRI_MAX: Record<RiskProfile, number | null> = {
+  prudent: 3,
+  modere: 4,
+  equilibre: 5,
+  dynamique: 6,
+  offensif: null,
+};
+
+export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
+  const f: ParsedFilters = {};
+
+  if (p.risk_profile) {
+    const sriMax = RISK_TO_SRI_MAX[p.risk_profile];
+    if (sriMax != null) f.sri_max = sriMax;
+  }
+
+  if (p.esg === "art8")      f.sfdr = [8, 9];
+  else if (p.esg === "art9") f.sfdr = [9];
+
+  if (p.perte_max && p.perte_max !== "illimitee") {
+    const dd = PERTE_MAX_TO_PCT[p.perte_max];
+    if (dd != null) f.drawdown_max = dd;
+  }
+
+  if (p.envelopes.length) f.envelopes = [...p.envelopes];
+
+  const assetClasses = (p.asset_classes ?? [])
+    .map((a) => ASSET_CLASS_TO_BROAD[a])
+    .filter(Boolean);
+  if (assetClasses.length) f.asset_class = assetClasses;
+
+  return f;
+}
 
 export function toMatchingProfile(p: RichClientProfile): ClientProfile {
   return {
