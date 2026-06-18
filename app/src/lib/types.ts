@@ -18,6 +18,7 @@ export type Fund = {
   // Classification
   asset_class_broad: string | null;
   asset_class: string | null;
+  allocation_profile: string | null;   // profil d'allocation (diversifiés) : prudent/equilibre/dynamique/flexible
   category_normalized: string | null;
   region_normalized: string | null;
   sector: string | null;
@@ -319,6 +320,7 @@ export type ParsedFilters = {
   envelopes?: string[];
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
+  allocation_profile?: string[]; // profil d'allocation des diversifiés (prudent/equilibre/dynamique/flexible)
   insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
   contracts?: string[];       // contrats précis, clé composite "Assureur::Contrat" (ex: "Suravenir::Linxea Spirit 2")
   gestionnaires?: string[];   // sélection rapide de sociétés de gestion (match exact, ex: "Amundi")
@@ -349,6 +351,7 @@ export type FundDetailHF = {
   category_normalized: string | null;
   asset_class_broad: string | null;    // classe d'actif large, normalisée (colonne de référence)
   asset_class: string | null;          // classe d'actif fine (peut contenir un secteur)
+  allocation_profile: string | null;   // profil d'allocation (diversifiés) : prudent/equilibre/dynamique/flexible
   region_normalized: string | null;
   region_exposure: string | null;      // exposition géographique brute
   currency: string | null;

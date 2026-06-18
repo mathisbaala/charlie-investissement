@@ -56,6 +56,7 @@ export function buildParams(
   if (f.envelopes?.length)           sp.set("envelopes",         f.envelopes.join(","));
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
   if (f.asset_class?.length)         sp.set("asset_class",       f.asset_class.join(","));
+  if (f.allocation_profile?.length)  sp.set("allocation_profile",f.allocation_profile.join(","));
   if (f.insurers?.length)            sp.set("insurer",           f.insurers.join(","));
   if (f.contracts?.length)           sp.set("contracts",         f.contracts.join(","));
   if (f.gestionnaires?.length)       sp.set("gestionnaire_in",   f.gestionnaires.join(","));
@@ -571,11 +572,16 @@ function RechercheInner() {
                 <EmptyState
                   icon={<Search size={16} />}
                   title="Aucun fonds ne correspond à votre recherche."
-                  hint="Élargissez ou réinitialisez vos filtres pour voir plus de fonds."
+                  hint="Élargissez ou réinitialisez vos filtres, ou laissez-vous guider par un profil client."
                   action={
-                    <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
-                      Réinitialiser les filtres
-                    </button>
+                    <div className="flex flex-col items-center gap-2">
+                      <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
+                        Réinitialiser les filtres
+                      </button>
+                      <button onClick={() => router.push("/matching")} className="text-meta text-muted hover:text-accent-ink hover:underline">
+                        Ou trouver les fonds adaptés à un profil client →
+                      </button>
+                    </div>
                   }
                 />
               </div>

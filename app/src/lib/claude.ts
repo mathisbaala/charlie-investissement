@@ -30,6 +30,7 @@ const ENUMS = {
   envelopes: ["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"],
   universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto"],
   asset_class: ["action", "obligation", "diversifie", "monetaire", "immobilier", "matieres_premieres", "alternatif", "fonds_euros"],
+  allocation_profile: ["prudent", "equilibre", "dynamique", "flexible"],
   region: ["world", "europe", "eurozone", "usa", "france", "emerging", "japan", "asia", "china", "uk", "germany", "switzerland", "india", "brazil"],
   sector: ["Technologie", "Santé", "Finance", "Consommation", "Industrie", "Énergie", "Immobilier", "Environnement", "Communication", "Matériaux"],
   management_style: ["passif", "actif", "smart_beta", "alternatif"],
@@ -146,6 +147,12 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - asset_class: tableau de classes d'actifs parmi ["action","obligation","diversifie","monetaire","immobilier","matieres_premieres","alternatif","fonds_euros"]
   (NB: c'est la NATURE des actifs sous-jacents — distinct de "universe" qui est l'enveloppe produit.
    Un OPCVM peut être actions OU obligataire ; toujours renseigner asset_class quand la requête précise la classe.)
+- allocation_profile: tableau parmi ["prudent","equilibre","dynamique","flexible"] — profil
+  d'allocation d'un fonds DIVERSIFIÉ (ne s'applique qu'aux diversifiés). Quand l'utilisateur
+  le précise, renseigner AUSSI asset_class:["diversifie"]. Mapping :
+  "prudent"/"défensif"/"sécurisé" → ["prudent"] ; "équilibré"/"balanced"/"modéré" → ["equilibre"] ;
+  "dynamique"/"offensif"/"audacieux" → ["dynamique"] ; "flexible"/"patrimonial"/"opportuniste"/
+  "allocation flexible" → ["flexible"].
 - region: tableau de zones géographiques normalisées parmi
   ["world","europe","eurozone","usa","france","emerging","japan","asia","china","uk","germany","switzerland","india","brazil"]
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]

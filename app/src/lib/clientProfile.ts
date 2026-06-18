@@ -1,5 +1,7 @@
 // ─── Client profile — shared types, serialisation, localStorage ──────────────
 
+import type { ClientProfile, Envelope } from "./matching";
+
 export type RiskProfile = "prudent" | "modere" | "equilibre" | "dynamique" | "offensif";
 export type EsgPref = "indifferent" | "art8" | "art9";
 export type Objectif = "capitalisation" | "revenus" | "retraite" | "transmission" | "defiscalisation";
@@ -121,4 +123,40 @@ export function serializeForNlp(p: RichClientProfile): string {
   }
 
   return parts.join(", ");
+}
+
+// ─── Conversion vers le payload du moteur de matching ────────────────────────
+// /matching partage le MÊME profil (RichClientProfile, localStorage) que le
+// panneau de recherche. Le moteur /api/matching attend un ClientProfile plus
+// restreint : on convertit ici. Le profil « modéré » (absent du barème matching)
+// est rabattu sur « équilibré ». Enveloppes : forme UI (PEA, AV-FR…) → clés API.
+
+const RISK_TO_MATCHING: Record<RiskProfile, ClientProfile["risk_profile"]> = {
+  prudent: "prudent",
+  modere: "equilibre",
+  equilibre: "equilibre",
+  dynamique: "dynamique",
+  offensif: "offensif",
+};
+
+const ENVELOPE_TO_MATCHING: Record<string, Envelope> = {
+  PEA: "pea",
+  "PEA-PME": "pea_pme",
+  PER: "per",
+  "AV-FR": "av_fr",
+  "AV-LUX": "av_lux",
+  CTO: "cto",
+};
+
+export function toMatchingProfile(p: RichClientProfile): ClientProfile {
+  return {
+    age: p.age ?? 45,
+    risk_profile: RISK_TO_MATCHING[p.risk_profile ?? "equilibre"] ?? "equilibre",
+    horizon_years: p.horizon_years ?? 10,
+    amount_eur: p.amount_eur ?? undefined,
+    envelopes: (p.envelopes ?? [])
+      .map((e) => ENVELOPE_TO_MATCHING[e])
+      .filter((e): e is Envelope => Boolean(e)),
+    esg_preference: p.esg,
+  };
 }

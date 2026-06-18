@@ -485,6 +485,29 @@ export function FilterPanel({
           </div>
         </Section>
 
+        {/* Profil d'allocation — sous-classe des diversifiés (prudent → flexible).
+            Affiché quand « Diversifié » est sélectionné. Heuristique partielle :
+            filtre opt-in, n'écarte rien tant qu'il est vide. */}
+        {(f.asset_class ?? []).includes("diversifie") && (
+          <Section title="Profil d'allocation">
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { val: "prudent",   label: "Prudent" },
+                { val: "equilibre", label: "Équilibré" },
+                { val: "dynamique", label: "Dynamique" },
+                { val: "flexible",  label: "Flexible" },
+              ].map(({ val, label }) => (
+                <SfdrPill
+                  key={val}
+                  label={label}
+                  active={(f.allocation_profile ?? []).includes(val)}
+                  onToggle={() => set("allocation_profile", toggleArr(f.allocation_profile, val))}
+                />
+              ))}
+            </div>
+          </Section>
+        )}
+
         <Divider />
 
         {/* Univers */}

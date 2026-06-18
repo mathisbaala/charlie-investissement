@@ -33,6 +33,28 @@ describe('buildParams — filtre classe d\'actif', () => {
   })
 })
 
+// Profil d'allocation : sous-filtre des diversifiés (prudent/équilibré/dynamique/
+// flexible), demandé par un gérant qui cherchait « la classification Flexible ».
+// buildParams doit le sérialiser pour que l'API filtre sur la colonne allocation_profile.
+describe('buildParams — filtre profil d\'allocation', () => {
+  it('sérialise allocation_profile en paramètre séparé', () => {
+    const f: ParsedFilters = { allocation_profile: ['flexible'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('allocation_profile')).toBe('flexible')
+  })
+
+  it('joint plusieurs profils par une virgule', () => {
+    const f: ParsedFilters = { allocation_profile: ['prudent', 'flexible'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('allocation_profile')).toBe('prudent,flexible')
+  })
+
+  it('n\'émet pas allocation_profile quand il est absent', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('allocation_profile')).toBe(false)
+  })
+})
+
 describe('buildParams — filtre assureur (référencement)', () => {
   it('sérialise insurers vers le paramètre "insurer"', () => {
     const f: ParsedFilters = { insurers: ['AXA France'] }

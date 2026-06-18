@@ -1,33 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageShell, PageHeader } from "@/components/ui/Page";
 import { SlidersHorizontal } from "@/components/ui/icons";
-import type { ClientProfile, Envelope, EsgPreference, MatchResult } from "@/lib/matching";
+import type { MatchResult } from "@/lib/matching";
+import {
+  type RichClientProfile,
+  type EsgPref,
+  EMPTY_PROFILE,
+  loadStoredProfile,
+  saveStoredProfile,
+  toMatchingProfile,
+} from "@/lib/clientProfile";
 
-const RISK_OPTIONS: { value: ClientProfile["risk_profile"]; label: string; desc: string }[] = [
+type MatchingRisk = "prudent" | "equilibre" | "dynamique" | "offensif";
+
+const RISK_OPTIONS: { value: MatchingRisk; label: string; desc: string }[] = [
   { value: "prudent",   label: "Prudent",   desc: "SRI 1-3, capital protégé" },
   { value: "equilibre", label: "Équilibré", desc: "SRI 2-4, rendement/risque" },
   { value: "dynamique", label: "Dynamique", desc: "SRI 4-6, croissance" },
   { value: "offensif",  label: "Offensif",  desc: "SRI 5-7, performance max" },
 ];
 
-const ESG_OPTIONS: { value: EsgPreference; label: string }[] = [
+const ESG_OPTIONS: { value: EsgPref; label: string }[] = [
   { value: "indifferent", label: "Indifférent" },
   { value: "art8",        label: "SFDR Art.8+" },
   { value: "art9",        label: "SFDR Art.9 uniquement" },
 ];
 
-const ENVELOPE_OPTIONS: { value: Envelope; label: string }[] = [
-  { value: "pea",     label: "PEA" },
-  { value: "pea_pme", label: "PEA-PME" },
-  { value: "per",     label: "PER" },
-  { value: "av_fr",   label: "AV France" },
-  { value: "av_lux",  label: "AV Luxembourg" },
-  { value: "cto",     label: "CTO" },
+// Valeurs au format du profil partagé (RichClientProfile.envelopes).
+const ENVELOPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "PEA",     label: "PEA" },
+  { value: "PEA-PME", label: "PEA-PME" },
+  { value: "PER",     label: "PER" },
+  { value: "AV-FR",   label: "AV France" },
+  { value: "AV-LUX",  label: "AV Luxembourg" },
+  { value: "CTO",     label: "CTO" },
 ];
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {
@@ -52,12 +63,26 @@ function fmt(n: number | null, suffix = "%", d = 2) {
 }
 
 export default function MatchingPage() {
-  const [age,         setAge]         = useState("45");
-  const [riskProfile, setRiskProfile] = useState<ClientProfile["risk_profile"]>("equilibre");
-  const [horizon,     setHorizon]     = useState("10");
-  const [amount,      setAmount]      = useState("");
-  const [envelopes,   setEnvelopes]   = useState<Envelope[]>(["per"]);
-  const [esg,         setEsg]         = useState<EsgPreference>("indifferent");
+  // Profil client PARTAGÉ : même objet localStorage que le panneau de recherche
+  // (lib/clientProfile). Saisir le profil ici le pré-remplit là-bas, et vice-versa.
+  const [profile, setProfile] = useState<RichClientProfile>(EMPTY_PROFILE);
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (initialized) return;
+    setInitialized(true);
+    const stored = loadStoredProfile();
+    setProfile({
+      ...stored,
+      age: stored.age ?? 45,
+      horizon_years: stored.horizon_years ?? 10,
+      risk_profile: stored.risk_profile ?? "equilibre",
+      envelopes: stored.envelopes.length ? stored.envelopes : ["PER"],
+    });
+  }, [initialized]);
+
+  // Persiste toute modification dans le profil partagé.
+  useEffect(() => { if (initialized) saveStoredProfile(profile); }, [profile, initialized]);
 
   const [results,       setResults]       = useState<MatchResult[]>([]);
   const [loading,       setLoading]       = useState(false);
@@ -73,29 +98,22 @@ export default function MatchingPage() {
     });
   }
 
-  function toggleEnvelope(v: Envelope) {
-    setEnvelopes((prev) =>
-      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
-    );
+  function toggleEnvelope(v: string) {
+    setProfile((p) => ({
+      ...p,
+      envelopes: p.envelopes.includes(v) ? p.envelopes.filter((x) => x !== v) : [...p.envelopes, v],
+    }));
   }
 
   async function search() {
-    if (envelopes.length === 0) { setError("Sélectionnez au moins une enveloppe."); return; }
+    if (profile.envelopes.length === 0) { setError("Sélectionnez au moins une enveloppe."); return; }
     setLoading(true);
     setError(null);
     try {
-      const profile: ClientProfile = {
-        age: Number(age) || 45,
-        risk_profile: riskProfile,
-        horizon_years: Number(horizon) || 10,
-        amount_eur: amount ? Number(amount) : undefined,
-        envelopes,
-        esg_preference: esg,
-      };
       const res  = await fetch("/api/matching", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(toMatchingProfile(profile)),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -130,29 +148,29 @@ export default function MatchingPage() {
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className={labelCls}>Âge du client</label>
-                <input type="number" min="18" max="100" value={age}
-                  onChange={(e) => setAge(e.target.value)} className={inputCls} />
+                <input type="number" min="18" max="100" value={profile.age ?? ""}
+                  onChange={(e) => setProfile((p) => ({ ...p, age: e.target.value ? Number(e.target.value) : null }))} className={inputCls} />
               </div>
               <div className="flex-1">
                 <label className={labelCls}>Horizon (ans)</label>
-                <input type="number" min="1" max="30" value={horizon}
-                  onChange={(e) => setHorizon(e.target.value)} className={inputCls} />
+                <input type="number" min="1" max="30" value={profile.horizon_years ?? ""}
+                  onChange={(e) => setProfile((p) => ({ ...p, horizon_years: e.target.value ? Number(e.target.value) : null }))} className={inputCls} />
               </div>
             </div>
 
             <div>
               <label className={labelCls}>Montant à investir (€)</label>
-              <input type="number" value={amount} placeholder="Ex: 50000"
-                onChange={(e) => setAmount(e.target.value)} className={inputCls} />
+              <input type="number" value={profile.amount_eur ?? ""} placeholder="Ex: 50000"
+                onChange={(e) => setProfile((p) => ({ ...p, amount_eur: e.target.value ? Number(e.target.value) : null }))} className={inputCls} />
             </div>
 
             <div className="md:col-span-2 lg:col-span-3">
               <label className={labelCls}>Profil de risque</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {RISK_OPTIONS.map((opt) => (
-                  <button key={opt.value} onClick={() => setRiskProfile(opt.value)}
+                  <button key={opt.value} onClick={() => setProfile((p) => ({ ...p, risk_profile: opt.value }))}
                     className={`p-3 rounded-lg border text-left transition-colors ${
-                      riskProfile === opt.value
+                      profile.risk_profile === opt.value || (profile.risk_profile === "modere" && opt.value === "equilibre")
                         ? "border-accent/30 bg-accent-soft"
                         : "border-line hover:border-line-soft bg-paper"
                     }`}
@@ -170,7 +188,7 @@ export default function MatchingPage() {
                 {ENVELOPE_OPTIONS.map((opt) => (
                   <button key={opt.value} onClick={() => toggleEnvelope(opt.value)}
                     className={`px-4 py-2 rounded-lg text-meta font-medium border transition-colors ${
-                      envelopes.includes(opt.value)
+                      profile.envelopes.includes(opt.value)
                         ? "bg-accent text-paper border-accent"
                         : "border-line text-ink-2 hover:border-line-soft bg-paper"
                     }`}
@@ -185,9 +203,9 @@ export default function MatchingPage() {
               <label className={labelCls}>Préférence ESG</label>
               <div className="flex gap-2 flex-wrap">
                 {ESG_OPTIONS.map((opt) => (
-                  <button key={opt.value} onClick={() => setEsg(opt.value)}
+                  <button key={opt.value} onClick={() => setProfile((p) => ({ ...p, esg: opt.value }))}
                     className={`px-4 py-2 rounded-lg text-meta font-medium border transition-colors ${
-                      esg === opt.value
+                      profile.esg === opt.value
                         ? "bg-accent text-paper border-accent"
                         : "border-line text-ink-2 hover:border-line-soft bg-paper"
                     }`}

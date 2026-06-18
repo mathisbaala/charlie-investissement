@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const VIEW = "investissement_funds_cgp_ref";
 
 const COLS = [
-  "isin","name","product_type","asset_class_broad","asset_class",
+  "isin","name","product_type","asset_class_broad","asset_class","allocation_profile",
   "category_normalized","region_normalized","sector","management_style",
   "gestionnaire","ter","ongoing_charges","performance_1y","performance_3y",
   "performance_5y","volatility_1y","volatility_3y",
@@ -63,6 +63,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
   const assetClasses = arr(p(sp, "asset_class"));
+  const allocProfiles = arr(p(sp, "allocation_profile"));
   const insurers     = arr(p(sp, "insurer"));
   const contracts    = arr(p(sp, "contracts"));
   const regions      = arr(p(sp, "region"));
@@ -174,6 +175,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
   // Distinct de l'univers produit (product_type) : un OPCVM peut être actions ou obligataire.
   if (assetClasses.length) q = q.in("asset_class_broad", assetClasses);
+
+  // Profil d'allocation (diversifiés uniquement) : prudent / équilibré / dynamique / flexible.
+  // Heuristique partielle (colonne NULL pour la plupart) → filtre opt-in, jamais appliqué par défaut.
+  if (allocProfiles.length) q = q.in("allocation_profile", allocProfiles);
 
   // Référencement assureur : fonds disponibles chez au moins un des assureurs choisis.
   if (insurers.length)     q = (q as any).overlaps("insurers", insurers);
@@ -351,6 +356,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     drawdown_max: ddMax, no_entry_fee: noEntryFee || undefined,
     aum_min: aumMin, track_record_min: trMin, morningstar_min: mstarMin,
     retrocession_min: retroMin, envelopes, universe, asset_class: assetClasses,
+    allocation_profile: allocProfiles,
     insurer: insurers, contracts, region: regions, sector: sectors,
     exclude_sector: exclSectors, exclude_region: exclRegions,
     management_style: mgmtStyles, currency, manager_search: mgr,
