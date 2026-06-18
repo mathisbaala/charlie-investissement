@@ -26,8 +26,12 @@ let gteData: Array<[string, any]>;
 let lteData: Array<[string, any]>;
 let orData: string[];
 
-function makeBuilder() {
-  let isHead = false;
+// Le builder est chaînable ET thenable. Il sert à la fois pour supabase.from(...)
+// et pour supabase.rpc("inv_funds_search", ...) (recherche classée par pertinence,
+// chaînée avec .select/.eq/.order/.range). La RPC fuzzy (inv_search_funds_fuzzy)
+// est, elle, awaited directement → un builder "fuzzy" qui résout rpcResult.
+function makeBuilder({ head = false, fuzzy = false }: { head?: boolean; fuzzy?: boolean } = {}) {
+  let isHead = head;
   const builder: any = {
     select: (_cols: string, opts?: { head?: boolean }) => {
       if (opts?.head) isHead = true;
@@ -35,7 +39,9 @@ function makeBuilder() {
     },
     then: (resolve: (v: any) => any) =>
       Promise.resolve(
-        isHead ? countResult : (dataQueue.length ? dataQueue.shift() : dataResult),
+        fuzzy ? rpcResult
+          : isHead ? countResult
+          : (dataQueue.length ? dataQueue.shift() : dataResult),
       ).then(resolve),
   };
   // Méthodes de filtre/tri sans capture (renvoient le builder).
@@ -62,9 +68,12 @@ function makeBuilder() {
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: () => makeBuilder(),
-    rpc: (name: string, args: any) => {
+    rpc: (name: string, args: any, opts?: { head?: boolean }) => {
       rpcCalls.push([name, args]);
-      return Promise.resolve(rpcResult);
+      // inv_search_funds_fuzzy est awaited directement (résout rpcResult).
+      // inv_funds_search est chaînée comme une requête de données classée.
+      if (name === "inv_search_funds_fuzzy") return makeBuilder({ fuzzy: true });
+      return makeBuilder({ head: !!opts?.head });
     },
   },
 }));
@@ -312,22 +321,43 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(orData).not.toContainEqual("entry_fee_max.is.null,entry_fee_max.lte.0");
   });
 
-  // ─── Ranking de pertinence (Sprint 2 #1) ────────────────────────────────────
+  // ─── Ranking de pertinence (toutes les pages) ───────────────────────────────
 
-  // Boost nom : sur une recherche texte (page 1, tri par défaut), les fonds dont
-  // le nom matche tous les mots sont préprendés devant la liste triée par complétude.
-  it("recherche texte : remonte le match nom en tête de la liste par complétude", async () => {
-    dataQueue = [
-      // 1) requête principale : liste triée par complétude
-      { data: [{ isin: "FR0000000001", aum_eur: 100, share_class_group_id: "a", ter: 0, ongoing_charges: 0 }], error: null, count: 2 },
-      // 2) prepend pertinence nom : le meilleur match nom (ailleurs dans le classement)
-      { data: [{ isin: "FR0000000002", aum_eur: 999, share_class_group_id: "b", ter: 0, ongoing_charges: 0 }], error: null, count: null },
-    ];
+  // Une recherche texte passe par la RPC classée inv_funds_search (et non la vue
+  // brute), avec un tri par `relevance` : l'ordre renvoyé est préservé tel quel sur
+  // toutes les pages (le classement est fait côté SQL, ici mocké).
+  it("recherche texte : interroge la RPC classée et préserve l'ordre de pertinence", async () => {
+    dataResult = {
+      data: [
+        { isin: "FR0000000002", aum_eur: 999, share_class_group_id: "b", ter: 0, ongoing_charges: 0 },
+        { isin: "FR0000000001", aum_eur: 100, share_class_group_id: "a", ter: 0, ongoing_charges: 0 },
+      ],
+      error: null,
+      count: 2,
+    };
     const res = await GET(req("?search=amundi%20world"));
     const body = await res.json();
     expect(body.data.map((f: any) => f.isin)).toEqual(["FR0000000002", "FR0000000001"]);
+    expect(body.total).toBe(2);
     expect(body.fuzzy).toBeUndefined();
-    expect(rpcCalls).toEqual([]); // résultats présents → pas de fallback fuzzy
+    expect(rpcCalls).toContainEqual(["inv_funds_search", { q: "amundi world" }]);
+    expect(rpcCalls.map((c) => c[0])).not.toContain("inv_search_funds_fuzzy"); // résultats présents
+  });
+
+  // Tri non-défaut (ex. perf) : on respecte le choix utilisateur, sans tri pertinence
+  // prioritaire — mais la source reste la RPC classée (la pertinence reste calculée).
+  it("recherche texte : utilise la RPC classée même avec un tri explicite", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    rpcResult = { data: [], error: null };
+    await GET(req("?search=amundi&sort_by=performance_3y"));
+    expect(rpcCalls).toContainEqual(["inv_funds_search", { q: "amundi" }]);
+  });
+
+  // Pas de recherche texte → on N'utilise PAS la RPC classée (vue brute + tri normal).
+  it("sans recherche texte : pas d'appel à la RPC classée", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?universe=etf"));
+    expect(rpcCalls.map((c) => c[0])).not.toContain("inv_funds_search");
   });
 
   // Fallback fuzzy : 0 résultat exact sur une recherche texte → appel RPC trigramme,
@@ -352,7 +382,8 @@ describe("GET /api/funds — robustesse pagination", () => {
     rpcResult = { data: [], error: null };
     const res = await GET(req("?search=zzzznotafund"));
     const body = await res.json();
-    expect(rpcCalls).toHaveLength(1);
+    // RPC classée (0 résultat) puis RPC fuzzy (0 voisin) → toujours vide, sans drapeau.
+    expect(rpcCalls.map((c) => c[0])).toEqual(["inv_funds_search", "inv_search_funds_fuzzy"]);
     expect(body.fuzzy).toBeUndefined();
     expect(body.data).toEqual([]);
     expect(body.total).toBe(0);
