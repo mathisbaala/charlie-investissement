@@ -43,4 +43,15 @@ describe("toMatchingProfile", () => {
     const p = { ...EMPTY_PROFILE, envelopes: ["PEA", "BIDON"] };
     expect(toMatchingProfile(p).envelopes).toEqual(["pea"]);
   });
+
+  it("convertit perte_max en % (illimitée → null)", () => {
+    expect(toMatchingProfile({ ...EMPTY_PROFILE, perte_max: "20" }).max_loss_pct).toBe(20);
+    expect(toMatchingProfile({ ...EMPTY_PROFILE, perte_max: "illimitee" }).max_loss_pct).toBeNull();
+    expect(toMatchingProfile(EMPTY_PROFILE).max_loss_pct).toBeNull();
+  });
+
+  it("mappe les classes d'actifs vers asset_class_broad", () => {
+    const out = toMatchingProfile({ ...EMPTY_PROFILE, asset_classes: ["actions", "scpi", "multi_actifs"] });
+    expect(out.preferred_asset_classes).toEqual(["action", "immobilier", "diversifie"]);
+  });
 });
