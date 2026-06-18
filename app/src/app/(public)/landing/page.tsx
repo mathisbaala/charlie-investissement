@@ -3,12 +3,21 @@
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
-import { ArrowRight, Upload } from "@/components/ui/icons";
+import { ArrowRight, Upload, Loader2 } from "@/components/ui/icons";
 import { Sparkle } from "@/components/ui/icons";
+import { parseProfileFromFile } from "@/lib/profileImport";
+import { handledRateLimit } from "@/lib/rateLimitClient";
+import {
+  EMPTY_PROFILE,
+  saveStoredProfile,
+  serializeForNlp,
+  isProfileActive,
+} from "@/lib/clientProfile";
 
 export default function LandingPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit() {
@@ -18,14 +27,38 @@ export default function LandingPage() {
   }
 
   function handleBrowse() {
-    fileInputRef.current?.click();
+    if (!importing) fileInputRef.current?.click();
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // Dépôt d'un profil client : on extrait le profil structuré, on le persiste
+  // (le panneau profil du screener sera pré-rempli) et on lance directement une
+  // recherche en utilisant le profil sérialisé comme requête.
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     document.cookie = "charlie_seen=1; path=/; max-age=31536000";
-    router.push("/recherche");
+    setImporting(true);
+    try {
+      const { res, extracted } = await parseProfileFromFile(file);
+      if (await handledRateLimit(res)) return;
+
+      if (extracted) {
+        const profile = { ...EMPTY_PROFILE, ...extracted };
+        saveStoredProfile(profile);
+        if (isProfileActive(profile)) {
+          const q = serializeForNlp(profile);
+          router.push(`/recherche?q=${encodeURIComponent(q)}`);
+          return;
+        }
+      }
+      // Extraction vide ou échec : on bascule sur le screener, profil à compléter.
+      router.push("/recherche");
+    } catch {
+      router.push("/recherche");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   return (
@@ -114,19 +147,22 @@ export default function LandingPage() {
         {/* Drop zone */}
         <button
           onClick={handleBrowse}
-          className="w-full flex items-center gap-4 bg-paper border border-dashed border-line rounded-2xl px-5 py-4 hover:border-accent/40 hover:bg-accent-soft/20 transition-colors text-left"
+          disabled={importing}
+          className="w-full flex items-center gap-4 bg-paper border border-dashed border-line rounded-2xl px-5 py-4 hover:border-accent/40 hover:bg-accent-soft/20 transition-colors text-left disabled:cursor-wait"
         >
           <div className="w-10 h-10 shrink-0 rounded-[10px] border border-line bg-paper-2 flex items-center justify-center text-muted">
-            <Upload size={18} strokeWidth={1.6} />
+            {importing
+              ? <Loader2 size={18} strokeWidth={1.6} className="animate-spin" />
+              : <Upload size={18} strokeWidth={1.6} />}
           </div>
           <span
             className="flex-1 text-body-lg text-muted"
             style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
           >
-            Glisser un profil client
+            {importing ? "Analyse du profil client…" : "Glisser un profil client"}
           </span>
           <span className="shrink-0 text-meta font-medium text-ink-2 border border-line rounded-lg px-3 py-1.5 bg-paper-2 hover:bg-paper transition-colors">
-            Parcourir…
+            {importing ? "Patientez" : "Parcourir…"}
           </span>
         </button>
         <input

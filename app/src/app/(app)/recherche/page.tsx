@@ -42,8 +42,13 @@ export function buildParams(
   if (f.ter_max        != null)      sp.set("ter_max",           String(f.ter_max));
   if (f.perf_1y_min    != null)      sp.set("perf_1y_min",       String(f.perf_1y_min));
   if (f.perf_3y_min    != null)      sp.set("perf_3y_min",       String(f.perf_3y_min));
+  if (f.perf_5y_min    != null)      sp.set("perf_5y_min",       String(f.perf_5y_min));
   if (f.vol_max        != null)      sp.set("vol_max",           String(f.vol_max));
+  if (f.vol_3y_max     != null)      sp.set("vol_3y_max",        String(f.vol_3y_max));
   if (f.sharpe_min     != null)      sp.set("sharpe_min",        String(f.sharpe_min));
+  if (f.sharpe_3y_min  != null)      sp.set("sharpe_3y_min",     String(f.sharpe_3y_min));
+  if (f.drawdown_max   != null)      sp.set("drawdown_max",      String(f.drawdown_max));
+  if (f.no_entry_fee)                sp.set("no_entry_fee",      "true");
   if (f.aum_min        != null)      sp.set("aum_min",           String(f.aum_min));
   if (f.track_record_min != null)    sp.set("track_record_min",  String(f.track_record_min));
   if (f.morningstar_min  != null)    sp.set("morningstar_min",   String(f.morningstar_min));
@@ -109,6 +114,7 @@ type SearchCache = {
   sortBy: string;
   sortDir: "asc" | "desc";
   nlpFailed: boolean;
+  fuzzy: boolean;
 };
 
 function loadSearchCache(): SearchCache | null {
@@ -137,6 +143,7 @@ function RechercheInner() {
   const [query,          setQuery]          = useState(initialQ);
   const [filters,        setFilters]        = useState<ParsedFilters>({});
   const [nlpFailed,      setNlpFailed]      = useState(false);
+  const [fuzzy,          setFuzzy]          = useState(false);  // résultats approchants (tolérance fautes)
   const [parsing,        setParsing]        = useState(false);  // analyse NLP en cours
   // Après une restauration depuis le cache, on saute le fetch automatique
   // (les résultats sont déjà là — éviter un rechargement et un nouveau flash).
@@ -195,6 +202,7 @@ function RechercheInner() {
       setSortBy(cache.sortBy);
       setSortDir(cache.sortDir);
       setNlpFailed(cache.nlpFailed);
+      setFuzzy(cache.fuzzy ?? false);
       setHasSearched(true);
       setLoading(false);
       return;
@@ -258,10 +266,12 @@ function RechercheInner() {
           setFunds(data.data);
           setTotal(data.total);
           setTotalPages(data.total_pages);
+          setFuzzy(!!data.fuzzy);
           setLoading(false);
           saveSearchCache({
             query, filters, funds: data.data, total: data.total,
             page, totalPages: data.total_pages, sortBy, sortDir, nlpFailed,
+            fuzzy: !!data.fuzzy,
           });
         }
       })
@@ -279,6 +289,7 @@ function RechercheInner() {
     setHasSearched(true);
     setParsing(true);     // affiche l'état de chargement, gèle le fetch
     setFunds([]);         // vide la liste précédente → aucun chevauchement visuel
+    setFuzzy(false);      // évite une bannière « approchants » périmée pendant le chargement
     setPage(1);
     const raw = query.trim();
     // Un ISIN exact part directement en recherche ciblée, sans analyse NLP : le
@@ -310,6 +321,7 @@ function RechercheInner() {
     setFilters({});
     setQuery("");
     setFunds([]);
+    setFuzzy(false);
     setPage(1);
     setHasSearched(false);
     clearSearchCache();
@@ -466,6 +478,12 @@ function RechercheInner() {
               filtres manuels
             </button>{" "}
             pour affiner.
+          </p>
+        )}
+        {fuzzy && query.trim() && (
+          <p className="text-label text-muted px-1">
+            Aucune correspondance exacte pour «&nbsp;{query.trim()}&nbsp;» — voici les fonds
+            aux noms les plus proches.
           </p>
         )}
       </div>

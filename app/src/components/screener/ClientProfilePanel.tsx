@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { Btn } from "@/components/ui/Btn";
 import { X, Upload, Loader2 } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
+import { fileToParseBody } from "@/lib/profileImport";
 import {
   type RichClientProfile,
   type RiskProfile,
@@ -54,34 +55,6 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
   );
 }
 
-// ─── File parsing helpers ─────────────────────────────────────────────────────
-
-function readAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function readAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file, "UTF-8");
-  });
-}
-
-async function readExcelAsText(file: File): Promise<string> {
-  const XLSX = await import("xlsx");
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: "array" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_csv(sheet);
-}
-
 // ─── Risk profile options ─────────────────────────────────────────────────────
 
 const RISK_OPTIONS: { value: RiskProfile; label: string; desc: string; color: string }[] = [
@@ -121,15 +94,7 @@ export function ClientProfilePanel({ profile, onChange, onClose, onSearch }: Pro
     setImporting(true);
     setImportSource(file.name);
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      let body: Record<string, string>;
-      if (ext === "pdf") {
-        body = { file_base64: await readAsBase64(file), file_type: "application/pdf" };
-      } else if (ext === "xlsx" || ext === "xls") {
-        body = { text: await readExcelAsText(file) };
-      } else {
-        body = { text: await readAsText(file) };
-      }
+      const body = await fileToParseBody(file);
       const res = await fetch("/api/parse-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
