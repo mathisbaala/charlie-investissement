@@ -59,6 +59,34 @@ describe('scoreFunds', () => {
     expect(results[0].sfdr_article).toBe(9)
   })
 
+  it('pénalise un fonds dont le drawdown dépasse la tolérance de perte', () => {
+    const fund = { ...mockFund, max_drawdown_3y: -40 }
+    const [sansTol] = scoreFunds([fund], baseProfile)
+    const [avecTol] = scoreFunds([fund], { ...baseProfile, max_loss_pct: 10 })
+    expect(avecTol.match_score).toBeLessThan(sansTol.match_score)
+  })
+
+  it('ne pénalise pas un fonds dans la tolérance de perte', () => {
+    const fund = { ...mockFund, max_drawdown_3y: -8 }
+    const [sansTol] = scoreFunds([fund], baseProfile)
+    const [avecTol] = scoreFunds([fund], { ...baseProfile, max_loss_pct: 10 })
+    expect(avecTol.match_score).toBe(sansTol.match_score)
+  })
+
+  it('bonus pour une classe d\'actif préférée', () => {
+    const fund = { ...mockFund, asset_class_broad: 'action' }
+    const [sansPref] = scoreFunds([fund], baseProfile)
+    const [avecPref] = scoreFunds([fund], { ...baseProfile, preferred_asset_classes: ['action'] })
+    expect(avecPref.match_score).toBeGreaterThan(sansPref.match_score)
+  })
+
+  it('aucun bonus si la classe du fonds n\'est pas préférée', () => {
+    const fund = { ...mockFund, asset_class_broad: 'obligation' }
+    const [sansPref] = scoreFunds([fund], baseProfile)
+    const [avecPref] = scoreFunds([fund], { ...baseProfile, preferred_asset_classes: ['action'] })
+    expect(avecPref.match_score).toBe(sansPref.match_score)
+  })
+
   it('match_label is Excellent for high-scoring fund', () => {
     const idealFund = {
       ...mockFund,

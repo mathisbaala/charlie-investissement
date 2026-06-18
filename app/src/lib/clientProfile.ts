@@ -148,6 +148,22 @@ const ENVELOPE_TO_MATCHING: Record<string, Envelope> = {
   CTO: "cto",
 };
 
+// perte_max (RichClientProfile) → tolérance en % positif. « illimitée » = pas de contrainte.
+const PERTE_MAX_TO_PCT: Record<PerteMax, number | null> = {
+  "5": 5, "10": 10, "20": 20, "30": 30, illimitee: null,
+};
+
+// asset_classes du profil (vocabulaire parse-profile) → valeurs asset_class_broad de la base.
+const ASSET_CLASS_TO_BROAD: Record<string, string> = {
+  actions: "action",
+  obligations: "obligation",
+  scpi: "immobilier",
+  immobilier: "immobilier",
+  private_equity: "alternatif",
+  monetaire: "monetaire",
+  multi_actifs: "diversifie",
+};
+
 export function toMatchingProfile(p: RichClientProfile): ClientProfile {
   return {
     age: p.age ?? 45,
@@ -158,5 +174,9 @@ export function toMatchingProfile(p: RichClientProfile): ClientProfile {
       .map((e) => ENVELOPE_TO_MATCHING[e])
       .filter((e): e is Envelope => Boolean(e)),
     esg_preference: p.esg,
+    max_loss_pct: p.perte_max ? PERTE_MAX_TO_PCT[p.perte_max] : null,
+    preferred_asset_classes: (p.asset_classes ?? [])
+      .map((a) => ASSET_CLASS_TO_BROAD[a])
+      .filter(Boolean),
   };
 }

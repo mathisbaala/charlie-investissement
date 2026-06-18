@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   let q = supabase
     .from("investissement_funds_cgp")
     .select(
-      "isin,name,product_type,gestionnaire,sfdr_article,risk_score,ongoing_charges,retrocession_cgp,performance_1y,performance_3y,performance_5y,volatility_1y,sharpe_1y,aum_eur,morningstar_rating,pea_eligible,pea_pme_eligible,per_eligible,av_fr_eligible,av_lux_eligible,cto_eligible,inception_date,data_completeness"
+      "isin,name,product_type,asset_class_broad,gestionnaire,sfdr_article,risk_score,ongoing_charges,retrocession_cgp,performance_1y,performance_3y,performance_5y,volatility_1y,sharpe_1y,max_drawdown_3y,aum_eur,morningstar_rating,pea_eligible,pea_pme_eligible,per_eligible,av_fr_eligible,av_lux_eligible,cto_eligible,inception_date,data_completeness"
     )
     .gte("data_completeness", 60)
     .order("data_completeness", { ascending: false })

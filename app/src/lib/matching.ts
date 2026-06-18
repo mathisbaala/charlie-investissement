@@ -9,6 +9,9 @@ export interface ClientProfile {
   amount_eur?: number;
   envelopes: Envelope[];
   esg_preference: EsgPreference;
+  // Champs optionnels du profil partagé (no-op s'ils sont absents → rétro-compatible) :
+  max_loss_pct?: number | null;       // tolérance de perte (drawdown 3 ans) en % positif
+  preferred_asset_classes?: string[]; // classes d'actifs préférées (valeurs asset_class_broad)
 }
 
 export interface MatchResult {
@@ -132,11 +135,27 @@ export function scoreFunds(candidates: any[], profile: ClientProfile): MatchResu
       const terScore = scoreTER(fund.ongoing_charges, profile.horizon_years);
       const perfNorm = Math.round(((perfScores[i] - minP) / perfRange) * 25);
       const qualScore = scoreQuality(fund.morningstar_rating, fund.data_completeness);
-      const total = riskScore + esgScore + terScore + perfNorm + qualScore;
+      let total = riskScore + esgScore + terScore + perfNorm + qualScore;
+
+      // Tolérance de perte : pénalise les fonds dont le drawdown 3 ans dépasse la
+      // tolérance du client (plus la chute est profonde au-delà du seuil, plus le malus).
+      if (profile.max_loss_pct != null && fund.max_drawdown_3y != null) {
+        const breach = Math.abs(fund.max_drawdown_3y) - profile.max_loss_pct;
+        if (breach > 0) total -= Math.min(20, Math.round(breach * 0.5));
+      }
+      // Classes d'actifs préférées : bonus si le fonds appartient à l'une d'elles.
+      if (
+        profile.preferred_asset_classes?.length &&
+        fund.asset_class_broad &&
+        profile.preferred_asset_classes.includes(fund.asset_class_broad)
+      ) {
+        total += 6;
+      }
+      total = Math.max(0, Math.min(100, total));
 
       return {
         ...fund,
-        match_score: Math.min(100, total),
+        match_score: total,
         match_label: matchLabel(total),
         match_summary: buildSummary(fund),
       } as MatchResult;
