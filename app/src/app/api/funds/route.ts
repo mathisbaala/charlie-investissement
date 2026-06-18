@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { searchWords, searchOrClause, asExactIsin, asTickerToken, tickerWordPattern } from "@/lib/search";
+import { asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
@@ -120,7 +120,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Applique tous les filtres de la requête à un builder donné. Factorisé pour pouvoir
   // le rejouer en requête count-only dans le chemin d'erreur 416 (cf. plus bas).
-  const applyFilters = (q: any, opts?: { skipSearch?: boolean }) => {
+  // Applique les filtres STRUCTURÉS (hors texte). Le matching texte est géré en
+  // amont par la source : la RPC classée inv_funds_search pour une recherche texte,
+  // la vue brute sinon (cf. dataSource ci-dessous). applyFilters s'applique par-dessus
+  // les deux — source unique de vérité pour les filtres.
+  const applyFilters = (q: any) => {
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
@@ -196,14 +200,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (hasKid)   q = q.not("kid_url", "is", null);
 
-  if (search && !opts?.skipSearch) {
-    // Chaque mot doit matcher quelque part (ET entre mots, OR entre colonnes) :
-    // nom, gestionnaire, mais aussi zone géo / catégorie / classe d'actif /
-    // secteur. Cf. lib/search.ts pour le détail.
-    for (const word of searchWords(search)) {
-      q = (q as any).or(searchOrClause(word));
-    }
-  }
     return q;
   };
 
@@ -216,7 +212,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   //    donc pagination et total exacts, sans dédup applicative ni estimation par ratio.
   const baseFilters = (q: any) =>
     applyFilters(q.gte("data_completeness", 50).eq("is_primary_share_class", true));
-  const base = () => baseFilters(supabase.from(VIEW).select(COLS, { count: "exact" }));
+
+  // Source des données : pour une recherche TEXTE, on lit la RPC classée par
+  // pertinence (inv_funds_search) — le tri par `relevance` agit alors sur TOUTES les
+  // pages, plus seulement la 1re. Sinon (navigation/filtres sans texte), la vue brute.
+  // Les filtres structurés (applyFilters) et les garde-fous d'univers s'appliquent
+  // par-dessus dans les deux cas.
+  const useRanked = search.length > 0; // exactIsin est déjà court-circuité plus haut
+  const rankedSource = (opts: Record<string, unknown>) =>
+    (supabase as any).rpc("inv_funds_search", { q: search }, opts).select(COLS);
+  const base = () =>
+    baseFilters(
+      useRanked
+        ? rankedSource({ count: "exact" })
+        : supabase.from(VIEW).select(COLS, { count: "exact" }),
+    );
+
+  // Tri : pour une recherche texte au tri par DÉFAUT, la pertinence prime (puis la
+  // complétude). Si l'utilisateur a choisi un autre tri (ex. perf), on le respecte.
 
   // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). Avant, l'offset
   // avançait de perPage·5 (un overfetch ×5 destiné à une dédup share-class APPLICATIVE,
@@ -225,7 +238,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // ~76 % des fonds inatteignables. La dédup étant désormais portée par is_primary_share_class
   // (cf. baseFilters), 1 page = perPage lignes suffit.
   const offset = (page - 1) * perPage;
-  const { data, error, count, status } = await base()
+  let dataQuery = base();
+  if (useRanked && safeSort === "data_completeness") {
+    dataQuery = dataQuery.order("relevance", { ascending: false, nullsFirst: false });
+  }
+  const { data, error, count, status } = await dataQuery
     .order(safeSort, { ascending: sortDir, nullsFirst: false })
     .range(offset, offset + perPage - 1);
 
@@ -242,7 +259,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // 416 retombait en 500 malgré le test sur PGRST103.
     if (status === 416 || error.code === "PGRST103") {
       const { count: rawCount } = await baseFilters(
-        supabase.from(VIEW).select("isin", { count: "exact", head: true })
+        useRanked
+          ? rankedSource({ count: "exact", head: true })
+          : supabase.from(VIEW).select("isin", { count: "exact", head: true }),
       );
       const total = rawCount ?? 0;
       const emptyResp: ScreenerResponse = {
@@ -257,40 +276,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  let raw = (data as unknown as Fund[]) ?? [];
-
-  // Pertinence nom : sur recherche texte (1re page, tri par défaut), on remonte en
-  // tête les fonds dont le NOM contient TOUS les mots cherchés — le signal de
-  // pertinence le plus fort, qui sinon resterait enfoui sous le tri par complétude
-  // (« Amundi MSCI World » pourrait n'apparaître qu'en page 2). Classés par encours.
-  // Sous-ensemble des résultats `ilike` → total inchangé ; dedup() conserve l'ordre
-  // de 1re insertion. Posé AVANT le boost ticker pour que le ticker exact reste devant.
-  const nameWords = search ? searchWords(search) : [];
-  if (nameWords.length && page === 1 && safeSort === "data_completeness" && raw.length) {
-    let nq = baseFilters(supabase.from(VIEW).select(COLS));
-    for (const w of nameWords) nq = nq.ilike("name", `%${w}%`);
-    const { data: nameData } = await nq
-      .order("aum_eur", { ascending: false, nullsFirst: false })
-      .limit(perPage);
-    const namePrio = (nameData as unknown as Fund[]) ?? [];
-    if (namePrio.length) raw = [...namePrio, ...raw];
-  }
-
-  // Pertinence ticker : si la requête est un ticker (mot unique court), sur la 1re
-  // page et avec le tri par défaut, on remonte en tête les fonds dont c'est
-  // EXACTEMENT le ticker (match mot entier dans tickers_search), classés par encours
-  // décroissant. Ces fonds sont un sous-ensemble des résultats `ilike` → le total est
-  // inchangé. On les préprend : dedup() conserve l'ordre de première insertion, donc
-  // ils se retrouvent en tête (cf. lib/search.ts pour le pourquoi).
-  const tickerToken = asTickerToken(search);
-  if (tickerToken && page === 1 && safeSort === "data_completeness" && raw.length) {
-    const { data: prioData } = await baseFilters(supabase.from(VIEW).select(COLS))
-      .filter("tickers_search", "imatch", tickerWordPattern(tickerToken))
-      .order("aum_eur", { ascending: false, nullsFirst: false })
-      .limit(perPage);
-    const prio = (prioData as unknown as Fund[]) ?? [];
-    if (prio.length) raw = [...prio, ...raw];
-  }
+  // Pertinence : le classement (ticker exact > nom complet > autre, puis tri courant)
+  // est désormais porté par la RPC inv_funds_search + l'ORDER BY `relevance` côté
+  // requête — il s'applique donc sur TOUTES les pages (et non plus seulement la 1re
+  // via un prepend applicatif). Rien à réordonner ici.
+  const raw = (data as unknown as Fund[]) ?? [];
 
   // La dédup est portée par is_primary_share_class côté DB : `raw` ne contient déjà qu'un
   // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
@@ -309,8 +299,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // ── Filet recherche approximative (tolérance aux fautes) ────────────────────
   // Zéro correspondance exacte sur une recherche texte (1re page) : on propose les
   // fonds dont le NOM est le plus proche (RPC trigramme inv_search_funds_fuzzy),
-  // en réappliquant les filtres ad hoc par intersection sur l'ISIN — SANS la
-  // contrainte texte (skipSearch), qui est précisément celle qui a échoué.
+  // en réappliquant les filtres ad hoc par intersection sur l'ISIN. Pas de contrainte
+  // texte ici : la source est la liste d'ISIN approchants (applyFilters = structurés).
   let fuzzyData = deduped;
   let fuzzyTotal = total;
   let isFuzzy = false;
@@ -320,7 +310,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (isins.length) {
       const { data: frows } = await applyFilters(
         supabase.from(VIEW).select(COLS).gte("data_completeness", 50).eq("is_primary_share_class", true),
-        { skipSearch: true },
       ).in("isin", isins);
       const rank = new Map(isins.map((id, i) => [id, i] as const));
       const rows = ((frows as unknown as Fund[]) ?? [])

@@ -41,4 +41,34 @@ describe("ChatPanel", () => {
     const { container } = render(<ChatPanel open={false} onClose={() => {}} />);
     expect(container.firstChild).toBeNull();
   });
+
+  // Chat actionnable : un lien markdown vers une fiche fonds dans la réponse de
+  // l'assistant doit être rendu comme un lien cliquable (<a href="/fonds/ISIN">).
+  it("rend les liens de fonds cliquables dans la réponse de l'assistant", async () => {
+    const reply = "Voici [Amundi MSCI World](/fonds/IE000BI8OT95) — TER 0,12 %.";
+    const enc = new TextEncoder();
+    let sent = false;
+    const body = {
+      getReader() {
+        return {
+          read() {
+            if (sent) return Promise.resolve({ done: true, value: undefined });
+            sent = true;
+            return Promise.resolve({ done: false, value: enc.encode(reply) });
+          },
+        };
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, body }));
+
+    render(<ChatPanel open={true} onClose={() => {}} />);
+    const input = screen.getByPlaceholderText("Écrire à Charlie…");
+    fireEvent.change(input, { target: { value: "ETF monde ?" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const link = await waitFor(() => screen.getByRole("link", { name: /Amundi MSCI World/ }));
+    expect(link.getAttribute("href")).toBe("/fonds/IE000BI8OT95");
+    // Le texte hors lien reste présent.
+    expect(screen.getByText(/TER 0,12/)).toBeTruthy();
+  });
 });
