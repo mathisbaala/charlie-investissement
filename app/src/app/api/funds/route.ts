@@ -229,28 +229,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Elle est retirée de la réponse au mapping (cf. toApi).
   const rankedSource = (opts: Record<string, unknown>) =>
     (supabase as any).rpc("inv_funds_search", { q: search }, opts).select(`${COLS},relevance`);
-  const base = () =>
-    baseFilters(
-      useRanked
-        ? rankedSource({ count: "exact" })
-        : supabase.from(VIEW).select(COLS, { count: "exact" }),
-    );
 
-  // Tri : pour une recherche texte au tri par DÉFAUT, la pertinence prime (puis la
-  // complétude). Si l'utilisateur a choisi un autre tri (ex. perf), on le respecte.
+  // ── Tri / pagination / count : phase 1 sur la vue LÉGÈRE ────────────────────
+  // La vue _ref (VIEW) ajoute un LEFT JOIN vers la matview assureurs ; un tri par colonne
+  // NON-défaut empêche le push-down du LIMIT → cette jointure se matérialise pour TOUT
+  // l'univers curé (~13,8k lignes) → statement timeout. On trie/pagine/compte donc d'abord
+  // sur la vue légère `investissement_funds_cgp` (projection `isin` + colonne de tri, aucune
+  // jointure ; inv_annualize_pt est IMMUTABLE SQL = inlinée, donc trier la perf reste bon
+  // marché), puis on n'enrichit (assureurs/contrats) que les ISIN de la page (phase 2).
+  // Bascule sur la vue _ref en phase 1 seulement si un filtre assureur/contrat l'exige —
+  // il réduit l'ensemble, donc pas de timeout. Le chemin texte (RPC) narrow déjà : inchangé.
+  const needsRef = insurers.length > 0 || contracts.length > 0;
+  const sortSource = needsRef ? VIEW : "investissement_funds_cgp";
 
-  // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). Avant, l'offset
-  // avançait de perPage·5 (un overfetch ×5 destiné à une dédup share-class APPLICATIVE,
-  // supposant ~5 doublons par fonds). Or le ratio réel est ~0,85 : l'offset sautait ~5× trop
-  // loin → seules ~1/5 des pages contenaient des données, les autres (≈80 %) étaient vides et
-  // ~76 % des fonds inatteignables. La dédup étant désormais portée par is_primary_share_class
-  // (cf. baseFilters), 1 page = perPage lignes suffit.
+  // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). La dédup est
+  // portée par is_primary_share_class (cf. baseFilters), donc 1 page = perPage lignes.
   const offset = (page - 1) * perPage;
-  let dataQuery = base();
+  let pageQuery = useRanked
+    ? baseFilters(rankedSource({ count: "exact" }))
+    : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }));
   if (useRanked && safeSort === "data_completeness") {
-    dataQuery = dataQuery.order("relevance", { ascending: false, nullsFirst: false });
+    pageQuery = pageQuery.order("relevance", { ascending: false, nullsFirst: false });
   }
-  const { data, error, count, status } = await dataQuery
+  const { data: pageData, error, count, status } = await pageQuery
     .order(safeSort, { ascending: sortDir, nullsFirst: false })
     .range(offset, offset + perPage - 1);
 
@@ -269,7 +270,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       const { count: rawCount } = await baseFilters(
         useRanked
           ? rankedSource({ count: "exact", head: true })
-          : supabase.from(VIEW).select("isin", { count: "exact", head: true }),
+          : supabase.from(sortSource).select("isin", { count: "exact", head: true }),
       );
       const total = rawCount ?? 0;
       const emptyResp: ScreenerResponse = {
@@ -284,11 +285,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Pertinence : le classement (ticker exact > nom complet > autre, puis tri courant)
-  // est désormais porté par la RPC inv_funds_search + l'ORDER BY `relevance` côté
-  // requête — il s'applique donc sur TOUTES les pages (et non plus seulement la 1re
-  // via un prepend applicatif). Rien à réordonner ici.
-  const raw = (data as unknown as Fund[]) ?? [];
+  // ── Phase 2 : enrichissement de la page ─────────────────────────────────────
+  // Chemin texte : la RPC inv_funds_search renvoie déjà toutes les colonnes (COLS), et le
+  // classement (ticker exact > nom complet > autre, puis tri courant) est porté par
+  // l'ORDER BY `relevance` côté requête → rien à réordonner. Chemin non-texte : on n'a que
+  // les ISIN triés de la page → on récupère les lignes enrichies (assureurs/contrats inclus)
+  // sur la vue _ref pour ces seuls ISIN, en préservant l'ordre du tri de la phase 1.
+  let raw: Fund[];
+  if (useRanked) {
+    raw = (pageData as unknown as Fund[]) ?? [];
+  } else {
+    const pageIsins = ((pageData as { isin: string }[] | null) ?? []).map((r) => r.isin);
+    if (!pageIsins.length) {
+      raw = [];
+    } else {
+      const { data: enriched, error: enrichErr } = await supabase
+        .from(VIEW).select(COLS).in("isin", pageIsins);
+      if (enrichErr) {
+        return NextResponse.json({ error: enrichErr.message }, { status: 500 });
+      }
+      const ord = new Map(pageIsins.map((isin, i) => [isin, i] as const));
+      raw = ((enriched as unknown as Fund[]) ?? [])
+        .sort((a, b) => (ord.get(a.isin) ?? 1e9) - (ord.get(b.isin) ?? 1e9));
+    }
+  }
 
   // La dédup est portée par is_primary_share_class côté DB : `raw` ne contient déjà qu'un
   // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
