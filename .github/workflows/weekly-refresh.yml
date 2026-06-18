@@ -15,7 +15,7 @@ concurrency:
 jobs:
   weekly:
     runs-on: ubuntu-latest
-    timeout-minutes: 360 # rotation FT (~2h45) + filet ETF JustETF (~45min) + métriques
+    timeout-minutes: 360 # rotation FT (~2h45) + filets JustETF (~45min) & GECO OPCVM FR (~45min, ~1h30 au 1er backfill) + métriques
     permissions:
       contents: read
       issues: write # ouvrir/commenter une issue d'alerte en cas d'échec

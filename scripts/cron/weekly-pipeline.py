@@ -14,14 +14,17 @@ Lance dans l'ordre :
      semaine (offset = numéro de semaine ISO modulo ROTATE_WEEKS). En
      ROTATE_WEEKS semaines, toute la longue traîne FT-éligible est
      couverte → plus aucun fonds figé indéfiniment.
-  3. compute-metrics : recalcul perf/vol/Sharpe/SRRI sur les fonds
+  3. justetf-nav : filet de cours ETF (API JustETF) → fund_prices.
+  4. geco-nav : filet de cours OPCVM FR (API VL AMF GECO), rotation par
+     rang d'encours → fund_prices.
+  5. compute-metrics : recalcul perf/vol/Sharpe/SRRI sur les fonds
      ayant un historique de prix → investissement_funds.
 
 Tout est fill-only / additif côté fonds (VL ajoutées, métriques dérivées
 recalculées). Aucun upsert destructif de l'univers. Les scrapers de SEEDING
 (amf-geco-full, justetf-scraper base, scpi-full-scraper) ne tournent JAMAIS
-ici — à ne pas confondre avec justetf-nav (filet de cours ETF, purement
-additif via upsert isin,price_date, comme ft-enricher).
+ici — à ne pas confondre avec justetf-nav / geco-nav (filets de cours,
+purement additifs via upsert isin,price_date, comme ft-enricher).
 
 Rotation : le top par encours (fonds réellement utilisés par les CGP)
 reste frais chaque semaine ; le reste de l'univers (~19,6 k fonds) est
@@ -47,14 +50,26 @@ TOP_BY_AUM = 4000
 TAIL_BUCKET = 5000
 ROTATE_WEEKS = 4
 
+# Filet OPCVM FR : GECO (API VL AMF officielle) est, pour les ~10,7 k OPCVM
+# domiciliés en France, quasiment la SOURCE PRIMAIRE — Financial Times ne les
+# tient pas frais (≈0 VL FR fraîche sans GECO). Rotation propre sur
+# GECO_ROTATE_WEEKS semaines (offset = rang dans l'univers FR trié par encours,
+# stable d'une semaine à l'autre), pour borner la durée du run et le rate limit
+# AMF tout en couvrant tout l'univers en ≤ GECO_ROTATE_WEEKS semaines.
+GECO_BUCKET = 5500
+GECO_ROTATE_WEEKS = 2
+
 
 def weekly_steps():
     """Construit les étapes du run, avec l'offset de rotation du jour."""
     iso_week = date.today().isocalendar()[1]
     week_index = iso_week % ROTATE_WEEKS
     tail_offset = TOP_BY_AUM + week_index * TAIL_BUCKET
+    geco_offset = (iso_week % GECO_ROTATE_WEEKS) * GECO_BUCKET
     print(f"  Rotation : semaine ISO {iso_week} "
-          f"→ bucket {week_index + 1}/{ROTATE_WEEKS} (offset {tail_offset})")
+          f"→ bucket {week_index + 1}/{ROTATE_WEEKS} (offset {tail_offset}) "
+          f"| GECO bucket {(iso_week % GECO_ROTATE_WEEKS) + 1}/{GECO_ROTATE_WEEKS} "
+          f"(offset {geco_offset})")
 
     common = ["--workers", "6", "--delay", "0.15"]
     # (chemin relatif à SCRIPTS_DIR, arguments). --apply ajouté automatiquement.
@@ -71,6 +86,14 @@ def weekly_steps():
         # sur des VL Yahoo périmées. Cible uniquement les ETF non frais (cf.
         # STALE_DAYS) → pas de doublon avec FT. AVANT compute-metrics.
         ("scrapers/justetf-nav.py", []),
+        # Filet OPCVM FR : GECO (API VL AMF) rafraîchit les OPCVM domiciliés en
+        # France que FT ne tient pas frais (≈ source primaire pour eux). Rotation
+        # stable par rang d'encours (--all), bornée à GECO_BUCKET/semaine. Écrit
+        # source='amf-geco' en additif/incrémental (upsert isin,price_date) —
+        # comme justetf-nav, jamais d'écrasement. AVANT compute-metrics.
+        ("scrapers/geco-nav.py",
+         ["--all", "--offset", str(geco_offset), "--limit", str(GECO_BUCKET),
+          "--workers", "4", "--delay", "0.4"]),
         ("enrichers/compute-metrics.py", []),
         # Encours rafraîchis ci-dessus → recalcule le représentant share-class
         # (is_primary_share_class) qui porte la dédup de /api/funds.
