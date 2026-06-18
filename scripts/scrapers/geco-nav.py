@@ -50,7 +50,7 @@ import concurrent.futures
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
+import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, upsert_prices, log_run
@@ -60,11 +60,13 @@ from db import get_client, upsert_prices, log_run
 SOURCE         = "amf-geco"
 GECO_BASE      = "https://geco.amf-france.org/back-office"
 HEADERS        = {
-    "Content-Type": "application/json",
-    "Accept":       "application/json",
-    "User-Agent":   "Mozilla/5.0 (compatible; Charlie-Investissement/1.0; data@charlie.fr)",
-    "Referer":      "https://geco.amf-france.org/",
-    "Origin":       "https://geco.amf-france.org",
+    "Content-Type":    "application/json",
+    "Accept":          "application/json",
+    "User-Agent":      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Accept-Language": "fr-FR,fr;q=0.9",
+    "Referer":         "https://geco.amf-france.org/",
+    "Origin":          "https://geco.amf-france.org",
 }
 WORKERS        = 3        # GECO est sensible au rate limit — concurrence modérée
 RATE_LIMIT_SEC = 1.2      # pause par requête (respect du rate limit AMF)
@@ -151,34 +153,47 @@ def select_targets(client, limit: int | None, offset: int = 0,
 
 # ─── Résolution share_id + fetch série VL (briques GECO back-office) ───────────
 
-def _find_share_id(session: FetcherSession, isin: str) -> int | None:
+def _share_from_json(text: str) -> int | None:
+    """Extrait idInterne d'une réponse shareByCmpCodeParPrincp (ou None)."""
+    if text.strip() in ("", "null", "{}"):
+        return None
+    try:
+        share = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(share, dict) and share.get("idInterne"):
+        return int(share["idInterne"])
+    return None
+
+
+def _find_share_id(session: requests.Session, isin: str) -> int | None:
     """idInterne de la PART pour un ISIN (None si introuvable).
 
     1. GET shareByCmpCodeParPrincp/{ISIN} — direct pour les ISIN FR.
     2. Fallback : POST compartments (globalFilter=ISIN) → cmpCodeParPrincp →
        shareByCmpCodeParPrincp, puis compartment/{id}/shares.
-    Identique à geco-performance-enricher.py."""
+    Même recette que geco-performance-enricher.py, en requests (pas de scrapling)."""
     try:
         r = session.get(
             f"{GECO_BASE}/funds/shareByCmpCodeParPrincp/{isin}",
-            stealthy_headers=True, timeout=TIMEOUT,
+            headers=HEADERS, timeout=TIMEOUT,
         )
-        if r.status == 200 and r.body.decode("utf-8").strip() not in ("", "null", "{}"):
-            share = json.loads(r.body.decode("utf-8"))
-            if isinstance(share, dict) and share.get("idInterne"):
-                return int(share["idInterne"])
-    except (Exception, ValueError):
+        if r.status_code == 200:
+            sid = _share_from_json(r.text)
+            if sid:
+                return sid
+    except Exception:
         pass
 
     payload = {"first": 0, "rows": 10, "sortOrder": 1, "filters": {}, "globalFilter": isin}
     try:
         r2 = session.post(
             f"{GECO_BASE}/funds/getCompartmentsBycriteria?productType=FR",
-            stealthy_headers=True, json=payload, timeout=TIMEOUT,
+            headers=HEADERS, json=payload, timeout=TIMEOUT,
         )
-        if r2.status != 200:
+        if r2.status_code != 200:
             return None
-        compartments = json.loads(r2.body.decode("utf-8")).get("compartmentDtos", [])
+        compartments = r2.json().get("compartmentDtos", [])
     except (Exception, ValueError):
         return None
 
@@ -192,23 +207,23 @@ def _find_share_id(session: FetcherSession, isin: str) -> int | None:
         try:
             r3 = session.get(
                 f"{GECO_BASE}/funds/shareByCmpCodeParPrincp/{code}",
-                stealthy_headers=True, timeout=TIMEOUT,
+                headers=HEADERS, timeout=TIMEOUT,
             )
-            if r3.status == 200 and r3.body.decode("utf-8").strip() not in ("", "null", "{}"):
-                share = json.loads(r3.body.decode("utf-8"))
-                if isinstance(share, dict) and share.get("idInterne"):
-                    return int(share["idInterne"])
-        except (Exception, ValueError):
+            if r3.status_code == 200:
+                sid = _share_from_json(r3.text)
+                if sid:
+                    return sid
+        except Exception:
             pass
 
     if id_interne:
         try:
             r4 = session.get(
                 f"{GECO_BASE}/funds/compartment/{id_interne}/shares",
-                stealthy_headers=True, timeout=TIMEOUT,
+                headers=HEADERS, timeout=TIMEOUT,
             )
-            if r4.status == 200:
-                shares = json.loads(r4.body.decode("utf-8"))
+            if r4.status_code == 200:
+                shares = r4.json()
                 if isinstance(shares, list) and shares and shares[0].get("idInterne"):
                     return int(shares[0]["idInterne"])
         except (Exception, ValueError):
@@ -249,7 +264,7 @@ def incremental_points(series: list[dict], last: str | None,
     return [p for p in series if p["date"] >= min_backfill]
 
 
-def fetch_series(session: FetcherSession, share_id: int) -> list[dict]:
+def fetch_series(session: requests.Session, share_id: int) -> list[dict]:
     """Renvoie [{date 'YYYY-MM-DD', nav, currency}] depuis l'API chart GECO, ou []."""
     start = (date.today() - timedelta(days=365 * LOOKBACK_YEARS + 30)).isoformat()
     end   = date.today().isoformat()
@@ -258,9 +273,9 @@ def fetch_series(session: FetcherSession, share_id: int) -> list[dict]:
             f"{GECO_BASE}/funds/chart/{share_id}",
             headers=HEADERS, params={"startDate": start, "endDate": end}, timeout=TIMEOUT,
         )
-        if r.status != 200:
-            raise RuntimeError(f"HTTP {r.status}")
-        data = json.loads(r.body.decode("utf-8"))
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code}")
+        data = r.json()
     except (Exception, ValueError) as e:
         raise RuntimeError(str(e)[:120])
     return parse_chart_payload(data)
@@ -295,7 +310,7 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
     def process(args):
         n, t = args
         isin, last = t["isin"], t.get("last")
-        session = FetcherSession(impersonate="chrome").__enter__()
+        session = requests.Session()
         time.sleep(delay)
 
         share_id = _find_share_id(session, isin)
