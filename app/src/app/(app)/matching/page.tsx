@@ -16,6 +16,8 @@ import {
   type Objectif,
   type Tmi,
   type PerteMax,
+  type Experience,
+  type ManagementPref,
   EMPTY_PROFILE,
   loadStoredProfile,
   saveStoredProfile,
@@ -80,6 +82,24 @@ const ESG_OPTIONS: { value: EsgPref; label: string }[] = [
   { value: "indifferent", label: "Indifférent" },
   { value: "art8",        label: "Art. 8+" },
   { value: "art9",        label: "Art. 9" },
+];
+
+const EXP_OPTIONS: { value: Experience; label: string }[] = [
+  { value: "novice",      label: "Novice" },
+  { value: "informe",     label: "Informé" },
+  { value: "experimente", label: "Expérimenté" },
+];
+
+const MGMT_OPTIONS: { value: ManagementPref; label: string }[] = [
+  { value: "actif",  label: "Gestion active" },
+  { value: "passif", label: "Indicielle (ETF)" },
+];
+
+const TER_OPTIONS: { value: number; label: string }[] = [
+  { value: 0.5, label: "< 0,5 %" },
+  { value: 1,   label: "< 1 %" },
+  { value: 1.5, label: "< 1,5 %" },
+  { value: 2,   label: "< 2 %" },
 ];
 
 const ENVELOPE_OPTIONS = [
@@ -201,11 +221,6 @@ export default function ProfilClientPage() {
   return (
     <PageShell>
       <PageHeader title="Profil client" />
-      <p className="-mt-5 mb-6 text-meta text-muted max-w-2xl leading-relaxed">
-        Renseignez le profil de votre client — ou importez un document, l&apos;IA pré-remplit les champs.
-        Tous les champs sont optionnels. Au lancement, le screener s&apos;ouvre pré-filtré sur les fonds
-        adaptés, et le profil reste actif sur toutes vos recherches suivantes.
-      </p>
 
       {/* ── Import de document ── */}
       <Card
@@ -220,9 +235,6 @@ export default function ProfilClientPage() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-meta font-semibold text-ink">Importer un document client</p>
-            <p className="text-caption text-muted mt-0.5">
-              PDF, Excel ou texte (questionnaire MIF, bilan patrimonial…) — glissez-déposez ou parcourez.
-            </p>
           </div>
           <Btn
             variant="outline"
@@ -296,6 +308,14 @@ export default function ProfilClientPage() {
               ))}
             </div>
           </FieldGroup>
+          <FieldGroup label="Expérience des marchés">
+            <div className="flex flex-wrap gap-2">
+              {EXP_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.experience === value}
+                  onClick={() => toggleOne(profile.experience, value, "experience")} />
+              ))}
+            </div>
+          </FieldGroup>
         </SectionCard>
 
         {/* Tolérance au risque */}
@@ -353,6 +373,14 @@ export default function ProfilClientPage() {
               ))}
             </div>
           </FieldGroup>
+          <FieldGroup label="Style de gestion">
+            <div className="flex flex-wrap gap-2">
+              {MGMT_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.management === value}
+                  onClick={() => toggleOne(profile.management, value, "management")} />
+              ))}
+            </div>
+          </FieldGroup>
           <FieldGroup label="Exclusions sectorielles" hint="Indicatif — affine les recherches en langage naturel.">
             <div className="flex flex-wrap gap-2">
               {EXCLUSION_OPTIONS.map(({ value, label }) => (
@@ -363,14 +391,24 @@ export default function ProfilClientPage() {
           </FieldGroup>
         </SectionCard>
 
-        {/* Fiscalité & enveloppes */}
-        <SectionCard title="Fiscalité & enveloppes">
+        {/* Frais, fiscalité & enveloppes */}
+        <SectionCard title="Frais & fiscalité">
           <FieldGroup label="Enveloppes disponibles">
             <div className="flex flex-wrap gap-2">
               {ENVELOPE_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.envelopes.includes(value)}
                   onClick={() => toggleArray("envelopes", value)} />
               ))}
+            </div>
+          </FieldGroup>
+          <FieldGroup label="Frais courants maximum" hint="Plafonne le TER (frais de gestion annuels).">
+            <div className="flex flex-wrap gap-2">
+              {TER_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.max_ter === value}
+                  onClick={() => toggleOne(profile.max_ter, value, "max_ter")} />
+              ))}
+              <Chip label="Sans frais d'entrée" active={profile.no_entry_fee}
+                onClick={() => set("no_entry_fee", !profile.no_entry_fee)} />
             </div>
           </FieldGroup>
           <FieldGroup label="Tranche marginale d'imposition (TMI)">
@@ -384,39 +422,38 @@ export default function ProfilClientPage() {
         </SectionCard>
       </div>
 
-      {/* ── Barre d'action ── */}
-      <div className="sticky bottom-0 mt-6 -mx-4 sm:-mx-8 px-4 sm:px-8 py-4 bg-cream/95 backdrop-blur border-t border-line">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            {filterChips.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-caption text-muted uppercase tracking-wide font-semibold mr-1">Filtres screener :</span>
-                {filterChips.map((c) => (
-                  <span key={c} className="inline-block px-2 py-0.5 rounded-md text-caption font-medium bg-accent-soft text-accent-ink border border-accent/20">
-                    {c}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-caption text-muted">
-                Aucun filtre dur — le screener s&apos;ouvrira complet, profil actif en mémoire.
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {active && (
-              <button
-                type="button"
-                onClick={() => setProfile(EMPTY_PROFILE)}
-                className="text-label text-muted hover:text-ink transition-colors"
-              >
-                Effacer le profil
-              </button>
-            )}
-            <Btn variant="primary" size="lg" onClick={findFunds}>
-              Trouver les fonds adaptés
-              <ArrowRight size={15} />
-            </Btn>
+      {/* ── Barre d'action ── flottante, surface « élevée » (contour + ombre) pour
+          qu'elle se détache nettement du fond et ne paraisse pas inachevée. */}
+      <div className="sticky bottom-4 z-10 mt-8">
+        <div className="rounded-2xl border border-line bg-paper/92 backdrop-blur-md px-5 py-4 shadow-[0_12px_40px_-14px_rgba(43,39,34,0.30),0_2px_8px_-3px_rgba(43,39,34,0.10)]">
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+            <div className="min-w-0 flex-1">
+              {filterChips.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-label text-muted uppercase tracking-widest font-semibold mr-1">Filtres screener</span>
+                  {filterChips.map((c) => (
+                    <span key={c} className="inline-block px-2.5 py-1 rounded-md text-caption font-medium bg-accent-soft text-accent-ink border border-accent/20">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              {active && (
+                <button
+                  type="button"
+                  onClick={() => setProfile(EMPTY_PROFILE)}
+                  className="text-label font-medium text-muted hover:text-ink transition-colors"
+                >
+                  Effacer
+                </button>
+              )}
+              <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
+                Trouver les fonds adaptés
+                <ArrowRight size={15} />
+              </Btn>
+            </div>
           </div>
         </div>
       </div>

@@ -107,6 +107,10 @@ const ASSET_BROAD_FILTER_LABELS: Record<string, string> = {
   alternatif: "Alternatif", monetaire: "Monétaire", diversifie: "Diversifié",
   matieres_premieres: "Matières prem.",
 };
+const MGMT_STYLE_FILTER_LABELS: Record<string, string> = {
+  actif: "Gestion active", passif: "Gestion indicielle",
+  smart_beta: "Smart beta", alternatif: "Gestion alternative",
+};
 
 export function describeScreenerFilters(f: ParsedFilters): string[] {
   const out: string[] = [];
@@ -114,7 +118,10 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   if (f.sri_max != null)      out.push(`SRI ≤ ${f.sri_max}`);
   if (f.sfdr?.length)         out.push(`SFDR Art. ${f.sfdr.join(" / ")}`);
   if (f.drawdown_max != null) out.push(`Perte ≤ ${f.drawdown_max} %`);
-  for (const e of f.envelopes ?? [])   out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
-  for (const a of f.asset_class ?? []) out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
+  if (f.ter_max != null)      out.push(`Frais ≤ ${f.ter_max} %`);
+  if (f.no_entry_fee)         out.push("Sans frais d'entrée");
+  for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
+  for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
+  for (const m of f.management_style ?? []) out.push(MGMT_STYLE_FILTER_LABELS[m] ?? m);
   return out;
 }

@@ -7,12 +7,15 @@ export type EsgPref = "indifferent" | "art8" | "art9";
 export type Objectif = "capitalisation" | "revenus" | "retraite" | "transmission" | "defiscalisation";
 export type Tmi = "0" | "11" | "30" | "41" | "45";
 export type PerteMax = "5" | "10" | "20" | "30" | "illimitee";
+export type Experience = "novice" | "informe" | "experimente";
+export type ManagementPref = "actif" | "passif";
 
 export type RichClientProfile = {
   age: number | null;
   amount_eur: number | null;
   horizon_years: number | null;
   objectif: Objectif | null;
+  experience: Experience | null;
   risk_profile: RiskProfile | null;
   perte_max: PerteMax | null;
   envelopes: string[];
@@ -20,6 +23,9 @@ export type RichClientProfile = {
   exclusions: string[];
   tmi: Tmi | null;
   asset_classes: string[];
+  management: ManagementPref | null;
+  max_ter: number | null;
+  no_entry_fee: boolean;
 };
 
 export const EMPTY_PROFILE: RichClientProfile = {
@@ -27,6 +33,7 @@ export const EMPTY_PROFILE: RichClientProfile = {
   amount_eur: null,
   horizon_years: null,
   objectif: null,
+  experience: null,
   risk_profile: null,
   perte_max: null,
   envelopes: [],
@@ -34,6 +41,9 @@ export const EMPTY_PROFILE: RichClientProfile = {
   exclusions: [],
   tmi: null,
   asset_classes: [],
+  management: null,
+  max_ter: null,
+  no_entry_fee: false,
 };
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
@@ -73,7 +83,11 @@ export function isProfileActive(p: RichClientProfile): boolean {
     p.horizon_years !== null ||
     p.tmi !== null ||
     p.exclusions.length > 0 ||
-    p.asset_classes.length > 0
+    p.asset_classes.length > 0 ||
+    p.experience !== null ||
+    p.management !== null ||
+    p.max_ter !== null ||
+    p.no_entry_fee
   );
 }
 
@@ -95,6 +109,12 @@ const OBJ_LABELS: Record<Objectif, string> = {
   defiscalisation:"objectif défiscalisation / réduction d'impôts",
 };
 
+const EXP_LABELS: Record<Experience, string> = {
+  novice:       "investisseur novice (peu d'expérience des marchés)",
+  informe:      "investisseur informé",
+  experimente:  "investisseur expérimenté / averti",
+};
+
 export function serializeForNlp(p: RichClientProfile): string {
   const parts: string[] = [];
 
@@ -102,6 +122,7 @@ export function serializeForNlp(p: RichClientProfile): string {
   if (p.horizon_years)  parts.push(p.horizon_years <= 3
     ? "horizon court terme (< 3 ans)"
     : `horizon de placement ${p.horizon_years} ans`);
+  if (p.experience)     parts.push(EXP_LABELS[p.experience]);
   if (p.objectif)       parts.push(OBJ_LABELS[p.objectif]);
   if (p.risk_profile)   parts.push(RISK_LABELS[p.risk_profile]);
   if (p.perte_max && p.perte_max !== "illimitee")
@@ -115,6 +136,10 @@ export function serializeForNlp(p: RichClientProfile): string {
   if (p.tmi)            parts.push(`TMI ${p.tmi}%`);
   if (p.asset_classes.length)
                         parts.push(`classes d'actifs souhaitées: ${p.asset_classes.join(", ")}`);
+  if (p.management === "actif")  parts.push("préférence gestion active");
+  if (p.management === "passif") parts.push("préférence gestion indicielle (ETF / passif)");
+  if (p.max_ter != null) parts.push(`frais courants max ${p.max_ter}%`);
+  if (p.no_entry_fee)    parts.push("sans frais d'entrée");
   if (p.amount_eur) {
     const m = p.amount_eur >= 1_000_000
       ? `${(p.amount_eur / 1_000_000).toFixed(1)}M€`
@@ -184,6 +209,10 @@ export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
     .map((a) => ASSET_CLASS_TO_BROAD[a])
     .filter(Boolean);
   if (assetClasses.length) f.asset_class = assetClasses;
+
+  if (p.management) f.management_style = [p.management];
+  if (p.max_ter != null) f.ter_max = p.max_ter;
+  if (p.no_entry_fee) f.no_entry_fee = true;
 
   return f;
 }

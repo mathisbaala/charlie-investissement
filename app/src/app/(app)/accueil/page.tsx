@@ -220,7 +220,6 @@ export default function AccueilPage() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-meta font-semibold text-ink">Renseigner un profil client</p>
-            <p className="text-caption text-muted mt-0.5">Âge, risque, horizon, enveloppes — ou importez un document. On pré-remplit le screener avec les fonds adaptés.</p>
           </div>
           <span className="shrink-0 text-meta font-medium text-accent-ink flex items-center gap-1">
             Profil client <ChevronRight size={13} />
