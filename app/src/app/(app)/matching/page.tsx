@@ -8,7 +8,7 @@ import { Btn } from "@/components/ui/Btn";
 import { Upload, Loader2, X, ArrowRight, Check } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { parseProfileFromFile } from "@/lib/profileImport";
-import { buildParams } from "@/lib/screenerParams";
+import { buildParams, describeScreenerFilters } from "@/lib/screenerParams";
 import {
   type RichClientProfile,
   type RiskProfile,
@@ -108,26 +108,6 @@ const EXCLUSION_OPTIONS = [
   { value: "alcool",   label: "Alcool" },
 ];
 
-const ENVELOPE_LABELS: Record<string, string> = Object.fromEntries(
-  ENVELOPE_OPTIONS.map((o) => [o.value, o.label]),
-);
-const ASSET_BROAD_LABELS: Record<string, string> = {
-  action: "Actions", obligation: "Obligataire", immobilier: "Immobilier",
-  alternatif: "Alternatif", monetaire: "Monétaire", diversifie: "Diversifié",
-};
-
-// Décrit en clair les filtres durs que le profil appliquera au screener.
-function describeFilters(p: RichClientProfile): string[] {
-  const f = profileToScreenerFilters(p);
-  const out: string[] = [];
-  if (f.sri_max != null)       out.push(`SRI ≤ ${f.sri_max}`);
-  if (f.sfdr?.length)          out.push(`SFDR Art. ${f.sfdr.join(" / ")}`);
-  if (f.drawdown_max != null)  out.push(`Perte ≤ ${f.drawdown_max} %`);
-  for (const e of f.envelopes ?? []) out.push(ENVELOPE_LABELS[e] ?? e);
-  for (const a of f.asset_class ?? []) out.push(ASSET_BROAD_LABELS[a] ?? a);
-  return out;
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilClientPage() {
@@ -214,7 +194,7 @@ export default function ProfilClientPage() {
   }
 
   const active = isProfileActive(profile);
-  const filterChips = describeFilters(profile);
+  const filterChips = describeScreenerFilters(profileToScreenerFilters(profile));
   const inputCls =
     "w-full border border-line rounded-lg px-3 py-2 text-body bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors";
 
@@ -274,7 +254,9 @@ export default function ProfilClientPage() {
       </Card>
 
       {/* ── Formulaire ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* items-start : chaque carte épouse son contenu plutôt que de s'étirer à
+          la hauteur de sa voisine (sinon vide en bas des cartes courtes). */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
         {/* Le client */}
         <SectionCard title="Le client">
