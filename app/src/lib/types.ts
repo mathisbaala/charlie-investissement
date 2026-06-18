@@ -263,17 +263,6 @@ export type ScreenerFiltersResponse = {
   perf_3y_range: NumericRange;
 };
 
-// ─── Matching ─────────────────────────────────────────────────────────────────
-// Source of truth : lib/matching.ts — ces types re-exportent pour que le
-// frontend puisse importer depuis @/lib/types sans connaître l'implémentation.
-
-export type { ClientProfile, MatchResult as MatchedFund } from "@/lib/matching";
-
-export type MatchingResponse = {
-  results: import("@/lib/matching").MatchResult[];
-  profile: import("@/lib/matching").ClientProfile;
-};
-
 // ─── ParsedFilters (NLP → UI) ─────────────────────────────────────────────────
 export type ParsedFilters = {
   sfdr?: number[];
