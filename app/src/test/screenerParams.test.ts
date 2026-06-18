@@ -191,4 +191,11 @@ describe('describeScreenerFilters', () => {
     expect(describeScreenerFilters({ sri_min: 2, envelopes: ['AV-FR', 'AV-LUX'] }))
       .toEqual(['SRI ≥ 2', 'AV France', 'AV Luxembourg'])
   })
+
+  it('libelle les frais, le sans-frais-d\'entrée et le style de gestion', () => {
+    const out = describeScreenerFilters({
+      ter_max: 1, no_entry_fee: true, management_style: ['passif'],
+    })
+    expect(out).toEqual(['Frais ≤ 1 %', "Sans frais d'entrée", 'Gestion indicielle'])
+  })
 })

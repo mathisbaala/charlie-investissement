@@ -41,10 +41,30 @@ describe("profileToScreenerFilters", () => {
     expect(out.asset_class).toEqual(["action", "immobilier", "diversifie"]);
   });
 
+  it("traduit la préférence de gestion en management_style", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, management: "passif" }).management_style).toEqual(["passif"]);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, management: "actif" }).management_style).toEqual(["actif"]);
+  });
+
+  it("reporte le plafond de frais (max_ter → ter_max) et le sans-frais-d'entrée", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, max_ter: 1 }).ter_max).toBe(1);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, no_entry_fee: true }).no_entry_fee).toBe(true);
+    // no_entry_fee false ne doit produire aucun filtre.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, no_entry_fee: false }).no_entry_fee).toBeUndefined();
+  });
+
+  it("n'émet pas de filtre dur pour l'expérience (contexte NLP uniquement)", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, experience: "novice" })).toEqual({});
+  });
+
   it("combine plusieurs champs en un seul jeu de filtres", () => {
     const out = profileToScreenerFilters({
       ...EMPTY_PROFILE, risk_profile: "equilibre", esg: "art8", perte_max: "10", envelopes: ["PEA"],
+      management: "passif", max_ter: 1, no_entry_fee: true,
     });
-    expect(out).toEqual({ sri_max: 5, sfdr: [8, 9], drawdown_max: 10, envelopes: ["PEA"] });
+    expect(out).toEqual({
+      sri_max: 5, sfdr: [8, 9], drawdown_max: 10, envelopes: ["PEA"],
+      management_style: ["passif"], ter_max: 1, no_entry_fee: true,
+    });
   });
 });
