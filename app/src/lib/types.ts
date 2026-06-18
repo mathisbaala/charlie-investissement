@@ -87,17 +87,11 @@ export type Fund = {
   data_source: string | null;
   field_sources: Record<string, string> | null;
   updated_at: string | null;
-
-  // Alias rétro-compatibles (certains scrapers/pages lisent ces champs)
-  /** @deprecated utiliser risk_score */
-  sri?: number | null;
-  /** @deprecated utiliser gestionnaire */
-  management_company?: string | null;
 };
 
 // ─── FundDetail (RPC get_fund_detail) ────────────────────────────────────────
 // Inclut les champs bruts non exposés par la vue + percentiles peer-group
-export type FundDetail = Omit<Fund, 'sri' | 'management_company'> & {
+export type FundDetail = Fund & {
   // Champs bruts de la table (absents de la vue)
   management_company: string | null;
   category: string | null;             // catégorie brute (non normalisée)
@@ -175,25 +169,6 @@ export type ScreenerFilters = {
   page?: number;
   per_page?: number;
 
-  // Alias rétro-compatibles (ancienne route POST /api/screener)
-  /** @deprecated utiliser types */
-  product_type?: string[];
-  /** @deprecated utiliser sfdr */
-  sfdr_article?: number[];
-  /** @deprecated utiliser pea */
-  pea_eligible?: boolean;
-  /** @deprecated utiliser per */
-  per_eligible?: boolean;
-  /** @deprecated utiliser av_lux */
-  av_lux_eligible?: boolean;
-  /** @deprecated utiliser search */
-  name_search?: string;
-  /** @deprecated utiliser min_completeness */
-  completeness_min?: number;
-  /** @deprecated utiliser per_page */
-  limit?: number;
-  /** @deprecated utiliser sort_dir */
-  sort_asc?: boolean;
   asset_class?: string[];
   region?: string[];
   category?: string[];
