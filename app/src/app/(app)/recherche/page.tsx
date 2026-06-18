@@ -13,7 +13,7 @@ import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, X, Search } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-import { buildParams, filtersFromParams } from "@/lib/screenerParams";
+import { buildParams, filtersFromParams, describeScreenerFilters } from "@/lib/screenerParams";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
 import { parseContractKey } from "@/lib/insurer-envelope";
@@ -112,6 +112,9 @@ function RechercheInner() {
 
   // Client profile — saisi sur la page dédiée (/matching), partagé via localStorage.
   const [profile, setProfile] = useState<RichClientProfile>(EMPTY_PROFILE);
+  // Bandeau de contexte « filtres issus du profil » : visible à l'arrivée depuis
+  // « Trouver les fonds adaptés » pour rendre les filtres appliqués lisibles.
+  const [showProfileBar, setShowProfileBar] = useState(false);
 
   const initialSortBy    = searchParams.get("sort_by");
   // Filtres décidés en amont, transmis par l'URL (page Profil client, lien
@@ -172,6 +175,7 @@ function RechercheInner() {
     // depuis l'accueil, lien partagé) : on amorce directement, sans analyse NLP.
     if (hasUrlFilters || fromProfile) {
       setFilters(initialUrlFilters);
+      if (fromProfile) setShowProfileBar(true);
     } else if (initialQ) {
       setQuery(initialQ);
       // ISIN exact (lien partagé, rechargement) : recherche ciblée sans NLP.
@@ -305,6 +309,16 @@ function RechercheInner() {
     router.replace(q ? `/recherche?q=${encodeURIComponent(q)}` : "/recherche", { scroll: false });
   }, [router, query]);
 
+  // Retire les filtres issus du profil (bandeau de contexte). On vide les filtres
+  // hydratés depuis l'URL et on nettoie l'URL ; le profil lui-même reste actif
+  // (pastille) pour les recherches suivantes.
+  const clearProfileFilters = useCallback(() => {
+    setFilters({});
+    setShowProfileBar(false);
+    setPage(1);
+    router.replace("/recherche", { scroll: false });
+  }, [router]);
+
   // ─── Sort / pagination ─────────────────────────────────────────────────────
 
   const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPage(1); }, []);
@@ -323,6 +337,8 @@ function RechercheInner() {
   const handleRowClick = useCallback((f: Fund) => setActiveFund((prev) => prev === f.isin ? null : f.isin), []);
 
   const profileActive = isProfileActive(profile);
+  // Libellés des filtres issus du profil, pour le bandeau de contexte.
+  const profileFilterChips = showProfileBar ? describeScreenerFilters(filters) : [];
 
   // Bandeau de contexte « référencement » : libellé lisible quand le screener est
   // filtré sur un contrat (clé « Assureur::Contrat ») ou un assureur, depuis
@@ -386,6 +402,24 @@ function RechercheInner() {
           </div>
         </div>
 
+        {profileFilterChips.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
+            <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto scrollbar-none">
+              <span className="text-label font-semibold text-accent-ink shrink-0">Profil client :</span>
+              {profileFilterChips.map((c) => (
+                <span key={c} className="inline-block shrink-0 px-2 py-0.5 rounded-md text-caption font-medium bg-paper text-accent-ink border border-accent/20">
+                  {c}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={clearProfileFilters}
+              className="text-label text-accent-ink/80 hover:text-accent-ink underline shrink-0"
+            >
+              retirer
+            </button>
+          </div>
+        )}
         {referencingLabel && (
           <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
             <p className="text-label text-accent-ink min-w-0 truncate">

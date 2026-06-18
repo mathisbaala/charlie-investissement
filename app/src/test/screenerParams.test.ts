@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
-import { filtersFromParams } from '../lib/screenerParams'
+import { filtersFromParams, describeScreenerFilters } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -169,5 +169,26 @@ describe('filtersFromParams — inverse de buildParams', () => {
     // profileToScreenerFilters → buildParams → filtersFromParams = filtres d'origine.
     const f: ParsedFilters = { sri_max: 3, sfdr: [9], envelopes: ['PEA-PME'] }
     expect(filtersFromParams(buildParams(f, 1, 'data_completeness', 'desc'))).toEqual(f)
+  })
+})
+
+// describeScreenerFilters : libellés lisibles du bandeau « Profil client » (page
+// profil + bandeau de contexte du screener). Source unique de vérité.
+describe('describeScreenerFilters', () => {
+  it('libelle chaque clé de filtre issue du profil', () => {
+    const out = describeScreenerFilters({
+      sri_max: 5, sfdr: [8, 9], drawdown_max: 20,
+      envelopes: ['PEA', 'PER'], asset_class: ['action'],
+    })
+    expect(out).toEqual(['SRI ≤ 5', 'SFDR Art. 8 / 9', 'Perte ≤ 20 %', 'PEA', 'PER', 'Actions'])
+  })
+
+  it('renvoie une liste vide sans filtre', () => {
+    expect(describeScreenerFilters({})).toEqual([])
+  })
+
+  it('libelle un plancher SRI et les enveloppes AV', () => {
+    expect(describeScreenerFilters({ sri_min: 2, envelopes: ['AV-FR', 'AV-LUX'] }))
+      .toEqual(['SRI ≥ 2', 'AV France', 'AV Luxembourg'])
   })
 })

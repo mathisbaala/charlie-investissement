@@ -92,3 +92,29 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
 
   return f;
 }
+
+// ─── Libellés lisibles des filtres issus du profil client ─────────────────────
+// Source unique partagée entre la barre d'action de la page Profil client et le
+// bandeau de contexte du screener (après redirection « Trouver les fonds adaptés »).
+// Ne décrit que les clés qu'un profil produit ; le reste (assureur/contrat) a ses
+// propres bandeaux.
+const ENVELOPE_FILTER_LABELS: Record<string, string> = {
+  PEA: "PEA", "PEA-PME": "PEA-PME", PER: "PER",
+  "AV-FR": "AV France", "AV-LUX": "AV Luxembourg", CTO: "CTO",
+};
+const ASSET_BROAD_FILTER_LABELS: Record<string, string> = {
+  action: "Actions", obligation: "Obligataire", immobilier: "Immobilier",
+  alternatif: "Alternatif", monetaire: "Monétaire", diversifie: "Diversifié",
+  matieres_premieres: "Matières prem.",
+};
+
+export function describeScreenerFilters(f: ParsedFilters): string[] {
+  const out: string[] = [];
+  if (f.sri_min != null)      out.push(`SRI ≥ ${f.sri_min}`);
+  if (f.sri_max != null)      out.push(`SRI ≤ ${f.sri_max}`);
+  if (f.sfdr?.length)         out.push(`SFDR Art. ${f.sfdr.join(" / ")}`);
+  if (f.drawdown_max != null) out.push(`Perte ≤ ${f.drawdown_max} %`);
+  for (const e of f.envelopes ?? [])   out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
+  for (const a of f.asset_class ?? []) out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
+  return out;
+}
