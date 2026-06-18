@@ -36,6 +36,19 @@ function assetClassLabel(broad: string | null, fine: string | null): string | nu
   return ASSET_CLASS_LABELS[raw.toLowerCase()] ?? capitalize(raw);
 }
 
+// Profil d'allocation des fonds diversifiés (heuristique, colonne allocation_profile).
+const ALLOCATION_PROFILE_LABELS: Record<string, string> = {
+  prudent:   "Prudent",
+  equilibre: "Équilibré",
+  dynamique: "Dynamique",
+  flexible:  "Flexible",
+};
+
+function allocationProfileLabel(p: string | null): string | null {
+  if (!p) return null;
+  return ALLOCATION_PROFILE_LABELS[p.toLowerCase()] ?? capitalize(p);
+}
+
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
@@ -122,6 +135,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <Row label="Ticker" value={fund.tickers?.length ? fund.tickers.join(" · ") : null} />
           <Row label="Style" value={styleLabel} />
           <Row label="Classe d'actif" value={assetClassLabel(fund.asset_class_broad, fund.asset_class)} />
+          <Row label="Profil d'allocation" value={allocationProfileLabel(fund.allocation_profile)} />
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />

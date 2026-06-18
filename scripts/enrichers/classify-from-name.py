@@ -50,6 +50,18 @@ ASSET_CLASS_RULES = [
 ]
 
 
+# ─── Profil d'allocation (diversifiés uniquement) ─────────────────────────────
+# Aligné sur les catégories Morningstar d'allocation (Cautious / Moderate /
+# Aggressive / Flexible). Le profil de risque EXPLICITE (prudent/dynamique/
+# équilibré) prime sur « flexible » (catch-all stratégie). NULL si aucun mot-clé.
+ALLOCATION_PROFILE_RULES = [
+    (r"\b(prudent|prudente|defensif|defensive|conservat\w*|cautious|securite)\b", "prudent"),
+    (r"\b(dynamiq\w*|dynamic|offensif|offensive|aggressi\w*|audacieux)\b", "dynamique"),
+    (r"\b(equilibr\w*|balanced|moder[ée]\w*|moderate)\b", "equilibre"),
+    (r"\b(flexib\w*|patrimoin\w*|patrimonial\w*|opportunis\w*)\b", "flexible"),
+]
+
+
 # ─── Region normalisée ────────────────────────────────────────────────────────
 REGION_RULES = [
     (r"\bfrance\b|cac\s*40|french\s*equity|francaise?", "france"),
@@ -165,6 +177,14 @@ def classify(name: str, product_type: str | None, asset_class: str | None,
                     out["asset_class_broad"] = broad
                     break
 
+    # profil d'allocation — seulement pour les diversifiés (sinon hors-sujet :
+    # un fonds « actions dynamique » n'est pas un diversifié dynamique).
+    if out.get("asset_class_broad") == "diversifie":
+        for pattern, profile in ALLOCATION_PROFILE_RULES:
+            if re.search(pattern, nm, re.IGNORECASE):
+                out["allocation_profile"] = profile
+                break
+
     # region
     for pattern, region in REGION_RULES:
         if re.search(pattern, nm, re.IGNORECASE):
@@ -222,7 +242,7 @@ def run(apply: bool, limit: int | None):
     offset = 0
     while True:
         r = client.table("investissement_funds") \
-            .select("isin, name, product_type, asset_class, category, asset_class_broad, region_normalized, sector, labels, management_style, ucits_compliant, per_eligible") \
+            .select("isin, name, product_type, asset_class, category, asset_class_broad, allocation_profile, region_normalized, sector, labels, management_style, ucits_compliant, per_eligible") \
             .range(offset, offset + 999) \
             .execute()
         if not r.data:

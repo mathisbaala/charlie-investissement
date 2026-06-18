@@ -9,7 +9,7 @@ import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Search, ChevronRight, Plus, X } from "@/components/ui/icons";
+import { Search, ChevronRight, Plus, X, SlidersHorizontal } from "@/components/ui/icons";
 import { addSearch } from "@/lib/searches";
 import { pct } from "@/lib/format";
 import {
@@ -234,6 +234,23 @@ export default function AccueilPage() {
             )}
           </Card>
         </div>
+
+        {/* ── CTA Matching par profil ──────────────────────────────────────────── */}
+        <Link
+          href="/matching"
+          className="group mb-8 flex items-center gap-4 rounded-xl border border-line bg-paper px-5 py-4 hover:border-accent/40 hover:bg-accent-soft/20 transition-colors"
+        >
+          <div className="w-10 h-10 shrink-0 rounded-[10px] border border-line bg-paper-2 flex items-center justify-center text-muted group-hover:text-accent-ink transition-colors">
+            <SlidersHorizontal size={18} strokeWidth={1.7} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-meta font-semibold text-ink">Trouver les fonds adaptés à un profil client</p>
+            <p className="text-caption text-muted mt-0.5">Renseignez âge, risque, horizon et enveloppes — on classe les fonds par score d&apos;adéquation.</p>
+          </div>
+          <span className="shrink-0 text-meta font-medium text-accent-ink flex items-center gap-1">
+            Matching <ChevronRight size={13} />
+          </span>
+        </Link>
 
         {/* ── Top performers ──────────────────────────────────────────────────── */}
         {(topEtf.length > 0 || topOpcvm.length > 0 || topScpi.length > 0) && (
