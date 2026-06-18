@@ -219,8 +219,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Les filtres structurés (applyFilters) et les garde-fous d'univers s'appliquent
   // par-dessus dans les deux cas.
   const useRanked = search.length > 0; // exactIsin est déjà court-circuité plus haut
+  // On sélectionne aussi `relevance` : PostgREST exige que la colonne de tri figure
+  // dans la projection d'une fonction (sinon « column record.relevance does not exist »).
+  // Elle est retirée de la réponse au mapping (cf. toApi).
   const rankedSource = (opts: Record<string, unknown>) =>
-    (supabase as any).rpc("inv_funds_search", { q: search }, opts).select(COLS);
+    (supabase as any).rpc("inv_funds_search", { q: search }, opts).select(`${COLS},relevance`);
   const base = () =>
     baseFilters(
       useRanked
@@ -286,11 +289,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
   // double-primary transitoire entre deux refreshs, ou les doublons prio↔page ci-dessus).
   // + frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
-  const toApi = (f: Fund): Fund => ({
-    ...f,
-    ter: feeFracToPct(f.ter),
-    ongoing_charges: feeFracToPct(f.ongoing_charges),
-  });
+  const toApi = (f: Fund): Fund => {
+    // `relevance` (présent sur le chemin RPC classé) est un score interne de tri :
+    // on ne l'expose pas dans la réponse publique.
+    const { relevance: _drop, ...rest } = f as Fund & { relevance?: number };
+    void _drop;
+    return {
+      ...rest,
+      ter: feeFracToPct(rest.ter),
+      ongoing_charges: feeFracToPct(rest.ongoing_charges),
+    };
+  };
   const deduped = dedup(raw).map(toApi).slice(0, perPage);
   // total = nombre exact de fonds uniques correspondants (count: "exact" sur les primaires) :
   // total_pages couvre toutes les pages, sans page vide en plein milieu.
