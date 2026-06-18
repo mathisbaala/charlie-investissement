@@ -1,6 +1,6 @@
 // ─── Import d'un profil client depuis un fichier ─────────────────────────────
-// Helpers partagés entre le panneau profil du screener (ClientProfilePanel) et
-// la zone de dépôt de la landing. Lecture du fichier (PDF base64 / Excel / texte)
+// Helpers partagés entre la page Profil client (/matching) et la zone de dépôt
+// de la landing. Lecture du fichier (PDF base64 / Excel / texte)
 // puis appel à /api/parse-profile qui en extrait un profil structuré via LLM.
 
 import { type RichClientProfile } from "./clientProfile";

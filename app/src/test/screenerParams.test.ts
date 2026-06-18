@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
+import { filtersFromParams } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -140,5 +141,33 @@ describe('buildParams — filtre société de gestion', () => {
     const f: ParsedFilters = { gestionnaires: ['Amundi', 'BlackRock'] }
     const sp = buildParams(f, 1, 'data_completeness', 'desc')
     expect(sp.get('gestionnaire_in')).toBe('Amundi,BlackRock')
+  })
+})
+
+// filtersFromParams est l'inverse de buildParams : il hydrate le screener à
+// l'arrivée depuis la page Profil client / un lien partagé. Round-trip garanti.
+describe('filtersFromParams — inverse de buildParams', () => {
+  it('reconstruit un jeu de filtres complet (round-trip)', () => {
+    const f: ParsedFilters = {
+      sfdr: [8, 9], sri_max: 5, ter_max: 1.5, drawdown_max: 20,
+      no_entry_fee: true, has_kid: true, envelopes: ['PEA', 'PER'],
+      asset_class: ['action'], insurers: ['AXA France'],
+      contracts: ['Suravenir::Linxea Spirit 2'], gestionnaires: ['Amundi'],
+      region: ['world'], exclude_sectors: ['Technologie'], manager_search: 'Carmignac',
+      free_text: 'msci world',
+    }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(filtersFromParams(sp)).toEqual(f)
+  })
+
+  it('ignore les paramètres de tri / pagination (objet vide sans filtre)', () => {
+    const sp = buildParams({}, 3, 'performance_3y', 'asc')
+    expect(filtersFromParams(sp)).toEqual({})
+  })
+
+  it('relie le profil client au screener via le round-trip', () => {
+    // profileToScreenerFilters → buildParams → filtersFromParams = filtres d'origine.
+    const f: ParsedFilters = { sri_max: 3, sfdr: [9], envelopes: ['PEA-PME'] }
+    expect(filtersFromParams(buildParams(f, 1, 'data_completeness', 'desc'))).toEqual(f)
   })
 })

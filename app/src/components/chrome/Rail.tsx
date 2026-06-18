@@ -7,7 +7,7 @@ import { Logo, Search, FileText, LayoutGrid, Shield, SlidersHorizontal } from "@
 const NAV = [
   { href: "/accueil",   icon: LayoutGrid,        label: "Accueil" },
   { href: "/recherche", icon: Search,            label: "Recherche" },
-  { href: "/matching",  icon: SlidersHorizontal, label: "Matching client" },
+  { href: "/matching",  icon: SlidersHorizontal, label: "Profil client" },
   { href: "/assureurs", icon: Shield,            label: "Assurances vie" },
   { href: "/documents", icon: FileText,          label: "Documents" },
 ];

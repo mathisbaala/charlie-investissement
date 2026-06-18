@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
-import { ClientProfilePanel } from "@/components/screener/ClientProfilePanel";
 import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Search, ChevronRight, Plus, X, SlidersHorizontal } from "@/components/ui/icons";
+import { Search, ChevronRight, X, SlidersHorizontal } from "@/components/ui/icons";
 import { addSearch } from "@/lib/searches";
 import { pct } from "@/lib/format";
 import {
@@ -46,10 +45,9 @@ export default function AccueilPage() {
   const [insurers, setInsurers] = useState<{ company: string; funds: number }[]>([]);
   const [insurersLoading, setInsurersLoading] = useState(true);
 
-  // Client profile
-  const [profile,          setProfile]          = useState<RichClientProfile>(EMPTY_PROFILE);
-  const [showProfilePanel, setShowProfilePanel] = useState(false);
-  const [profileLoaded,    setProfileLoaded]    = useState(false);
+  // Client profile — saisi sur la page dédiée (/matching), partagé via localStorage.
+  const [profile,       setProfile]       = useState<RichClientProfile>(EMPTY_PROFILE);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     setProfile(loadStoredProfile());
@@ -114,11 +112,14 @@ export default function AccueilPage() {
               className="flex-1"
             />
 
-            {/* Profile toggle */}
-            {profileActive ? (
+            {/* Pastille profil actif : édition sur la page dédiée (clic), la croix
+                le retire des recherches. Renseigner un profil se fait via la carte
+                « Profil client » plus bas, plus aucun bouton « + » ici. */}
+            {profileActive && (
               <button
                 type="button"
-                onClick={() => setShowProfilePanel((v) => !v)}
+                onClick={() => router.push("/matching")}
+                title="Modifier le profil client"
                 className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-label font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
               >
                 <span>Profil actif</span>
@@ -128,22 +129,8 @@ export default function AccueilPage() {
                     e.stopPropagation();
                     setProfile(EMPTY_PROFILE);
                     clearStoredProfile();
-                    setShowProfilePanel(false);
                   }}
                 />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowProfilePanel((v) => !v)}
-                title="Importer un profil client"
-                className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full border transition-colors ${
-                  showProfilePanel
-                    ? "bg-accent-soft text-accent-ink border-accent/20"
-                    : "border-line text-muted hover:bg-paper-2 hover:text-ink-2"
-                }`}
-              >
-                <Plus size={13} />
               </button>
             )}
 
@@ -151,18 +138,6 @@ export default function AccueilPage() {
               Rechercher
             </Btn>
           </div>
-
-          {/* Profile panel */}
-          {showProfilePanel && (
-            <div className="mt-2">
-              <ClientProfilePanel
-                profile={profile}
-                onChange={setProfile}
-                onClose={() => setShowProfilePanel(false)}
-                onSearch={handleSearch}
-              />
-            </div>
-          )}
         </div>
 
         {/* ── navigation grid ───────────────────────────────────────────────── */}
@@ -235,7 +210,7 @@ export default function AccueilPage() {
           </Card>
         </div>
 
-        {/* ── CTA Matching par profil ──────────────────────────────────────────── */}
+        {/* ── CTA Profil client ─────────────────────────────────────────────────── */}
         <Link
           href="/matching"
           className="group mb-8 flex items-center gap-4 rounded-xl border border-line bg-paper px-5 py-4 hover:border-accent/40 hover:bg-accent-soft/20 transition-colors"
@@ -244,11 +219,11 @@ export default function AccueilPage() {
             <SlidersHorizontal size={18} strokeWidth={1.7} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-meta font-semibold text-ink">Trouver les fonds adaptés à un profil client</p>
-            <p className="text-caption text-muted mt-0.5">Renseignez âge, risque, horizon et enveloppes — on classe les fonds par score d&apos;adéquation.</p>
+            <p className="text-meta font-semibold text-ink">Renseigner un profil client</p>
+            <p className="text-caption text-muted mt-0.5">Âge, risque, horizon, enveloppes — ou importez un document. On pré-remplit le screener avec les fonds adaptés.</p>
           </div>
           <span className="shrink-0 text-meta font-medium text-accent-ink flex items-center gap-1">
-            Matching <ChevronRight size={13} />
+            Profil client <ChevronRight size={13} />
           </span>
         </Link>
 
