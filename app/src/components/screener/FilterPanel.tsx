@@ -246,15 +246,20 @@ export function FilterPanel({
 
         {/* Frais d'entrée */}
         <Section title="Frais d'entrée">
-          <label className="flex items-center gap-3 cursor-pointer group">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!f.no_entry_fee}
+            onClick={() => set("no_entry_fee", f.no_entry_fee ? undefined : true)}
+            className="flex items-center gap-3 cursor-pointer group w-full text-left"
+          >
             <div
-              onClick={() => set("no_entry_fee", f.no_entry_fee ? undefined : true)}
               className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.no_entry_fee ? "bg-brown" : "bg-paper-3 border border-line"}`}
             >
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.no_entry_fee ? "translate-x-5" : "translate-x-0.5"}`} />
             </div>
             <span className="text-meta text-ink-2 group-hover:text-ink">Sans frais d&apos;entrée</span>
-          </label>
+          </button>
         </Section>
 
         <Divider />
@@ -588,15 +593,20 @@ export function FilterPanel({
 
         {/* DICI */}
         <Section title="Document DICI">
-          <label className="flex items-center gap-3 cursor-pointer group">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!f.has_kid}
+            onClick={() => set("has_kid", f.has_kid ? undefined : true)}
+            className="flex items-center gap-3 cursor-pointer group w-full text-left"
+          >
             <div
-              onClick={() => set("has_kid", f.has_kid ? undefined : true)}
               className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.has_kid ? "bg-brown" : "bg-paper-3 border border-line"}`}
             >
               <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.has_kid ? "translate-x-5" : "translate-x-0.5"}`} />
             </div>
             <span className="text-meta text-ink-2 group-hover:text-ink">DICI disponible uniquement</span>
-          </label>
+          </button>
         </Section>
 
         <Divider />
