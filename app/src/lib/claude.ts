@@ -1,12 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ScreenerFilters } from "@/lib/types";
 import type { ParsedFilters } from "@/lib/types";
 
-// Re-export so that existing imports of ScreenerFilters from "@/lib/claude"
-// continue to work without changes.
-export type { ScreenerFilters };
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Initialisation paresseuse : le client n'est construit qu'au premier appel LLM.
+// Évite de dépendre de la clé API au chargement du module — les utilitaires purs
+// (ex: sanitizeParsedFilters) restent importables (et testables) sans clé.
+let _client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _client;
+}
 
 // Modèle pour les tâches d'extraction structurée (phrase / PDF → JSON).
 // Haiku 4.5 : ~3× moins cher que Sonnet en entrée comme en sortie, largement
@@ -17,55 +19,106 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // déclencherait donc jamais. Le gain de coût vient entièrement du choix du modèle.
 export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
-const SYSTEM_PROMPT = `Tu es un assistant qui convertit des requêtes en langage naturel en filtres JSON pour une base de données de fonds d'investissement français.
+// ─── Validation / nettoyage de la sortie LLM ────────────────────────────────
+// Le modèle renvoie du JSON libre : sans garde-fou, une clé hallucinée ou une
+// valeur d'enum invalide (« region:["mars"] ») arrive jusqu'à la requête PostgREST
+// (`.in("region_normalized", ["mars"])`) → 0 résultat silencieux, indiscernable
+// d'une vraie absence. On ne garde donc QUE les champs connus, les valeurs d'enum
+// autorisées, et les nombres dans des bornes plausibles. Tout le reste est écarté.
 
-Champs disponibles :
-- sfdr_article : Article SFDR (6, 8 ou 9)
-- sri_min / sri_max : Indicateur de risque 1 à 7 (1=très faible, 7=très élevé)
-- ter_min / ter_max : Frais courants en % (ex: 0.85 = 0.85%)
-- perf_1y_min / perf_3y_min : Performances minimales en % (ex: 12.5 = 12.5%)
-- aum_min : Encours minimum en euros (ex: 100000000 = 100M€)
-- pea_eligible, per_eligible, av_lux_eligible : booléens (PEA, PER, Assurance-Vie Luxembourg)
-- product_type : "opcvm" | "etf" | "scpi" | "action" | "crypto" | "fonds_euros" | "livret" | "fps"
-- asset_class : "actions" | "obligations" | "monetaire" | "immobilier" | "multi-actifs" | "euro_garanti" | "private_equity" | "crypto" | "alternatif"
-- region : "france" | "europe" | "eurozone" | "usa" | "japan" | "asia" | "emerging" | "world"
-- gestionnaire : nom du gestionnaire (ex: "Amundi", "BlackRock")
-- labels : tags screener — ["pea","esg","article-8","low-cost","mid-cost","high-cost","screener-ready","kid-ready","large-cap"]
-- sort_by : "performance_3y" | "performance_1y" | "aum_eur" | "ter" (défaut: data_completeness desc)
-- name_search : recherche dans le nom du fonds
-- completeness_min : complétude données minimum 0-100 (défaut 50)
-- limit : nombre de résultats (défaut 50, max 200)
+const ENUMS = {
+  envelopes: ["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"],
+  universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto"],
+  asset_class: ["action", "obligation", "diversifie", "monetaire", "immobilier", "matieres_premieres", "alternatif", "fonds_euros"],
+  region: ["world", "europe", "eurozone", "usa", "france", "emerging", "japan", "asia", "china", "uk", "germany", "switzerland", "india", "brazil"],
+  sector: ["Technologie", "Santé", "Finance", "Consommation", "Industrie", "Énergie", "Immobilier", "Environnement", "Communication", "Matériaux"],
+  management_style: ["passif", "actif", "smart_beta", "alternatif"],
+} as const;
 
-Exemples de mappings :
-- "ESG peu risqués" → {"sfdr_article":[8,9],"sri_max":3}
-- "ETF monde low cost éligibles PEA" → {"product_type":["etf"],"region":["world"],"labels":["low-cost"],"pea_eligible":true}
-- "fonds euros garantis" → {"product_type":["fonds_euros"]}
-- "actions US performantes" → {"asset_class":["actions"],"region":["usa"],"sort_by":"performance_3y"}
-- "SCPI immobilier" → {"product_type":["scpi"]}
-- "fonds Amundi article 8" → {"gestionnaire":"Amundi","sfdr_article":[8]}
+// Bornes plausibles par champ numérique : [min, max]. Une valeur hors bornes est
+// écartée (pas clampée — une valeur aberrante trahit une mauvaise interprétation).
+const NUM_BOUNDS: Record<string, [number, number]> = {
+  sri_min: [1, 7], sri_max: [1, 7],
+  ter_max: [0, 100],
+  perf_1y_min: [-100, 1000], perf_3y_min: [-100, 1000], perf_5y_min: [-100, 1000],
+  vol_max: [0, 1000], vol_3y_max: [0, 1000],
+  sharpe_min: [-100, 100], sharpe_3y_min: [-100, 100],
+  drawdown_max: [0, 100],
+  aum_min: [0, 1e9],
+  track_record_min: [0, 100],
+  morningstar_min: [1, 5],
+  retrocession_min: [0, 100],
+};
 
-Retourne UNIQUEMENT un objet JSON valide. Pas d'explication.`;
+function cleanNum(v: unknown, [lo, hi]: [number, number]): number | undefined {
+  const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : NaN;
+  return Number.isFinite(n) && n >= lo && n <= hi ? n : undefined;
+}
 
-export async function interpretQuery(query: string): Promise<ScreenerFilters> {
-  const sanitized = query.slice(0, 500).replace(/[<>]/g, "");
+function cleanEnumArray(v: unknown, allowed: readonly string[]): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const set = new Set(allowed);
+  const kept = v.filter((x): x is string => typeof x === "string" && set.has(x));
+  return kept.length ? kept : undefined;
+}
 
-  try {
-    const response = await client.messages.create({
-      model: EXTRACTION_MODEL,
-      max_tokens: 512,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: sanitized }],
-    });
+function cleanStringArray(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const kept = v.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    .map((x) => x.slice(0, 60));
+  return kept.length ? kept : undefined;
+}
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "{}";
-    const json = text.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
-    return JSON.parse(json) as ScreenerFilters;
-  } catch (e) {
-    // On dégrade en {} (repli recherche par nom) MAIS on trace : sans ce log,
-    // une clé ANTHROPIC_API_KEY manquante est indiscernable d'un « 0 résultat ».
-    console.error("[claude] interpretQuery a échoué (repli sur {}):", e);
-    return {};
+/**
+ * Filtre la sortie brute du LLM : ne conserve que les champs ParsedFilters connus,
+ * avec des valeurs valides. Fonction pure (testable sans appeler le modèle).
+ */
+export function sanitizeParsedFilters(raw: unknown): ParsedFilters {
+  if (!raw || typeof raw !== "object") return {};
+  const r = raw as Record<string, unknown>;
+  const out: ParsedFilters = {};
+
+  // sfdr : sous-ensemble de {6,8,9}
+  if (Array.isArray(r.sfdr)) {
+    const sfdr = r.sfdr
+      .map((n) => (typeof n === "number" ? n : parseInt(String(n), 10)))
+      .filter((n) => n === 6 || n === 8 || n === 9);
+    if (sfdr.length) out.sfdr = sfdr;
   }
+
+  // Nombres bornés
+  for (const key of Object.keys(NUM_BOUNDS)) {
+    const v = cleanNum(r[key], NUM_BOUNDS[key]);
+    if (v !== undefined) (out as Record<string, unknown>)[key] = v;
+  }
+
+  // Enums (tableaux)
+  for (const [key, allowed] of Object.entries(ENUMS)) {
+    const v = cleanEnumArray(r[key], allowed);
+    if (v) (out as Record<string, unknown>)[key] = v;
+  }
+  // Exclusions : mêmes valeurs autorisées que region / sector.
+  const exclR = cleanEnumArray(r.exclude_regions, ENUMS.region);
+  if (exclR) out.exclude_regions = exclR;
+  const exclS = cleanEnumArray(r.exclude_sectors, ENUMS.sector);
+  if (exclS) out.exclude_sectors = exclS;
+
+  // Tableaux de chaînes libres (valeurs non contraintes : assureurs, contrats, devises…)
+  const insurers = cleanStringArray(r.insurers); if (insurers) out.insurers = insurers;
+  const contracts = cleanStringArray(r.contracts); if (contracts) out.contracts = contracts;
+  const gestionnaires = cleanStringArray(r.gestionnaires); if (gestionnaires) out.gestionnaires = gestionnaires;
+  const currency = cleanStringArray(r.currency); if (currency) out.currency = currency;
+  const chips = cleanStringArray(r.chips); if (chips) out.chips = chips;
+
+  // Chaînes simples
+  if (typeof r.manager_search === "string" && r.manager_search.trim()) out.manager_search = r.manager_search.trim().slice(0, 100);
+  if (typeof r.free_text === "string" && r.free_text.trim()) out.free_text = r.free_text.trim().slice(0, 100);
+
+  // Booléens
+  if (r.has_kid === true) out.has_kid = true;
+  if (r.no_entry_fee === true) out.no_entry_fee = true;
+
+  return out;
 }
 
 export async function parseFrenchQuery(query: string): Promise<ParsedFilters> {
@@ -77,9 +130,13 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - sfdr: tableau de numéros SFDR ex: [8,9]
 - sri_min, sri_max: indicateur risque PRIIPs 1-7
 - ter_max: frais courants max en % ex: 1.5
-- perf_1y_min, perf_3y_min: performance annualisée min en % ex: 10.0
+- perf_1y_min, perf_3y_min, perf_5y_min: performance annualisée min en % ex: 10.0
 - vol_max: volatilité 1 an max en %
+- vol_3y_max: volatilité 3 ans max en %
 - sharpe_min: ratio Sharpe 1 an min
+- sharpe_3y_min: ratio Sharpe 3 ans min
+- drawdown_max: perte maximale tolérée sur 3 ans, magnitude POSITIVE en % (ex: 20 = « ne pas perdre plus de 20% », drawdown limité à -20%)
+- no_entry_fee: true si l'utilisateur veut des fonds SANS frais d'entrée
 - aum_min: encours min en M€ ex: 100
 - track_record_min: ancienneté min en années
 - envelopes: tableau parmi ["PEA","PEA-PME","PER","AV-FR","AV-LUX","CTO"]
@@ -146,6 +203,10 @@ Règles de mapping :
 - "bonne rétrocession" / "rétrocession élevée" → retrocession_min:0.5
 - "ancienneté" / "historique long" → track_record_min:5
 - "volatilité faible" / "peu volatile" → vol_max:8
+- "perte max" / "drawdown limité" / "ne pas perdre plus de X%" / "chute limitée à X%" / "perte maximale X%" → drawdown_max:X (magnitude positive)
+- "résilient" / "qui a bien résisté" / "faible drawdown" → drawdown_max:15
+- "performant sur 5 ans" / "perf 5 ans" / "long terme performant" → perf_5y_min (ex: 5.0)
+- "bon Sharpe sur 3 ans" / "rendement/risque solide dans la durée" → sharpe_3y_min:0.5
 - "gros fonds" / "encours élevés" → aum_min:500
 - "tech" / "technologie" / "numérique" → sector:["Technologie"]
 - "santé" / "pharma" / "médical" / "biotech" → sector:["Santé"]
@@ -164,7 +225,7 @@ Règles de mapping :
 - "smart beta" / "factoriel" → management_style:["smart_beta"]
 - "hedge fund" / "long-short" / "alternatif" → management_style:["alternatif"]
 - "avec DICI" / "DICI disponible" / "document réglementaire" → has_kid:true
-- "sans frais d'entrée" / "no load" / "frais d'entrée zéro" → chips:["Sans frais d'entrée"] (pas de filtre direct, mentionner dans chips)
+- "sans frais d'entrée" / "no load" / "frais d'entrée zéro" / "sans droits d'entrée" → no_entry_fee:true (+ chips:["Sans frais d'entrée"])
 
 Exemples :
 - "ETF monde" → {"universe":["etf"],"region":["world"],"chips":["ETF","Monde"]}
@@ -186,6 +247,8 @@ Exemples :
 - "ETF low cost monde" → {"universe":["etf"],"region":["world"],"ter_max":0.3,"chips":["ETF","Monde","Low cost"]}
 - "OPCVM avec bonne rétrocession CGP éligibles AV" → {"universe":["opcvm"],"envelopes":["AV-FR","AV-LUX"],"retrocession_min":0.5,"chips":["Rétrocession ≥0.5%","Assurance-vie"]}
 - "fonds actions peu volatils 5 étoiles" → {"universe":["opcvm","etf"],"vol_max":10,"morningstar_min":4,"chips":["Actions","Faible volatilité","5 étoiles"]}
+- "fonds prudent qui ne perd pas plus de 15% sans frais d'entrée" → {"sri_max":3,"drawdown_max":15,"no_entry_fee":true,"chips":["Prudent","Perte max 15%","Sans frais d'entrée"]}
+- "ETF monde performant sur 5 ans" → {"universe":["etf"],"region":["world"],"perf_5y_min":5,"chips":["ETF","Monde","Perf 5 ans"]}
 - "fonds technologie innovants" → {"sector":["Technologie"],"chips":["Technologie"]}
 - "ETF santé pharma article 9" → {"universe":["etf"],"sector":["Santé"],"sfdr":[9],"chips":["ETF","Santé","Article 9"]}
 - "fonds énergie renouvelable ESG" → {"sector":["Énergie"],"sfdr":[8,9],"chips":["Énergie","ESG"]}
@@ -195,7 +258,7 @@ Exemples :
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 
   try {
-    const response = await client.messages.create({
+    const response = await getClient().messages.create({
       model: EXTRACTION_MODEL,
       max_tokens: 512,
       system: SYSTEM,
@@ -203,7 +266,8 @@ Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
     });
     const text = response.content[0].type === "text" ? response.content[0].text : "{}";
     const json = text.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
-    return JSON.parse(json) as ParsedFilters;
+    // Validation : on n'expose que des champs/valeurs connus (cf. sanitizeParsedFilters).
+    return sanitizeParsedFilters(JSON.parse(json));
   } catch (e) {
     // Repli {} = « Filtres intelligents indisponibles » côté UI. Le log permet
     // de distinguer clé manquante / rate-limit / timeout d'un vrai 0 résultat.

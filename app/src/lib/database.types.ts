@@ -1426,17 +1426,9 @@ export type Database = {
         }[]
       }
       charlie_dossier_purge_expired: { Args: never; Returns: number }
-      finalize_waitlist_followups: {
-        Args: { batch_size?: number }
-        Returns: undefined
-      }
       get_waitlist_position: {
         Args: { p_waitlist_id: string }
         Returns: number
-      }
-      process_waitlist_followups: {
-        Args: { batch_size?: number }
-        Returns: undefined
       }
       screener_apply_stripe_topup: {
         Args: {

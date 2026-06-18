@@ -244,29 +244,88 @@ export function FilterPanel({
 
         <Divider />
 
-        {/* Perf */}
-        <Section title="Perf 1Y / 3Y min">
-          <NumPairInputs
-            labelA="Perf 1A ≥" labelB="Perf 3A ≥"
-            valueA={String(f.perf_1y_min ?? "")} valueB={String(f.perf_3y_min ?? "")}
-            onChangeA={(v) => set("perf_1y_min", v ? +v : undefined)}
-            onChangeB={(v) => set("perf_3y_min", v ? +v : undefined)}
-            placeholderA="0" placeholderB="0"
-          />
+        {/* Frais d'entrée */}
+        <Section title="Frais d'entrée">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div
+              onClick={() => set("no_entry_fee", f.no_entry_fee ? undefined : true)}
+              className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.no_entry_fee ? "bg-brown" : "bg-paper-3 border border-line"}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.no_entry_fee ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+            <span className="text-meta text-ink-2 group-hover:text-ink">Sans frais d&apos;entrée</span>
+          </label>
         </Section>
 
         <Divider />
 
-        {/* Volatilité / Sharpe */}
+        {/* Perf */}
+        <Section title="Perf 1Y / 3Y / 5Y min">
+          <div className="space-y-2.5">
+            <NumPairInputs
+              labelA="Perf 1A ≥" labelB="Perf 3A ≥"
+              valueA={String(f.perf_1y_min ?? "")} valueB={String(f.perf_3y_min ?? "")}
+              onChangeA={(v) => set("perf_1y_min", v ? +v : undefined)}
+              onChangeB={(v) => set("perf_3y_min", v ? +v : undefined)}
+              placeholderA="0" placeholderB="0"
+            />
+            <div className="space-y-2">
+              <div className="text-caption text-muted uppercase tracking-wider font-semibold">Perf 5A ≥</div>
+              <div className="flex items-center gap-1 w-1/2 pr-1.5">
+                <input
+                  type="number"
+                  value={String(f.perf_5y_min ?? "")}
+                  onChange={(e) => set("perf_5y_min", e.target.value ? +e.target.value : undefined)}
+                  placeholder="0"
+                  className="w-full border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+                />
+                <span className="text-label text-muted shrink-0">%</span>
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Divider />
+
+        {/* Volatilité / Sharpe (1A + 3A) */}
         <Section title="Volatilité / Sharpe">
-          <NumPairInputs
-            labelA="Vol max" labelB="Sharpe ≥"
-            valueA={String(f.vol_max ?? "")} valueB={String(f.sharpe_min ?? "")}
-            onChangeA={(v) => set("vol_max", v ? +v : undefined)}
-            onChangeB={(v) => set("sharpe_min", v ? +v : undefined)}
-            placeholderA="%" placeholderB="0"
-            suffix=""
-          />
+          <div className="space-y-2.5">
+            <NumPairInputs
+              labelA="Vol 1A max" labelB="Sharpe 1A ≥"
+              valueA={String(f.vol_max ?? "")} valueB={String(f.sharpe_min ?? "")}
+              onChangeA={(v) => set("vol_max", v ? +v : undefined)}
+              onChangeB={(v) => set("sharpe_min", v ? +v : undefined)}
+              placeholderA="%" placeholderB="0"
+              suffix=""
+            />
+            <NumPairInputs
+              labelA="Vol 3A max" labelB="Sharpe 3A ≥"
+              valueA={String(f.vol_3y_max ?? "")} valueB={String(f.sharpe_3y_min ?? "")}
+              onChangeA={(v) => set("vol_3y_max", v ? +v : undefined)}
+              onChangeB={(v) => set("sharpe_3y_min", v ? +v : undefined)}
+              placeholderA="%" placeholderB="0"
+              suffix=""
+            />
+          </div>
+        </Section>
+
+        <Divider />
+
+        {/* Perte max (drawdown 3 ans) */}
+        <Section title="Perte max (3 ans)">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={String(f.drawdown_max ?? "")}
+              onChange={(e) => set("drawdown_max", e.target.value ? Math.abs(+e.target.value) : undefined)}
+              placeholder="20"
+              className="w-24 border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+            />
+            <span className="text-meta text-muted">% max</span>
+          </div>
+          <p className="text-caption text-muted-2 mt-2 leading-snug">
+            Chute maximale tolérée sur 3 ans (ex. 20 = fonds n&apos;ayant pas perdu plus de 20%).
+          </p>
         </Section>
 
         <Divider />

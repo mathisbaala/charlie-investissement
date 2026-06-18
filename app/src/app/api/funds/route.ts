@@ -49,8 +49,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const terMax  = num(p(sp, "ter_max"));
   const p1yMin  = num(p(sp, "perf_1y_min"));
   const p3yMin  = num(p(sp, "perf_3y_min"));
+  const p5yMin  = num(p(sp, "perf_5y_min"));
   const volMax  = num(p(sp, "vol_max"));
+  const vol3Max = num(p(sp, "vol_3y_max"));
   const shMin   = num(p(sp, "sharpe_min"));
+  const sh3Min  = num(p(sp, "sharpe_3y_min"));
+  const ddMax   = num(p(sp, "drawdown_max"));   // magnitude positive (%) → max_drawdown_3y >= -ddMax
+  const noEntryFee = p(sp, "no_entry_fee") === "true";
   const aumMin  = num(p(sp, "aum_min"));  // in M€ from UI
   const trMin   = num(p(sp, "track_record_min"));
   const mstarMin= num(p(sp, "morningstar_min"));
@@ -115,7 +120,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Applique tous les filtres de la requête à un builder donné. Factorisé pour pouvoir
   // le rejouer en requête count-only dans le chemin d'erreur 416 (cf. plus bas).
-  const applyFilters = (q: any) => {
+  const applyFilters = (q: any, opts?: { skipSearch?: boolean }) => {
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
@@ -123,8 +128,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (terMax != null)   q = (q as any).or(`ter.lte.${terMax / 100},ongoing_charges.lte.${terMax / 100}`);
   if (p1yMin != null)   q = q.gte("performance_1y", p1yMin);
   if (p3yMin != null)   q = q.gte("performance_3y", p3yMin);
+  if (p5yMin != null)   q = q.gte("performance_5y", p5yMin);
   if (volMax != null)   q = q.lte("volatility_1y", volMax);
+  if (vol3Max != null)  q = q.lte("volatility_3y", vol3Max);
   if (shMin != null)    q = q.gte("sharpe_1y", shMin);
+  if (sh3Min != null)   q = q.gte("sharpe_3y", sh3Min);
+  // Perte max (drawdown) : la colonne est un % négatif (ex: -25). « limité à 20% »
+  // → on garde les fonds dont le drawdown 3 ans est >= -20 (chute moins profonde).
+  if (ddMax != null)    q = q.gte("max_drawdown_3y", -Math.abs(ddMax));
+  // « Sans frais d'entrée » : exclut les fonds à frais d'entrée connus (> 0). On
+  // conserve null (inconnu) ET 0 — la plupart des fonds no-load ont entry_fee_max
+  // non renseigné ; l'intention est d'écarter les fonds explicitement chargés.
+  if (noEntryFee)       q = (q as any).or("entry_fee_max.is.null,entry_fee_max.lte.0");
   if (aumMin != null)   q = q.gte("aum_eur", aumMin * 1_000_000);
   if (trMin != null)    q = q.gte("track_record_years", trMin);
   if (mstarMin != null) q = q.gte("morningstar_rating", mstarMin);
@@ -181,7 +196,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (hasKid)   q = q.not("kid_url", "is", null);
 
-  if (search) {
+  if (search && !opts?.skipSearch) {
     // Chaque mot doit matcher quelque part (ET entre mots, OR entre colonnes) :
     // nom, gestionnaire, mais aussi zone géo / catégorie / classe d'actif /
     // secteur. Cf. lib/search.ts pour le détail.
@@ -244,6 +259,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   let raw = (data as unknown as Fund[]) ?? [];
 
+  // Pertinence nom : sur recherche texte (1re page, tri par défaut), on remonte en
+  // tête les fonds dont le NOM contient TOUS les mots cherchés — le signal de
+  // pertinence le plus fort, qui sinon resterait enfoui sous le tri par complétude
+  // (« Amundi MSCI World » pourrait n'apparaître qu'en page 2). Classés par encours.
+  // Sous-ensemble des résultats `ilike` → total inchangé ; dedup() conserve l'ordre
+  // de 1re insertion. Posé AVANT le boost ticker pour que le ticker exact reste devant.
+  const nameWords = search ? searchWords(search) : [];
+  if (nameWords.length && page === 1 && safeSort === "data_completeness" && raw.length) {
+    let nq = baseFilters(supabase.from(VIEW).select(COLS));
+    for (const w of nameWords) nq = nq.ilike("name", `%${w}%`);
+    const { data: nameData } = await nq
+      .order("aum_eur", { ascending: false, nullsFirst: false })
+      .limit(perPage);
+    const namePrio = (nameData as unknown as Fund[]) ?? [];
+    if (namePrio.length) raw = [...namePrio, ...raw];
+  }
+
   // Pertinence ticker : si la requête est un ticker (mot unique court), sur la 1re
   // page et avec le tri par défaut, on remonte en tête les fonds dont c'est
   // EXACTEMENT le ticker (match mot entier dans tickers_search), classés par encours
@@ -264,21 +296,51 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
   // double-primary transitoire entre deux refreshs, ou les doublons prio↔page ci-dessus).
   // + frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
-  const deduped = dedup(raw).map((f) => ({
+  const toApi = (f: Fund): Fund => ({
     ...f,
     ter: feeFracToPct(f.ter),
     ongoing_charges: feeFracToPct(f.ongoing_charges),
-  })).slice(0, perPage);
+  });
+  const deduped = dedup(raw).map(toApi).slice(0, perPage);
   // total = nombre exact de fonds uniques correspondants (count: "exact" sur les primaires) :
   // total_pages couvre toutes les pages, sans page vide en plein milieu.
   const total = count ?? 0;
 
+  // ── Filet recherche approximative (tolérance aux fautes) ────────────────────
+  // Zéro correspondance exacte sur une recherche texte (1re page) : on propose les
+  // fonds dont le NOM est le plus proche (RPC trigramme inv_search_funds_fuzzy),
+  // en réappliquant les filtres ad hoc par intersection sur l'ISIN — SANS la
+  // contrainte texte (skipSearch), qui est précisément celle qui a échoué.
+  let fuzzyData = deduped;
+  let fuzzyTotal = total;
+  let isFuzzy = false;
+  if (total === 0 && search && page === 1) {
+    const { data: fz } = await supabase.rpc("inv_search_funds_fuzzy", { q: search, lim: perPage });
+    const isins = ((fz as { isin: string }[] | null) ?? []).map((r) => r.isin);
+    if (isins.length) {
+      const { data: frows } = await applyFilters(
+        supabase.from(VIEW).select(COLS).gte("data_completeness", 50).eq("is_primary_share_class", true),
+        { skipSearch: true },
+      ).in("isin", isins);
+      const rank = new Map(isins.map((id, i) => [id, i] as const));
+      const rows = ((frows as unknown as Fund[]) ?? [])
+        .sort((a, b) => (rank.get(a.isin) ?? 1e9) - (rank.get(b.isin) ?? 1e9));
+      const mapped = dedup(rows).map(toApi).slice(0, perPage);
+      if (mapped.length) {
+        fuzzyData = mapped;
+        fuzzyTotal = mapped.length;
+        isFuzzy = true;
+      }
+    }
+  }
+
   const resp: ScreenerResponse = {
-    data: deduped,
-    total,
+    data: fuzzyData,
+    total: fuzzyTotal,
     page,
     per_page: perPage,
-    total_pages: Math.ceil(total / perPage),
+    total_pages: Math.ceil(fuzzyTotal / perPage),
+    fuzzy: isFuzzy || undefined,
   };
 
   // Télémétrie : on ne journalise que les recherches « signifiantes » — première page
@@ -286,7 +348,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // sans filtre) est du bruit (crawlers, défilement) et est ignorée.
   const filters = activeFilters({
     sfdr, sri_min: sriMin, sri_max: sriMax, ter_max: terMax,
-    perf_1y_min: p1yMin, perf_3y_min: p3yMin, vol_max: volMax, sharpe_min: shMin,
+    perf_1y_min: p1yMin, perf_3y_min: p3yMin, perf_5y_min: p5yMin,
+    vol_max: volMax, vol_3y_max: vol3Max, sharpe_min: shMin, sharpe_3y_min: sh3Min,
+    drawdown_max: ddMax, no_entry_fee: noEntryFee || undefined,
     aum_min: aumMin, track_record_min: trMin, morningstar_min: mstarMin,
     retrocession_min: retroMin, envelopes, universe, asset_class: assetClasses,
     insurer: insurers, contracts, region: regions, sector: sectors,
@@ -299,8 +363,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       event_type: "search",
       query: search || null,
       filters,
-      result_count: total,
-      meta: { sort_by: safeSort, page },
+      result_count: fuzzyTotal,
+      meta: { sort_by: safeSort, page, fuzzy: isFuzzy || undefined },
     });
   }
 

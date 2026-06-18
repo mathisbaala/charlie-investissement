@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Logo, Search, FileText, LayoutGrid, Shield } from "@/components/ui/icons";
+import { Logo, Search, FileText, LayoutGrid, Shield, SlidersHorizontal } from "@/components/ui/icons";
 
 const NAV = [
-  { href: "/accueil",   icon: LayoutGrid, label: "Accueil" },
-  { href: "/recherche", icon: Search,     label: "Recherche" },
-  { href: "/assureurs", icon: Shield,     label: "Assurances vie" },
-  { href: "/documents", icon: FileText,   label: "Documents" },
+  { href: "/accueil",   icon: LayoutGrid,        label: "Accueil" },
+  { href: "/recherche", icon: Search,            label: "Recherche" },
+  { href: "/matching",  icon: SlidersHorizontal, label: "Matching client" },
+  { href: "/assureurs", icon: Shield,            label: "Assurances vie" },
+  { href: "/documents", icon: FileText,          label: "Documents" },
 ];
 
 export function Rail() {

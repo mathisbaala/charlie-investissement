@@ -224,6 +224,9 @@ export type ScreenerResponse = {
   page: number;
   per_page: number;
   total_pages: number;
+  // true quand les résultats proviennent du filet de recherche approximative
+  // (tolérance aux fautes) faute de correspondance exacte — l'UI peut le signaler.
+  fuzzy?: boolean;
 };
 
 export type FundDetailResponse = {
@@ -303,8 +306,13 @@ export type ParsedFilters = {
   ter_max?: number;
   perf_1y_min?: number;
   perf_3y_min?: number;
-  vol_max?: number;
-  sharpe_min?: number;
+  perf_5y_min?: number;
+  vol_max?: number;           // volatilité 1 an max en %
+  vol_3y_max?: number;        // volatilité 3 ans max en %
+  sharpe_min?: number;        // ratio Sharpe 1 an min
+  sharpe_3y_min?: number;     // ratio Sharpe 3 ans min
+  drawdown_max?: number;      // perte max (magnitude positive) sur 3 ans, ex: 20 = drawdown limité à -20%
+  no_entry_fee?: boolean;     // « sans frais d'entrée » : exclut les fonds à frais d'entrée connus
   aum_min?: number;
   track_record_min?: number;
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)

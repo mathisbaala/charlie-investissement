@@ -6,6 +6,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // (select avec { head: true }) déclenchée dans le chemin d'erreur 416.
 let dataResult: any;
 let countResult: any;
+// File de résultats pour les requêtes de données successives (principale, puis
+// prepend pertinence / fuzzy). Si vide, on retombe sur dataResult (cas simple).
+let dataQueue: any[];
+// Résultat de supabase.rpc(...) (RPC fuzzy inv_search_funds_fuzzy).
+let rpcResult: any;
+// Capture des appels rpc(name, args).
+let rpcCalls: Array<[string, any]>;
 // Capture les bornes du dernier .range(from, to) de la requête de données (pas de la
 // requête count-only head), pour vérifier le calcul d'offset de la pagination.
 let lastRange: { from: number; to: number } | null;
@@ -13,6 +20,11 @@ let lastRange: { from: number; to: number } | null;
 // vérifier que la dédup is_primary_share_class est appliquée des deux côtés.
 let eqData: Array<[string, any]>;
 let eqHead: Array<[string, any]>;
+// Capture des bornes (col, val) et des clauses .or() de la requête de données,
+// pour vérifier les filtres numériques (gte/lte) et composés (or).
+let gteData: Array<[string, any]>;
+let lteData: Array<[string, any]>;
+let orData: string[];
 
 function makeBuilder() {
   let isHead = false;
@@ -22,12 +34,18 @@ function makeBuilder() {
       return builder;
     },
     then: (resolve: (v: any) => any) =>
-      Promise.resolve(isHead ? countResult : dataResult).then(resolve),
+      Promise.resolve(
+        isHead ? countResult : (dataQueue.length ? dataQueue.shift() : dataResult),
+      ).then(resolve),
   };
-  // Toutes les méthodes de filtre/tri renvoient le builder.
-  for (const m of ["gte", "lte", "in", "or", "not", "overlaps", "ilike", "order", "limit"]) {
+  // Méthodes de filtre/tri sans capture (renvoient le builder).
+  for (const m of ["in", "not", "overlaps", "ilike", "order", "limit", "filter"]) {
     builder[m] = () => builder;
   }
+  // gte / lte / or : on enregistre les arguments (requête de données uniquement).
+  builder.gte = (col: string, val: any) => { if (!isHead) gteData.push([col, val]); return builder; };
+  builder.lte = (col: string, val: any) => { if (!isHead) lteData.push([col, val]); return builder; };
+  builder.or = (clause: string) => { if (!isHead) orData.push(clause); return builder; };
   // eq : on enregistre (col, val) selon le type de requête.
   builder.eq = (col: string, val: any) => {
     (isHead ? eqHead : eqData).push([col, val]);
@@ -42,7 +60,13 @@ function makeBuilder() {
 }
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: () => makeBuilder() },
+  supabase: {
+    from: () => makeBuilder(),
+    rpc: (name: string, args: any) => {
+      rpcCalls.push([name, args]);
+      return Promise.resolve(rpcResult);
+    },
+  },
 }));
 
 import { GET } from "@/app/api/funds/route";
@@ -59,6 +83,12 @@ describe("GET /api/funds — robustesse pagination", () => {
     lastRange = null;
     eqData = [];
     eqHead = [];
+    gteData = [];
+    lteData = [];
+    orData = [];
+    dataQueue = [];
+    rpcResult = { data: null, error: null };
+    rpcCalls = [];
   });
 
   // Régression : un crawler paginant au-delà des résultats (?page=500) provoquait
@@ -235,5 +265,96 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(body.data).toEqual([]);
     expect(body.total).toBe(0);
     expect(body.total_pages).toBe(0);
+  });
+
+  // ─── Filtres Sprint 2 (pertinence) ──────────────────────────────────────────
+
+  // Perte max : la colonne max_drawdown_3y est un % négatif. drawdown_max=20
+  // (magnitude) → on garde les fonds dont le drawdown est >= -20.
+  it("drawdown_max borne max_drawdown_3y à la magnitude négative", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?drawdown_max=20"));
+    expect(gteData).toContainEqual(["max_drawdown_3y", -20]);
+  });
+
+  // Magnitude toujours négative même si l'appelant envoie un nombre négatif.
+  it("drawdown_max normalise un signe négatif (abs)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?drawdown_max=-30"));
+    expect(gteData).toContainEqual(["max_drawdown_3y", -30]);
+  });
+
+  it("perf_5y_min filtre performance_5y", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?perf_5y_min=8"));
+    expect(gteData).toContainEqual(["performance_5y", 8]);
+  });
+
+  it("vol_3y_max filtre volatility_3y et sharpe_3y_min filtre sharpe_3y", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?vol_3y_max=12&sharpe_3y_min=0.5"));
+    expect(lteData).toContainEqual(["volatility_3y", 12]);
+    expect(gteData).toContainEqual(["sharpe_3y", 0.5]);
+  });
+
+  // « Sans frais d'entrée » : clause OR null-safe (null inconnu OU <= 0), pour
+  // exclure les fonds explicitement chargés sans écarter les no-load non renseignés.
+  it("no_entry_fee applique une clause OR null-safe sur entry_fee_max", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?no_entry_fee=true"));
+    expect(orData).toContainEqual("entry_fee_max.is.null,entry_fee_max.lte.0");
+  });
+
+  // Sans le paramètre, aucun filtre frais d'entrée ne doit être posé.
+  it("pas de clause entry_fee_max sans no_entry_fee", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?page=1"));
+    expect(orData).not.toContainEqual("entry_fee_max.is.null,entry_fee_max.lte.0");
+  });
+
+  // ─── Ranking de pertinence (Sprint 2 #1) ────────────────────────────────────
+
+  // Boost nom : sur une recherche texte (page 1, tri par défaut), les fonds dont
+  // le nom matche tous les mots sont préprendés devant la liste triée par complétude.
+  it("recherche texte : remonte le match nom en tête de la liste par complétude", async () => {
+    dataQueue = [
+      // 1) requête principale : liste triée par complétude
+      { data: [{ isin: "FR0000000001", aum_eur: 100, share_class_group_id: "a", ter: 0, ongoing_charges: 0 }], error: null, count: 2 },
+      // 2) prepend pertinence nom : le meilleur match nom (ailleurs dans le classement)
+      { data: [{ isin: "FR0000000002", aum_eur: 999, share_class_group_id: "b", ter: 0, ongoing_charges: 0 }], error: null, count: null },
+    ];
+    const res = await GET(req("?search=amundi%20world"));
+    const body = await res.json();
+    expect(body.data.map((f: any) => f.isin)).toEqual(["FR0000000002", "FR0000000001"]);
+    expect(body.fuzzy).toBeUndefined();
+    expect(rpcCalls).toEqual([]); // résultats présents → pas de fallback fuzzy
+  });
+
+  // Fallback fuzzy : 0 résultat exact sur une recherche texte → appel RPC trigramme,
+  // résultats approchants réintégrés avec le drapeau fuzzy=true.
+  it("fallback fuzzy : 0 résultat exact → RPC trigramme + fuzzy:true", async () => {
+    dataQueue = [
+      { data: [], error: null, count: 0 },                       // principale : vide
+      { data: [{ isin: "FR0010251660", aum_eur: 50, share_class_group_id: "z", ter: 0, ongoing_charges: 0 }], error: null, count: null }, // .in(isins) fuzzy
+    ];
+    rpcResult = { data: [{ isin: "FR0010251660" }], error: null };
+    const res = await GET(req("?search=Amundee"));
+    const body = await res.json();
+    expect(rpcCalls).toContainEqual(["inv_search_funds_fuzzy", { q: "Amundee", lim: 50 }]);
+    expect(body.fuzzy).toBe(true);
+    expect(body.data.map((f: any) => f.isin)).toEqual(["FR0010251660"]);
+    expect(body.total).toBe(1);
+  });
+
+  // Pas de fallback fuzzy quand la RPC ne renvoie rien (typo sans voisin proche).
+  it("fallback fuzzy vide : pas de drapeau, page vide cohérente", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    rpcResult = { data: [], error: null };
+    const res = await GET(req("?search=zzzznotafund"));
+    const body = await res.json();
+    expect(rpcCalls).toHaveLength(1);
+    expect(body.fuzzy).toBeUndefined();
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(0);
   });
 });
