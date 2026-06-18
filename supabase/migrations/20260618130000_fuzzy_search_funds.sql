@@ -35,6 +35,7 @@ as $$
   limit greatest(1, least(lim, 200));
 $$;
 
--- Durcissement : non exposée publiquement, exécutable par le rôle applicatif.
-revoke all on function public.inv_search_funds_fuzzy(text, integer) from public;
+-- Durcissement : non exposée publiquement (ni anon ni authenticated),
+-- exécutable uniquement par le rôle applicatif (service_role côté serveur).
+revoke all on function public.inv_search_funds_fuzzy(text, integer) from public, anon, authenticated;
 grant execute on function public.inv_search_funds_fuzzy(text, integer) to service_role;
