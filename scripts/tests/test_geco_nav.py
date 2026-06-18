@@ -15,17 +15,12 @@ import importlib.util
 import unittest
 from pathlib import Path
 
-# Stub `db` et `scrapling.fetchers` pour importer le module sans supabase / réseau
-# (les fonctions testées sont pures ; les dépendances ne servent qu'à l'exécution).
+# Stub `db` pour importer le module sans supabase / env (les fonctions testées
+# sont pures ; `requests` est une vraie dépendance, jamais appelée ici).
 _fake_db = types.ModuleType("db")
 for _name in ("get_client", "upsert_prices", "log_run"):
     setattr(_fake_db, _name, lambda *a, **k: None)
 sys.modules.setdefault("db", _fake_db)
-
-_fake_scrapling = types.ModuleType("scrapling.fetchers")
-_fake_scrapling.FetcherSession = object
-sys.modules.setdefault("scrapling", types.ModuleType("scrapling"))
-sys.modules.setdefault("scrapling.fetchers", _fake_scrapling)
 
 _PATH = Path(__file__).resolve().parents[1] / "scrapers" / "geco-nav.py"
 _spec = importlib.util.spec_from_file_location("geco_nav", _PATH)
