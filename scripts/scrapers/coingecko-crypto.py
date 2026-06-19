@@ -27,13 +27,12 @@ Sans --apply : dry-run (affiche sans écrire).
 """
 
 import sys
-import json
 import time
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
+import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, log_run
@@ -73,30 +72,29 @@ DAYS_5Y = 365 * 5   # 1825
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
-def fetch_markets(session: FetcherSession) -> list[dict]:
-    """Récupère les 30 premières cryptos par market cap depuis CoinGecko."""
+def fetch_markets(session: requests.Session) -> list[dict]:
+    """Récupère les 100 premières cryptos par market cap depuis CoinGecko."""
     try:
-        page = session.get(COINGECKO_MARKETS_URL, stealthy_headers=True, timeout=20)
-        if page.status != 200:
-            raise Exception(f"HTTP {page.status}")
-        return json.loads(page.body.decode("utf-8"))
+        r = session.get(COINGECKO_MARKETS_URL, headers=HEADERS, timeout=20)
+        if r.status_code != 200:
+            raise Exception(f"HTTP {r.status_code}")
+        return r.json()
     except Exception as e:
         print(f"  ✗ Erreur fetch markets : {e}")
         return []
 
 
-def fetch_history(session: FetcherSession, coin_id: str) -> list[list] | None:
+def fetch_history(session: requests.Session, coin_id: str) -> list[list] | None:
     """
     Récupère l'historique de prix hebdomadaire sur 5 ans pour un coin.
     Retourne une liste de [timestamp_ms, price] ou None en cas d'erreur.
     """
     url = COINGECKO_HISTORY_URL.format(coin_id=coin_id)
     try:
-        page = session.get(url, stealthy_headers=True, timeout=30)
-        if page.status != 200:
-            raise Exception(f"HTTP {page.status}")
-        data = json.loads(page.body.decode("utf-8"))
-        return data.get("prices")  # [[timestamp_ms, price], ...]
+        r = session.get(url, headers=HEADERS, timeout=30)
+        if r.status_code != 200:
+            raise Exception(f"HTTP {r.status_code}")
+        return r.json().get("prices")  # [[timestamp_ms, price], ...]
     except Exception as e:
         print(f"    ✗ Erreur historique {coin_id} : {e}")
         return None
@@ -192,7 +190,7 @@ def build_record(coin: dict, perf_3y: float | None, perf_5y: float | None, now_s
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
 
-def run(apply: bool, limit: int | None = None):
+def run(apply: bool, limit: int | None = None, skip_history: bool = False):
     print("=" * 65)
     print("  CoinGecko Crypto — Top cryptomonnaies par market cap (EUR)")
     print("=" * 65)
@@ -202,9 +200,9 @@ def run(apply: bool, limit: int | None = None):
     print()
 
     started = datetime.now(timezone.utc)
-    session = FetcherSession(impersonate="chrome").__enter__()
+    session = requests.Session()
 
-    # ── Étape 1 : récupérer les 30 premières cryptos ──────────────────────────
+    # ── Étape 1 : récupérer les 100 premières cryptos ──────────────────────────
     print("  [1/3] Fetch top 100 cryptos depuis CoinGecko markets…")
     coins = fetch_markets(session)
     if not coins:
@@ -219,14 +217,21 @@ def run(apply: bool, limit: int | None = None):
     print(f"  → {len(coins)} cryptos récupérées")
     print()
 
-    # ── Étape 2 : historique 3y/5y pour les 10 premières ─────────────────────
-    history_limit = min(HISTORY_TOP_N, len(coins))
+    # ── Étape 2 : historique 3y/5y pour les premières ─────────────────────────
+    # L'endpoint /market_chart de CoinGecko exige désormais une clé API (HTTP 401
+    # en free tier). En refresh planifié on saute cette étape (--no-history) : les
+    # perf 3y/5y existantes sont préservées (build_record retire les None, donc un
+    # historique indisponible n'écrase jamais l'existant). Seuls mcap + perf 1y
+    # (endpoint /markets, sans clé) sont rafraîchis — c'est le signal de fraîcheur.
+    hist_data: dict[str, tuple[float | None, float | None]] = {}
+    history_limit = 0 if skip_history else min(HISTORY_TOP_N, len(coins))
     if limit is not None:
         history_limit = min(history_limit, limit)
 
-    hist_data: dict[str, tuple[float | None, float | None]] = {}
-
-    print(f"  [2/3] Fetch historique 3y/5y pour les {history_limit} premières cryptos…")
+    if skip_history:
+        print("  [2/3] Historique 3y/5y sauté (--no-history) — perf existantes conservées")
+    else:
+        print(f"  [2/3] Fetch historique 3y/5y pour les {history_limit} premières cryptos…")
     for i, coin in enumerate(coins[:history_limit]):
         coin_id = coin.get("id", "")
         symbol  = coin.get("symbol", "").upper()
@@ -307,6 +312,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase (sans ce flag : dry-run)")
     parser.add_argument("--limit", type=int, default=None, metavar="N", help="Limite à N cryptos (test)")
+    parser.add_argument("--no-history", dest="skip_history", action="store_true",
+                        help="Sauter l'historique 3y/5y (endpoint /market_chart = 401 sans clé API) "
+                             "— refresh planifié : ne rafraîchit que mcap + perf 1y")
     args = parser.parse_args()
 
-    run(apply=args.apply, limit=args.limit)
+    run(apply=args.apply, limit=args.limit, skip_history=args.skip_history)
