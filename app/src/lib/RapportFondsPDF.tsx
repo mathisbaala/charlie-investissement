@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { C, FONT, perfColor, registerCharlieFonts } from "./pdf/theme";
 import { perfNetteClient, CONTRACT_FEE_DEFAULTS } from "./format";
+import { officialLabelsOf } from "./sustainability";
 import {
   Bar,
   BrandHeader,
@@ -244,6 +245,9 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
 
       <View style={S.badgeRow}>
         {fund.sfdr_article && <Chip tone="ok">SFDR Art. {fund.sfdr_article}</Chip>}
+        {officialLabelsOf(fund.labels).map((l) => (
+          <Chip key={l.key} tone="ok">{l.label}</Chip>
+        ))}
         {sri && <Chip>SRI {sri}/7</Chip>}
         {fund.morningstar_rating && <Chip tone="gold">★ Morningstar {fund.morningstar_rating}/5</Chip>}
         {fund.pea_eligible && <Chip tone="accent">PEA</Chip>}
@@ -313,6 +317,13 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
             label="Perf. nette 3 ans (AV, est.)"
             value={fund.performance_3y != null ? perf(perfNetteClient(fund.performance_3y, CONTRACT_FEE_DEFAULTS["AV-FR"])) : "—"}
           />
+          {/* Durabilité (DDA) : affichées seulement si publiées par la SGP. */}
+          {fund.sustainable_investment_pct != null && (
+            <Row label="Investissement durable" value={fmt(fund.sustainable_investment_pct)} />
+          )}
+          {fund.taxonomy_alignment_pct != null && (
+            <Row label="Aligné taxonomie UE" value={fmt(fund.taxonomy_alignment_pct)} />
+          )}
           <Row label="Encours (AUM)" value={fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "—"} />
           <Row label="Création" value={fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "—"} />
           <Row label="Ancienneté" value={trackRecord ? `${trackRecord} ans` : "—"} />

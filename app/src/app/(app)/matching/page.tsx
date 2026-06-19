@@ -82,6 +82,7 @@ const ESG_OPTIONS: { value: EsgPref; label: string }[] = [
   { value: "indifferent", label: "Indifférent" },
   { value: "art8",        label: "Art. 8+" },
   { value: "art9",        label: "Art. 9" },
+  { value: "labelise",    label: "Labellisé" },
 ];
 
 const EXP_OPTIONS: { value: Experience; label: string }[] = [

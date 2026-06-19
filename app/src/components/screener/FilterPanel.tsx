@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X, SlidersHorizontal, ChevronDown } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/Btn";
 import type { ParsedFilters } from "@/lib/types";
+import { OFFICIAL_LABELS } from "@/lib/sustainability";
 
 interface FilterPanelProps {
   filters: ParsedFilters;
@@ -209,6 +210,20 @@ export function FilterPanel({
                 label={`Art. ${n}`}
                 active={(f.sfdr ?? []).includes(n)}
                 onToggle={() => set("sfdr", toggleArr(f.sfdr, n))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        {/* Labels officiels de durabilité (recueil DDA) */}
+        <Section title="Labels durabilité">
+          <div className="flex gap-2 flex-wrap">
+            {OFFICIAL_LABELS.map((l) => (
+              <SfdrPill
+                key={l.key}
+                label={l.label}
+                active={(f.labels ?? []).includes(l.key)}
+                onToggle={() => set("labels", toggleArr(f.labels, l.key))}
               />
             ))}
           </div>

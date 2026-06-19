@@ -47,6 +47,7 @@ export function buildParams(
   if (f.free_text)                   sp.set("search",            f.free_text);
   if (f.has_kid)                     sp.set("has_kid",           "true");
   if (f.beats_benchmark)             sp.set("beats_benchmark",   "true");
+  if (f.labels?.length)              sp.set("labels",            f.labels.join(","));
   sp.set("sort_by",  sortBy);
   sp.set("sort_dir", sortDir);
   sp.set("page",     String(page));
@@ -84,6 +85,7 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
     ["gestionnaire_in", "gestionnaires"], ["region", "region"], ["sector", "sector"],
     ["exclude_sector", "exclude_sectors"], ["exclude_region", "exclude_regions"],
     ["management_style", "management_style"], ["currency", "currency"],
+    ["labels", "labels"],
   ];
   for (const [param, key] of arrKeys) {
     const v = list(param);
@@ -113,6 +115,9 @@ const MGMT_STYLE_FILTER_LABELS: Record<string, string> = {
   actif: "Gestion active", passif: "Gestion indicielle",
   smart_beta: "Smart beta", alternatif: "Gestion alternative",
 };
+const LABEL_FILTER_LABELS: Record<string, string> = {
+  isr: "Label ISR", greenfin: "Label Greenfin", finansol: "Label Finansol",
+};
 
 export function describeScreenerFilters(f: ParsedFilters): string[] {
   const out: string[] = [];
@@ -123,6 +128,7 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   if (f.ter_max != null)      out.push(`Frais ≤ ${f.ter_max} %`);
   if (f.no_entry_fee)         out.push("Sans frais d'entrée");
   if (f.beats_benchmark)      out.push("Bat son indice");
+  for (const l of f.labels ?? []) out.push(LABEL_FILTER_LABELS[l] ?? l);
   for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
   for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
   for (const m of f.management_style ?? []) out.push(MGMT_STYLE_FILTER_LABELS[m] ?? m);

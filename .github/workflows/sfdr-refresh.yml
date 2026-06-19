@@ -1,0 +1,42 @@
+name: Durabilité SFDR (DDA)
+
+# Extrait les données de durabilité DDA (taxonomie, investissement durable, PAI)
+# des DICI/KID, en fill-only. Best-effort (beaucoup de KID renvoient à une annexe
+# SFDR séparée). Déclenchable à la main ; aussi inclus dans le sweep mensuel.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Nombre max de fonds à traiter (vide = tous les KID non examinés)"
+        required: false
+        default: ""
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  sfdr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: SFDR enricher (fill-only)
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
+          else
+            python3 scripts/enrichers/sfdr-enricher.py --apply
+          fi

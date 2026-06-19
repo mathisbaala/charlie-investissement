@@ -27,6 +27,12 @@ describe("profileToScreenerFilters", () => {
     expect(profileToScreenerFilters({ ...EMPTY_PROFILE, esg: "indifferent" }).sfdr).toBeUndefined();
   });
 
+  it("traduit la préférence « labellisé » en filtre labels officiels", () => {
+    const f = profileToScreenerFilters({ ...EMPTY_PROFILE, esg: "labelise" });
+    expect(f.labels).toEqual(["isr", "greenfin", "finansol"]);
+    expect(f.sfdr).toBeUndefined();
+  });
+
   it("traduit la tolérance de perte en drawdown_max (illimitée → aucun filtre)", () => {
     expect(profileToScreenerFilters({ ...EMPTY_PROFILE, perte_max: "20" }).drawdown_max).toBe(20);
     expect(profileToScreenerFilters({ ...EMPTY_PROFILE, perte_max: "illimitee" }).drawdown_max).toBeUndefined();
