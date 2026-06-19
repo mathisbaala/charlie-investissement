@@ -8,8 +8,12 @@ on:
     - cron: "0 5 8-14 * 2" # 2e mardi du mois, 05:00 UTC
   workflow_dispatch: {}
 
+# Groupe de concurrence DÉDIÉ (pas data-refresh) : la garde ne lit/écrit que
+# product_type + son cache, indépendamment des pipelines de cours/métriques. Un
+# groupe partagé ferait annuler ce run quand un autre data-job est déclenché
+# (GitHub ne garde qu'un seul run en attente par groupe).
 concurrency:
-  group: data-refresh
+  group: classify-guard
   cancel-in-progress: false
 
 jobs:
