@@ -94,6 +94,11 @@ def weekly_steps():
         ("scrapers/geco-nav.py",
          ["--all", "--offset", str(geco_offset), "--limit", str(GECO_BUCKET),
           "--workers", "4", "--delay", "0.4"]),
+        # Crypto : rafraîchit market cap + perf 1y des ~100 cryptos via l'API
+        # CoinGecko (endpoint /markets, sans clé). --no-history car /market_chart
+        # exige désormais une clé API (401) ; les perf 3y/5y existantes sont
+        # conservées. Écrit en update ciblé sur les lignes CRYPTO_* (non destructif).
+        ("scrapers/coingecko-crypto.py", ["--no-history"]),
         ("enrichers/compute-metrics.py", []),
         # Encours rafraîchis ci-dessus → recalcule le représentant share-class
         # (is_primary_share_class) qui porte la dédup de /api/funds.
