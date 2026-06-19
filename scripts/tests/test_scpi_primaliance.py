@@ -49,6 +49,13 @@ class Parsers(unittest.TestCase):
         self.assertEqual(sp.normalize("PFO² (Bureaux)"), "PFOBUREAUX")
         self.assertEqual(sp.normalize("Épargne Pierre"), "EPARGNEPIERRE")
 
+    def test_parse_prix_part(self):
+        # 'Prix de part : 458,00€' (souvent avec balises et espaces insécables).
+        self.assertEqual(sp.parse_prix_part("<span>Prix de part :</span> 458,00€"), 458.0)
+        self.assertEqual(sp.parse_prix_part("Prix de part : 1\xa0234,50 €"), 1234.50)
+        self.assertIsNone(sp.parse_prix_part("Capitalisation : 1 051,87 M€"))
+        self.assertIsNone(sp.parse_prix_part(""))
+
     def test_refreshable_set(self):
         # Les métriques qui changent sont réécrites en --refresh ; l'identité non.
         self.assertIn("performance_1y", sp.REFRESHABLE)

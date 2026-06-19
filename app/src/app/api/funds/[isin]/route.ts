@@ -127,6 +127,7 @@ export async function GET(
     region_exposure: (fund as any).region_exposure ?? null,
     category: (fund as any).category ?? null,
     currency: fund.currency,
+    price_per_share: (fund as any).price_per_share ?? null,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
     hedged: (fund as any).hedged ?? null,
