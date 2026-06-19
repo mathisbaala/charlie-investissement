@@ -36,10 +36,15 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
+import requests
+from parsel import Selector
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, log_run  # noqa: E402
+
+# Champs « métriques » réécrits en mode --refresh (changent dans le temps) ; les
+# autres (identité : SGP, catégorie, date de création, SRI) restent fill-only.
+REFRESHABLE = {"performance_1y", "performance_5y", "ongoing_charges", "aum_eur"}
 
 SITEMAP_URL = "https://www.primaliance.com/products/sitemap.xml"
 HEADERS = {
@@ -99,7 +104,7 @@ def parse_capitalisation(text: str) -> int | None:
     try:
         val = float(raw)
         if 0.1 <= val <= 200_000:
-            return int(val * 1_000_000)
+            return round(val * 1_000_000)  # round, pas int : évite 1051,87→…9999
     except ValueError:
         pass
     return None
@@ -123,75 +128,77 @@ def extract_isin_from_url(url: str) -> str | None:
     return None
 
 
-def _css_text(page, selector: str) -> str | None:
+def _css_text(sel: Selector, selector: str) -> str | None:
     """Extrait le texte du premier élément CSS trouvé."""
-    els = page.css(selector)
+    els = sel.css(selector)
     if not els:
         return None
-    v = str(els[0].css("::text").get() or els[0].text or "").strip()
+    v = (els[0].css("::text").get() or "").strip()
     return v if v else None
 
 
-def fetch_sitemap_urls(sess: FetcherSession) -> list[str]:
+def _jsonld_nodes(sel: Selector) -> list:
+    """Tous les nœuds JSON-LD de la page (aplati @graph)."""
+    out = []
+    for raw in sel.css('script[type="application/ld+json"]::text').getall():
+        try:
+            data = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(data, dict):
+            out.extend(data.get("@graph", [data]))
+        elif isinstance(data, list):
+            out.extend(data)
+    return out
+
+
+def fetch_sitemap_urls(sess: requests.Session) -> list[str]:
     """Récupère toutes les URLs SCPI/OPCI/SCI depuis le sitemap Primaliance."""
-    page = sess.get(SITEMAP_URL, stealthy_headers=True, timeout=TIMEOUT)
-    if page.status != 200 or not page.body:
-        raise RuntimeError(f"Sitemap HTTP {page.status}")
-    urls = re.findall(r"<loc>([^<]+)</loc>", page.body.decode("utf-8"))
+    r = sess.get(SITEMAP_URL, headers=HEADERS, timeout=TIMEOUT)
+    if r.status_code != 200 or not r.text:
+        raise RuntimeError(f"Sitemap HTTP {r.status_code}")
+    urls = re.findall(r"<loc>([^<]+)</loc>", r.text)
     return [u for u in urls if "/scpi-" in u or "/opci-" in u or "/sci-" in u]
 
 
-def parse_scpi_page(sess: FetcherSession, url: str) -> dict | None:
-    """Récupère une fiche Primaliance et extrait les champs via CSS selectors Scrapling."""
-    page = sess.get(url, stealthy_headers=True, timeout=TIMEOUT)
-    if page.status != 200 or not page.body:
+def parse_scpi_page(sess: requests.Session, url: str) -> dict | None:
+    """Récupère une fiche Primaliance et extrait les champs via CSS selectors (parsel)."""
+    r = sess.get(url, headers=HEADERS, timeout=TIMEOUT)
+    if r.status_code != 200 or not r.text:
         return None
+    html_text = r.text
+    page = Selector(text=html_text)
+    nodes = _jsonld_nodes(page)
 
     # 1) Nom canonique depuis le JSON-LD Product
     name = None
-    for tag in page.css('script[type="application/ld+json"]'):
-        try:
-            data = json.loads(str(tag.text or ""))
-        except (json.JSONDecodeError, ValueError):
-            continue
-        nodes = data.get("@graph", [data]) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        for node in nodes:
-            if isinstance(node, dict) and node.get("@type") == "Product":
-                name = node.get("name")
-                break
-        if name:
+    for node in nodes:
+        if isinstance(node, dict) and node.get("@type") == "Product":
+            name = node.get("name")
             break
 
     # Fallback : h1
     if not name:
-        h1_els = page.css("h1")
-        if h1_els:
-            name = str(h1_els[0].text or "").strip()
+        name = _css_text(page, "h1")
 
     if not name:
         return None
 
     # 1b) Société de gestion depuis JSON-LD (brand / manufacturer)
     mgmt_co = None
-    for tag in page.css('script[type="application/ld+json"]'):
-        try:
-            data = json.loads(str(tag.text or ""))
-        except (json.JSONDecodeError, ValueError):
+    for node in nodes:
+        if not isinstance(node, dict):
             continue
-        nodes = data.get("@graph", [data]) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            for key in ("brand", "manufacturer", "seller", "provider"):
-                v = node.get(key)
-                if isinstance(v, dict):
-                    mgmt_co = v.get("name")
-                elif isinstance(v, str):
-                    mgmt_co = v
-                if mgmt_co:
-                    break
+        for key in ("brand", "manufacturer", "seller", "provider"):
+            v = node.get(key)
+            if isinstance(v, dict):
+                mgmt_co = v.get("name")
+            elif isinstance(v, str):
+                mgmt_co = v
             if mgmt_co:
                 break
+        if mgmt_co:
+            break
 
     # 2) Métriques via CSS selectors directs (confirmed selectors)
     result: dict = {"name": name.strip(), "url": url}
@@ -237,10 +244,8 @@ def parse_scpi_page(sess: FetcherSession, url: str) -> dict | None:
     if tof is not None:
         result["tof"] = tof
 
-    # HTML brut pour les patterns textuels (SRI, catégorie)
-    html_text = page.body.decode("utf-8") if page.body else ""
-
-    # SRI — "Indicateur de risque X/7" (pas de CSS class dédiée)
+    # SRI — "Indicateur de risque X/7" (pas de CSS class dédiée) ; patterns
+    # textuels sur le HTML brut (html_text défini en tête de fonction).
     sri_m = re.search(
         r'Indicateur de risque\s*</div>\s*<div[^>]*>\s*([1-7])\s*/\s*7',
         html_text, re.IGNORECASE
@@ -251,7 +256,7 @@ def parse_scpi_page(sess: FetcherSession, url: str) -> dict | None:
     # Société de gestion : lien /societes-de-gestion/{slug}
     mgmt_els = page.css('a[href*="/societes-de-gestion/"]')
     if mgmt_els:
-        v = str(mgmt_els[0].text or "").strip()
+        v = (mgmt_els[0].css("::text").get() or "").strip()
         if v and len(v) > 1:
             result["management_company"] = v
     if "management_company" not in result and mgmt_co:
@@ -308,17 +313,19 @@ def find_match(db_name: str, prima_index: dict[str, dict]) -> dict | None:
 
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 
-def run(apply: bool, limit: int | None = None):
+def run(apply: bool, limit: int | None = None, refresh: bool = False):
     print("=" * 70)
     print("  SCPI Primaliance Enricher — TDVM/p5y/TER via primaliance.com")
     print("=" * 70)
-    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}")
+    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}"
+          + ("  [REFRESH : réécrit TD/TRI/frais/encours]" if refresh
+             else "  [fill-only : ne remplit que les trous]"))
     print()
 
     started = datetime.now(timezone.utc)
     client = get_client()
 
-    sess = FetcherSession(impersonate="chrome").__enter__()
+    sess = requests.Session()
 
     # 1. Charger sitemap
     print("  [1/3] Téléchargement du sitemap Primaliance...")
@@ -404,25 +411,25 @@ def run(apply: bool, limit: int | None = None):
         found += 1
         update: dict = {}
 
-        if match.get("taux_distribution") is not None and fund.get("performance_1y") is None:
-            update["performance_1y"] = match["taux_distribution"]
-            field_counts["p1y"] += 1
+        def _take(field: str, val, count_key: str) -> None:
+            """Écrit `val` dans `field` : champ métrique + refresh → réécrit si la
+            valeur change ; sinon fill-only (seulement si NULL en base)."""
+            if val is None:
+                return
+            if refresh and field in REFRESHABLE:
+                if fund.get(field) != val:
+                    update[field] = val
+                    field_counts[count_key] += 1
+            elif fund.get(field) is None:
+                update[field] = val
+                field_counts[count_key] += 1
 
-        if match.get("tri_5ans") is not None and fund.get("performance_5y") is None:
-            update["performance_5y"] = match["tri_5ans"]
-            field_counts["p5y"] += 1
-
-        if (
-            match.get("frais_gestion") is not None
-            and fund.get("ongoing_charges") is None
-            and fund.get("ter") is None
-        ):
-            update["ongoing_charges"] = match["frais_gestion"]
-            field_counts["ongoing_charges"] += 1
-
-        if match.get("capitalisation_eur") is not None and fund.get("aum_eur") is None:
-            update["aum_eur"] = match["capitalisation_eur"]
-            field_counts["aum_eur"] += 1
+        _take("performance_1y", match.get("taux_distribution"), "p1y")
+        _take("performance_5y", match.get("tri_5ans"), "p5y")
+        # ongoing_charges : fill-only si un TER existe déjà (ne pas dédoubler la source)
+        if match.get("frais_gestion") is not None and fund.get("ter") is None:
+            _take("ongoing_charges", match["frais_gestion"], "ongoing_charges")
+        _take("aum_eur", match.get("capitalisation_eur"), "aum_eur")
 
         if match.get("year_created") and not fund.get("inception_date"):
             update["inception_date"] = f"{match['year_created']}-01-01"
@@ -488,5 +495,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SCPI Primaliance Enricher")
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     parser.add_argument("--limit", type=int, default=None, help="Limiter le nombre de pages scrapées (debug)")
+    parser.add_argument("--refresh", action="store_true",
+                        help="Réécrire les métriques (TD/TRI/frais/encours) même si déjà "
+                             "remplies — refresh trimestriel. Sans : fill-only.")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit)
+    run(apply=args.apply, limit=args.limit, refresh=args.refresh)
