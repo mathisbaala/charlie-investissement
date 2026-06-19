@@ -32,7 +32,16 @@ Retourne UNIQUEMENT un objet JSON valide avec les champs suivants (null si non t
   "benchmark": string | null,
   "currency": string | null,
   "domicile": string | null,
-  "inception_date": string | null  // format ISO AAAA-MM-JJ
+  "inception_date": string | null,  // format ISO AAAA-MM-JJ
+  "transaction_costs": number | null,  // coûts de transaction annuels en % (ex: 0.15)
+  "total_costs": number | null,  // coûts totaux annuels en % (réduction de rendement / RIY) si indiqué
+  "performance_scenarios": [  // tableau des scénarios de performance du KID (null si absents)
+    {
+      "scenario": "stress" | "defavorable" | "intermediaire" | "favorable",
+      "return_pct": number | null,  // rendement annuel moyen en % sur la durée recommandée
+      "final_amount": number | null  // montant récupéré en € pour 10 000 € investis (durée recommandée)
+    }
+  ] | null
 }
 
 Règles :
@@ -44,6 +53,14 @@ Règles :
 - key_risks : liste des principaux risques mentionnés (max 5, concis)
 - inception_date : date de création/lancement au format ISO AAAA-MM-JJ. Les DICI français
   écrivent les dates en JJ/MM/AAAA : convertir impérativement (ex: "07/11/2019" → "2019-11-07").
+- performance_scenarios : extraire le tableau « Scénarios de performance » du KID/PRIIPs.
+  Il contient en général 4 scénarios (Tensions/Stress, Défavorable, Intermédiaire/Modéré,
+  Favorable). Pour CHAQUE scénario, à la DURÉE DE DÉTENTION RECOMMANDÉE, extraire le
+  rendement annuel moyen (return_pct, en %) et/ou le montant final récupéré (final_amount, en €,
+  base d'investissement de 10 000 €). Mapper les libellés : "Tensions"/"Stress" → "stress",
+  "Défavorable" → "defavorable", "Intermédiaire"/"Modéré"/"Central" → "intermediaire",
+  "Favorable" → "favorable". Si le tableau est absent, mettre null.
+- transaction_costs / total_costs : extraire du tableau des coûts si présents (en % annuel).
 - Répondre en JSON pur, sans markdown, sans commentaires`;
 
 // Retrouve en base le fonds correspondant au DIC analysé.
@@ -117,7 +134,19 @@ export async function POST(req: NextRequest) {
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const fiche = JSON.parse(cleaned);
+    // Échec de parsing = le modèle n'a pas su lire le document (PDF illisible,
+    // hors-format, non DICI). On distingue ce cas (422, faute côté document) des
+    // pannes du service IA (catch global, 503) — sinon une clé invalide ou un
+    // quota dépassé s'affiche à tort « DICI invalide » côté utilisateur.
+    let fiche;
+    try {
+      fiche = JSON.parse(cleaned);
+    } catch {
+      return NextResponse.json(
+        { error: "Document illisible", code: "unreadable" },
+        { status: 422 },
+      );
+    }
 
     // Reliure DIC → fonds : on tente de retrouver le fonds correspondant en base
     // pour pouvoir ouvrir directement sa fiche produit complète. ISIN d'abord
@@ -133,7 +162,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...fiche, matched_isin: match?.isin ?? null, matched_name: match?.name ?? null });
   } catch (err) {
-    console.error("DICI parse error:", err);
-    return NextResponse.json({ error: "Erreur d'analyse du document" }, { status: 500 });
+    // Toute autre erreur ici = panne en amont (appel Claude : clé invalide,
+    // quota, indisponibilité réseau). Ce n'est PAS la faute du document : on le
+    // signale par un 503 + code dédié pour que l'UI affiche un message adapté.
+    const status = err instanceof Anthropic.APIError ? err.status : undefined;
+    console.error("DICI parse error:", status ?? "", err);
+    return NextResponse.json(
+      { error: "Service d'analyse indisponible", code: "ai_unavailable" },
+      { status: 503 },
+    );
   }
 }
