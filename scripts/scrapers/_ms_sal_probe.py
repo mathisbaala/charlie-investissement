@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""_ms_sal_probe.py — TEMPORAIRE : sonde les endpoints SAL Morningstar EMEA.
+"""_ms_sal_probe.py — TEMPORAIRE : sonde l'accès aux ventilations Morningstar.
 
-But : déterminer si notre token oauth entitlé (token/oauth, le MÊME que le
-screener ecint qui marche) donne accès aux endpoints sal/sal-service
-portfolio/* (région / secteur / holdings) — la VRAIE source de ventilation
-(découverte via fizban99/pp-portfolio-classifier), par opposition à
-ecint/v1/securities/{id}?viewId=portfolio qui renvoie 404.
+Verdict itération 1 : sal/sal-service (région/secteur/holdings) → 401 avec notre
+token oauth (entitlé ecint seulement). Itération 2 : on teste ce que l'endpoint
+ENTITLÉ (ecint screener) peut renvoyer comme datapoints de ventilation, + les
+variantes ecint/securities (idtype=isin / responseViewFormat / viewId multiples).
 
 Dump brut, n'écrit rien. À supprimer après validation.
 """
@@ -13,21 +12,37 @@ import os, sys, json, base64, requests
 
 OAUTH_URL = "https://www.emea-api.morningstar.com/token/oauth"
 SCREENER  = "https://www.emea-api.morningstar.com/ecint/v1/screener"
-SAL_BASE  = "https://www.emea-api.morningstar.com/sal/sal-service"
+SECURITIES = "https://www.emea-api.morningstar.com/ecint/v1/securities/{sec}"
 UNIVERSES = ["FOFRA$$ALL", "FEEUR$$ALL"]
 
-# Endpoints SAL portfolio (pp-portfolio-classifier) ; {type}=fund|etf, {sec}=secId
-SAL_PATHS = {
-    "Sector":  "{type}/portfolio/v2/sector/{sec}/data",
-    "Holding": "{type}/portfolio/holding/v2/{sec}/data",
-    "Region":  "{type}/portfolio/regionalSector/{sec}/data",
-    "Country": "{type}/portfolio/regionalSectorIncludeCountries/{sec}/data",
-}
-SAL_PARAMS = {
-    "languageId": "en", "locale": "en", "clientId": "MDC_intl",
-    "benchmarkId": "category", "version": "3.60.0",
-    "premiumNum": "10", "freeNum": "10",
-}
+# Candidats datapoints de ventilation à demander au screener (pipe-séparés).
+# Le screener ignore/omet silencieusement les inconnus → on inspecte les clés
+# RÉELLEMENT présentes dans la 1re row.
+CANDIDATE_DATAPOINTS = [
+    "SecId", "ISIN", "Name",
+    # régional / géo
+    "RegionGlobalStockSector", "EquityRegionDeveloped", "EquityRegionEmerging",
+    "PortfolioRegion", "RegionalExposure", "GlobalAssetRegion",
+    "AmericasNetAssets", "GreaterEuropeNetAssets", "GreaterAsiaNetAssets",
+    "NorthAmericaNetAssets", "UnitedKingdomNetAssets", "JapanNetAssets",
+    "AssetAllocEquity", "AssetAllocBond", "AssetAllocCash",
+    # secteur
+    "GlobalStockSector", "EquitySuperSectorCyclical", "EquitySuperSectorDefensive",
+    "EquitySuperSectorSensitive", "BasicMaterials", "Technology", "Healthcare",
+    "FinancialServices",
+    # holdings
+    "Top10Holdings", "NumberOfHoldings", "PortfolioHoldings", "HoldingDetail",
+    "Top10HoldingsTotalWeighting", "PortfolioDate",
+]
+
+# Variantes securities/{id} à tester (params, viewId).
+SEC_VARIANTS = [
+    {"viewId": "portfolio", "languageId": "fr-FR", "currencyId": "EUR", "outputType": "json"},
+    {"viewId": "snapshot",  "languageId": "fr-FR", "currencyId": "EUR", "outputType": "json"},
+    {"viewId": "regionExposure", "outputType": "json"},
+    {"viewId": "sectorExposure", "outputType": "json"},
+    {"viewId": "Portfolio", "responseViewFormat": "json"},
+]
 
 
 def creds_b64():
@@ -46,55 +61,65 @@ def get_token():
     return r.json()["access_token"]
 
 
+def H(token):
+    return {"Authorization": f"Bearer {token}", "Accept": "application/json",
+            "Referer": "https://www.linxea.com/"}
+
+
 def resolve_sec_id(isin, token):
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json",
-               "Referer": "https://www.linxea.com/"}
     for u in UNIVERSES:
         r = requests.get(SCREENER, params={
             "languageId": "fr-FR", "currencyId": "EUR", "universeIds": u,
-            "outputType": "json", "securityDataPoints": "SecId|ISIN|Name|InvestmentType",
+            "outputType": "json", "securityDataPoints": "SecId|ISIN|Name",
             "term": isin, "pageSize": 1, "page": 1,
-        }, headers=headers, timeout=30)
+        }, headers=H(token), timeout=30)
         if r.status_code != 200:
             continue
         for row in (r.json() or {}).get("rows", []):
             sec = row.get("SecId") or row.get("secId")
             if sec:
-                return sec, row.get("InvestmentType") or row.get("Name")
-    return None, None
+                return sec
+    return None
 
 
-def probe_sal(isin, token):
-    sec, meta = resolve_sec_id(isin, token)
-    print(f"\n{'='*70}\n{isin} → secId={sec}  (meta={meta})")
-    if not sec:
-        print("  pas de secId, skip")
+def probe_screener_datapoints(isin, token):
+    print(f"\n### SCREENER datapoints pour {isin}")
+    for u in UNIVERSES:
+        r = requests.get(SCREENER, params={
+            "languageId": "fr-FR", "currencyId": "EUR", "universeIds": u,
+            "outputType": "json",
+            "securityDataPoints": "|".join(CANDIDATE_DATAPOINTS),
+            "term": isin, "pageSize": 1, "page": 1,
+        }, headers=H(token), timeout=30)
+        print(f"  [{u}] HTTP {r.status_code}")
+        if r.status_code != 200:
+            print(f"     body[:300]={r.text[:300]}")
+            continue
+        rows = (r.json() or {}).get("rows", [])
+        if not rows:
+            print("     (0 rows)")
+            continue
+        row = rows[0]
+        print(f"     ROW KEYS ({len(row)}): {sorted(row.keys())}")
+        print(f"     ROW[:1800]={json.dumps(row, ensure_ascii=False)[:1800]}")
         return
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json",
-               "Referer": "https://www.linxea.com/"}
-    for typ in ("fund", "etf"):
-        for label, tmpl in SAL_PATHS.items():
-            path = tmpl.format(type=typ, sec=sec)
-            url = f"{SAL_BASE}/{path}"
-            params = dict(SAL_PARAMS)
-            try:
-                r = requests.get(url, params=params, headers=headers, timeout=30)
-            except Exception as e:
-                print(f"  [{typ}/{label}] EXC {e}")
-                continue
-            ct = r.headers.get("content-type", "")
-            print(f"  [{typ}/{label}] HTTP {r.status_code} ct={ct} len={len(r.content)}")
-            if r.status_code == 200 and "json" in ct:
-                try:
-                    body = r.json()
-                except Exception:
-                    print(f"      (non-json body: {r.text[:200]})")
-                    continue
-                dump = json.dumps(body, ensure_ascii=False)
-                print(f"      KEYS={sorted(body.keys()) if isinstance(body, dict) else type(body)}")
-                print(f"      BODY[:1500]={dump[:1500]}")
-            elif r.status_code != 404 and r.content:
-                print(f"      BODY[:300]={r.text[:300]}")
+
+
+def probe_securities_variants(isin, token):
+    sec = resolve_sec_id(isin, token)
+    print(f"\n### SECURITIES variants pour {isin} (secId={sec})")
+    if not sec:
+        return
+    for v in SEC_VARIANTS:
+        r = requests.get(SECURITIES.format(sec=sec), params=v, headers=H(token), timeout=30)
+        ct = r.headers.get("content-type", "")
+        print(f"  {v} → HTTP {r.status_code} ct={ct} len={len(r.content)}")
+        if r.status_code == 200 and "json" in ct and r.content:
+            body = r.json()
+            top = body[0] if isinstance(body, list) and body else body
+            if isinstance(top, dict):
+                print(f"     KEYS={sorted(top.keys())}")
+            print(f"     BODY[:1200]={json.dumps(body, ensure_ascii=False)[:1200]}")
 
 
 def main():
@@ -102,7 +127,9 @@ def main():
     token = get_token()
     print(f"token ok (len={len(token)})")
     for isin in isins:
-        probe_sal(isin, token)
+        print(f"\n{'='*70}\n{isin}")
+        probe_screener_datapoints(isin, token)
+        probe_securities_variants(isin, token)
 
 
 if __name__ == "__main__":
