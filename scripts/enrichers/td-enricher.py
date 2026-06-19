@@ -73,6 +73,11 @@ CLAMP_MAX = 9999.9999  # plafond numeric(8,4)
 #     légitimement plus large → ±30 %/an.
 MAX_ALPHA_EXACT    = 5.0
 MAX_ALPHA_CATEGORY = 30.0
+# Obligataire/monétaire : l'alpha de catégorie légitime est BIEN plus serré que
+# pour des actions. Au-delà de ±10 %/an, soit le proxy est trop éloigné, soit la
+# série NAV est corrompue (perfs obligataires impossibles, ex. « green bond » à
+# +78 %/3 ans) → on n'affiche pas d'alpha trompeur.
+MAX_ALPHA_BOND     = 10.0
 
 # Produits NON 1× (levier/inverse) : jamais comparables à un indice simple.
 EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
@@ -103,8 +108,14 @@ NON_VANILLA_KW = [
 # avec un fonds action (« Crédit Agricole Actions » est 'action', jamais ici).
 # Le high yield/haut rendement est rangé côté crédit (plus proche de l'IG corpo
 # que du souverain — faute d'indice HY dédié).
-BOND_CORP_KW = ["corporate", "corp ", "crédit", "credit", "investment grade",
-                "high yield", "haut rendement"]
+# Exposition hybride / liée aux actions : aucun proxy obligataire pertinent
+# (convertibles suivent les actions, CoCo/AT1/subordonnées = risque action-like).
+# → pas de benchmark (comme le levier). Restreint aux fonds 'obligation'.
+BOND_HYBRID_KW = ["convertible", "coco", "at1", "contingent", "subordinated",
+                  "subordonn", "hybrid", "hybride"]
+BOND_HY_KW   = ["high yield", "high-yield", "haut rendement", "speculative grade"]
+BOND_EM_KW   = ["emerging", "émergent", "emergent", "frontier"]
+BOND_CORP_KW = ["corporate", "corp ", "crédit", "credit", "investment grade"]
 BOND_GOVT_KW = ["govt", "government", "gouvernement", "souverain", "sovereign",
                 "état ", "treasury", "trésor", "gilt", "bund", "oat "]
 
@@ -200,11 +211,25 @@ def map_index(fund: dict, catalog: dict[str, dict],
     #     règle de région (qui ne voit pas la sous-classe). Un fonds euro
     #     « corporate »/« crédit » est comparé à l'IG euro (et non au souverain,
     #     qui gonflerait l'alpha de la prime de crédit). Restreint à 'obligation'.
-    if acb == "obligation" and ("eur_corp" in catalog or "eur_govt" in catalog):
+    if acb == "obligation":
         is_euro = reg in ("europe", "france", "eurozone", "germany")
+        # a) hybrides (convertibles / CoCo / AT1 / subordonnées) → pas de benchmark.
+        if any(k in hay for k in BOND_HYBRID_KW):
+            return None, False
+        # b) high yield → indice HY euro dédié (sinon crédit IG).
+        if any(k in hay for k in BOND_HY_KW):
+            if "eur_hy" in catalog:
+                return "eur_hy", True
+            return ("eur_corp" if is_euro and "eur_corp" in catalog else "global_agg"), True
+        # c) dette émergente (région ou nom) → indice EM dédié.
+        if "em_debt" in catalog and (reg == "emerging"
+                                     or any(k in hay for k in BOND_EM_KW)):
+            return "em_debt", True
+        # d) corporate / crédit IG.
         if any(k in hay for k in BOND_CORP_KW):
             return ("eur_corp" if is_euro and "eur_corp" in catalog
                     else "global_agg"), True
+        # e) souverain euro.
         if is_euro and "eur_govt" in catalog and any(k in hay for k in BOND_GOVT_KW):
             return "eur_govt", True
 
@@ -408,8 +433,12 @@ def refresh_indices(apply: bool) -> None:
 
     def _yahoo_rows(code: str, ticker: str) -> list[dict]:
         import yfinance as yf
+        # auto_adjust=True → cours ajusté = rendement TOTAL (dividendes réinvestis).
+        # Inchangé pour les tickers d'indice TR (^SP500TR…) et les ETF accumulants
+        # (sans dividende) ; indispensable pour utiliser un ETF DISTRIBUANT comme
+        # proxy TR (sinon les coupons manquants sous-estimeraient l'indice).
         df = yf.download(ticker, start=start_iso, interval="1d",
-                         progress=False, auto_adjust=False)
+                         progress=False, auto_adjust=True)
         if df is None or df.empty:
             return []
         if getattr(df.columns, "nlevels", 1) > 1:
@@ -577,16 +606,28 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if len(fp) < MIN_POINTS_1Y:
             continue
 
-        max_alpha = MAX_ALPHA_CATEGORY if is_category else MAX_ALPHA_EXACT
+        if not is_category:
+            max_alpha = MAX_ALPHA_EXACT
+        elif (fund.get("asset_class_broad") or "").lower() in ("obligation", "monetaire"):
+            max_alpha = MAX_ALPHA_BOND
+        else:
+            max_alpha = MAX_ALPHA_CATEGORY
         b1, a1 = metrics_for_window(fp, idx, DATE_1Y, MIN_POINTS_1Y, MIN_SPAN_1Y, False, max_alpha)
         b3, a3 = metrics_for_window(fp, idx, DATE_3Y, MIN_POINTS_3Y, MIN_SPAN_3Y, True, max_alpha)
         b5, a5 = metrics_for_window(fp, idx, DATE_5Y, MIN_POINTS_5Y, MIN_SPAN_5Y, True, max_alpha)
         if a1 is None and a3 is None and a5 is None:
+            # Mappé + assez de données, mais AUCUNE fenêtre valide (toutes rejetées
+            # par le plafond / hors borne) → on EFFACE un éventuel alpha ancien.
+            # Sans ça, une valeur aberrante déjà en base persisterait (les fenêtres
+            # None étaient simplement omises de l'update).
+            record_clear(fund)
             continue
 
-        # Non-écrasement par None (gotcha ft-metrics-wipe) : on n'inclut une
-        # colonne de fenêtre QUE si elle est calculée. L'identité du benchmark
-        # est toujours écrite dès qu'au moins une fenêtre existe.
+        # td-enricher est le SEUL writer des colonnes benchmark/alpha : on écrit les
+        # 3 fenêtres EXPLICITEMENT (valeur ou NULL), pour qu'une fenêtre devenue
+        # invalide (rejetée par le plafond) EFFACE l'ancienne valeur au lieu de la
+        # laisser traîner. (Le gotcha « non-écrasement par None » ne s'applique pas
+        # ici : aucune autre source n'alimente alpha_*/benchmark_perf_*.)
         row = {
             "isin": fund["isin"],
             "benchmark_index": meta["label"],
@@ -594,10 +635,10 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             "benchmark_variant": meta["variant"],
             "benchmark_is_category": is_category,
             "benchmark_computed_at": now_iso(),
+            "alpha_1y": a1, "benchmark_perf_1y": b1,
+            "alpha_3y": a3, "benchmark_perf_3y": b3,
+            "alpha_5y": a5, "benchmark_perf_5y": b5,
         }
-        if a1 is not None: row["alpha_1y"] = a1; row["benchmark_perf_1y"] = b1
-        if a3 is not None: row["alpha_3y"] = a3; row["benchmark_perf_3y"] = b3
-        if a5 is not None: row["alpha_5y"] = a5; row["benchmark_perf_5y"] = b5
         updates.append(row)
         computed += 1
         if is_category:
