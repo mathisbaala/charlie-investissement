@@ -164,16 +164,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Univers → product_type / asset_class
   const productTypes = universe.filter(u =>
-    ["opcvm","etf","scpi","fps","fonds_euros","action","crypto"].includes(u)
+    ["opcvm","etf","scpi","fps","fonds_euros","action","crypto","structuré"].includes(u)
   );
   if (productTypes.length) {
     q = q.in("product_type", productTypes);
   } else {
     // Défaut CGP : univers collectif. Restent en opt-in via le filtre univers :
-    // les titres vifs (action), crypto, et les FPS (Fonds Professionnels Spécialisés,
-    // réservés aux pros et sans métriques retail — 1 033 coquilles vides qui pollueraient
-    // le tri completeness). Une recherche large remonte ainsi des fonds exploitables.
-    q = (q as any).not("product_type", "in", "(action,crypto,fps)");
+    // les titres vifs (action), crypto, les FPS (Fonds Professionnels Spécialisés,
+    // réservés aux pros et sans métriques retail), et les produits structurés
+    // (autocalls/EMTN/fonds à formule — pas de VL retail exploitable). Une
+    // recherche large remonte ainsi des fonds exploitables, pas des coquilles.
+    q = (q as any).not("product_type", "in", "(action,crypto,fps,structuré)");
   }
 
   // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
