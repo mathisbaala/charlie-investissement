@@ -45,7 +45,7 @@ def main():
     ft_isins, after = set(), ""
     while True:
         rows = (client.table("investissement_fund_prices").select("isin")
-                .eq("source", "financial-times")
+                .eq("source_id", 1)  # 1 = financial-times (cf. _SOURCE_ID / lookup)
                 .gt("isin", after).order("isin").limit(1000)
                 .execute().data or [])
         if not rows:
