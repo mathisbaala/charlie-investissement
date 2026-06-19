@@ -310,6 +310,7 @@ export type ParsedFilters = {
   free_text?: string;
   has_kid?: boolean;
   beats_benchmark?: boolean;  // « bat son indice » : alpha 3 ans > 0
+  labels?: string[];          // labels officiels durabilité (isr/greenfin/finansol)
   chips?: string[];
 };
 
@@ -370,6 +371,11 @@ export type FundDetailHF = {
   tracking_diff_1y: number | null;
   tracking_diff_3y: number | null;
   tracking_diff_5y: number | null;
+  // Durabilité / DDA (migration 20260619140000) : SFDR (sfdr_article) + labels
+  // déjà présents ; ces 3 catégories MiFID sont enrichies en fond, null sinon.
+  taxonomy_alignment_pct: number | null;
+  sustainable_investment_pct: number | null;
+  pai_considered: boolean | null;
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;

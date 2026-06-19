@@ -3,7 +3,7 @@
 import type { ParsedFilters } from "./types";
 
 export type RiskProfile = "prudent" | "modere" | "equilibre" | "dynamique" | "offensif";
-export type EsgPref = "indifferent" | "art8" | "art9";
+export type EsgPref = "indifferent" | "art8" | "art9" | "labelise";
 export type Objectif = "capitalisation" | "revenus" | "retraite" | "transmission" | "defiscalisation";
 export type Tmi = "0" | "11" | "30" | "41" | "45";
 export type PerteMax = "5" | "10" | "20" | "30" | "illimitee";
@@ -131,6 +131,7 @@ export function serializeForNlp(p: RichClientProfile): string {
                         parts.push(`enveloppes disponibles: ${p.envelopes.join(", ")}`);
   if (p.esg === "art8") parts.push("ESG: SFDR article 8 minimum");
   if (p.esg === "art9") parts.push("ESG: SFDR article 9 uniquement");
+  if (p.esg === "labelise") parts.push("ESG: fonds labellisé (ISR/Greenfin/Finansol)");
   if (p.exclusions.length)
                         parts.push(`exclusions sectorielles: ${p.exclusions.join(", ")}`);
   if (p.tmi)            parts.push(`TMI ${p.tmi}%`);
@@ -197,6 +198,8 @@ export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
 
   if (p.esg === "art8")      f.sfdr = [8, 9];
   else if (p.esg === "art9") f.sfdr = [9];
+  // « Labellisé » : fonds portant un label officiel de durabilité (recueil DDA).
+  else if (p.esg === "labelise") f.labels = ["isr", "greenfin", "finansol"];
 
   if (p.perte_max && p.perte_max !== "illimitee") {
     const dd = PERTE_MAX_TO_PCT[p.perte_max];

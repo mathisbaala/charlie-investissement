@@ -74,6 +74,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const exclRegions  = arr(p(sp, "exclude_region"));
   const mgmtStyles   = arr(p(sp, "management_style"));
   const currency     = arr(p(sp, "currency"));
+  const esgLabels    = arr(p(sp, "labels"));  // labels officiels durabilité (isr/greenfin/finansol)
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
   const gestIn  = arr(p(sp, "gestionnaire_in"));
   const search  = p(sp, "search")?.trim() ?? "";
@@ -210,6 +211,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // « Bat son indice » : surperformance nette vs benchmark sur 3 ans (alpha > 0).
   // Implique alpha_3y non null (les fonds sans benchmark sont écartés).
   if (beatsBenchmark) q = q.gt("alpha_3y", 0);
+  // Labels officiels durabilité (DDA) : fonds portant AU MOINS UN des labels
+  // demandés. labels est un jsonb array → contains (@>) ORé sur chaque label.
+  // Élément simple ["isr"] sans virgule interne → sûr dans la syntaxe or().
+  if (esgLabels.length)
+    q = (q as any).or(esgLabels.map((l) => `labels.cs.["${l}"]`).join(","));
 
     return q;
   };
@@ -388,6 +394,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     management_style: mgmtStyles, currency, manager_search: mgr,
     gestionnaire_in: gestIn, has_kid: hasKid || undefined,
     beats_benchmark: beatsBenchmark || undefined,
+    labels: esgLabels.length ? esgLabels : undefined,
   });
   if (page === 1 || filters || search) {
     logEvent(req, {
