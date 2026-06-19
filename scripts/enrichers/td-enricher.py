@@ -1,33 +1,43 @@
 #!/usr/bin/env python3
 """
-td-enricher.py — Tracking difference des ETF
+td-enricher.py — Benchmark + alpha vs indice (ex « tracking difference »)
 ================================================================================
-Le TER ne mesure pas le coût réel d'un ETF. Ce script calcule la TRACKING
-DIFFERENCE (TD) : l'écart de performance annualisé entre un ETF et son indice
-de référence total return, sur des fenêtres alignées (1Y / 3Y / 5Y).
+Affecte un INDICE DE RÉFÉRENCE à chaque fonds et calcule sa performance vs cet
+indice — l'écart fonds − indice, sur des fenêtres alignées (1Y / 3Y / 5Y) :
 
-    TD = perf ETF − perf indice TR   (négatif = sous-performance / coût implicite)
+    alpha = perf fonds − perf indice TR
+            (négatif = sous-performance ; pour un ETF passif = coût de réplication)
+
+Généralisé depuis la version ETF-only :
+  - Le CATALOGUE d'indices et les RÈGLES d'affectation vivent désormais en base
+    (investissement_index_catalog / investissement_benchmark_rules), pas dans le
+    code → éditables en SQL.
+  - On affecte un benchmark à TOUT fonds primaire (plus seulement les ETF) :
+      • match EXACT par mot-clé d'indice (ETF vanille) → benchmark_is_category=false
+      • sinon match par CATÉGORIE/RÉGION (fonds actif) → indice de catégorie,
+        benchmark_is_category=true (l'UI affiche « indice de catégorie »).
+  - On écrit benchmark_perf_{1,3,5}y (rendement indice, cumulé %) et
+    alpha_{1,3,5}y (1y cumulé, 3y/5y annualisé %), jamais en écrasant par None
+    (gotcha ft-metrics-wipe : un None ne remplace pas une valeur existante).
 
 Pipeline en deux temps :
-  1. --refresh-indices : récupère les séries des indices de référence (Yahoo)
-     dans investissement_index_prices.
-  2. (défaut) : pour chaque ETF mappé à un indice, lit ses VL
-     (investissement_fund_prices) + la série de l'indice, aligne sur les dates
-     communes, calcule la TD 1Y/3Y/5Y et écrit le résultat dans
-     investissement_funds (fill/recompute, jamais d'insert).
+  1. --refresh-indices : récupère les séries des indices du catalogue (Yahoo /
+     MSCI) dans investissement_index_prices.
+  2. (défaut) : pour chaque fonds mappé, lit ses VL (investissement_fund_prices)
+     + la série de l'indice, aligne sur les dates communes, calcule alpha +
+     benchmark_perf et écrit dans investissement_funds (fill/recompute, jamais
+     d'insert).
 
-Sources des indices de référence :
-   - Yahoo : S&P 500 (^SP500TR) et DAX (^GDAXI), seuls TR fiables en gratuit.
-   - MSCI (app2.msci.com) : indices NET total return officiels (World, EM, USA,
-     Europe, Japan), servis en EUR natif → pas de bruit FX pour les ETF EUR.
-   On STOCKE la variante employée (net / gross / price) dans benchmark_variant
-   pour rester transparent. Élargir INDEX_CATALOG au fil des sources.
+Sources des indices : Yahoo (S&P 500 ^SP500TR, DAX ^GDAXI, Nasdaq-100 ^XNDX) et
+MSCI net TR officiels (World, EM, USA, Europe, Japan), servis en EUR natif. La
+variante (net/gross/price) est stockée dans benchmark_variant pour transparence.
 
 Usage :
     python3 scripts/enrichers/td-enricher.py --refresh-indices [--apply]
     python3 scripts/enrichers/td-enricher.py [--apply] [--limit N] [--isin ISIN]
 
-Cron recommandé : mensuel, après ft-full-sweep + compute-metrics.
+Cron : compute (sans --refresh-indices) hebdo après compute-metrics ;
+       --refresh-indices mensuel.
 """
 
 import sys
@@ -53,123 +63,116 @@ MIN_SPAN_1Y = 300
 MIN_SPAN_3Y = 365 * 3 - 90
 MIN_SPAN_5Y = 365 * 5 - 120
 
-TD_MAX = 9999.9999  # plafond numeric(8,4)
+CLAMP_MAX = 9999.9999  # plafond numeric(8,4)
 
-# Borne de plausibilité : la TD d'un ETF répliquant un indice 1× est petite
-# (typiquement -2 % à +0,5 %/an). Au-delà de ±MAX_PLAUSIBLE_TD %, c'est un
-# artefact (série NAV éparse, devise erronée, produit non-vanille) et non une
-# vraie tracking difference → on n'écrit RIEN plutôt qu'un chiffre trompeur.
-MAX_PLAUSIBLE_TD = 5.0
+# Borne de plausibilité de l'alpha, au-delà de laquelle c'est un artefact (série
+# NAV éparse, devise erronée, mauvais appariement d'indice) plutôt qu'une vraie
+# surperformance → on n'écrit RIEN pour cette fenêtre.
+#   - exact (ETF vanille vs SON indice) : la TD est petite → ±5 %/an.
+#   - catégorie (fonds actif vs indice de catégorie) : l'alpha actif est
+#     légitimement plus large → ±30 %/an.
+MAX_ALPHA_EXACT    = 5.0
+MAX_ALPHA_CATEGORY = 30.0
 
-# Marqueurs de produits NON 1× (levier/inverse) : à ne jamais comparer à
-# l'indice simple. Détectés dans le nom/catégorie.
+# Produits NON 1× (levier/inverse) : jamais comparables à un indice simple.
 EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
               "short", "inverse", "bear", "ultra"]
 
-# Marqueurs de produits à exposition MODIFIÉE : ESG/SRI, facteurs (value,
-# momentum, quality, min vol…), sectoriels, ou classes d'actifs non-actions
-# captées par erreur via un mot générique (« emerging » d'un fonds obligataire).
-# Ces produits répliquent un indice DIFFÉRENT de l'indice parent cap-weighted
-# net → les comparer à ce dernier transforme un écart d'exposition en faux
-# « coût ». Conformément à la philosophie du module (sous-couvrir plutôt que
-# publier un chiffre trompeur), on ne mappe PAS quand un de ces termes apparaît.
+# Produits à exposition MODIFIÉE (ESG/facteur/sectoriel/obligataire capté par un
+# mot générique). Ils ne répliquent PAS l'indice parent cap-weighted → on refuse
+# le match EXACT (qui prétendrait le contraire). Ils restent éligibles au match
+# par catégorie (indice de catégorie, is_category=true), où l'écart d'exposition
+# fait justement partie de l'alpha mesuré.
 NON_VANILLA_KW = [
-    # exposition durable / éthique
     "esg", "sri", "sustainab", "socially", "ethical", "climat", "paris",
     "screen", "sociétal", "low carbon", "carbon",
-    # facteurs / smart beta
     "value", "momentum", "quality", "min vol", "minimum vol", "volatilit",
     "small cap", "small-cap", "mid cap", "equal weight", "equal-weight",
     "high dividend", "dividend", "buyback", "growth", "factor", "multifactor",
     "sector", " ex ", "ex-usa", "ex-uk", "ex-emu", "ex usa",
-    # secteurs GICS (un ETF « MSCI World Information Technology » réplique le
-    # secteur, pas l'indice parent — son nom ne contient pas le mot « sector »)
     "information technology", "health care", "healthcare", "financials",
     "consumer", "industrials", "materials", "utilities", "energy",
     "communication services", "real estate", "santé", "immobil",
-    # non-actions captées par un mot-clé générique
     "bond", "oblig", "govt", "gov ", "govies", "aggregate", "treasur",
     "corporate", "credit",
 ]
 
-# ─── Catalogue d'indices de référence ───────────────────────────────────────────
-# code interne → (libellé, ticker Yahoo, variante, mots-clés de détection).
-# `variant` ∈ {net, gross, price} : qualité de l'indice comme référence de coût.
-#   - net   : reinvestit les dividendes NETS de retenue à la source → référence idéale.
-#   - gross : dividendes BRUTS → surévalue légèrement l'indice (TD un peu pessimiste).
-#   - price : hors dividendes → INTERDIT pour la TD (voir garde plus bas).
-#
-# ⚠️ La TD n'a de sens QUE contre un indice TOTAL RETURN (dividendes réinvestis).
-# Contre un indice « price » (hors dividendes), la TD ressort faussement très
-# positive (≈ le rendement du dividende) — l'inverse d'une mesure de coût. On ne
-# garde donc QUE des indices net/gross issus d'une source TR fiable :
-#   - Yahoo : ^SP500TR (S&P 500 gross≈net, US sans retenue) et ^GDAXI (DAX,
-#     indice de PERFORMANCE = gross TR). Seuls indices TR fiables en gratuit
-#     sur Yahoo ; les variantes TR européennes y renvoient 404 / 1 point.
-#   - MSCI (app2.msci.com) : indices NET total return officiels (variant NETR)
-#     pour World / Emerging Markets / USA / Europe / Japan, servis en EUR natif.
-#     C'est la source net TR licenciée, en accès public — la meilleure référence
-#     de coût. Élargir via msci_code (cf. INDEX_CATALOG).
-# Restent non couverts faute de source TR gratuite : EURO STOXX 50, STOXX 600,
-# CAC 40, FTSE 100, Nasdaq 100 (faibles volumes). On reste conservateur :
-# mapping uniquement sur signal clair (mots-clés), jamais un indice approché.
-# ⚠️ DEVISE : l'indice est libellé dans UNE devise (`ccy`). Comparer un ETF
-# d'une AUTRE devise mesure le change, PAS le coût (un ETF S&P 500 en EUR vs
-# l'indice en USD ressort à ±15 % = mouvement EUR/USD). On ne calcule donc la TD
-# QUE si la devise de la part de l'ETF == la devise de l'indice.
-# `source` ∈ {yahoo, msci} : d'où provient la série.
-#   - yahoo : yf.download(ticker). Seuls S&P 500 (gross≈net, US) et DAX (gross)
-#     sont fiables en gratuit sur Yahoo (cf. note ci-dessus).
-#   - msci  : endpoint public app2.msci.com (getLevelDataForGraph). Fournit les
-#     indices NET total return officiels (variant NETR), par code MSCI, et —
-#     décisif — SERVIS DIRECTEMENT EN EUR (currency_symbol=EUR). Comme la quasi-
-#     totalité des ETF mappés sont en EUR, on lit l'indice en EUR natif et on
-#     ÉVITE toute conversion FX (donc le bruit de change). Les rares parts USD
-#     repassent par la conversion via change, comme pour les autres indices.
-INDEX_CATALOG: dict[str, dict] = {
-    "sp500": {"label": "S&P 500", "source": "yahoo", "ticker": "^SP500TR",
-              "variant": "gross", "ccy": "USD",
-              "kw": ["s&p 500", "sp 500", "s&p500", "sp500"]},
-    "dax":   {"label": "DAX", "source": "yahoo", "ticker": "^GDAXI",
-              "variant": "gross", "ccy": "EUR",
-              "kw": ["dax 40", " dax ", "dax index"]},
-    # ── Famille MSCI — indices NET total return, source officielle gratuite ──
-    "msci_world":  {"label": "MSCI World", "source": "msci", "msci_code": "990100",
-                    "variant": "net", "ccy": "EUR", "kw": ["msci world"]},
-    "msci_em":     {"label": "MSCI Emerging Markets", "source": "msci", "msci_code": "891800",
-                    "variant": "net", "ccy": "EUR",
-                    "kw": ["msci em ", "emerging", "émergent", "emergent"]},
-    "msci_usa":    {"label": "MSCI USA", "source": "msci", "msci_code": "984000",
-                    "variant": "net", "ccy": "EUR", "kw": ["msci usa"]},
-    "msci_europe": {"label": "MSCI Europe", "source": "msci", "msci_code": "990500",
-                    "variant": "net", "ccy": "EUR", "kw": ["msci europe"]},
-    "msci_japan":  {"label": "MSCI Japan", "source": "msci", "msci_code": "990400",
-                    "variant": "net", "ccy": "EUR", "kw": ["msci japan", "msci japon"]},
-}
-
-# Devises de parts d'ETF vers lesquelles on convertit les indices (via change),
-# pour pouvoir comparer un ETF EUR à un indice USD sans contaminer la TD par le FX.
+# Devises de parts vers lesquelles on convertit les indices (via change), pour
+# comparer un fonds EUR à un indice USD sans contaminer l'alpha par le FX.
 FX_TARGETS = ["EUR", "USD", "GBP", "CHF"]
 
+MSCI_ENDPOINT = ("https://app2.msci.com/products/service/index/indexmaster/"
+                 "getLevelDataForGraph")
+MSCI_VARIANT = {"net": "NETR", "gross": "GRTR", "price": "STRD"}
 
-def map_index(fund: dict) -> str | None:
-    """Détecte l'indice de référence d'un ETF via sa catégorie / son nom.
 
-    Conservateur : ne renvoie un code que si un mot-clé d'indice est trouvé.
-    Les indices très génériques (MSCI World/EM…) sans ticker net TR gratuit
-    fiable sont volontairement absents du catalogue pour l'instant."""
+# ─── Catalogue & règles (chargés depuis la base) ────────────────────────────────
+
+def load_catalog(client) -> dict[str, dict]:
+    """Catalogue d'indices depuis investissement_index_catalog (source de vérité)."""
+    rows = client.table("investissement_index_catalog") \
+        .select("index_code, label, currency, variant, source, ticker, msci_code, keywords") \
+        .eq("active", True).execute().data or []
+    cat: dict[str, dict] = {}
+    for r in rows:
+        cat[r["index_code"]] = {
+            "label": r["label"],
+            "ccy": (r["currency"] or "").upper().strip(),
+            "variant": r["variant"],
+            "source": r["source"],
+            "ticker": r.get("ticker"),
+            "msci_code": r.get("msci_code"),
+            "kw": [k.lower() for k in (r.get("keywords") or [])],
+        }
+    return cat
+
+
+def load_rules(client) -> list[dict]:
+    """Règles d'affectation par catégorie, triées par priorité croissante."""
+    rows = client.table("investissement_benchmark_rules") \
+        .select("priority, match_asset_class, match_region, match_style, "
+                "index_code, is_category_proxy") \
+        .eq("active", True).order("priority").execute().data or []
+    return rows
+
+
+def map_index(fund: dict, catalog: dict[str, dict],
+              rules: list[dict]) -> tuple[str | None, bool]:
+    """(index_code, is_category) pour un fonds, ou (None, False) si non mappable.
+
+    1) levier/inverse → jamais.
+    2) match EXACT par mot-clé d'indice (hors produit non-vanille) → is_category=False.
+    3) sinon, 1re règle de catégorie qui matche (asset_class/region) → is_category=True.
+    """
     hay = " ".join(
         str(fund.get(k) or "") for k in ("category", "category_normalized", "name")
     ).lower()
     hay = f" {hay} "
     if any(k in hay for k in EXCLUDE_KW):
-        return None  # levier / inverse : ne réplique pas l'indice 1×
-    if any(k in hay for k in NON_VANILLA_KW):
-        return None  # ESG / facteur / sectoriel / obligataire : pas l'indice parent net
-    for code, meta in INDEX_CATALOG.items():
-        if any(kw in hay for kw in meta["kw"]):
-            return code
-    return None
+        return None, False
+
+    # 2) Exact : seulement pour un produit vanille (sinon il réplique un indice
+    #    DIFFÉRENT du parent → on laisse la règle de catégorie s'en charger).
+    if not any(k in hay for k in NON_VANILLA_KW):
+        for code, meta in catalog.items():
+            if any(kw in hay for kw in meta["kw"]):
+                return code, False
+
+    # 3) Catégorie : règle par asset_class_broad / region_normalized.
+    acb = (fund.get("asset_class_broad") or "").lower()
+    reg = (fund.get("region_normalized") or "").lower()
+    style = (fund.get("management_style") or "").lower()
+    for r in rules:
+        if r["index_code"] not in catalog:
+            continue
+        if r.get("match_asset_class") and r["match_asset_class"].lower() != acb:
+            continue
+        if r.get("match_region") and r["match_region"].lower() != reg:
+            continue
+        if r.get("match_style") and r["match_style"].lower() != style:
+            continue
+        return r["index_code"], bool(r.get("is_category_proxy", True))
+    return None, False
 
 
 # ─── Calculs ─────────────────────────────────────────────────────────────────────
@@ -178,13 +181,13 @@ def perf_total(pairs: list[tuple[str, float]]) -> float | None:
     if len(pairs) < 2 or pairs[0][1] <= 0:
         return None
     p = pairs[-1][1] / pairs[0][1] - 1
-    return p if p > -1.0 else None  # perte > 100% = VL aberrante
+    return p if p > -1.0 else None
 
 
-def annualize(total: float | None, span_days: int) -> float | None:
-    if total is None or span_days <= 0:
+def annualize(total: float | None, span: int) -> float | None:
+    if total is None or span <= 0:
         return None
-    years = span_days / 365.25
+    years = span / 365.25
     if years <= 0:
         return None
     try:
@@ -196,7 +199,7 @@ def annualize(total: float | None, span_days: int) -> float | None:
 def _clamp(v: float | None) -> float | None:
     if v is None:
         return None
-    return round(max(-TD_MAX, min(TD_MAX, v)), 4)
+    return round(max(-CLAMP_MAX, min(CLAMP_MAX, v)), 4)
 
 
 def span_days(pairs: list[tuple[str, float]]) -> int:
@@ -206,8 +209,7 @@ def span_days(pairs: list[tuple[str, float]]) -> int:
 
 
 class IndexSeries:
-    """Série d'indice indexée par date, avec lookup « dernière valeur ≤ date »
-    (forward-fill) pour aligner un indice quotidien sur des VL hebdomadaires."""
+    """Série d'indice indexée par date, lookup « dernière valeur ≤ date »."""
 
     def __init__(self, rows: list[dict]):
         clean = sorted(
@@ -222,7 +224,6 @@ class IndexSeries:
         return len(self._dates)
 
     def at(self, d: str) -> float | None:
-        """Valeur de l'indice à la date d (sinon dernière connue avant d)."""
         i = bisect.bisect_right(self._dates, d) - 1
         return self._vals[i] if i >= 0 else None
 
@@ -231,8 +232,6 @@ class IndexSeries:
 
 
 def convert_series(base: "IndexSeries", fx: "IndexSeries") -> "IndexSeries":
-    """Convertit une série d'indice dans une autre devise via une série de change
-    (fx.at(d) = devise cible pour 1 unité de devise source). Forward-fill du change."""
     pts = []
     for d, v in base.points():
         f = fx.at(d)
@@ -241,43 +240,49 @@ def convert_series(base: "IndexSeries", fx: "IndexSeries") -> "IndexSeries":
     return IndexSeries(pts)
 
 
-def td_for_window(fund_pairs: list[tuple[str, float]], idx: IndexSeries,
-                  cutoff: str, min_points: int, min_span: int,
-                  annualized: bool) -> float | None:
-    """TD sur une fenêtre : (perf ETF − perf indice) sur les MÊMES bornes de dates."""
+def metrics_for_window(fund_pairs: list[tuple[str, float]], idx: IndexSeries,
+                       cutoff: str, min_points: int, min_span: int,
+                       annualized: bool, max_alpha: float
+                       ) -> tuple[float | None, float | None]:
+    """(benchmark_perf_cumulé_%, alpha_%) sur une fenêtre, ou (None, None).
+
+    benchmark_perf = rendement de l'indice (cumulé %), aux mêmes bornes de dates
+    que le fonds. alpha = écart fonds − indice (cumulé si 1y, annualisé sinon).
+    None si données insuffisantes ou alpha hors borne de plausibilité.
+    """
     win = [(d, p) for d, p in fund_pairs if d >= cutoff]
     sd = span_days(win)
     if len(win) < min_points or sd < min_span:
-        return None
+        return None, None
 
     fund_total = perf_total(win)
     if fund_total is None:
-        return None
+        return None, None
 
-    # Indice évalué aux mêmes dates de début / fin que l'ETF (équité de période).
     v_start, v_end = idx.at(win[0][0]), idx.at(win[-1][0])
     if not v_start or not v_end or v_start <= 0:
-        return None
+        return None, None
     idx_total = v_end / v_start - 1
 
     if annualized:
         f = annualize(fund_total, sd)
         x = annualize(idx_total, sd)
         if f is None or x is None:
-            return None
-        td = (f - x) * 100
+            return None, None
+        alpha = (f - x) * 100
+        bench = idx_total * 100  # benchmark_perf reste cumulé (annualisé à la lecture)
     else:
-        td = (fund_total - idx_total) * 100
-    # Borne de plausibilité : au-delà, artefact de données → ne rien afficher.
-    if abs(td) > MAX_PLAUSIBLE_TD:
-        return None
-    return _clamp(td)
+        alpha = (fund_total - idx_total) * 100
+        bench = idx_total * 100
+
+    if abs(alpha) > max_alpha:
+        return None, None
+    return _clamp(bench), _clamp(alpha)
 
 
 # ─── Lecture des séries ──────────────────────────────────────────────────────────
 
 def fetch_fund_prices(client, isin: str) -> list[tuple[str, float]]:
-    """VL d'un fonds depuis 5 ans, triées, paginées (plafond PostgREST 1000)."""
     rows: list[dict] = []
     offset, page = 0, 1000
     while True:
@@ -320,20 +325,9 @@ def fetch_index_series(client, code: str) -> IndexSeries:
     return IndexSeries(rows)
 
 
-# ─── Étape 1 : rafraîchir les séries d'indices (Yahoo) ──────────────────────────
-
-# Endpoint public MSCI alimentant les graphes de performance de msci.com.
-# index_variant : NETR (net TR) / GRTR (gross TR) / STRD (price). On choisit
-# selon le `variant` du catalogue. Réponse JSON : indexes.INDEX_LEVELS = liste
-# de {level_eod, calc_date(int yyyymmdd)}.
-MSCI_ENDPOINT = ("https://app2.msci.com/products/service/index/indexmaster/"
-                 "getLevelDataForGraph")
-MSCI_VARIANT = {"net": "NETR", "gross": "GRTR", "price": "STRD"}
-
+# ─── Étape 1 : rafraîchir les séries d'indices ──────────────────────────────────
 
 def fetch_msci_rows(code: str, meta: dict, start_ymd: str, end_ymd: str) -> list[dict]:
-    """Série d'un indice MSCI (net/gross/price) dans la devise du catalogue,
-    via l'endpoint public app2.msci.com. Lève en cas d'erreur réseau/format."""
     import urllib.request
     import json
     variant = MSCI_VARIANT[meta["variant"]]
@@ -351,7 +345,7 @@ def fetch_msci_rows(code: str, meta: dict, start_ymd: str, end_ymd: str) -> list
         v = lv.get("level_eod")
         if v is None:
             continue
-        cd = str(lv["calc_date"])  # yyyymmdd
+        cd = str(lv["calc_date"])
         iso = f"{cd[0:4]}-{cd[4:6]}-{cd[6:8]}"
         rows.append({"index_code": code, "price_date": iso,
                      "value": float(v), "source": src})
@@ -360,6 +354,7 @@ def fetch_msci_rows(code: str, meta: dict, start_ymd: str, end_ymd: str) -> list
 
 def refresh_indices(apply: bool) -> None:
     client = get_client()
+    catalog = load_catalog(client)
     start_iso = (TODAY - timedelta(days=365 * 6)).isoformat()
     start_ymd = start_iso.replace("-", "")
     end_ymd = TODAY.isoformat().replace("-", "")
@@ -370,8 +365,6 @@ def refresh_indices(apply: bool) -> None:
                          progress=False, auto_adjust=False)
         if df is None or df.empty:
             return []
-        # yfinance renvoie un MultiIndex de colonnes pour un seul ticker depuis
-        # la v0.2.28 : on aplatit au niveau 0 pour retrouver « Close » scalaire.
         if getattr(df.columns, "nlevels", 1) > 1:
             df.columns = df.columns.get_level_values(0)
         if "Close" not in df.columns:
@@ -402,7 +395,7 @@ def refresh_indices(apply: bool) -> None:
             print(" (dry-run)")
 
     # 1) Séries d'indices (routées selon la source du catalogue)
-    for code, meta in INDEX_CATALOG.items():
+    for code, meta in catalog.items():
         label = f"{code} ({meta['variant']}/{meta.get('source', 'yahoo')})"
         try:
             if meta.get("source") == "msci":
@@ -414,11 +407,8 @@ def refresh_indices(apply: bool) -> None:
             continue
         _store(code, rows, label)
 
-    # 2) Séries de change : convertir chaque indice (sa devise) vers les devises
-    # de parts d'ETF courantes. Ticker Yahoo {SRC}{DST}=X = DST pour 1 SRC →
-    # value_DST = value_SRC × fx. Stockées sous index_code "fx:SRCDST". Toujours
-    # via Yahoo (les paires de change majeures y sont fiables).
-    index_ccys = {m["ccy"] for m in INDEX_CATALOG.values()}
+    # 2) Séries de change : indice (sa devise) → devises de parts courantes.
+    index_ccys = {m["ccy"] for m in catalog.values()}
     for src in index_ccys:
         for dst in FX_TARGETS:
             if src == dst:
@@ -432,33 +422,33 @@ def refresh_indices(apply: bool) -> None:
             _store(code, rows, f"fx {src}→{dst}")
 
 
-# ─── Étape 2 : calcul de la TD par ETF ──────────────────────────────────────────
+# ─── Étape 2 : calcul alpha / benchmark_perf par fonds ──────────────────────────
 
 def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     print("=" * 60)
-    print("  TD Enricher — Tracking difference des ETF")
+    print("  Benchmark enricher — alpha vs indice de référence")
     print("=" * 60)
     print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}\n")
 
     started = datetime.now(timezone.utc)
     client = get_client()
+    catalog = load_catalog(client)
+    rules = load_rules(client)
+    print(f"  Catalogue : {len(catalog)} indices · {len(rules)} règles\n")
 
-    # ETF candidats (passifs/indiciels) avec catégorie pour le mapping d'indice.
-    # Pagination obligatoire : PostgREST plafonne à 1000 lignes/requête et
-    # l'univers compte ~2000 ETF (sans ça, la moitié était ignorée).
+    # Univers : fonds PRIMAIRES (un représentant par groupe de parts, comme le
+    # screener). benchmark_index lu pour purger une affectation devenue obsolète.
+    sel = ("isin, name, category, category_normalized, asset_class_broad, "
+           "region_normalized, management_style, currency, hedged, benchmark_index")
     funds: list[dict] = []
-    # `benchmark_index` est lu pour savoir si un ETF porte DÉJÀ une TD en base :
-    # s'il n'est plus mappé (filtre resserré, fonds renommé…), on la purge.
-    sel = ("isin, name, category, category_normalized, product_type, "
-           "management_style, currency, hedged, benchmark_index")
     if isin_filter:
         funds = client.table("investissement_funds").select(sel) \
-            .eq("product_type", "etf").eq("isin", isin_filter).execute().data or []
+            .eq("isin", isin_filter).execute().data or []
     else:
         offset, page = 0, 1000
         while True:
             chunk = client.table("investissement_funds").select(sel) \
-                .eq("product_type", "etf") \
+                .eq("is_primary_share_class", True) \
                 .order("isin").range(offset, offset + page - 1).execute().data or []
             funds.extend(chunk)
             if len(chunk) < page:
@@ -466,36 +456,29 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             offset += page
     if limit:
         funds = funds[:limit]
-    print(f"  {len(funds)} ETF à examiner")
+    print(f"  {len(funds)} fonds primaires à examiner")
 
-    # Caches : série d'indice native (par code) + série convertie (par code+devise).
     idx_cache: dict[str, IndexSeries] = {}
-    fx_cache: dict[str, IndexSeries | None] = {}      # "fx:SRCDST" → série de change
-    conv_cache: dict[tuple[str, str], IndexSeries | None] = {}  # (code, ccy) → indice converti
+    fx_cache: dict[str, IndexSeries | None] = {}
+    conv_cache: dict[tuple[str, str], IndexSeries | None] = {}
     updates: list[dict] = []
-    clears: list[dict] = []   # ETF dé-mappés portant encore une TD → à remettre à NULL
-    mapped = unmapped = computed = mismatch_ccy = 0
+    clears: list[dict] = []
+    mapped = unmapped = computed = mismatch_ccy = exact = category = 0
 
-    # Auto-nettoyage : l'enricher écrit (fill/recompute) mais ne purgeait jamais.
-    # Un ETF qui n'est PLUS mappé (filtre resserré, renommage) gardait donc une TD
-    # obsolète calculée par un run antérieur. On émet ici une mise à NULL ciblée —
-    # uniquement sur les verdicts DÉTERMINISTES de dé-mapping (non mappé / indice
-    # price-only / hedged), jamais sur une simple indisponibilité de données
-    # (devise non convertible, prix insuffisants), où l'on garde la dernière valeur.
     def record_clear(fund: dict) -> None:
         if fund.get("benchmark_index") is None:
-            return  # rien à purger
+            return
         clears.append({
             "isin": fund["isin"],
             "benchmark_index": None, "benchmark_code": None, "benchmark_variant": None,
-            "tracking_diff_1y": None, "tracking_diff_3y": None, "tracking_diff_5y": None,
-            "tracking_diff_computed_at": None,
+            "benchmark_is_category": None,
+            "benchmark_perf_1y": None, "benchmark_perf_3y": None, "benchmark_perf_5y": None,
+            "alpha_1y": None, "alpha_3y": None, "alpha_5y": None,
+            "benchmark_computed_at": None,
         })
 
     def index_in_ccy(code: str, ccy: str) -> "IndexSeries | None":
-        """Série de l'indice `code` exprimée dans la devise `ccy` (native ou
-        convertie via change). None si indice absent ou change indisponible."""
-        meta = INDEX_CATALOG[code]
+        meta = catalog[code]
         if code not in idx_cache:
             idx_cache[code] = fetch_index_series(client, code)
         base = idx_cache[code]
@@ -517,29 +500,24 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if i % 1500 == 0:
             client = reset_client()
 
-        code = map_index(fund)
+        code, is_category = map_index(fund, catalog, rules)
         if not code:
             unmapped += 1
-            record_clear(fund)   # dé-mappé (filtre/keywords) → purge si TD obsolète
+            record_clear(fund)
             continue
-        meta = INDEX_CATALOG[code]
-        # Garde-fou : jamais de TD contre un indice price-only (TD trompeuse).
+        meta = catalog[code]
         if meta["variant"] == "price":
             unmapped += 1
             record_clear(fund)
             continue
-        # Parts couvertes en devise (hedged) : le hedge neutralise le FX et fausse
-        # la comparaison avec notre indice converti → on s'abstient.
         if fund.get("hedged") is True:
             unmapped += 1
             record_clear(fund)
             continue
-        # Indice exprimé dans la devise de la part d'ETF (native ou converti via
-        # change) : sans ça la TD mesurerait le FX, pas le coût.
         ccy = (fund.get("currency") or "").upper()
         idx = index_in_ccy(code, ccy)
         if idx is None or len(idx) == 0:
-            mismatch_ccy += 1   # devise non convertible (change absent) ou indice manquant
+            mismatch_ccy += 1
             continue
         mapped += 1
 
@@ -552,59 +530,68 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if len(fp) < MIN_POINTS_1Y:
             continue
 
-        td1 = td_for_window(fp, idx, DATE_1Y, MIN_POINTS_1Y, MIN_SPAN_1Y, annualized=False)
-        td3 = td_for_window(fp, idx, DATE_3Y, MIN_POINTS_3Y, MIN_SPAN_3Y, annualized=True)
-        td5 = td_for_window(fp, idx, DATE_5Y, MIN_POINTS_5Y, MIN_SPAN_5Y, annualized=True)
-        if td1 is None and td3 is None and td5 is None:
+        max_alpha = MAX_ALPHA_CATEGORY if is_category else MAX_ALPHA_EXACT
+        b1, a1 = metrics_for_window(fp, idx, DATE_1Y, MIN_POINTS_1Y, MIN_SPAN_1Y, False, max_alpha)
+        b3, a3 = metrics_for_window(fp, idx, DATE_3Y, MIN_POINTS_3Y, MIN_SPAN_3Y, True, max_alpha)
+        b5, a5 = metrics_for_window(fp, idx, DATE_5Y, MIN_POINTS_5Y, MIN_SPAN_5Y, True, max_alpha)
+        if a1 is None and a3 is None and a5 is None:
             continue
 
-        updates.append({
+        # Non-écrasement par None (gotcha ft-metrics-wipe) : on n'inclut une
+        # colonne de fenêtre QUE si elle est calculée. L'identité du benchmark
+        # est toujours écrite dès qu'au moins une fenêtre existe.
+        row = {
             "isin": fund["isin"],
             "benchmark_index": meta["label"],
             "benchmark_code": code,
             "benchmark_variant": meta["variant"],
-            "tracking_diff_1y": td1,
-            "tracking_diff_3y": td3,
-            "tracking_diff_5y": td5,
-            "tracking_diff_computed_at": now_iso(),
-        })
+            "benchmark_is_category": is_category,
+            "benchmark_computed_at": now_iso(),
+        }
+        if a1 is not None: row["alpha_1y"] = a1; row["benchmark_perf_1y"] = b1
+        if a3 is not None: row["alpha_3y"] = a3; row["benchmark_perf_3y"] = b3
+        if a5 is not None: row["alpha_5y"] = a5; row["benchmark_perf_5y"] = b5
+        updates.append(row)
         computed += 1
-        if i % 200 == 0:
+        if is_category:
+            category += 1
+        else:
+            exact += 1
+        if i % 500 == 0:
             print(f"  [{i:5d}/{len(funds)}] mappés:{mapped} calculés:{computed}")
 
-    print(f"\n  → {mapped} ETF mappés (devise OK), {unmapped} non mappés, "
-          f"{mismatch_ccy} écartés (devise ≠ indice), {computed} TD calculées, "
-          f"{len(clears)} dé-mappés à purger")
+    print(f"\n  → {mapped} mappés (devise OK), {unmapped} non mappés, "
+          f"{mismatch_ccy} écartés (devise ≠ indice), {computed} alpha calculés "
+          f"({exact} exacts, {category} catégorie), {len(clears)} à purger")
 
     if apply:
         if updates:
-            print(f"  Écriture dans Supabase ({len(updates)} ETF)…", end=" ", flush=True)
+            print(f"  Écriture dans Supabase ({len(updates)} fonds)…", end=" ", flush=True)
             ok, fail = update_funds_bulk(updates, batch_size=200)
             print(f"✓ {ok} OK, {fail} échec")
-            log_run(scraper="td-enricher", status="success",
+            log_run(scraper="benchmark-enricher", status="success",
                     records_processed=ok, records_failed=fail, started_at=started)
         if clears:
-            print(f"  Purge des ETF dé-mappés ({len(clears)})…", end=" ", flush=True)
+            print(f"  Purge des fonds dé-mappés ({len(clears)})…", end=" ", flush=True)
             ok_c, fail_c = update_funds_bulk(clears, batch_size=200)
             print(f"✓ {ok_c} purgés, {fail_c} échec")
     else:
         if updates:
-            print("\n  Aperçu (5 premiers) :")
-            for r in updates[:5]:
-                print(f"  {r['isin']} | {r['benchmark_index']:16} ({r['benchmark_variant']}) | "
-                      f"TD 1Y:{r['tracking_diff_1y']} 3Y:{r['tracking_diff_3y']} 5Y:{r['tracking_diff_5y']}")
+            print("\n  Aperçu (8 premiers) :")
+            for r in updates[:8]:
+                tag = "cat" if r["benchmark_is_category"] else "exact"
+                print(f"  {r['isin']} | {r['benchmark_index']:22} ({tag}) | "
+                      f"alpha 1Y:{r.get('alpha_1y')} 3Y:{r.get('alpha_3y')} 5Y:{r.get('alpha_5y')}")
         if clears:
-            print(f"\n  {len(clears)} ETF seraient purgés (dé-mappés, TD obsolète) :")
-            for r in clears[:10]:
-                print(f"    {r['isin']}")
+            print(f"\n  {len(clears)} fonds seraient purgés (dé-mappés)")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Tracking difference des ETF")
+    parser = argparse.ArgumentParser(description="Benchmark + alpha vs indice")
     parser.add_argument("--refresh-indices", action="store_true",
-                        help="Récupère les séries d'indices (Yahoo) avant calcul")
+                        help="Récupère les séries d'indices (catalogue) avant calcul")
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
-    parser.add_argument("--limit", type=int, help="Limiter à N ETF")
+    parser.add_argument("--limit", type=int, help="Limiter à N fonds")
     parser.add_argument("--isin", type=str, help="Un seul ISIN (test)")
     args = parser.parse_args()
 

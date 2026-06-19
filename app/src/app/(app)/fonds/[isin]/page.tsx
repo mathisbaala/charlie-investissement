@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, feeFracToPct, annualizeForType } from "@/lib/format";
+import { decodeHtml, feeFracToPct, annualizeForType, annualizeCumul } from "@/lib/format";
 import type { FundDetailHF, NavPointHF, FundHoldingHF, FundBreakdownHF } from "@/lib/types";
 import { FundSheetClient } from "./FundSheetClient";
 
@@ -29,7 +29,9 @@ export default async function FondPage({
       volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
       max_drawdown_1y, max_drawdown_3y,
       ongoing_charges, ter,
-      benchmark_index, benchmark_variant,
+      benchmark_index, benchmark_variant, benchmark_is_category,
+      benchmark_perf_1y, benchmark_perf_3y, benchmark_perf_5y,
+      alpha_1y, alpha_3y, alpha_5y,
       tracking_diff_1y, tracking_diff_3y, tracking_diff_5y,
       entry_fee_max, exit_fee_max, performance_fee,
       retrocession_cgp, holding_period_years,
@@ -145,9 +147,17 @@ export default async function FondPage({
     max_drawdown_3y: fund.max_drawdown_3y,
     ongoing_charges: feeFracToPct(fund.ongoing_charges),
     ter: feeFracToPct(fund.ter),
-    // TD déjà stockée en % annualisé par td-enricher → pas de conversion.
+    // alpha_* déjà en % (1y cumulé, 3y/5y annualisé) → pas de conversion.
+    // benchmark_perf_* stocké cumulé (comme performance_*) → annualisé 3y/5y.
     benchmark_index: (fund as any).benchmark_index ?? null,
     benchmark_variant: (fund as any).benchmark_variant ?? null,
+    benchmark_is_category: (fund as any).benchmark_is_category ?? null,
+    benchmark_perf_1y: (fund as any).benchmark_perf_1y ?? null,
+    benchmark_perf_3y: annualizeCumul((fund as any).benchmark_perf_3y, 3),
+    benchmark_perf_5y: annualizeCumul((fund as any).benchmark_perf_5y, 5),
+    alpha_1y: (fund as any).alpha_1y ?? null,
+    alpha_3y: (fund as any).alpha_3y ?? null,
+    alpha_5y: (fund as any).alpha_5y ?? null,
     tracking_diff_1y: (fund as any).tracking_diff_1y ?? null,
     tracking_diff_3y: (fund as any).tracking_diff_3y ?? null,
     tracking_diff_5y: (fund as any).tracking_diff_5y ?? null,

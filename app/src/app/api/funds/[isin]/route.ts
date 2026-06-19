@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { feeFracToPct, annualizeForType } from "@/lib/format";
+import { feeFracToPct, annualizeForType, annualizeCumul } from "@/lib/format";
 import { logEvent } from "@/lib/analytics";
 import type { FundDetailHF, FundHoldingHF, FundBreakdownHF, NavPointHF } from "@/lib/types";
 
@@ -33,7 +33,9 @@ export async function GET(
       volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
       max_drawdown_1y, max_drawdown_3y,
       ongoing_charges, ter,
-      benchmark_index, benchmark_variant,
+      benchmark_index, benchmark_variant, benchmark_is_category,
+      benchmark_perf_1y, benchmark_perf_3y, benchmark_perf_5y,
+      alpha_1y, alpha_3y, alpha_5y,
       tracking_diff_1y, tracking_diff_3y, tracking_diff_5y,
       entry_fee_max, exit_fee_max, performance_fee,
       retrocession_cgp, holding_period_years,
@@ -150,6 +152,13 @@ export async function GET(
     ter: feeFracToPct(fund.ter),
     benchmark_index: (fund as any).benchmark_index ?? null,
     benchmark_variant: (fund as any).benchmark_variant ?? null,
+    benchmark_is_category: (fund as any).benchmark_is_category ?? null,
+    benchmark_perf_1y: (fund as any).benchmark_perf_1y ?? null,
+    benchmark_perf_3y: annualizeCumul((fund as any).benchmark_perf_3y, 3),
+    benchmark_perf_5y: annualizeCumul((fund as any).benchmark_perf_5y, 5),
+    alpha_1y: (fund as any).alpha_1y ?? null,
+    alpha_3y: (fund as any).alpha_3y ?? null,
+    alpha_5y: (fund as any).alpha_5y ?? null,
     tracking_diff_1y: (fund as any).tracking_diff_1y ?? null,
     tracking_diff_3y: (fund as any).tracking_diff_3y ?? null,
     tracking_diff_5y: (fund as any).tracking_diff_5y ?? null,

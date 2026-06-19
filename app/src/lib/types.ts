@@ -59,6 +59,16 @@ export type Fund = {
   performance_fee: number | null;
   retrocession_cgp: number | null;
 
+  // Benchmark + alpha vs indice (migration 20260619100000). alpha_* déjà en %
+  // (1y cumulé, 3y/5y annualisé). benchmark_is_category=true → indice de catégorie
+  // (proxy), false → indice exact répliqué (ETF vanille).
+  benchmark_index: string | null;
+  benchmark_variant: string | null;
+  benchmark_is_category: boolean | null;
+  alpha_1y: number | null;
+  alpha_3y: number | null;
+  alpha_5y: number | null;
+
   // Éligibilités
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
@@ -190,6 +200,7 @@ export type SortField =
   | 'track_record_years'
   | 'retrocession_cgp'
   | 'entry_fee_max'
+  | 'alpha_3y'
   | 'data_completeness';
 
 // ─── Réponses API ─────────────────────────────────────────────────────────────
@@ -298,6 +309,7 @@ export type ParsedFilters = {
   manager_search?: string;
   free_text?: string;
   has_kid?: boolean;
+  beats_benchmark?: boolean;  // « bat son indice » : alpha 3 ans > 0
   chips?: string[];
 };
 
@@ -341,10 +353,20 @@ export type FundDetailHF = {
   max_drawdown_3y: number | null;
   ongoing_charges: number | null;
   ter: number | null;
-  // Tracking difference (migration 20260611100000) — coût réel d'un ETF vs son
-  // indice net TR. Stockée déjà annualisée en % (négatif = sous-performance).
+  // Benchmark + alpha vs indice (migration 20260619100000). alpha_* : écart
+  // fonds − indice (1y cumulé, 3y/5y annualisé, %). benchmark_perf_* : rendement
+  // de l'indice (cumulé %, annualisé à la lecture comme performance_*).
+  // benchmark_is_category=true → indice de catégorie (proxy) ; false → indice
+  // exact répliqué (ETF vanille). tracking_diff_* : legacy (déprécié, lu en repli).
   benchmark_index: string | null;
   benchmark_variant: string | null;   // 'net' | 'gross' | 'price'
+  benchmark_is_category: boolean | null;
+  benchmark_perf_1y: number | null;
+  benchmark_perf_3y: number | null;
+  benchmark_perf_5y: number | null;
+  alpha_1y: number | null;
+  alpha_3y: number | null;
+  alpha_5y: number | null;
   tracking_diff_1y: number | null;
   tracking_diff_3y: number | null;
   tracking_diff_5y: number | null;

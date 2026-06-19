@@ -22,7 +22,9 @@ const COLS = [
   "ucits_compliant","is_institutional","accessible_retail","hedged",
   "aum_eur","morningstar_rating","currency","inception_date",
   "track_record_years","kid_url","data_completeness","updated_at",
-  "share_class_group_id","insurers","contracts","tickers"
+  "share_class_group_id","insurers","contracts","tickers",
+  "benchmark_index","benchmark_variant","benchmark_is_category",
+  "alpha_1y","alpha_3y","alpha_5y"
 ].join(",");
 
 function p(sp: URLSearchParams, key: string) { return sp.get(key); }
@@ -77,6 +79,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const search  = p(sp, "search")?.trim() ?? "";
   const exactIsin = asExactIsin(search);
   const hasKid  = p(sp, "has_kid") === "true";
+  const beatsBenchmark = p(sp, "beats_benchmark") === "true"; // alpha 3 ans > 0
   const sortBy  = p(sp, "sort_by") ?? "data_completeness";
   const sortDir = p(sp, "sort_dir") === "asc";
   const page    = Math.max(1, int(p(sp, "page")) ?? 1);
@@ -86,7 +89,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     "performance_3y","performance_1y","performance_5y","ter","ongoing_charges",
     "aum_eur","sharpe_1y","sharpe_3y","volatility_1y","max_drawdown_3y",
     "morningstar_rating","track_record_years","data_completeness",
-    "retrocession_cgp","entry_fee_max"
+    "retrocession_cgp","entry_fee_max","alpha_3y"
   ]);
   const safeSort = VALID_SORT.has(sortBy) ? sortBy : "data_completeness";
 
@@ -204,6 +207,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (gestIn.length)    q = q.in("gestionnaire", gestIn);
 
   if (hasKid)   q = q.not("kid_url", "is", null);
+  // « Bat son indice » : surperformance nette vs benchmark sur 3 ans (alpha > 0).
+  // Implique alpha_3y non null (les fonds sans benchmark sont écartés).
+  if (beatsBenchmark) q = q.gt("alpha_3y", 0);
 
     return q;
   };
@@ -381,6 +387,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     exclude_sector: exclSectors, exclude_region: exclRegions,
     management_style: mgmtStyles, currency, manager_search: mgr,
     gestionnaire_in: gestIn, has_kid: hasKid || undefined,
+    beats_benchmark: beatsBenchmark || undefined,
   });
   if (page === 1 || filters || search) {
     logEvent(req, {

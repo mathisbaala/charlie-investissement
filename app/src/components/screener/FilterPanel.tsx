@@ -634,6 +634,26 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Performance vs indice */}
+        <Section title="Performance vs indice">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!f.beats_benchmark}
+            onClick={() => set("beats_benchmark", f.beats_benchmark ? undefined : true)}
+            className="flex items-center gap-3 cursor-pointer group w-full text-left"
+          >
+            <div
+              className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.beats_benchmark ? "bg-brown" : "bg-paper-3 border border-line"}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.beats_benchmark ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+            <span className="text-meta text-ink-2 group-hover:text-ink">Bat son indice (alpha 3 ans &gt; 0)</span>
+          </button>
+        </Section>
+
+        <Divider />
+
         {/* Société de gestion */}
         <Section title="Société de gestion">
           {managerOptions.length > 0 && (
