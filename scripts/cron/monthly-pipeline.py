@@ -47,6 +47,12 @@ BREAKDOWN_MAX_AGE_DAYS = 90
 # comparaison / le look-through). ~10 k fonds référencés sans holdings → couverts
 # en quelques mois.
 BREAKDOWN_FILL_BUCKET = 1500
+# 2ᵉ source de composition (ETF) : JustETF. FT ne ventile qu'une fraction des
+# ETF ; JustETF (HTML server-side, requests+BS4 — pas de scrapling) couvre ~1,7 k
+# ETF sans compo. Rate-limit interne 4 s/ETF → un bucket de 400 ≈ 27 min, et
+# l'univers ETF (~1,7 k) est drainé en ~4 mois (priorité AUM décroissant). Le
+# scraper exclut nativement les ETF déjà ventilés → fill-only, rotation auto.
+JUSTETF_HOLDINGS_BUCKET = 400
 
 # (chemin relatif à SCRIPTS_DIR, arguments). --apply est ajouté automatiquement.
 MONTHLY_STEPS = [
@@ -63,6 +69,19 @@ MONTHLY_STEPS = [
       "--max-age-days", str(BREAKDOWN_MAX_AGE_DAYS),
       "--limit", str(BREAKDOWN_BUCKET),
       "--workers", "6", "--delay", "0.15"]),
+    # Composition COMPLÈTE des ETF depuis les fichiers émetteurs (chantier A) :
+    # constituants INTÉGRAUX (jusqu'à 500 lignes/ETF) + secteurs/géo agrégés,
+    # source qualitativement supérieure au top 10. --refresh = re-pull mensuel
+    # (iShares publie quotidiennement). Écrit AUSSI secteurs/géo → ces ISIN sont
+    # ensuite skippés par JustETF (qui ne cible que les ETF « sans secteurs »),
+    # donc placé AVANT lui. ~491 ETF iShares ≈ 15 min.
+    ("scrapers/issuer-holdings.py", ["--issuer", "ishares", "--refresh"]),
+    # 2ᵉ source de compo, ETF uniquement : JustETF comble la géo/secteur/holdings
+    # des ETF que FT/émetteurs ne ventilent pas. Fill-only (exclut nativement les
+    # ETF déjà dotés de secteurs), priorité AUM décroissant. Avant compute-metrics
+    # pour que data_completeness/primaire reflètent la nouvelle compo.
+    ("scrapers/justetf-holdings-scraper.py",
+     ["--limit", str(JUSTETF_HOLDINGS_BUCKET)]),
     ("enrichers/compute-metrics.py", []),
     # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
     # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline

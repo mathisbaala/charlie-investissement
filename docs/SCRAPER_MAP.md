@@ -21,6 +21,7 @@ seeding/upsert global** (destructif). Alerte issue `if: failure()` sur chaque wo
 | **Hebdo** | `td-enricher.py` (après `compute-metrics`) | alpha vs indice + benchmark_perf (⚠ relancer APRÈS code `map_index` final) |
 | **Mensuel** | Morningstar EMEA (`ms-emea-perf-enricher.py --refresh`) | perfs OPCVM étrangers LU/IE sans VL (creds en secrets, 1 worker) |
 | **Mensuel** | `ft-enricher.py --fill-breakdowns --by-referencing` | compositions look-through (priorité fonds référencés) |
+| **Mensuel** | `issuer-holdings.py --issuer ishares --refresh` | **composition COMPLÈTE des ETF** depuis fichiers émetteurs (constituants intégraux ≤500/ETF + secteurs/géo agrégés), `source='issuer:ishares'`, ~491 ETF (95% du parc iShares) |
 | **Mensuel** | OpenFIGI (`openfigi-classify.py`) | garde classification (titres vifs mal classés opcvm) |
 | **Trimestriel** | SCPI Primaliance (`scpi-primaliance-enricher.py --refresh`, `requests`/`parsel`) | TD/TRI/frais/capitalisation/**prix de part** |
 | **Annuel** | Fonds euros (`fonds-euros-enricher.py --refresh`) | taux servis, **fenêtre d'années dynamique** |
@@ -127,6 +128,33 @@ r"SFDR\s+article\s+(8|9)"
 **Workers / rate** : WORKERS=10, RATE_LIMIT=0.5s, timeout=20s  
 **Min AUM** : `--min-aum 0` pour traiter tous les fonds (sans filtre)  
 **Taux de succès** : ~85% des KIDs contenant SRI ou TER extrait avec succès
+
+---
+
+### 2bis. Constituants ETF émetteurs (`issuer-holdings.py`)
+
+Composition **complète** des ETF (vs top 10) par téléchargement direct du fichier
+de l'émetteur. Tables `investissement_fund_holdings` / `_sectors` / `_geos`,
+`source='issuer:<emetteur>'`. Cap **500 lignes/ETF** (log de troncature ; les
+secteurs/géo restent agrégés sur la liste complète). Élargi en `numeric(9,6)`
+pour les petites lignes (cf. migration `20260619200000`).
+
+**iShares (câblé).** Site UK = SPA dur ; seuls 2 endpoints passent en `requests` :
+- **Catalogue ISIN→productId** (1378 fonds, JSON 3,8 Mo) — le `dcrPath` est la clé,
+  capturé via navigateur :
+  `.../product-screener-v3.1.jsn?dcrPath=/templatedata/config/product-screener-v3/data/en/uk/product-screener/ishares-product-screener-backend-config&siteEntryPassthrough=true`
+- **CSV holdings** — seul le `productId` du chemin compte (token `.ajax` constant
+  pour la locale UK, `fileName` cosmétique) :
+  `.../products/{productId}/x/1506575576011.ajax?fileType=csv&dataType=fund`
+  Colonnes : Ticker, Name, Sector, Asset Class, **Weight (%)**, Location (pays EN→ISO2).
+
+Couverture : **491/514 ETF iShares en base (95 %)** ; les 23 manques sont surtout
+des lignes cotées en Allemagne (DE…, catalogue iShares DE non branché).
+
+**Amundi / Xtrackers (à brancher).** SPA aussi. Amundi : page produit
+`/fr/professionnels/produits/{classe}/{slug}/{isin}`, compo via widget JS sur
+`POST /mapi/ProductAPI/getProductsData` (téléchargement « composition des actifs »
+généré côté client → reste à décoder). Stubs présents dans `ISSUER_FILTERS`.
 
 ---
 
