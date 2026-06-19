@@ -1,6 +1,6 @@
 # 📋 Session Handoff — 19 juin 2026
 
-> Journée dense : **24 commits** poussés sur `main` (auto-déploy Vercel). Sprints DDA
+> Journée dense : **25 commits** poussés sur `main` (auto-déploy Vercel). Sprints DDA
 > (alpha vs indice, durabilité, look-through), rafraîchissements de données planifiés,
 > nettoyage de l'univers, et surtout : **analyse de DICI remise en service + rapport
 > de fonds design + durcissement des coûts IA**.
@@ -49,6 +49,7 @@
 ### 8. CI / sécurité / infra
 - Credentials Morningstar EMEA → **secrets** (plus en dur) + bump `actions/checkout@v5` / `setup-python@v6` (Node 20 EOL) — `cfbc72a`.
 - Groupe de concurrence dédié pour la garde de classification (évitait l'annulation de runs) — `c60e0ed`.
+- Refresh Morningstar EMEA **sorti du pipeline mensuel** vers son propre workflow (le pipeline dépassait le timeout 6h) — `fef1041`.
 
 ---
 
