@@ -1,5 +1,13 @@
 # Runbook — Parsing KID/DICI en masse
 
+> **À ne pas confondre avec le rapport DICI à la demande** (live, depuis le 19/06).
+> La page `/documents` du site laisse un utilisateur **déposer un PDF** → `POST /api/dici/parse`
+> (Claude Haiku 4.5, vision) → **rapport de fonds design** (composant `DiciReport`), enrichi des
+> données de marché du fonds rattaché en base. C'est un flux *front, unitaire, à la demande*,
+> protégé par rate-limit + cap de taille (cf. mémoire `dici-report` / `ai-rate-limit`).
+> Le présent runbook couvre le flux **batch back-office** (enrichir la base en masse depuis les
+> `kid_url` déjà connus), indépendant du rapport live.
+
 Extrait **SRI, SFDR (Article 8/9), frais courants (TER), frais d'entrée/sortie/performance,
 période de détention** depuis les KID/DICI PRIIPs. ~52 % des fonds ont un `kid_url` en base.
 Le KID est la **source légale autoritaire** → ces champs sont **écrasés** (override) et tracés

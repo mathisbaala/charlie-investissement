@@ -1,7 +1,32 @@
 # Charlie Investissement — Carte des Sources de Données
 
-> Dernière mise à jour : 2026-05-19 (session 3)
-> État base : 22 311 supports (2 370 ETF, 13 677 OPCVM, 5 489 actions, 101 crypto, 61 SCPI)
+> Dernière mise à jour : 2026-06-19
+> État base : ~36 000 supports (univers screener = parts primaires hors action/crypto/fps/structuré).
+> Les tableaux de complétude ci-dessous datent de mai 2026 (valeurs indicatives, non rafraîchies).
+
+---
+
+## 🔄 Rafraîchissements planifiés (à jour juin 2026)
+
+Les enrichers sont **fill-only** par défaut ; les *refreshs* ci-dessous réécrivent des
+colonnes ciblées sur une cadence GitHub Actions. **Ne jamais relancer un scraper en mode
+seeding/upsert global** (destructif). Alerte issue `if: failure()` sur chaque workflow.
+
+| Cadence | Source / script | Périmètre |
+|---|---|---|
+| **Hebdo** | FT (`ft-enricher.py`, rotation `--offset`) | NAV + frais + catégorie (top-4000/sem + bucket tournant) |
+| **Hebdo** | GECO (`geco-nav.py`, `source='amf-geco'`) | VL OPCVM FR — **couverture complète ~10,7k** + cache ISIN→idInterne |
+| **Hebdo** | JustETF (`justetf-nav.py`) | filet NAV ETF |
+| **Hebdo** | Crypto (`coingecko`, en `requests`) | prix/perf/vol crypto |
+| **Hebdo** | `td-enricher.py` (après `compute-metrics`) | alpha vs indice + benchmark_perf (⚠ relancer APRÈS code `map_index` final) |
+| **Mensuel** | Morningstar EMEA (`ms-emea-perf-enricher.py --refresh`) | perfs OPCVM étrangers LU/IE sans VL (creds en secrets, 1 worker) |
+| **Mensuel** | `ft-enricher.py --fill-breakdowns --by-referencing` | compositions look-through (priorité fonds référencés) |
+| **Mensuel** | OpenFIGI (`openfigi-classify.py`) | garde classification (titres vifs mal classés opcvm) |
+| **Trimestriel** | SCPI Primaliance (`scpi-primaliance-enricher.py --refresh`, `requests`/`parsel`) | TD/TRI/frais/capitalisation/**prix de part** |
+| **Annuel** | Fonds euros (`fonds-euros-enricher.py --refresh`) | taux servis, **fenêtre d'années dynamique** |
+
+`yfinance` est cassé (ne pas s'appuyer dessus). GECO est devenu une source quasi-primaire FR.
+Voir mémoire projet `scheduled-refresh` et `data-freshness-volets` pour le détail.
 
 ---
 
