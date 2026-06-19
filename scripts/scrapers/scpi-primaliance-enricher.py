@@ -63,6 +63,10 @@ RATE_LIMIT_SEC = 1.5
 
 def normalize(s: str) -> str:
     s = (s or "").upper().strip()
+    # Ligatures : NFD ne les décompose PAS (Œ reste Œ) et [^A-Z0-9] les supprime
+    # ensuite → 'Cœur' donnait 'CUR' au lieu de 'COEUR', faisant rater le match
+    # avec le slug Primaliance 'coeur-deurope'. On les développe explicitement.
+    s = s.replace("Œ", "OE").replace("Æ", "AE")
     s = "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
     s = re.sub(r"[^A-Z0-9]", "", s)
     return s
@@ -74,6 +78,9 @@ NAME_ALIASES: dict[str, str] = {
     # Exemples — étendus à mesure que des mismatches sont identifiés
     "SCPICAPIFORCE": "CAPIFORCEPIERRE",
     "PIERREEXPANSIONSANTE": "PIERREEXPANSION",
+    # Novaxia commercialise sa SCPI sous le seul nom « NEO » côté Primaliance
+    # (slug 260-scpi-neo) alors que la base la nomme « Novaxia NEO ».
+    "NOVAXIANEO": "NEO",
 }
 
 
@@ -122,6 +129,24 @@ def parse_prix_part(html: str) -> float | None:
     """Prix de part SCPI : 'Prix de part : 458,00€' → 458.00 (texte dé-balisé)."""
     txt = re.sub(r"<[^>]+>", " ", html)
     m = re.search(r"Prix de part\s*:?\s*([\d\s\xa0]+,\d{2})\s*€", txt)
+    if not m:
+        return None
+    raw = re.sub(r"[\s\xa0]", "", m.group(1)).replace(",", ".")
+    try:
+        val = float(raw)
+        return val if 0 < val <= 100_000 else None
+    except ValueError:
+        return None
+
+
+def parse_vl(html: str) -> float | None:
+    """Valeur liquidative OPCI/SCI : 'Valeur liquidative 105,50€' → 105.50.
+
+    Les OPCI/SCI ne cotent pas en « Prix de part » mais en VL : c'est le prix
+    de souscription/rachat de la part, donc l'équivalent de price_per_share.
+    On prend la 1re occurrence (VL principale du fonds, comme parse_prix_part)."""
+    txt = re.sub(r"<[^>]+>", " ", html)
+    m = re.search(r"Valeur liquidative\s*:?\s*([\d\s\xa0]+,\d{2})\s*€", txt)
     if not m:
         return None
     raw = re.sub(r"[\s\xa0]", "", m.group(1)).replace(",", ".")
@@ -251,6 +276,11 @@ def parse_scpi_page(sess: requests.Session, url: str) -> dict | None:
         result["capitalisation_eur"] = parse_capitalisation(f"{cap_major} {cap_minor}")
 
     prix = parse_prix_part(html_text)  # 'Prix de part : 458,00€' (texte labellisé)
+    if prix is None and ("-opci-" in url or "-sci-" in url):
+        # OPCI/SCI (type dans le slug : '248-opci-…', '278-sci-…', tous sous
+        # /scpi-de-rendement/) : pas de « Prix de part » → la VL fait office de
+        # prix de part (prix de souscription/rachat de la part).
+        prix = parse_vl(html_text)
     if prix is not None:
         result["prix_part"] = prix
 
