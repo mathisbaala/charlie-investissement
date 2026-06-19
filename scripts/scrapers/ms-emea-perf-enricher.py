@@ -31,11 +31,20 @@ from db import get_client, log_run
 
 OAUTH_URL  = "https://www.emea-api.morningstar.com/token/oauth"
 SCREENER   = "https://www.emea-api.morningstar.com/ecint/v1/screener"
-_MS_USER   = os.environ.get("MS_EMEA_USER", "ec-Linxe-2022@eamsecservice.com")
-_MS_PASS   = os.environ.get("MS_EMEA_PASS", "LinxeB*j91")
-_CREDS     = base64.b64encode(f"{_MS_USER}:{_MS_PASS}".encode()).decode()
 PAGE_SIZE  = 2000
 UNIVERSES  = ["FOFRA$$ALL", "FEEUR$$ALL"]
+
+
+def _creds_b64() -> str:
+    """Identifiants Morningstar EMEA depuis l'environnement (secrets GitHub
+    MS_EMEA_USER / MS_EMEA_PASS) — plus de credentials en dur dans le code."""
+    user = os.environ.get("MS_EMEA_USER", "").strip()
+    pwd  = os.environ.get("MS_EMEA_PASS", "").strip()
+    if not user or not pwd:
+        raise EnvironmentError(
+            "MS_EMEA_USER et MS_EMEA_PASS sont requis (secrets repo / variables "
+            "d'environnement). Exportez-les pour un lancement local.")
+    return base64.b64encode(f"{user}:{pwd}".encode()).decode()
 
 
 def annualized_to_cumul(annualized_pct: float, years: int) -> float:
@@ -48,7 +57,7 @@ def annualized_to_cumul(annualized_pct: float, years: int) -> float:
 
 def get_token() -> str:
     r = requests.post(OAUTH_URL,
-                      headers={"Authorization": f"Basic {_CREDS}", "Accept": "application/json"},
+                      headers={"Authorization": f"Basic {_creds_b64()}", "Accept": "application/json"},
                       timeout=15)
     r.raise_for_status()
     return r.json()["access_token"]

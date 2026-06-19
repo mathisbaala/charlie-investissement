@@ -23,10 +23,13 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Identifiants API Morningstar EMEA (ms-emea-perf-enricher) — secrets repo.
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
