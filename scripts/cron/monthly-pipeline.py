@@ -85,6 +85,11 @@ MONTHLY_STEPS = [
     # ensuite skippés par JustETF (qui ne cible que les ETF « sans secteurs »),
     # donc placé AVANT lui. ~491 ETF iShares ≈ 15 min.
     ("scrapers/issuer-holdings.py", ["--issuer", "ishares", "--refresh"]),
+    # Mêmes constituants intégraux pour les deux autres gros émetteurs ETF
+    # (endpoints publics par ISIN : Amundi mapi, DWS holdings API). ~491 Amundi
+    # + ~256 Xtrackers, fill-only/refresh mensuel, même modèle qu'iShares.
+    ("scrapers/issuer-holdings.py", ["--issuer", "amundi", "--refresh"]),
+    ("scrapers/issuer-holdings.py", ["--issuer", "xtrackers", "--refresh"]),
     # 2ᵉ source de compo, ETF uniquement : JustETF comble la géo/secteur/holdings
     # des ETF que FT/émetteurs ne ventilent pas. Fill-only (exclut nativement les
     # ETF déjà dotés de secteurs), priorité AUM décroissant. Avant compute-metrics
