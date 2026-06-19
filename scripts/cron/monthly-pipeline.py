@@ -96,13 +96,15 @@ MONTHLY_STEPS = [
     # pour que data_completeness/primaire reflètent la nouvelle compo.
     ("scrapers/justetf-holdings-scraper.py",
      ["--limit", str(JUSTETF_HOLDINGS_BUCKET)]),
-    # Comble la compo des OPCVM (géo/secteur/holdings) via Morningstar EMEA —
-    # gisement disjoint des ETF ci-dessus (~7,1 k OPCVM ms-ratés sans géo).
-    # Rotation par mois (offset = mois×bucket) pour ne pas re-scanner la même
-    # tête à chaque run. Fill-only strict, priorité AUM. Avant compute-metrics.
+    # Comble la compo des OPCVM (géo/secteur/holdings) via Morningstar —
+    # résolution secId par screener ecint entitlé, ventilation par sal-service v1
+    # (api-global, apikey statique ; PAS oauth — le realm oauth n'entitle pas
+    # sal-service). Gisement disjoint des ETF ci-dessus (~7,1 k OPCVM ms-ratés
+    # sans géo) drainé en masse 19/06. offset 0 = on (re)comble toujours le
+    # top-N AUM encore manquant (nouveaux fonds + ratés transitoires) ; fill-only
+    # strict ⇒ les fonds déjà ventilés sont nativement skippés. Avant compute-metrics.
     ("scrapers/populate-holdings-morningstar.py",
-     ["--limit", str(MS_HOLDINGS_BUCKET),
-      "--offset", str((date.today().month % 12) * MS_HOLDINGS_BUCKET)]),
+     ["--limit", str(MS_HOLDINGS_BUCKET), "--offset", "0"]),
     ("enrichers/compute-metrics.py", []),
     # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
     # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline
