@@ -27,9 +27,18 @@ export default function DocumentsPage() {
   const [fiche, setFiche] = useState<DiciFiche | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
+  // Doit rester aligné avec DICI_MAX_BYTES côté serveur (api/dici/parse).
+  const MAX_PDF_BYTES = 3_000_000;
+
   async function processFile(file: File) {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setError("Seuls les fichiers PDF sont acceptés.");
+      return;
+    }
+    // Pré-contrôle de taille côté client : évite d'uploader (et de facturer) un
+    // gros fichier. Un DICI fait quelques pages ; au-delà de 3 Mo c'est anormal.
+    if (file.size > MAX_PDF_BYTES) {
+      setError(`Fichier trop volumineux (${Math.round(MAX_PDF_BYTES / 1_000_000)} Mo max). Un DICI ne fait que quelques pages.`);
       return;
     }
     setLoading(true);
@@ -49,7 +58,9 @@ export default function DocumentsPage() {
         // On distingue une panne du service IA (clé/quota/réseau, code
         // "ai_unavailable" → 503) d'un document réellement illisible (422),
         // pour ne pas faire porter le chapeau au fichier de l'utilisateur.
-        if (data?.code === "ai_unavailable" || res.status >= 500) {
+        if (data?.code === "too_large") {
+          setError(`Fichier trop volumineux (${data.max_mb ?? 3} Mo max). Un DICI ne fait que quelques pages.`);
+        } else if (data?.code === "ai_unavailable" || res.status >= 500) {
           setError("Le service d'analyse est temporairement indisponible. Réessayez dans quelques minutes.");
         } else {
           setError("Impossible d'analyser ce document. Vérifiez qu'il s'agit d'un DICI valide.");
