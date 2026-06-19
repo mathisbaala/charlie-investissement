@@ -444,6 +444,21 @@ def safe_fill_funds(records: list[dict], source: str, batch_size: int = 200) -> 
 
 # ─── Upsert prix (VL) ─────────────────────────────────────────────────────────
 
+# Mapping code source → id smallint (table de lookup
+# investissement_fund_price_sources). Normalisation de la colonne `source`
+# (text → smallint `source_id`) pour économiser ~120-130 Mo de stockage.
+# Source unique d'écriture : tout passe par upsert_prices() ci-dessous, donc
+# aucun scraper n'a à connaître ce mapping ni à être édité.
+_SOURCE_ID = {
+    "financial-times": 1,
+    "yahoo-finance":   2,
+    "justetf":         3,
+    "amf-geco":        4,
+    "coingecko-daily": 5,
+    "yahoo-crypto":    6,
+}
+
+
 def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 500) -> tuple[int, int]:
     """
     Insère/met à jour des VL dans investissement_fund_prices.
@@ -451,12 +466,29 @@ def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 
     Args:
         isin: code ISIN du fonds
         prices: liste de dicts avec {date: str 'YYYY-MM-DD', nav: float}
-        source: 'yahoo-finance' | 'amf-geco' | 'boursorama'
+        source: code source — doit être une clé de _SOURCE_ID
+                ('financial-times' | 'yahoo-finance' | 'justetf' | 'amf-geco' |
+                 'coingecko-daily' | 'yahoo-crypto'). Converti en source_id.
         batch_size: nombre de lignes par requête Supabase
 
     Returns:
         (n_inserted, n_failed)
+
+    Note:
+        La signature garde source=str pour la rétrocompat des 6 scrapers
+        appelants. En interne on n'écrit plus que la colonne smallint
+        `source_id` ; la colonne text `source` est désormais ignorée à
+        l'écriture (laissée en place jusqu'au prochain DROP COLUMN, cf.
+        memory/ migration source_id).
     """
+    src_id = _SOURCE_ID.get(source)
+    if src_id is None:
+        raise ValueError(
+            f"upsert_prices: source inconnue {source!r}. "
+            f"Sources valides : {sorted(_SOURCE_ID)}. "
+            f"Ajouter le code dans investissement_fund_price_sources + _SOURCE_ID."
+        )
+
     client = get_client()
     if not prices:
         return 0, 0
@@ -467,7 +499,7 @@ def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 
             "price_date": p["date"],
             "nav":        round(float(p["nav"]), 6) if p.get("nav") is not None else None,
             "currency":   p.get("currency", "EUR"),
-            "source":     source,
+            "source_id":  src_id,
         }
         for p in prices
         if p.get("date") and p.get("nav") is not None
