@@ -117,6 +117,13 @@ export function fmtAum(v: number | null | undefined): string {
   return nf1.format(m) + " M€";
 }
 
+// Montant unitaire en euros, 2 décimales (ex. prix de part SCPI : « 458,00 € »).
+const nfEur = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function fmtEur(v: number | null | undefined): string {
+  if (v == null) return "—";
+  return nfEur.format(v) + " €";
+}
+
 export function fmtAumShort(v: number | null | undefined): string {
   if (v == null) return "—";
   const bn = v / 1_000_000_000;

@@ -124,6 +124,7 @@ export default async function FondPage({
     region_normalized: fund.region_normalized,
     region_exposure: (fund as any).region_exposure ?? null,
     currency: fund.currency,
+    price_per_share: (fund as any).price_per_share ?? null,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
     hedged: (fund as any).hedged ?? null,

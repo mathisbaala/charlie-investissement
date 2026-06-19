@@ -118,6 +118,20 @@ def parse_year(text: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def parse_prix_part(html: str) -> float | None:
+    """Prix de part SCPI : 'Prix de part : 458,00€' → 458.00 (texte dé-balisé)."""
+    txt = re.sub(r"<[^>]+>", " ", html)
+    m = re.search(r"Prix de part\s*:?\s*([\d\s\xa0]+,\d{2})\s*€", txt)
+    if not m:
+        return None
+    raw = re.sub(r"[\s\xa0]", "", m.group(1)).replace(",", ".")
+    try:
+        val = float(raw)
+        return val if 0 < val <= 100_000 else None
+    except ValueError:
+        return None
+
+
 def extract_isin_from_url(url: str) -> str | None:
     """Les URLs OPCI/SCI Primaliance terminent par l'ISIN : /157-opci-...-FR0010956912"""
     m = re.search(r"-([A-Z]{2}\d{10}|[A-Z0-9]{12,20})$", url)
@@ -235,6 +249,10 @@ def parse_scpi_page(sess: requests.Session, url: str) -> dict | None:
     cap_minor = _css_text(page, ".capitalisation .minor-nb")
     if cap_major and cap_minor:
         result["capitalisation_eur"] = parse_capitalisation(f"{cap_major} {cap_minor}")
+
+    prix = parse_prix_part(html_text)  # 'Prix de part : 458,00€' (texte labellisé)
+    if prix is not None:
+        result["prix_part"] = prix
 
     year_major = _css_text(page, ".date_creation .major-nb")
     if year_major:
@@ -446,6 +464,26 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
         if match.get("sri") is not None and fund.get("sri") is None:
             update["sri"] = match["sri"]
             field_counts["sri"] += 1
+
+        # Métriques SCPI dédiées (table investissement_scpi_metrics) — dont le
+        # PRIX DE PART, absent de investissement_funds. Toujours rafraîchi
+        # (refresh trimestriel : prix de part / capitalisation bougent chaque T).
+        metrics = {k: v for k, v in {
+            "price_per_share": match.get("prix_part"),
+            "capitalization":  match.get("capitalisation_eur"),
+            "dvm":             match.get("taux_distribution"),
+            "tof":             match.get("tof"),
+        }.items() if v is not None}
+        if metrics:
+            if match.get("prix_part") is not None:
+                field_counts["prix_part"] = field_counts.get("prix_part", 0) + 1
+            if apply:
+                try:
+                    client.table("investissement_scpi_metrics").upsert(
+                        {"isin": isin, **metrics, "updated_at": now}, on_conflict="isin"
+                    ).execute()
+                except Exception as e:
+                    print(f"        ✗ scpi_metrics {isin} : {e}")
 
         if not update:
             continue

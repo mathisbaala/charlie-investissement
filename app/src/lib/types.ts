@@ -332,6 +332,7 @@ export type FundDetailHF = {
   region_normalized: string | null;
   region_exposure: string | null;      // exposition géographique brute
   currency: string | null;
+  price_per_share: number | null;       // prix de part (SCPI — investissement_scpi_metrics)
   inception_date: string | null;
   track_record_years: number | null;
   hedged: boolean | null;              // version couverte en devise

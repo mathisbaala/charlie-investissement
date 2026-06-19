@@ -1,4 +1,4 @@
-import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort } from "@/lib/format";
+import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort, fmtEur } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 import { Card } from "@/components/ui/Card";
 
@@ -139,6 +139,7 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
+          <Row label="Prix de part" value={fund.price_per_share != null ? fmtEur(fund.price_per_share) : null} />
           <BoolRow label="Couverture de change" value={fund.hedged} yes="Couvert" no="Non couvert" />
           <Row label="Gestionnaire" value={fund.gestionnaire ?? fund.management_company} />
           <Row label="Encours" value={fmtAumShort(fund.aum_eur)} />
