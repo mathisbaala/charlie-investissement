@@ -52,12 +52,15 @@ ROTATE_WEEKS = 4
 
 # Filet OPCVM FR : GECO (API VL AMF officielle) est, pour les ~10,7 k OPCVM
 # domiciliés en France, quasiment la SOURCE PRIMAIRE — Financial Times ne les
-# tient pas frais (≈0 VL FR fraîche sans GECO). Rotation propre sur
-# GECO_ROTATE_WEEKS semaines (offset = rang dans l'univers FR trié par encours,
-# stable d'une semaine à l'autre), pour borner la durée du run et le rate limit
-# AMF tout en couvrant tout l'univers en ≤ GECO_ROTATE_WEEKS semaines.
-GECO_BUCKET = 5500
-GECO_ROTATE_WEEKS = 2
+# tient pas frais (≈0 VL FR fraîche sans GECO). Couverture HEBDOMADAIRE COMPLÈTE :
+# GECO_ROTATE_WEEKS=1 → offset 0 chaque semaine, GECO_BUCKET dimensionné au-delà
+# de l'univers FR (~10,7 k) pour tout traiter à chaque run. En régime permanent
+# l'écriture est incrémentale (peu de points neufs/fonds), donc le coût est
+# surtout celui de la résolution share_id ; tient dans le budget CI (≤ 6 h).
+# Repasser à un bucket/rotation plus petits si la durée ou le rate limit AMF pose
+# problème (un cache ISIN→idInterne supprimerait la résolution récurrente).
+GECO_BUCKET = 12000
+GECO_ROTATE_WEEKS = 1
 
 
 def weekly_steps():
