@@ -56,6 +56,7 @@ export default async function FondPage({
     { data: sectorsRaw },
     { data: geosRaw },
     { data: insurersRaw },
+    { data: scpiMetrics },
   ] = await Promise.all([
     supabase
       .from("investissement_fund_prices")
@@ -82,6 +83,13 @@ export default async function FondPage({
       .order("weight", { ascending: false })
       .limit(15),
     supabase.rpc("get_fund_insurers", { p_isin: upper }),
+    // Prix de part SCPI/OPCI : vit dans investissement_scpi_metrics (pas une
+    // colonne de investissement_funds) → fetch dédié, sinon le champ reste null.
+    supabase
+      .from("investissement_scpi_metrics")
+      .select("price_per_share")
+      .eq("isin", upper)
+      .maybeSingle(),
   ]);
 
   const nav_history: NavPointHF[] = (prices ?? []).map((p: any) => ({
@@ -124,7 +132,7 @@ export default async function FondPage({
     region_normalized: fund.region_normalized,
     region_exposure: (fund as any).region_exposure ?? null,
     currency: fund.currency,
-    price_per_share: (fund as any).price_per_share ?? null,
+    price_per_share: (scpiMetrics as { price_per_share: number | null } | null)?.price_per_share ?? null,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
     hedged: (fund as any).hedged ?? null,
