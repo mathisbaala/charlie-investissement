@@ -444,9 +444,10 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
 
         _take("performance_1y", match.get("taux_distribution"), "p1y")
         _take("performance_5y", match.get("tri_5ans"), "p5y")
-        # ongoing_charges : fill-only si un TER existe déjà (ne pas dédoubler la source)
-        if match.get("frais_gestion") is not None and fund.get("ter") is None:
-            _take("ongoing_charges", match["frais_gestion"], "ongoing_charges")
+        # NB : on n'écrit PAS frais_gestion dans ongoing_charges. Les « frais de
+        # gestion » SCPI (~8-13 % des loyers) ne sont PAS un TER (% de l'encours) :
+        # les mapper sur ongoing_charges affichait un « TER » de 10-18 % trompeur
+        # à côté des OPCVM (1-2 %), et violait chk_ongoing_fraction (mauvaise unité).
         _take("aum_eur", match.get("capitalisation_eur"), "aum_eur")
 
         if match.get("year_created") and not fund.get("inception_date"):
@@ -468,11 +469,15 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
         # Métriques SCPI dédiées (table investissement_scpi_metrics) — dont le
         # PRIX DE PART, absent de investissement_funds. Toujours rafraîchi
         # (refresh trimestriel : prix de part / capitalisation bougent chaque T).
+        # dvm/tof sont des numeric(6,4) (|v| < 100) : un parse foireux peut donner
+        # une valeur ≥ 100 → overflow. On les borne (sinon l'upsert échoue).
+        def _pct_ok(v):
+            return v is not None and -100 < v < 100
         metrics = {k: v for k, v in {
             "price_per_share": match.get("prix_part"),
             "capitalization":  match.get("capitalisation_eur"),
-            "dvm":             match.get("taux_distribution"),
-            "tof":             match.get("tof"),
+            "dvm":             match.get("taux_distribution") if _pct_ok(match.get("taux_distribution")) else None,
+            "tof":             match.get("tof") if _pct_ok(match.get("tof")) else None,
         }.items() if v is not None}
         if metrics:
             if match.get("prix_part") is not None:
