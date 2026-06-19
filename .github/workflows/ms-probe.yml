@@ -2,8 +2,11 @@ name: Apply Morningstar OPCVM holdings (mass run)
 
 # Job TEMPORAIRE de remplissage de masse : enrichit la ventilation
 # (géo/secteur/holdings) des OPCVM via sal-service (source=morningstar),
-# fill-only, priorité AUM. Sharding par offset pour tenir dans le timeout job.
-# À SUPPRIMER une fois le gisement (~7980) drainé.
+# fill-only, priorité AUM. Sharding séquentiel : chaque shard re-sélectionne
+# le top-N AUM encore manquant (offset 0) → idempotent, pas de chevauchement.
+# L'API publique api-global throttle (~7-8 s/fonds), d'où des shards courts
+# (300/shard ≈ 40 min) qui tiennent largement dans le timeout. À SUPPRIMER une
+# fois le gisement (~7900) drainé. Re-dispatchable pour finir le reliquat.
 on:
   workflow_dispatch: {}
 
@@ -14,14 +17,13 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 50
     strategy:
       fail-fast: false
-      max-parallel: 1          # séquentiel : chaque shard re-sélectionne le
-                               # top-N encore manquant (offset 0) → idempotent,
-                               # pas de chevauchement ni de trou entre shards.
+      max-parallel: 1          # séquentiel obligatoire pour l'idempotence offset-0
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+                14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
     permissions:
       contents: read
     env:
@@ -40,5 +42,5 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
-      - name: Apply shard ${{ matrix.shard }} (top-1000 encore manquant)
-        run: python3 scripts/scrapers/populate-holdings-morningstar.py --apply --limit 1000 --offset 0
+      - name: Apply shard ${{ matrix.shard }} (top-300 AUM encore manquant)
+        run: python3 scripts/scrapers/populate-holdings-morningstar.py --apply --limit 300 --offset 0
