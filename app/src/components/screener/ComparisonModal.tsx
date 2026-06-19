@@ -8,6 +8,7 @@ import {
 import { X } from "@/components/ui/icons";
 import { useSelection, SelectedFund } from "@/components/SelectionProvider";
 import { pct, fmtAum } from "@/lib/format";
+import { LookThroughView } from "@/components/screener/LookThroughView";
 
 interface Row {
   label: string;
@@ -217,6 +218,7 @@ interface ComparisonModalProps {
 
 export function ComparisonModal({ onClose }: ComparisonModalProps) {
   const { selected } = useSelection();
+  const [tab, setTab] = useState<"compare" | "exposure">("compare");
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -236,8 +238,27 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
           </button>
         </div>
 
+        {/* Onglets */}
+        <div className="flex gap-1 px-6 pt-3 border-b border-line shrink-0">
+          {([["compare", "Comparaison"], ["exposure", "Exposition agrégée"]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-3 py-2 text-meta font-medium border-b-2 -mb-px transition-colors ${
+                tab === key ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink-2"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="overflow-auto flex-1">
 
+          {tab === "exposure" ? (
+            <LookThroughView funds={selected} />
+          ) : (
+          <>
           {/* NAV chart */}
           <div className="px-6 pt-5 pb-3">
             <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-3">
@@ -322,6 +343,8 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
               ))}
             </tbody>
           </table>
+          </>
+          )}
         </div>
       </div>
     </div>
