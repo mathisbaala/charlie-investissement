@@ -1,0 +1,44 @@
+name: Probe Morningstar EMEA holdings
+
+# Job TEMPORAIRE de validation : vérifie que l'API EMEA expose bien les
+# ventilations (géo/secteur/holdings) AVANT de lancer le run de masse OPCVM.
+# 1) --probe : dump du JSON brut (top-level keys) pour figer le format.
+# 2) dry-run --limit 5 : exerce les vrais parsers et compte ok vs no_data
+#    (aucune écriture). À supprimer une fois la validation faite.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ms-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Probe — dump format brut (3 ISIN OPCVM)
+        run: |
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin IE00B87KCF77
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin IE00BFMXXD54
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin LU0328684104
+
+      - name: Dry-run — valider les parsers (limit 5, aucune écriture)
+        run: python3 scripts/scrapers/populate-holdings-morningstar.py --limit 5
