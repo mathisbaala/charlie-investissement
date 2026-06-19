@@ -97,6 +97,17 @@ NON_VANILLA_KW = [
     "corporate", "credit",
 ]
 
+# Sous-classement obligataire par mot-clé du nom (govt vs corp/crédit), pour
+# distinguer ce que les règles de catégorie (asset_class + region) ne peuvent pas
+# voir. Appliqué UNIQUEMENT aux fonds asset_class='obligation' → aucune collision
+# avec un fonds action (« Crédit Agricole Actions » est 'action', jamais ici).
+# Le high yield/haut rendement est rangé côté crédit (plus proche de l'IG corpo
+# que du souverain — faute d'indice HY dédié).
+BOND_CORP_KW = ["corporate", "corp ", "crédit", "credit", "investment grade",
+                "high yield", "haut rendement"]
+BOND_GOVT_KW = ["govt", "government", "gouvernement", "souverain", "sovereign",
+                "état ", "treasury", "trésor", "gilt", "bund", "oat "]
+
 # Devises de parts vers lesquelles on convertit les indices (via change), pour
 # comparer un fonds EUR à un indice USD sans contaminer l'alpha par le FX.
 FX_TARGETS = ["EUR", "USD", "GBP", "CHF"]
@@ -148,7 +159,22 @@ def map_index(fund: dict, catalog: dict[str, dict],
         str(fund.get(k) or "") for k in ("category", "category_normalized", "name")
     ).lower()
     hay = f" {hay} "
-    if any(k in hay for k in EXCLUDE_KW):
+    # « short-term » / « ultra-short » / « short duration » sont des fonds
+    # obligataires/monétaires vanille, PAS des produits inverse/levier : on
+    # neutralise ces tournures avant le filtre levier (qui contient short/ultra),
+    # sinon toute la dette courte serait exclue à tort.
+    # On ne neutralise que les tournures OBLIGATAIRES sans ambiguïté (« ultra
+    # short term/duration/bond »…) : un « UltraShort <indice action> » (inverse
+    # −2x) garde ses « ultra »/« short » et reste exclu.
+    hay_lev = hay
+    for benign in ("ultra short term", "ultra-short term", "ultra short duration",
+                   "ultra short bond", "ultra short dated", "ultra short maturity",
+                   "ultrashort term", "ultrashort duration", "ultrashort bond",
+                   "short-term", "short term", "shortterm",
+                   "short duration", "short-duration",
+                   "short dated", "short-dated", "short maturity"):
+        hay_lev = hay_lev.replace(benign, " ")
+    if any(k in hay_lev for k in EXCLUDE_KW):
         return None, False
 
     # Un « exact » (is_category=False) n'a de sens que pour un TRACKER (ETF /
@@ -167,9 +193,22 @@ def map_index(fund: dict, catalog: dict[str, dict],
             if any(kw in hay for kw in meta["kw"]):
                 return code, (not is_tracker)
 
-    # 3) Catégorie : règle par asset_class_broad / region_normalized.
     acb = (fund.get("asset_class_broad") or "").lower()
     reg = (fund.get("region_normalized") or "").lower()
+
+    # 2b) Sous-classement obligataire govt/corp par mot-clé du nom, AVANT la
+    #     règle de région (qui ne voit pas la sous-classe). Un fonds euro
+    #     « corporate »/« crédit » est comparé à l'IG euro (et non au souverain,
+    #     qui gonflerait l'alpha de la prime de crédit). Restreint à 'obligation'.
+    if acb == "obligation" and ("eur_corp" in catalog or "eur_govt" in catalog):
+        is_euro = reg in ("europe", "france", "eurozone", "germany")
+        if any(k in hay for k in BOND_CORP_KW):
+            return ("eur_corp" if is_euro and "eur_corp" in catalog
+                    else "global_agg"), True
+        if is_euro and "eur_govt" in catalog and any(k in hay for k in BOND_GOVT_KW):
+            return "eur_govt", True
+
+    # 3) Catégorie : règle par asset_class_broad / region_normalized.
     for r in rules:
         if r["index_code"] not in catalog:
             continue
