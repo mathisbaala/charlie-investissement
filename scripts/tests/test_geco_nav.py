@@ -50,6 +50,18 @@ class ParseChartPayload(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0], {"date": "2026-06-13", "nav": 12.5, "currency": "EUR"})
 
+    def test_duplicate_dates_collapsed_to_one(self):
+        # GECO renvoie parfois 2 VL pour la même date → sans dédup, l'upsert
+        # (on_conflict isin,price_date) plante (21000) et perd le batch.
+        payload = {
+            "x": ["13-06-2026", "13-06-2026", "16-06-2026"],
+            "y": [2.0, 2.5, 3.0],
+        }
+        out = gn.parse_chart_payload(payload)
+        self.assertEqual([p["date"] for p in out], ["2026-06-13", "2026-06-16"])
+        # Dernière valeur de la série gardée pour la date en double.
+        self.assertEqual(out[0]["nav"], 2.5)
+
     def test_malformed_payloads_return_empty(self):
         self.assertEqual(gn.parse_chart_payload({}), [])
         self.assertEqual(gn.parse_chart_payload({"x": ["16-06-2026"], "y": []}), [])
