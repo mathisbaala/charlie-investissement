@@ -1,0 +1,61 @@
+name: Rafraîchissement trimestriel
+
+# Données à cadence TRIMESTRIELLE : les SCPI publient taux de distribution (TD),
+# TRI, frais et capitalisation par trimestre. On rafraîchit le 5 de janvier,
+# avril, juillet, octobre. Refresh = réécrit les métriques existantes
+# (≠ fill-only), via Primaliance basculé en requests + parsel (CI-safe).
+on:
+  schedule:
+    # 5 jan / avr / juil / oct, 05:00 UTC.
+    - cron: "0 5 5 1,4,7,10 *"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  quarterly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      # SCPI : taux de distribution / TRI 5 ans / frais / capitalisation depuis
+      # primaliance.com (~133 SCPI). --refresh réécrit les métriques (TD change
+      # chaque trimestre) ; l'identité (SGP, catégorie, SRI) reste fill-only.
+      - name: SCPI Primaliance — métriques (refresh)
+        run: python3 scripts/scrapers/scpi-primaliance-enricher.py --apply --refresh
+
+      # Alerte persistante si l'étape ci-dessus a échoué.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-pipeline-trimestriel]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement trimestriel (SCPI) a échoué." \
+              "Run : $RUN_URL" \
+              "À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement trimestriel en échec" --body-file -
+          fi
