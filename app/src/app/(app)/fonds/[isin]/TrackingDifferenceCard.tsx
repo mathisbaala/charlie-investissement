@@ -91,7 +91,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
 
       {fund.benchmark_perf_3y != null && (
         <p className="text-caption text-muted-2 mt-3 leading-snug">
-          Indice {variant} sur 3 ans : {pct(fund.benchmark_perf_3y, true)}/an.
+          {variant.charAt(0).toUpperCase() + variant.slice(1)} sur 3 ans : {pct(fund.benchmark_perf_3y, true)}/an.
         </p>
       )}
       <p className="text-caption text-muted-2 mt-2 leading-snug">
