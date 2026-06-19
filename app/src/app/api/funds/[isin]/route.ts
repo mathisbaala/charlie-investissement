@@ -57,7 +57,7 @@ export async function GET(
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const since = threeYearsAgo.toISOString().split("T")[0];
 
-  const [pricesRes, holdingsRes, sectorsRes, geosRes, insurersRes] = await Promise.all([
+  const [pricesRes, holdingsRes, sectorsRes, geosRes, insurersRes, scpiRes] = await Promise.all([
     supabase
       .from("investissement_fund_prices")
       .select("price_date, nav")
@@ -87,6 +87,13 @@ export async function GET(
     // drawer d'aperçu d'afficher « chez quel assureur le fonds est référencé »
     // sans appel séparé. Réponse mise en cache 300s comme le reste du détail.
     supabase.rpc("get_fund_insurers", { p_isin: upper }),
+    // Prix de part SCPI/OPCI : vit dans investissement_scpi_metrics (pas une
+    // colonne de investissement_funds) → fetch dédié, sinon le champ reste null.
+    supabase
+      .from("investissement_scpi_metrics")
+      .select("price_per_share")
+      .eq("isin", upper)
+      .maybeSingle(),
   ]);
 
   const nav_history: NavPointHF[] = (pricesRes.data ?? []).map((p: any) => ({
@@ -130,7 +137,7 @@ export async function GET(
     region_exposure: (fund as any).region_exposure ?? null,
     category: (fund as any).category ?? null,
     currency: fund.currency,
-    price_per_share: (fund as any).price_per_share ?? null,
+    price_per_share: (scpiRes.data as { price_per_share: number | null } | null)?.price_per_share ?? null,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
     hedged: (fund as any).hedged ?? null,
