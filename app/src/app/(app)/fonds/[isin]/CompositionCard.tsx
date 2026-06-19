@@ -6,6 +6,9 @@ function pctStr(v: number) {
   return `${(v * 100).toFixed(1)}%`;
 }
 
+// Nb de lignes affichées avant le repli « voir tout » (compo complète des ETF).
+const HOLDINGS_PREVIEW = 15;
+
 // Palette "Charlie earth tones" — assez disctincte pour 10 tranches
 const PALETTE = [
   "#8B7355", "#6B9E9F", "#C4956A", "#7A8E6B", "#9E7A8B",
@@ -137,13 +140,27 @@ export function CompositionCard({ fund }: { fund: FundDetailHF }) {
         {hasHoldings && (
           <div>
             <p className="text-caption uppercase tracking-wider text-muted-2 mb-3 font-semibold">
-              Top {holdings.length} positions
+              {holdings.length > HOLDINGS_PREVIEW
+                ? `${holdings.length} principales positions`
+                : `Top ${holdings.length} positions`}
             </p>
             <div>
-              {holdings.map((h, i) => (
+              {holdings.slice(0, HOLDINGS_PREVIEW).map((h, i) => (
                 <HoldingRow key={h.rank} holding={h} rank={i + 1} />
               ))}
             </div>
+            {holdings.length > HOLDINGS_PREVIEW && (
+              <details className="group mt-1">
+                <summary className="text-label text-accent cursor-pointer select-none list-none py-1.5 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded">
+                  Voir les {holdings.length - HOLDINGS_PREVIEW} autres positions
+                </summary>
+                <div className="mt-1">
+                  {holdings.slice(HOLDINGS_PREVIEW).map((h, i) => (
+                    <HoldingRow key={h.rank} holding={h} rank={HOLDINGS_PREVIEW + i + 1} />
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         )}
 

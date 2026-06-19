@@ -69,7 +69,10 @@ export async function GET(
       .from("investissement_fund_holdings")
       .select("rank, position_name, ticker, asset_type, sector, country, weight")
       .eq("isin", upper)
-      .order("rank", { ascending: true }),
+      .order("rank", { ascending: true })
+      // Compo complète des ETF jusqu'à 500 lignes en base : le drawer d'aperçu
+      // n'en montre qu'une fraction, on borne la réponse aux 50 principales.
+      .limit(50),
     supabase
       .from("investissement_fund_sectors")
       .select("sector_name, weight")

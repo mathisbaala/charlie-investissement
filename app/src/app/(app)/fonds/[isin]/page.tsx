@@ -69,7 +69,7 @@ export default async function FondPage({
       .select("rank, position_name, ticker, asset_type, sector, country, weight")
       .eq("isin", upper)
       .order("rank", { ascending: true })
-      .limit(10),
+      .limit(50),
     supabase
       .from("investissement_fund_sectors")
       .select("sector_name, weight")

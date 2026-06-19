@@ -20,8 +20,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select("isin, country_label, country_code, weight").in("isin", isins),
     supabase.from("investissement_fund_sectors")
       .select("isin, sector_name, weight").in("isin", isins),
+    // Compo complète des ETF (jusqu'à 500 lignes/fonds) : 4 fonds → jusqu'à 2000
+    // lignes. On relève la limite au-dessus du cap PostgREST par défaut (1000)
+    // pour ne pas tronquer la détection de chevauchements.
     supabase.from("investissement_fund_holdings")
-      .select("isin, position_name, ticker, weight").in("isin", isins),
+      .select("isin, position_name, ticker, weight").in("isin", isins).limit(4000),
   ]);
 
   const geo = blendExposure(((geoRes.data ?? []) as any[]).map((g) => ({
