@@ -151,17 +151,25 @@ def map_index(fund: dict, catalog: dict[str, dict],
     if any(k in hay for k in EXCLUDE_KW):
         return None, False
 
-    # 2) Exact : seulement pour un produit vanille (sinon il réplique un indice
-    #    DIFFÉRENT du parent → on laisse la règle de catégorie s'en charger).
+    # Un « exact » (is_category=False) n'a de sens que pour un TRACKER (ETF /
+    # gestion indicielle) : lui seul réplique vraiment l'indice → écart de
+    # réplication, borne ±5 %/an. Un fonds ACTIF dont le nom contient un mot-clé
+    # d'indice (« emerging », « msci world »…) n'est PAS un tracker : on le mappe
+    # comme indice de CATÉGORIE (alpha, borne ±30 %/an), pas comme réplication.
+    style = (fund.get("management_style") or "").lower()
+    is_tracker = (fund.get("product_type") == "etf"
+                  or style in ("passif", "index", "smart_beta"))
+
+    # 2) Exact : produit vanille uniquement (sinon il réplique un indice DIFFÉRENT
+    #    du parent). is_category=False seulement si c'est réellement un tracker.
     if not any(k in hay for k in NON_VANILLA_KW):
         for code, meta in catalog.items():
             if any(kw in hay for kw in meta["kw"]):
-                return code, False
+                return code, (not is_tracker)
 
     # 3) Catégorie : règle par asset_class_broad / region_normalized.
     acb = (fund.get("asset_class_broad") or "").lower()
     reg = (fund.get("region_normalized") or "").lower()
-    style = (fund.get("management_style") or "").lower()
     for r in rules:
         if r["index_code"] not in catalog:
             continue
