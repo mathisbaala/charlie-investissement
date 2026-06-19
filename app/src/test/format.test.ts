@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType } from '../lib/format'
+import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS } from '../lib/format'
 
 describe('pct', () => {
   it('returns em dash for null', () => expect(pct(null)).toBe('—'))
@@ -49,6 +49,28 @@ describe('annualizeForType', () => {
   it('ne touche PAS un livret', () => expect(annualizeForType(3, 3, 'livret')).toBe(3))
   it('annualise quand product_type inconnu/null', () => expect(annualizeForType(57.5, 3, null)).toBe(16.35))
   it('renvoie null si valeur absente', () => expect(annualizeForType(null, 3, 'scpi')).toBe(null))
+})
+
+describe('perfNetteClient', () => {
+  // La perf VL est DÉJÀ nette du fonds → on ne déduit QUE le frais de gestion
+  // du contrat. Jamais de double comptage du TER ni de la rétrocession.
+  it('returns null when perf is null/undefined', () => {
+    expect(perfNetteClient(null, 0.8)).toBe(null)
+    expect(perfNetteClient(undefined, 0.8)).toBe(null)
+  })
+  it('déduit les frais de gestion du contrat (AV)', () =>
+    expect(perfNetteClient(16.35, 0.8)).toBe(15.55))
+  it('PEA/CTO sans frais d\'enveloppe → perf inchangée', () =>
+    expect(perfNetteClient(16.35, 0)).toBe(16.35))
+  it('traite un frais absent comme 0', () =>
+    expect(perfNetteClient(10, null)).toBe(10))
+  it('perf négative reste cohérente après déduction', () =>
+    expect(perfNetteClient(-5, 0.8)).toBe(-5.8))
+  it('barème par défaut : AV-FR 0,8 %, PEA 0 %, PER 0,6 %', () => {
+    expect(CONTRACT_FEE_DEFAULTS['AV-FR']).toBe(0.8)
+    expect(CONTRACT_FEE_DEFAULTS['PEA']).toBe(0)
+    expect(CONTRACT_FEE_DEFAULTS['PER']).toBe(0.6)
+  })
 })
 
 describe('fmtAum', () => {

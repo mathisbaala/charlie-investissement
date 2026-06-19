@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { C, FONT, perfColor, registerCharlieFonts } from "./pdf/theme";
+import { perfNetteClient, CONTRACT_FEE_DEFAULTS } from "./format";
 import {
   Bar,
   BrandHeader,
@@ -234,12 +235,6 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
     <Page size="A4" style={S.page}>
       <BrandHeader right={<Eyebrow>{`Fonds ${index + 1} / ${total}`}</Eyebrow>} />
 
-      {fund.data_completeness < 80 && (
-        <View style={S.warn}>
-          <Text style={S.warnText}>Données partielles — complétude {fund.data_completeness}%. Certains champs peuvent manquer.</Text>
-        </View>
-      )}
-
       <Eyebrow style={{ color: C.clay }}>{fund.product_type ?? "Fonds"}</Eyebrow>
       <Text style={S.fundTitle}>{fund.name}</Text>
       <Text style={S.fundMeta}>
@@ -289,6 +284,17 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
           <Row label="Volatilité 1 an" value={fmt(fund.volatility_1y)} />
           <Row label="Ratio de Sharpe 1 an" value={fmt(fund.sharpe_1y, "", 2)} />
 
+          {fund.benchmark_index && (fund.alpha_3y != null || fund.alpha_1y != null) && (
+            <View style={S.card}>
+              <Text style={S.cardLabel}>
+                {fund.benchmark_is_category ? "Alpha vs indice de catégorie" : "Performance vs indice"}
+              </Text>
+              <Row label={`Indice`} value={String(fund.benchmark_index)} />
+              <Row label="Alpha 1 an" value={fund.alpha_1y != null ? perf(fund.alpha_1y) : "—"} />
+              <Row label="Alpha 3 ans (annualisé)" value={fund.alpha_3y != null ? perf(fund.alpha_3y) : "—"} />
+            </View>
+          )}
+
           <View style={S.card}>
             <Text style={S.cardLabel}>Indicateur de risque (SRI)</Text>
             <SriMeter value={sri} />
@@ -300,6 +306,13 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
           <Row label="Frais courants (TER)" value={fmt(ter)} />
           <Row label="Frais d'entrée max" value={fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "—"} />
           <Row label="Commission de sortie max" value={fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "—"} />
+          {/* Perf nette pour le client : perf VL (déjà nette du fonds) moins les
+              frais de gestion du contrat AV (hypothèse standard). Pas de double
+              comptage du TER/rétro. */}
+          <Row
+            label="Perf. nette 3 ans (AV, est.)"
+            value={fund.performance_3y != null ? perf(perfNetteClient(fund.performance_3y, CONTRACT_FEE_DEFAULTS["AV-FR"])) : "—"}
+          />
           <Row label="Encours (AUM)" value={fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "—"} />
           <Row label="Création" value={fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "—"} />
           <Row label="Ancienneté" value={trackRecord ? `${trackRecord} ans` : "—"} />

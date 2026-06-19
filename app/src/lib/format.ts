@@ -63,6 +63,48 @@ export function annualizeForType(
   return annualizeCumul(cumulPct, years);
 }
 
+// ─── Perf nette de frais (côté client) ───────────────────────────────────────
+// La perf VL est DÉJÀ nette du TER/frais courants (la VL est publiée nette des
+// frais du fonds). Le seul surcoût client AU-DESSUS de la VL est le frais de
+// gestion du CONTRAT (enveloppe). On ne re-soustrait donc JAMAIS le TER ni la
+// rétrocession (déjà dans les frais courants reflétés par la VL) — sinon double
+// comptage. La rétro est la rému du CGP, prélevée DANS les frais courants : elle
+// reste informative, jamais déduite ici.
+
+// Frais de gestion annuels par défaut, par enveloppe (%/an). Paramétrables :
+// surchargeables via une prop UI. PEA/CTO = titres en direct, pas de frais
+// d'enveloppe ; AV/PER = frais de gestion des unités de compte.
+export const CONTRACT_FEE_DEFAULTS: Record<string, number> = {
+  "AV-FR": 0.8,
+  "AV-LUX": 0.8,
+  PER: 0.6,
+  "PEA": 0,
+  "PEA-PME": 0,
+  CTO: 0,
+};
+
+export const CONTRACT_FEE_LABELS: Record<string, string> = {
+  "AV-FR": "Assurance-vie (France)",
+  "AV-LUX": "Assurance-vie (Luxembourg)",
+  PER: "PER",
+  "PEA": "PEA",
+  "PEA-PME": "PEA-PME",
+  CTO: "Compte-titres",
+};
+
+/**
+ * Performance ANNUELLE nette pour le client : perf annualisée du fonds (déjà
+ * nette de TER) moins le frais de gestion annuel du contrat. Renvoie null si la
+ * perf est absente. Le frais est en %/an (ex: 0.8). Ne déduit ni TER ni rétro.
+ */
+export function perfNetteClient(
+  perfAnnuelPct: number | null | undefined,
+  fraisContratPct: number | null | undefined,
+): number | null {
+  if (perfAnnuelPct == null) return null;
+  return Math.round((perfAnnuelPct - (fraisContratPct ?? 0)) * 1e2) / 1e2;
+}
+
 export function eur(v: number | null | undefined): string {
   if (v == null) return "—";
   return nf.format(v) + " M€";

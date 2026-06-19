@@ -117,6 +117,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
             <SortTh field="ter" label="TER" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="performance_1y" label="Perf 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="performance_3y" label="Perf 3A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+            <SortTh field="alpha_3y" label="Alpha 3A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="volatility_1y" label="Vol 1A" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <SortTh field="aum_eur" label="Encours" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
             <th className="px-3 py-3 text-caption uppercase tracking-widest text-muted font-semibold whitespace-nowrap">Enveloppes</th>
@@ -179,12 +180,6 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <div className="font-medium text-ink leading-tight truncate max-w-[250px]">{decodeHtml(f.name)}</div>
-                    {f.data_completeness < 70 && (
-                      <span
-                        title={`Complétude : ${f.data_completeness}%`}
-                        className="shrink-0 w-1.5 h-1.5 rounded-full bg-warn/50"
-                      />
-                    )}
                   </div>
                   <div className="text-label text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}
@@ -209,6 +204,16 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   f.performance_3y >= 0 ? "text-ok" : "text-danger"
                 }`}>
                   {pct(f.performance_3y, true)}
+                </td>
+                {/* Alpha 3 ans vs indice de référence : > 0 = surperformance nette. */}
+                <td
+                  className={`px-3 py-3 text-right font-mono font-medium whitespace-nowrap ${
+                    f.alpha_3y == null ? "text-muted-2" :
+                    f.alpha_3y >= 0 ? "text-ok" : "text-danger"
+                  }`}
+                  title={f.benchmark_index ? `vs ${f.benchmark_index}${f.benchmark_is_category ? " (catégorie)" : ""}` : undefined}
+                >
+                  {f.alpha_3y == null ? "—" : pct(f.alpha_3y, true)}
                 </td>
                 <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {pct(f.volatility_1y)}

@@ -46,6 +46,7 @@ export function buildParams(
   if (f.manager_search)              sp.set("manager_search",    f.manager_search);
   if (f.free_text)                   sp.set("search",            f.free_text);
   if (f.has_kid)                     sp.set("has_kid",           "true");
+  if (f.beats_benchmark)             sp.set("beats_benchmark",   "true");
   sp.set("sort_by",  sortBy);
   sp.set("sort_dir", sortDir);
   sp.set("page",     String(page));
@@ -73,8 +74,9 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
     const v = num(param);
     if (v != null && !Number.isNaN(v)) (f[key] as number) = v;
   }
-  if (sp.get("no_entry_fee") === "true") f.no_entry_fee = true;
-  if (sp.get("has_kid")      === "true") f.has_kid      = true;
+  if (sp.get("no_entry_fee")    === "true") f.no_entry_fee    = true;
+  if (sp.get("has_kid")         === "true") f.has_kid         = true;
+  if (sp.get("beats_benchmark") === "true") f.beats_benchmark = true;
 
   const arrKeys: [string, keyof ParsedFilters][] = [
     ["envelopes", "envelopes"], ["universe", "universe"], ["asset_class", "asset_class"],
@@ -120,6 +122,7 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   if (f.drawdown_max != null) out.push(`Perte ≤ ${f.drawdown_max} %`);
   if (f.ter_max != null)      out.push(`Frais ≤ ${f.ter_max} %`);
   if (f.no_entry_fee)         out.push("Sans frais d'entrée");
+  if (f.beats_benchmark)      out.push("Bat son indice");
   for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
   for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
   for (const m of f.management_style ?? []) out.push(MGMT_STYLE_FILTER_LABELS[m] ?? m);

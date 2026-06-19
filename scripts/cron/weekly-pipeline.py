@@ -100,6 +100,10 @@ def weekly_steps():
         # conservées. Écrit en update ciblé sur les lignes CRYPTO_* (non destructif).
         ("scrapers/coingecko-crypto.py", ["--no-history"]),
         ("enrichers/compute-metrics.py", []),
+        # Benchmark + alpha vs indice : perfs fraîches ci-dessus → on recalcule
+        # l'alpha de chaque fonds (sans --refresh-indices : les séries d'indices
+        # sont rafraîchies mensuellement). APRÈS compute-metrics (en dépend).
+        ("enrichers/td-enricher.py", []),
         # Encours rafraîchis ci-dessus → recalcule le représentant share-class
         # (is_primary_share_class) qui porte la dédup de /api/funds.
         ("enrichers/refresh-primary-share-class.py", []),

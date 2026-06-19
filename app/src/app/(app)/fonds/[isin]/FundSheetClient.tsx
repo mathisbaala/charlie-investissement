@@ -13,6 +13,7 @@ import { RisqueCard } from "./RisqueCard";
 import { EnveloppesCard } from "./EnveloppesCard";
 import { FeesCard } from "./FeesCard";
 import { TrackingDifferenceCard } from "./TrackingDifferenceCard";
+import { PerfNetteCard } from "./PerfNetteCard";
 import { CompositionCard } from "./CompositionCard";
 import { SimilarFundsCard } from "./SimilarFundsCard";
 import { ReferencementCard } from "./ReferencementCard";
@@ -154,6 +155,7 @@ export function FundSheetClient({ fund }: Props) {
           <ReferencementCard fund={fund} />
           <FeesCard fund={fund} />
           <TrackingDifferenceCard fund={fund} />
+          <PerfNetteCard fund={fund} />
           <CompositionCard fund={fund} />
           <SimilarFundsCard isin={fund.isin} />
         </div>
