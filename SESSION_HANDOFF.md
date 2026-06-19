@@ -51,6 +51,10 @@
 - Groupe de concurrence dédié pour la garde de classification (évitait l'annulation de runs) — `c60e0ed`.
 - Refresh Morningstar EMEA **sorti du pipeline mensuel** vers son propre workflow (le pipeline dépassait le timeout 6h) — `fef1041`.
 
+### 9. Quota Supabase + optimisation storage  *(fin de journée)*
+- **Alerte « DB Size Exceeded »** : base à **2,03 Go** vs limite Free 0,5 Go (grace period jusqu'au 18/07 puis erreurs 402). Cause = `investissement_fund_prices` (10,5 M lignes, historique prix 2021→2026 = fenêtre perf 5 ans, **données légitimes**). Impossible de tenir sous 0,5 Go sans casser la perf → **upgrade Supabase Pro** (org `Charlie`, plan vérifié `pro`, 8 Go inclus).
+- **Optimisation storage sans impact produit, 2,03 → 1,41 Go (−32 %)** : REINDEX PK prices `CONCURRENTLY` (bloat ~2×, 750→406 Mo), VACUUM FULL `fund_prices`/`funds`/`av_lux_eligibility`, purge logs cron + **job récurrent `inv-purge-cron-logs`** (dim 03:30), 8 index morts/redondants supprimés. Aucune donnée produit touchée. Détails : mémoire `db-storage-optimization-20260619`.
+
 ---
 
 ## ✅ Problèmes résolus aujourd'hui
@@ -67,6 +71,7 @@
 | Dates dupliquées dans la série GECO (upsert) | **Résolu** |
 | Fonds euros figés sur 2022-2024 | **Résolu** (fenêtre dynamique) |
 | ~6 233 PE/structurés gonflant le screener | **Résolu** (reclassés fps/structuré) |
+| Quota Supabase dépassé (DB 2 Go / 0,5 Go, risque 402) | **Résolu** (upgrade Pro + storage 2,03→1,41 Go) |
 
 ---
 
@@ -102,6 +107,7 @@
 - **Sécurité Supabase** : activer la *leaked-password protection* (dashboard) — dernier point du durcissement.
 - **Presets d'accès rapide CGP** : proposés mais EN ATTENTE (mode collecte) — ne pas re-proposer sans signal.
 - **Audit PEA large** : heuristique d'éligibilité par le nom (pas de source officielle).
+- **Normaliser `investissement_fund_prices.source`** *(optimisation storage, NON urgent — on est sur Pro avec ~6,6 Go de marge)* : la colonne `source` est un texte (`'financial-times'`, `'yahoo-finance'`, `'justetf'`, `'amf-geco'`, `'coingecko-daily'`, `'yahoo-crypto'`) répété sur **10,5 M lignes ≈ ~130 Mo**. La passer en code court (`smallint` FK vers une table `investissement_price_sources`, ou `enum`) récupérerait ~130 Mo. **Risque** : touche les **6 scrapers d'ingestion** qui écrivent `source=...` → à faire comme **changement testé séparément** (mapper les 6 valeurs, migrer la colonne, adapter chaque scraper + les requêtes qui filtrent par `source`), **jamais à chaud**. Seul gros levier de stockage restant (cf. mémoire `db-storage-optimization-20260619`).
 
 ---
 
