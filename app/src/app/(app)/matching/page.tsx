@@ -8,7 +8,7 @@ import { Btn } from "@/components/ui/Btn";
 import { Upload, Loader2, X, ArrowRight, Check } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { parseProfileFromFile } from "@/lib/profileImport";
-import { buildParams, describeScreenerFilters } from "@/lib/screenerParams";
+import { buildParams } from "@/lib/screenerParams";
 import {
   type RichClientProfile,
   type RiskProfile,
@@ -215,7 +215,6 @@ export default function ProfilClientPage() {
   }
 
   const active = isProfileActive(profile);
-  const filterChips = describeScreenerFilters(profileToScreenerFilters(profile));
   const inputCls =
     "w-full border border-line rounded-lg px-3 py-2 text-body bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors";
 
@@ -423,40 +422,22 @@ export default function ProfilClientPage() {
         </SectionCard>
       </div>
 
-      {/* ── Barre d'action ── flottante, surface « élevée » (contour + ombre) pour
-          qu'elle se détache nettement du fond et ne paraisse pas inachevée. */}
-      <div className="sticky bottom-4 z-10 mt-8">
-        <div className="rounded-2xl border border-line bg-paper/92 backdrop-blur-md px-5 py-4 shadow-[0_12px_40px_-14px_rgba(43,39,34,0.30),0_2px_8px_-3px_rgba(43,39,34,0.10)]">
-          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
-            <div className="min-w-0 flex-1">
-              {filterChips.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-label text-muted uppercase tracking-widest font-semibold mr-1">Filtres screener</span>
-                  {filterChips.map((c) => (
-                    <span key={c} className="inline-block px-2.5 py-1 rounded-md text-caption font-medium bg-accent-soft text-accent-ink border border-accent/20">
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-4 shrink-0">
-              {active && (
-                <button
-                  type="button"
-                  onClick={() => setProfile(EMPTY_PROFILE)}
-                  className="text-label font-medium text-muted hover:text-ink transition-colors"
-                >
-                  Effacer
-                </button>
-              )}
-              <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
-                Trouver les fonds adaptés
-                <ArrowRight size={15} />
-              </Btn>
-            </div>
-          </div>
-        </div>
+      {/* ── Action ── plus de barre : le seul élément utile est le bouton
+          principal, aligné à droite (+ lien « Effacer » si un profil est actif). */}
+      <div className="mt-8 flex items-center justify-end gap-4">
+        {active && (
+          <button
+            type="button"
+            onClick={() => setProfile(EMPTY_PROFILE)}
+            className="text-label font-medium text-muted hover:text-ink transition-colors"
+          >
+            Effacer
+          </button>
+        )}
+        <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
+          Trouver les fonds adaptés
+          <ArrowRight size={15} />
+        </Btn>
       </div>
     </PageShell>
   );
