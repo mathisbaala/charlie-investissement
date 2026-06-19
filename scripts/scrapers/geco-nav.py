@@ -240,7 +240,11 @@ def parse_chart_payload(data: dict) -> list[dict]:
     xs, ys = data.get("x", []), data.get("y", [])
     if not xs or not ys or len(xs) != len(ys):
         return []
-    out = []
+    # GECO renvoie parfois DEUX points pour la même date → on déduplique par date
+    # (dernière valeur de la série gardée). Sans ça, upsert(on_conflict=isin,
+    # price_date) plante : « ON CONFLICT cannot affect row a second time » (21000),
+    # et tout le batch de 500 VL est perdu.
+    by_date: dict[str, float] = {}
     for d_str, nav in zip(xs, ys):
         if nav is None:
             continue
@@ -250,8 +254,9 @@ def parse_chart_payload(data: dict) -> list[dict]:
         except (ValueError, TypeError):
             continue
         if v > 0:
-            out.append({"date": d, "nav": v, "currency": "EUR"})
-    return sorted(out, key=lambda p: p["date"])
+            by_date[d] = v  # une date en double écrase → un seul point/date
+    return [{"date": d, "nav": by_date[d], "currency": "EUR"}
+            for d in sorted(by_date)]
 
 
 def incremental_points(series: list[dict], last: str | None,
