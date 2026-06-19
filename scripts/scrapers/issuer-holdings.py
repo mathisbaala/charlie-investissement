@@ -15,8 +15,8 @@ justetf-holdings-scraper.py (qui ne cible que les ETF « sans secteurs »).
 
 Émetteurs :
   - ishares  : catalogue product-screener (ISIN→productId) + CSV holdings  ✅
-  - amundi   : à brancher (compo via widget /mapi, recon en cours)
-  - xtrackers: à brancher
+  - amundi   : POST /mapi/ProductAPI/getProductsData (résolu par ISIN)      ✅
+  - xtrackers: GET /api/pdp/en-gb/etf/<ISIN>/holdings (DWS, résolu par ISIN) ✅
 
 Usage :
     python3 scripts/scrapers/issuer-holdings.py --issuer ishares
@@ -24,6 +24,8 @@ Usage :
     python3 scripts/scrapers/issuer-holdings.py --issuer ishares --apply --limit 20
     python3 scripts/scrapers/issuer-holdings.py --issuer ishares --apply --isin IE00B5BMR087
     python3 scripts/scrapers/issuer-holdings.py --issuer ishares --apply --refresh   # ré-écrit même si déjà fait
+    python3 scripts/scrapers/issuer-holdings.py --issuer amundi --apply
+    python3 scripts/scrapers/issuer-holdings.py --issuer xtrackers --apply
 """
 
 import sys
@@ -182,6 +184,148 @@ def ishares_fetch_holdings(session: requests.Session, pid: str) -> list[dict] | 
         return None
 
 
+# ─── Amundi ─────────────────────────────────────────────────────────────────────
+# Le widget product-page appelle POST /mapi/ProductAPI/getProductsData en passant
+# l'ISIN comme productId. La compo arrive dans products[0].composition.compositionData
+# (poids déjà en fraction). Le contexte (objet) est obligatoire (400 sinon).
+AMUNDI_API_URL = "https://www.amundietf.fr/mapi/ProductAPI/getProductsData"
+AMUNDI_CONTEXT = {
+    "countryCode": "FRA", "languageCode": "fr",
+    "userProfileName": "INSTIT", "userProfileSlug": "instit",
+}
+AMUNDI_FIELDS = ["date", "type", "bbg", "isin", "name", "weight",
+                 "quantity", "currency", "sector", "country", "countryOfRisk"]
+# Types non-titres à exclure de l'agrégation (mais comptés dans Σpoids).
+AMUNDI_NON_SECURITY = {"CASH", "CASH_COLLATERAL", "MARGIN"}
+
+
+def amundi_fetch_holdings(session: requests.Session, isin: str) -> list[dict] | None:
+    """POST getProductsData pour un ISIN Amundi → liste de constituants."""
+    payload = {
+        "context":     AMUNDI_CONTEXT,
+        "productIds":  [isin],
+        "productType": "PRODUCT",
+        "composition": {"compositionFields": AMUNDI_FIELDS},
+    }
+    try:
+        resp = session.post(AMUNDI_API_URL, json=payload, timeout=FETCH_TIMEOUT,
+                            headers={"Referer": "https://www.amundietf.fr/"})
+        if resp.status_code != 200:
+            return None
+        products = (resp.json() or {}).get("products") or []
+        if not products:
+            return None
+        comp = products[0].get("composition")
+        if not comp:
+            return None
+        data = comp.get("compositionData") or []
+        out = []
+        for item in data:
+            c = item.get("compositionCharacteristics") or {}
+            name = (c.get("name") or "").strip()
+            if not name:
+                continue
+            w = c.get("weight")
+            if w is None:
+                continue
+            w = round(float(w), 6)
+            if w == 0:
+                continue
+            label = (c.get("countryOfRisk") or c.get("country") or "").strip() or None
+            tkr = (c.get("bbg") or "").strip() or None
+            out.append({
+                "position_name": name[:200],
+                "ticker":        tkr,
+                "asset_type":    (c.get("type") or "").strip() or None,
+                "sector":        (c.get("sector") or "").strip() or None,
+                "country":       COUNTRY_CODES.get(label) if label else None,
+                "country_label": label,
+                "weight":        w,
+            })
+        out.sort(key=lambda h: h["weight"], reverse=True)
+        return out
+    except Exception:
+        return None
+
+
+# ─── Xtrackers (DWS) ─────────────────────────────────────────────────────────────
+# Le PDP appelle GET /api/pdp/en-gb/etf/<ISIN>/holdings. Le slug du chemin est
+# ignoré (résolution par ISIN). La compo est dans tables[0].values[] avec des
+# colonnes positionnelles décrites par tables[0].columns (on mappe par libellé).
+XTRACKERS_HOLDINGS_URL = "https://etf.dws.com/api/pdp/en-gb/etf/{isin}/holdings"
+
+
+def _xtrackers_col_map(columns: list[dict]) -> dict[str, str]:
+    """{role: column_key} depuis les libellés d'entête DWS (robuste à l'ordre)."""
+    roles: dict[str, str] = {}
+    for c in columns:
+        key = c.get("key")
+        label = (c.get("value") or "").strip().lower()
+        if not key or not label:
+            continue
+        if label == "isin":
+            roles["isin"] = key
+        elif label == "name":
+            roles["name"] = key
+        elif "weight" in label:
+            roles["weight"] = key
+        elif label == "country":
+            roles["country"] = key
+        elif label in ("industry", "sector"):
+            roles["sector"] = key
+        elif label == "asset class":
+            roles["asset_type"] = key
+    return roles
+
+
+def xtrackers_fetch_holdings(session: requests.Session, isin: str) -> list[dict] | None:
+    """GET holdings DWS pour un ISIN Xtrackers → liste de constituants."""
+    url = XTRACKERS_HOLDINGS_URL.format(isin=isin)
+    try:
+        resp = session.get(url, timeout=FETCH_TIMEOUT,
+                           headers={"Accept": "application/json"})
+        if resp.status_code != 200:
+            return None
+        tables = (resp.json() or {}).get("tables") or []
+        if not tables:
+            return None
+        table = tables[0]
+        roles = _xtrackers_col_map(table.get("columns") or [])
+        wkey = roles.get("weight")
+        if not wkey:
+            return None
+        out = []
+        for row in (table.get("values") or []):
+            name = (row.get(roles.get("name", ""), {}) or {}).get("value")
+            name = (name or "").strip()
+            if not name or "invalid identifier" in name.lower():
+                continue
+            wcell = row.get(wkey, {}) or {}
+            w = wcell.get("sortValue")
+            if w is None:
+                w = _pct_to_frac(wcell.get("value"))
+            else:
+                w = round(float(w) / 100, 6)  # sortValue est en pourcentage (5.43 → 0.0543)
+            if w is None or w == 0:
+                continue
+            label = ((row.get(roles.get("country", ""), {}) or {}).get("value") or "").strip() or None
+            sec = ((row.get(roles.get("sector", ""), {}) or {}).get("value") or "").strip() or None
+            atype = ((row.get(roles.get("asset_type", ""), {}) or {}).get("value") or "").strip() or None
+            out.append({
+                "position_name": name[:200],
+                "ticker":        None,  # DWS ne renvoie pas de ticker, seulement l'ISIN du titre
+                "asset_type":    atype,
+                "sector":        sec,
+                "country":       COUNTRY_CODES.get(label) if label else None,
+                "country_label": label,
+                "weight":        w,
+            })
+        out.sort(key=lambda h: h["weight"], reverse=True)
+        return out
+    except Exception:
+        return None
+
+
 # ─── Agrégation secteurs / géo depuis les constituants ──────────────────────────
 
 def aggregate_breakdowns(holdings: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -243,10 +387,13 @@ def save_to_db(client, isin: str, holdings: list[dict], sectors: list[dict],
 
 # ─── Sélection des cibles ───────────────────────────────────────────────────────
 
+# Une ou plusieurs sous-chaînes (ILIKE) qui identifient l'émetteur côté
+# management_company. Xtrackers = marque ETF de DWS ; quelques fonds portent
+# « xtrackers » sans « dws » dans le nom du gérant → on capte les deux.
 ISSUER_FILTERS = {
-    "ishares":   "%blackrock%",
-    "amundi":    "%amundi%",
-    "xtrackers": "%dws%",
+    "ishares":   ["blackrock"],
+    "amundi":    ["amundi"],
+    "xtrackers": ["dws", "xtrackers"],
 }
 
 
@@ -254,7 +401,7 @@ def select_targets(client, issuer: str, isin_filter: str | None,
                    refresh: bool) -> list[dict]:
     if isin_filter:
         return [{"isin": isin_filter.upper()}]
-    like = ISSUER_FILTERS[issuer]
+    needles = ISSUER_FILTERS[issuer]
     etfs, off = [], 0
     while True:
         d = (client.table("investissement_funds")
@@ -266,9 +413,9 @@ def select_targets(client, issuer: str, isin_filter: str | None,
         etfs.extend(d)
         off += 1000
     # Filtrage émetteur côté Python (ILIKE sur 2 colonnes)
-    needle = like.strip("%")
     etfs = [e for e in etfs
-            if needle in ((e.get("management_company_normalized") or "") + (e.get("management_company") or "")).lower()
+            if any(n in ((e.get("management_company_normalized") or "") + (e.get("management_company") or "")).lower()
+                   for n in needles)
             and ISIN_RE.match(e["isin"] or "")]
 
     if not refresh:
@@ -295,19 +442,19 @@ def run(issuer: str, apply: bool, limit: int | None, isin_filter: str | None,
     print(f"  Mode  : {'APPLY' if apply else 'DRY-RUN'}  | cap {MAX_HOLDINGS} lignes/ETF")
     print()
 
-    if issuer != "ishares":
-        print(f"  ⚠ émetteur '{issuer}' pas encore branché (recon en cours).")
-        return
-
     started = datetime.now(timezone.utc)
     client  = get_client()
     session = requests.Session()
     session.headers.update(HEADERS)
     stats   = Counter()
 
-    print("  Chargement du catalogue iShares…")
-    catalog = ishares_fetch_catalog(session)
-    print(f"  Catalogue : {len(catalog)} fonds (ISIN→productId)")
+    # iShares résout l'ISIN via un catalogue productId ; Amundi/Xtrackers
+    # interrogent leur API directement par ISIN (pas de catalogue à charger).
+    catalog: dict[str, str] = {}
+    if issuer == "ishares":
+        print("  Chargement du catalogue iShares…")
+        catalog = ishares_fetch_catalog(session)
+        print(f"  Catalogue : {len(catalog)} fonds (ISIN→productId)")
 
     targets = select_targets(client, issuer, isin_filter, refresh)
     if limit:
@@ -317,16 +464,24 @@ def run(issuer: str, apply: bool, limit: int | None, isin_filter: str | None,
 
     for i, etf in enumerate(targets, 1):
         isin = etf["isin"]
-        pid = catalog.get(isin)
-        if not pid:
-            stats["no_catalog"] += 1
-            continue
 
-        holdings = ishares_fetch_holdings(session, pid)
+        if issuer == "ishares":
+            pid = catalog.get(isin)
+            if not pid:
+                stats["no_catalog"] += 1
+                continue
+            holdings = ishares_fetch_holdings(session, pid)
+        elif issuer == "amundi":
+            holdings = amundi_fetch_holdings(session, isin)
+        elif issuer == "xtrackers":
+            holdings = xtrackers_fetch_holdings(session, isin)
+        else:
+            print(f"  ⚠ émetteur '{issuer}' inconnu"); return
+
         time.sleep(RATE_LIMIT_S)
         if not holdings:
             stats["no_data"] += 1
-            print(f"  [{i:4d}] {isin} (pid {pid}) — aucune ligne extraite")
+            print(f"  [{i:4d}] {isin} — aucune ligne extraite")
             continue
 
         # Secteurs/géo agrégés depuis la liste COMPLÈTE (avant troncature) pour
