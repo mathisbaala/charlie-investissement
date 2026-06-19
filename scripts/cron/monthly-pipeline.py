@@ -64,13 +64,11 @@ MONTHLY_STEPS = [
       "--limit", str(BREAKDOWN_BUCKET),
       "--workers", "6", "--delay", "0.15"]),
     ("enrichers/compute-metrics.py", []),
-    # Perfs des OPCVM ÉTRANGERS sans série de prix (LU/IE que FT ne couvre pas et
-    # que GECO/JustETF ne touchent pas) : Morningstar EMEA est leur SEULE source.
-    # --refresh cible précisément ces fonds (non-FR, hors table de couverture) et
-    # écrase leurs perfs → aucun conflit avec les perfs calculées depuis une VL
-    # par compute-metrics ci-dessus. APRÈS compute-metrics, AVANT le recalcul du
-    # représentant share-class (les nouvelles perfs montent data_completeness).
-    ("scrapers/ms-emea-perf-enricher.py", ["--refresh"]),
+    # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
+    # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline
+    # au-dessus du plafond de 6 h des runners GitHub (timeout → dernières étapes
+    # coupées). EMEA cible des fonds disjoints (non-FR sans prix), donc aucun
+    # besoin de l'enchaîner avec compute-metrics.
     # Gap-fill complet ci-dessus (encours + nouveaux groupes) → recalcule le
     # représentant share-class (is_primary_share_class) qui porte la dédup de /api/funds.
     ("enrichers/refresh-primary-share-class.py", []),
