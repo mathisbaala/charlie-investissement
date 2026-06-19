@@ -1,17 +1,28 @@
 #!/usr/bin/env python3
 """
-ms-emea-perf-enricher.py — Performances manquantes via Morningstar EMEA
+ms-emea-perf-enricher.py — Performances via Morningstar EMEA
 ========================================================================
-Cible : fonds OPCVM/ETF sans performance_1y ou performance_3y ou performance_5y.
-Source : API Morningstar EMEA — ReturnM12, ReturnM36, ReturnM60.
-Stratégie : paginer FOFRA$$ALL + FEEUR$$ALL.
-Les performances Morningstar EMEA sont déjà en % (ex: 5.2 pour 5.2%).
+Source : API Morningstar EMEA (univers FEEUR$$ALL = fonds Europe, dont les
+OPCVM étrangers LU/IE) — ReturnM12, ReturnM36, ReturnM60, déjà en %.
+
+Deux modes :
+  - défaut (fill-only) : cible tous les OPCVM/ETF avec une perf NULL, n'écrit
+    QUE les champs NULL (ne touche pas une perf existante).
+  - --refresh : cible les OPCVM ÉTRANGERS (ISIN non-FR) SANS série de prix —
+    ceux pour qui Morningstar est la SEULE source de perf (compute-metrics ne
+    peut rien calculer sans VL). Écrase les perfs (refresh mensuel). Ce ciblage
+    évite tout mélange de sources : on ne touche jamais une perf calculée depuis
+    une VL FT/GECO/JustETF.
+
+Identifiants Morningstar : credentials Linxea (env MS_EMEA_USER / MS_EMEA_PASS,
+sinon valeur historique en dur).
 
 Usage :
     python3 scripts/scrapers/ms-emea-perf-enricher.py [--apply] [--limit N]
+    python3 scripts/scrapers/ms-emea-perf-enricher.py --apply --refresh   # OPCVM étrangers sans prix
 """
 
-import sys, time, argparse, base64, requests
+import os, sys, time, argparse, base64, requests
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,9 +31,19 @@ from db import get_client, log_run
 
 OAUTH_URL  = "https://www.emea-api.morningstar.com/token/oauth"
 SCREENER   = "https://www.emea-api.morningstar.com/ecint/v1/screener"
-_CREDS     = base64.b64encode(b"ec-Linxe-2022@eamsecservice.com:LinxeB*j91").decode()
+_MS_USER   = os.environ.get("MS_EMEA_USER", "ec-Linxe-2022@eamsecservice.com")
+_MS_PASS   = os.environ.get("MS_EMEA_PASS", "LinxeB*j91")
+_CREDS     = base64.b64encode(f"{_MS_USER}:{_MS_PASS}".encode()).decode()
 PAGE_SIZE  = 2000
 UNIVERSES  = ["FOFRA$$ALL", "FEEUR$$ALL"]
+
+
+def annualized_to_cumul(annualized_pct: float, years: int) -> float:
+    """Convertit un rendement ANNUALISÉ (Morningstar) en CUMULÉ (convention base).
+    cumul = ((1+a/100)^n − 1)·100. À 1 an, cumulé = annualisé. Pur → testable."""
+    if years == 1:
+        return round(annualized_pct, 4)
+    return round(((1 + annualized_pct / 100) ** years - 1) * 100, 4)
 
 
 def get_token() -> str:
@@ -31,6 +52,64 @@ def get_token() -> str:
                       timeout=15)
     r.raise_for_status()
     return r.json()["access_token"]
+
+
+def _screener_get(params: dict, headers: dict, retries: int = 4) -> dict:
+    """GET screener avec retry/backoff (un 503 en pleine pagination ne doit pas
+    faire perdre tout le scan)."""
+    for attempt in range(retries):
+        try:
+            r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            time.sleep(2 ** attempt)
+    return {}
+
+
+def _all_priced_isins(client) -> set[str]:
+    """Tous les ISIN ayant une série de prix (table de couverture), pour les
+    EXCLURE en mode refresh (leur perf vient déjà d'une VL via compute-metrics)."""
+    priced: set[str] = set()
+    after = ""
+    while True:
+        rows = (client.table("investissement_fund_price_coverage")
+                .select("isin").gt("isin", after).order("isin").limit(1000)
+                .execute().data or [])
+        if not rows:
+            break
+        priced.update(r["isin"] for r in rows)
+        if len(rows) < 1000:
+            break
+        after = rows[-1]["isin"]
+    return priced
+
+
+def select_targets(client, refresh: bool) -> set[str]:
+    """Mode refresh : OPCVM étrangers (ISIN non-FR) SANS série de prix.
+    Mode fill-only : tous les OPCVM/ETF avec au moins une perf NULL."""
+    out: list[str] = []
+    offset = 0
+    while True:
+        q = (client.table("investissement_funds").select("isin"))
+        if refresh:
+            q = q.eq("product_type", "opcvm").not_.like("isin", "FR%")
+        else:
+            q = (q.in_("product_type", ["opcvm", "etf"])
+                 .or_("performance_1y.is.null,performance_3y.is.null,performance_5y.is.null"))
+        batch = q.range(offset, offset + 999).execute().data or []
+        out.extend(r["isin"] for r in batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    target = set(out)
+    if refresh:
+        # Ne garder que les fonds SANS prix : Morningstar est leur seule source
+        # de perf → écrasement sans conflit avec FT/GECO/JustETF.
+        target -= _all_priced_isins(client)
+    return target
 
 
 def fetch_perf_from_universe(token: str, universe: str, target: set[str]) -> dict[str, dict]:
@@ -42,9 +121,7 @@ def fetch_perf_from_universe(token: str, universe: str, target: set[str]) -> dic
         "securityDataPoints": "ISIN|ReturnM12|ReturnM36|ReturnM60",
         "filters": "", "pageSize": PAGE_SIZE, "page": 1,
     }
-    r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
-    r.raise_for_status()
-    data  = r.json()
+    data  = _screener_get(params, headers)
     total = data.get("total", 0)
     rows  = data.get("rows", [])
     print(f"  {universe} Page 1 : {len(rows)}/{total}", flush=True)
@@ -57,23 +134,26 @@ def fetch_perf_from_universe(token: str, universe: str, target: set[str]) -> dic
             if isin not in target:
                 continue
             updates: dict = {}
-            for ms_field, db_field in [("ReturnM12", "performance_1y"),
-                                        ("ReturnM36", "performance_3y"),
-                                        ("ReturnM60", "performance_5y")]:
+            # Morningstar ReturnM36/M60 sont ANNUALISÉS (% par an) ; la base stocke
+            # du CUMULÉ (cf. compute-metrics / FT / convention perf-fee). On convertit
+            # annualisé→cumulé : cumul = ((1+a/100)^n − 1)·100. M12 = 1 an = identique.
+            for ms_field, db_field, years in [("ReturnM12", "performance_1y", 1),
+                                              ("ReturnM36", "performance_3y", 3),
+                                              ("ReturnM60", "performance_5y", 5)]:
                 val = row.get(ms_field)
-                if val is not None:
-                    try:
-                        updates[db_field] = round(float(val), 4)
-                    except (ValueError, TypeError):
-                        pass
+                if val is None:
+                    continue
+                try:
+                    a = float(val)
+                except (ValueError, TypeError):
+                    continue
+                updates[db_field] = annualized_to_cumul(a, years)
             if updates:
                 result[isin] = updates
         if len(rows) < PAGE_SIZE or (page - 1) * PAGE_SIZE >= total:
             break
         params["page"] = page
-        r = requests.get(SCREENER, params=params, headers=headers, timeout=30)
-        r.raise_for_status()
-        rows = r.json().get("rows", [])
+        rows = _screener_get(params, headers).get("rows", [])
         if page % 10 == 0:
             print(f"  {universe} Page {page} : ~{(page-1)*PAGE_SIZE}/{total}", flush=True)
         page += 1
@@ -82,32 +162,22 @@ def fetch_perf_from_universe(token: str, universe: str, target: set[str]) -> dic
     return result
 
 
-def run(apply: bool, limit: int | None):
+def run(apply: bool, limit: int | None, refresh: bool = False):
     print("=" * 60)
-    print("  MS EMEA Perf Enricher — performances manquantes")
+    print("  MS EMEA Perf Enricher — performances Morningstar")
     print("=" * 60)
-    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}")
+    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}"
+          + ("  [REFRESH : OPCVM étrangers sans prix, écrase]" if refresh
+             else "  [fill-only : perfs NULL des OPCVM/ETF]"))
 
     started = datetime.now(timezone.utc)
     client  = get_client()
 
-    print("  Chargement des ISINs avec performances manquantes...", flush=True)
-    no_perf: list[str] = []
-    offset = 0
-    while True:
-        batch = client.table("investissement_funds") \
-            .select("isin") \
-            .in_("product_type", ["opcvm", "etf"]) \
-            .or_("performance_1y.is.null,performance_3y.is.null,performance_5y.is.null") \
-            .range(offset, offset + 999) \
-            .execute().data or []
-        no_perf.extend(r["isin"] for r in batch)
-        if len(batch) < 1000:
-            break
-        offset += 1000
-
-    target = set(no_perf)
-    print(f"  {len(target)} fonds avec au moins 1 performance manquante")
+    scope = "OPCVM étrangers sans série de prix" if refresh \
+        else "OPCVM/ETF avec ≥1 perf manquante"
+    print(f"  Sélection des cibles ({scope})...", flush=True)
+    target = select_targets(client, refresh)
+    print(f"  {len(target)} fonds ciblés")
 
     print("  Auth Morningstar EMEA...", flush=True)
     token = get_token()
@@ -151,8 +221,11 @@ def run(apply: bool, limit: int | None):
 
     for isin, updates in all_updates.items():
         db_row = db_data.get(isin, {})
-        # Ne mettre à jour que les champs NULL en DB
-        changes = {k: v for k, v in updates.items() if db_row.get(k) is None}
+        # refresh : écrase (réécrit si la valeur change) ; sinon fill-only (NULL).
+        if refresh:
+            changes = {k: v for k, v in updates.items() if db_row.get(k) != v}
+        else:
+            changes = {k: v for k, v in updates.items() if db_row.get(k) is None}
         if not changes:
             continue
         if apply:
@@ -175,8 +248,11 @@ def run(apply: bool, limit: int | None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true")
-    parser.add_argument("--limit", type=int)
+    parser = argparse.ArgumentParser(description="Performances OPCVM via Morningstar EMEA")
+    parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
+    parser.add_argument("--limit", type=int, help="Limiter à N fonds")
+    parser.add_argument("--refresh", action="store_true",
+                        help="Cibler les OPCVM étrangers sans prix et écraser leurs perfs "
+                             "(refresh mensuel). Sans : fill-only des perfs NULL.")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit)
+    run(apply=args.apply, limit=args.limit, refresh=args.refresh)
