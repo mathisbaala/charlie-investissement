@@ -41,10 +41,22 @@ SCRIPTS_DIR = Path(__file__).parent.parent
 # actuel ~2,6 k → 1000/mois couvre largement (3×1000 ≥ 2633) avec marge.
 BREAKDOWN_BUCKET = 1000
 BREAKDOWN_MAX_AGE_DAYS = 90
+# Comblement des compositions manquantes : la couverture look-through est faible
+# (~3 % des fonds primaires ont des holdings). On en comble un bucket par mois,
+# EN PRIORITÉ sur les fonds les plus référencés en AV (ceux qui alimentent la
+# comparaison / le look-through). ~10 k fonds référencés sans holdings → couverts
+# en quelques mois.
+BREAKDOWN_FILL_BUCKET = 1500
 
 # (chemin relatif à SCRIPTS_DIR, arguments). --apply est ajouté automatiquement.
 MONTHLY_STEPS = [
     ("scrapers/ft-enricher.py", ["--workers", "6", "--delay", "0.15"]),
+    # Comble les VENTILATIONS MANQUANTES (fonds sans holdings), priorité aux plus
+    # référencés en AV → fait grimper la couverture look-through. Fill-only.
+    ("scrapers/ft-enricher.py",
+     ["--fill-breakdowns", "--by-referencing",
+      "--limit", str(BREAKDOWN_FILL_BUCKET),
+      "--workers", "6", "--delay", "0.15"]),
     # Rafraîchissement des ventilations périmées (rotation trimestrielle).
     ("scrapers/ft-enricher.py",
      ["--refresh-breakdowns",
@@ -62,10 +74,10 @@ MONTHLY_STEPS = [
     # Gap-fill complet ci-dessus (encours + nouveaux groupes) → recalcule le
     # représentant share-class (is_primary_share_class) qui porte la dédup de /api/funds.
     ("enrichers/refresh-primary-share-class.py", []),
-    # Tracking difference des ETF : rafraîchit d'abord les séries d'indices de
-    # référence (Yahoo pour S&P 500/DAX ; MSCI net TR pour World/EM/USA/Europe/
-    # Japan), puis recalcule la TD 1Y/3Y/5Y vs indice TR. Après
-    # compute-metrics (a besoin de VL/perfs à jour). Fill/recompute, non destructif.
+    # Alpha vs indice de référence : rafraîchit d'abord les séries d'indices
+    # (Yahoo pour S&P 500/DAX/Nasdaq + proxys ETF obligataires/actions euro ;
+    # MSCI net TR pour World/EM/USA/Europe/Japan), puis recalcule l'alpha 1Y/3Y/5Y.
+    # Après compute-metrics (a besoin de VL/perfs à jour). Fill/recompute, non destructif.
     ("enrichers/td-enricher.py", ["--refresh-indices"]),
     # Durabilité DDA (best-effort, fill-only) : extrait taxonomie / investissement
     # durable / PAI des DICI/KID quand publiés. Sourcing « en fond » : enrichit au

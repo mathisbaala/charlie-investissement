@@ -437,6 +437,75 @@ def select_breakdown_refresh_targets(client, limit: int | None,
     return targets
 
 
+def referenced_counts(client) -> dict:
+    """isin → nombre d'assureurs qui référencent le fonds (vue cgp_ref).
+
+    Sert à PRIORISER l'enrichissement vers les fonds réellement distribués en
+    assurance-vie : ce sont eux qui alimentent la comparaison / le look-through.
+    insurers a pour défaut '{}' → on ne garde que les fonds effectivement
+    référencés (liste non vide)."""
+    counts, page, size = {}, 0, 1000
+    while True:
+        rows = (client.table("investissement_funds_cgp_ref")
+                .select("isin,insurers")
+                .range(page * size, page * size + size - 1)
+                .execute().data or [])
+        for r in rows:
+            ins = r.get("insurers") or []
+            if ins:
+                counts[(r.get("isin") or "").strip()] = len(ins)
+        if len(rows) < size:
+            break
+        page += 1
+    return counts
+
+
+def select_missing_breakdown_targets(client, limit: int | None,
+                                     ref_counts: dict | None = None):
+    """Fonds SANS aucune ligne de holdings, à enrichir pour faire GRIMPER la
+    couverture look-through (≈ 3 % des fonds primaires aujourd'hui).
+
+    Complète le gap-fill standard, qui ne re-sélectionne PAS un fonds déjà
+    complet en perf/frais : sa composition manquante n'y serait jamais comblée.
+
+    Tri par référencement assureur décroissant si ref_counts fourni (les fonds
+    distribués en AV d'abord), sinon par encours décroissant."""
+    pool, page, size = [], 0, 1000
+    while True:
+        rows = (client.table("investissement_funds")
+                .select("isin,currency,aum_eur")
+                .in_("product_type", ["opcvm", "etf"])
+                .order("aum_eur", desc=True, nullsfirst=False)
+                .range(page * size, page * size + size - 1)
+                .execute().data or [])
+        for r in rows:
+            isin = (r.get("isin") or "").strip()
+            if re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", isin):
+                pool.append({"isin": isin, "currency": r.get("currency")})
+        if len(rows) < size:
+            break
+        page += 1
+    if ref_counts:
+        # tri stable : référencement décroissant, encours préservé en départage
+        pool.sort(key=lambda t: ref_counts.get(t["isin"], 0), reverse=True)
+    # On filtre les ISIN sans holdings en respectant l'ordre de priorité.
+    out = []
+    for i in range(0, len(pool), 300):
+        chunk = pool[i:i + 300]
+        existing = _existing_isins(client, "investissement_fund_holdings",
+                                   [t["isin"] for t in chunk])
+        for t in chunk:
+            if t["isin"] not in existing:
+                out.append(t)
+                if limit and len(out) >= limit:
+                    print(f"    {len(out)} fonds sans composition retenus "
+                          f"(priorisés {'par référencement' if ref_counts else 'par encours'})")
+                    return out
+    print(f"    {len(out)} fonds sans composition retenus "
+          f"(priorisés {'par référencement' if ref_counts else 'par encours'})")
+    return out
+
+
 # ─── Run ─────────────────────────────────────────────────────────────────────
 
 def _existing_isins(client, table: str, isins: list[str]) -> set:
@@ -531,22 +600,33 @@ def write_breakdowns(client, results: list[dict], replace: bool = False) -> dict
 def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         delay: float, with_holdings: bool = True, refresh: bool = False,
         offset: int = 0, refresh_breakdowns: bool = False,
-        max_age_days: int = 90):
-    # En mode rafraîchissement des ventilations, on a forcément besoin de
+        max_age_days: int = 90, fill_breakdowns: bool = False,
+        by_referencing: bool = False):
+    # En mode (re)constitution des ventilations, on a forcément besoin de
     # l'onglet holdings (c'est lui qui porte breakdown).
-    if refresh_breakdowns:
+    if refresh_breakdowns or fill_breakdowns:
         with_holdings = True
     print("=" * 64)
     print("  FT Enricher — markets.ft.com (Morningstar)")
     print("=" * 64)
     mode = "APPLY" if apply else "DRY-RUN"
-    if refresh_breakdowns:
+    if fill_breakdowns:
+        mode += " | FILL VENTILATIONS MANQUANTES"
+    elif refresh_breakdowns:
         mode += f" | REFRESH VENTILATIONS (périmées > {max_age_days}j)"
     elif refresh:
         mode += " | REFRESH (toutes cibles)"
+    if by_referencing and (fill_breakdowns or refresh_breakdowns):
+        mode += " | priorité référencement"
     print(f"  Mode    : {mode}")
     client = get_client()
     started = datetime.now(timezone.utc)
+
+    ref_counts = None
+    if by_referencing and (fill_breakdowns or refresh_breakdowns):
+        print("  Lecture du référencement assureur…", flush=True)
+        ref_counts = referenced_counts(client)
+        print(f"  {len(ref_counts)} fonds référencés par ≥1 assureur")
 
     if isin_arg:
         if ":" in isin_arg:
@@ -554,9 +634,14 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         else:
             i, c = isin_arg, "EUR"
         targets = [{"isin": i, "currency": c}]
+    elif fill_breakdowns:
+        print("  Sélection des fonds sans composition…", flush=True)
+        targets = select_missing_breakdown_targets(client, limit, ref_counts)
     elif refresh_breakdowns:
         print("  Sélection des ventilations périmées…", flush=True)
         targets = select_breakdown_refresh_targets(client, limit, max_age_days)
+        if ref_counts:
+            targets.sort(key=lambda t: ref_counts.get(t["isin"], 0), reverse=True)
     else:
         print("  Sélection des cibles…", flush=True)
         targets = select_targets(client, limit, refresh=refresh, offset=offset)
@@ -663,8 +748,15 @@ if __name__ == "__main__":
                          "remplace par ISIN si FT renvoie des données. Cible par péremption.")
     ap.add_argument("--max-age-days", type=int, default=90,
                     help="Seuil de péremption des ventilations en jours (défaut 90, avec --refresh-breakdowns)")
+    ap.add_argument("--fill-breakdowns", action="store_true",
+                    help="Combler les VENTILATIONS MANQUANTES : fonds sans aucun holding, "
+                         "pour faire grimper la couverture look-through (fill-only).")
+    ap.add_argument("--by-referencing", action="store_true",
+                    help="Prioriser par nombre d'assureurs référençant le fonds "
+                         "(avec --fill-breakdowns ou --refresh-breakdowns).")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
         workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
         refresh=a.refresh, offset=a.offset,
-        refresh_breakdowns=a.refresh_breakdowns, max_age_days=a.max_age_days)
+        refresh_breakdowns=a.refresh_breakdowns, max_age_days=a.max_age_days,
+        fill_breakdowns=a.fill_breakdowns, by_referencing=a.by_referencing)
