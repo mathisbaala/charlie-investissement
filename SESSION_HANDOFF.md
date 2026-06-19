@@ -1,6 +1,6 @@
 # 📋 Session Handoff — 19 juin 2026
 
-> Journée dense : **25 commits** poussés sur `main` (auto-déploy Vercel). Sprints DDA
+> Journée dense : **26 commits** poussés sur `main` (auto-déploy Vercel). Sprints DDA
 > (alpha vs indice, durabilité, look-through), rafraîchissements de données planifiés,
 > nettoyage de l'univers, et surtout : **analyse de DICI remise en service + rapport
 > de fonds design + durcissement des coûts IA**.
@@ -50,6 +50,9 @@
 - Credentials Morningstar EMEA → **secrets** (plus en dur) + bump `actions/checkout@v5` / `setup-python@v6` (Node 20 EOL) — `cfbc72a`.
 - Groupe de concurrence dédié pour la garde de classification (évitait l'annulation de runs) — `c60e0ed`.
 - Refresh Morningstar EMEA **sorti du pipeline mensuel** vers son propre workflow (le pipeline dépassait le timeout 6h) — `fef1041`.
+
+### 10. Polish UI — page « Profil client »
+- **Barre d'action retirée** : la barre flottante sous le formulaire portait les chips « Filtres screener » devenues vides → trop lourde pour rien. Remplacée par le seul bouton « Trouver les fonds adaptés » aligné à droite (+ lien « Effacer » si profil actif). Code mort retiré (`filterChips`, import `describeScreenerFilters`) — `7dda4cf`.
 
 ### 9. Quota Supabase + optimisation storage  *(fin de journée)*
 - **Alerte « DB Size Exceeded »** : base à **2,03 Go** vs limite Free 0,5 Go (grace period jusqu'au 18/07 puis erreurs 402). Cause = `investissement_fund_prices` (10,5 M lignes, historique prix 2021→2026 = fenêtre perf 5 ans, **données légitimes**). Impossible de tenir sous 0,5 Go sans casser la perf → **upgrade Supabase Pro** (org `Charlie`, plan vérifié `pro`, 8 Go inclus).
