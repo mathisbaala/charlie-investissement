@@ -40,6 +40,21 @@ TIMEOUT     = 30
 CACHE_TABLE = "investissement_figi_security_type"
 # securityType2 qui désignent un TITRE VIF (pas un fonds) → reclasser en 'action'.
 STOCK_TYPES = {"Common Stock", "REIT", "Depositary Receipt", "Preferred Stock"}
+# 'Corp' = titre de dette d'entreprise. Dans notre univers, ceux ingérés comme
+# 'opcvm' sont des produits STRUCTURÉS / fonds à formule émis sous forme de notes
+# (EMTN, autocalls, « Target Coupon »…) → reclasser en 'structuré' (exclu du
+# screener). Cf. reclassement du 2026-06-19 (460 ISIN, tous structurés).
+DEBT_TYPES = {"Corp"}
+
+
+def target_type(security_type2: str | None) -> str | None:
+    """product_type cible pour un securityType2 OpenFIGI (None = on ne touche pas :
+    'Mutual Fund'/'Open-End Fund'/inconnu restent tels quels)."""
+    if security_type2 in STOCK_TYPES:
+        return "action"
+    if security_type2 in DEBT_TYPES:
+        return "structuré"
+    return None
 
 API_KEY = os.environ.get("OPENFIGI_API_KEY", "").strip()
 # Sans clé : lots de 10 & 25 req/min ; avec clé : 100 & 250 req/min.
@@ -160,16 +175,19 @@ def run(apply: bool, limit: int | None, include_priced: bool,
             cache_rows.append({"isin": isin, "security_type2": st2, "checked_at": now_iso()})
             key = st2 or "(inconnu)"
             types_count[key] = types_count.get(key, 0) + 1
-            if st2 in STOCK_TYPES:
-                reclass.append({"isin": isin, "product_type": "action"})
+            tgt = target_type(st2)
+            if tgt:
+                reclass.append({"isin": isin, "product_type": tgt})
         done = min(i + batch, len(targets))
         if done % (batch * 10) == 0 or done == len(targets):
-            print(f"  [{done:5d}/{len(targets)}] actions détectées : {len(reclass)}", flush=True)
+            print(f"  [{done:5d}/{len(targets)}] à reclasser : {len(reclass)}", flush=True)
         time.sleep(sleep_s)
 
+    n_act = sum(1 for r in reclass if r["product_type"] == "action")
+    n_str = sum(1 for r in reclass if r["product_type"] == "structuré")
     print(f"\n  Types rencontrés : "
           + ", ".join(f"{k}:{v}" for k, v in sorted(types_count.items(), key=lambda x: -x[1])[:8]))
-    print(f"  → {len(reclass)} titres vifs à reclasser 'opcvm' → 'action'")
+    print(f"  → {len(reclass)} à reclasser hors opcvm ({n_act} → action, {n_str} → structuré)")
 
     if apply:
         # Cache de TOUT ce qui a été checké (fonds confirmés inclus → plus re-checkés).
