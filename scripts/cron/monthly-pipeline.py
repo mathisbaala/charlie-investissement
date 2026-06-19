@@ -53,6 +53,15 @@ BREAKDOWN_FILL_BUCKET = 1500
 # l'univers ETF (~1,7 k) est drainé en ~4 mois (priorité AUM décroissant). Le
 # scraper exclut nativement les ETF déjà ventilés → fill-only, rotation auto.
 JUSTETF_HOLDINGS_BUCKET = 400
+# Comblement compo des OPCVM via Morningstar EMEA (API authentifiée ms-emea-*,
+# secrets MS_EMEA_*). FT/JustETF/émetteurs ventilent surtout les ETF ; restent
+# ~7,1 k OPCVM avec morningstar_rating mais SANS géo. On en comble un bucket par
+# mois, priorité AUM décroissant, FILL-ONLY STRICT (n'écrit que géo/secteur/
+# holdings, jamais investissement_funds, saute tout fonds déjà ventilé). API
+# statique HTTP (pas de navigateur). ~0,5 s/fonds → 600 ≈ 5-10 min ; l'univers
+# est drainé en ~12 mois. Avant compute-metrics (data_completeness/primaire).
+# Sans identifiants Morningstar, le script s'arrête proprement (exit 0, no-write).
+MS_HOLDINGS_BUCKET = 600
 
 # (chemin relatif à SCRIPTS_DIR, arguments). --apply est ajouté automatiquement.
 MONTHLY_STEPS = [
@@ -82,6 +91,13 @@ MONTHLY_STEPS = [
     # pour que data_completeness/primaire reflètent la nouvelle compo.
     ("scrapers/justetf-holdings-scraper.py",
      ["--limit", str(JUSTETF_HOLDINGS_BUCKET)]),
+    # Comble la compo des OPCVM (géo/secteur/holdings) via Morningstar EMEA —
+    # gisement disjoint des ETF ci-dessus (~7,1 k OPCVM ms-ratés sans géo).
+    # Rotation par mois (offset = mois×bucket) pour ne pas re-scanner la même
+    # tête à chaque run. Fill-only strict, priorité AUM. Avant compute-metrics.
+    ("scrapers/populate-holdings-morningstar.py",
+     ["--limit", str(MS_HOLDINGS_BUCKET),
+      "--offset", str((date.today().month % 12) * MS_HOLDINGS_BUCKET)]),
     ("enrichers/compute-metrics.py", []),
     # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
     # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline
