@@ -3,9 +3,16 @@
 populate-holdings-morningstar.py — Composition des OPCVM via Morningstar EMEA
 =============================================================================
 Comble la VENTILATION (géo / secteur / top holdings) des OPCVM qui n'en ont
-aucune, via l'API authentifiée Morningstar EMEA — la MÊME que les autres
-enrichers ms-emea-* (perf / SRI / TER) déjà câblés en CI. Source statique HTTP
-(pas de navigateur), compatible GitHub Actions.
+aucune. Deux APIs Morningstar combinées :
+  1. RÉSOLUTION ISIN → secId : screener ecint EMEA authentifié (token/oauth,
+     credentials Linxea MS_EMEA_USER/PASS) — le même socle que ms-emea-perf.
+  2. VENTILATION : API consommateur publique sal-service v1 (api-global) avec
+     apikey statique — pas d'oauth (le realm oauth EMEA n'entitle PAS sal-service,
+     testé : 401). Endpoints découverts via mstarpy / pp-portfolio-classifier :
+       region   : sal-service/v1/{type}/portfolio/regionalSector/{sec}/data
+       secteur  : sal-service/v1/{type}/portfolio/v2/sector/{sec}/data
+       holdings : sal-service/v1/{type}/portfolio/holding/v2/{sec}/data
+Source statique HTTP (pas de navigateur), compatible GitHub Actions.
 
 Tables alimentées (FILL-ONLY STRICT, source = 'morningstar') :
   - investissement_fund_geos      (répartition géographique, % → fraction)
@@ -21,22 +28,13 @@ d'abord les fonds les plus consultés / référencés.
 
 Pipeline (par fonds) :
   1. Résolution ISIN → secId  via ecint/v1/screener (term=ISIN, universe EMEA).
-  2. Récupération de la ventilation via ecint/v1/securities/{secId} (viewId
-     portfolio : regions / GICS sectors / holdings). L'API EMEA renvoie du JSON.
+  2. Ventilation via sal-service v1 (api-global, apikey statique) : 3 GET JSON
+     (regionalSector / v2/sector / holding/v2).
   3. Écriture fill-only delete+insert par ISIN sur les 3 tables (idempotent).
 
 ⚠️  Identifiants requis : MS_EMEA_USER / MS_EMEA_PASS (secrets repo, comme les
-    autres ms-emea-*). Sans eux, le script s'arrête proprement (exit 0, aucun
-    write) — il ne casse jamais le pipeline.
-
-⚠️  NOMS DE DATAPOINTS À VALIDER EN LIVE : l'API consommateur publique
-    (lt.morningstar.com ?viewId=portfolio) est MORTE (renvoie {dbgtime} seul,
-    juin 2026) et le site EMEA est derrière un WAF AWS. Cette réécriture passe
-    par l'API ecint authentifiée. Les clés exactes de ventilation (champs
-    region*/sector*/holdings du viewId portfolio) peuvent varier selon
-    l'entitlement du compte : les parseurs ci-dessous essaient plusieurs chemins
-    et comptent `no_data` sans écrire si rien n'est exploitable. Lancer d'abord
-    avec --probe sur 2-3 ISIN pour figer le format avant le run de masse.
+    autres ms-emea-*) — uniquement pour résoudre le secId via le screener
+    entitlé. Sans eux, le script s'arrête proprement (exit 0, aucun write).
 
 Usage :
     # Sonde le format réel de l'API pour quelques ISIN (n'écrit pas) :
@@ -69,48 +67,49 @@ from db import get_client, log_run
 
 OAUTH_URL   = "https://www.emea-api.morningstar.com/token/oauth"
 SCREENER    = "https://www.emea-api.morningstar.com/ecint/v1/screener"
-DETAILS_URL = "https://www.emea-api.morningstar.com/ecint/v1/securities/{sec_id}"
 UNIVERSES   = ["FOFRA$$ALL", "FEEUR$$ALL"]   # FR + Europe (couvre LU/IE)
 
-RATE_LIMIT_SEC = 0.25     # API authentifiée : pas de blocage IP comme le site public
+# API consommateur publique sal-service v1 (mstarpy) : pas d'oauth, apikey statique.
+SAL_URL    = "https://api-global.morningstar.com/sal-service/v1/{type}/{field}/{sec}/data"
+SAL_APIKEY = "lstzFDEOhfFNMLikKa0am9mgEKLBl49T"
+SAL_PARAMS = {"clientId": "MDC", "version": "4.71.0", "languageId": "en"}
+SAL_TYPE   = "fund"   # fonctionne pour OPCVM et ETF (même secId Morningstar)
+
+RATE_LIMIT_SEC = 0.30     # API publique : courtoisie
 SOURCE         = "morningstar"
 
-# ─── Mapping secteurs GICS Morningstar → labels français ──────────────────────
-# Clés normalisées (minuscule) ; on accepte plusieurs casings côté parse.
+# ─── Mapping secteurs Morningstar → labels (alignés sur source financial-times,
+# pour que la ventilation agrégée /lookthrough blende par label identique) ────
 
 SECTOR_MAP = {
-    "basicmaterials":        "Matériaux de base",
-    "consumercyclical":      "Consommation cyclique",
-    "financialservices":     "Services financiers",
-    "realestate":            "Immobilier",
-    "consumerdefensive":     "Consommation défensive",
-    "healthcare":            "Santé",
-    "utilities":             "Services aux collectivités",
-    "communicationservices": "Services de communication",
-    "energy":                "Énergie",
-    "industrials":           "Industrie",
-    "technology":            "Technologie",
+    "basicmaterials":        "Basic Materials",
+    "consumercyclical":      "Consumer Cyclical",
+    "financialservices":     "Financial Services",
+    "realestate":            "Real Estate",
+    "consumerdefensive":     "Consumer Defensive",
+    "healthcare":            "Healthcare",
+    "utilities":             "Utilities",
+    "communicationservices": "Communication Services",
+    "energy":                "Energy",
+    "industrials":           "Industrials",
+    "technology":            "Technology",
 }
 
-# ─── Mapping régions Morningstar → labels / codes ─────────────────────────────
+# ─── Régions Morningstar (clés du bloc fundPortfolio de regionalSector) ───────
+# label aligné sur les buckets FT là où ils coïncident (United Kingdom, Japan,
+# Australasia, Latin America) ; code ISO-ish pour le reste.
 
 GEO_MAP = {
-    "northamerica":     ("Amérique du Nord",      "NA"),
-    "unitedstates":     ("États-Unis",            "US"),
-    "canada":           ("Canada",                "CA"),
-    "unitedkingdom":    ("Royaume-Uni",           "GB"),
-    "europedeveloped":  ("Europe développée",     "EU"),
-    "eurozone":         ("Zone euro",             "EZ"),
-    "europeexeuro":     ("Europe hors euro",      "EXE"),
-    "europeemerging":   ("Europe émergente",      "EE"),
-    "africa":           ("Afrique",               "AF"),
-    "middleeast":       ("Moyen-Orient",          "ME"),
-    "africamiddleeast": ("Afrique / Moyen-Orient", "AME"),
-    "japan":            ("Japon",                 "JP"),
-    "australasia":      ("Australasie",           "AU"),
-    "asiadeveloped":    ("Asie développée",       "ASD"),
-    "asiaemerging":     ("Asie émergente",        "ASE"),
-    "latinamerica":     ("Amérique latine",       "LA"),
+    "northamerica":     ("North America",   "NA"),
+    "unitedkingdom":    ("United Kingdom",  "GB"),
+    "europedeveloped":  ("Europe Developed", "EU"),
+    "europeemerging":   ("Emerging Europe", "EE"),
+    "africamiddleeast": ("Middle East",     "AME"),
+    "japan":            ("Japan",           "JP"),
+    "australasia":      ("Australasia",     "AU"),
+    "asiadeveloped":    ("Developed Asia",  "ASD"),
+    "asiaemerging":     ("Emerging Asia",   "ASE"),
+    "latinamerica":     ("Latin America",   "LA"),
 }
 
 
@@ -174,38 +173,46 @@ def resolve_sec_id(isin: str, token: str) -> str | None:
     return None
 
 
-def fetch_portfolio(sec_id: str, token: str) -> dict | None:
-    """Détail portfolio EMEA (viewId portfolio). Renvoie le JSON brut ou None."""
-    data = _api_get(DETAILS_URL.format(sec_id=sec_id), {
-        "viewId": "portfolio",
-        "languageId": "fr-FR", "currencyId": "EUR", "outputType": "json",
-    }, token)
-    return data
-
-
-# ─── Parseurs (tolérants à plusieurs chemins / casings) ───────────────────────
-
-def _walk_lists(obj, predicate, _depth=0):
-    """Cherche récursivement (≤4 niveaux) la 1re liste de dicts validant predicate."""
-    if _depth > 4:
-        return None
-    if isinstance(obj, list):
-        if obj and isinstance(obj[0], dict) and predicate(obj[0]):
-            return obj
-        for it in obj:
-            r = _walk_lists(it, predicate, _depth + 1)
-            if r:
-                return r
-    elif isinstance(obj, dict):
-        for v in obj.values():
-            r = _walk_lists(v, predicate, _depth + 1)
-            if r:
-                return r
+def _sal_get(field: str, sec_id: str, retries: int = 4) -> dict | None:
+    """GET sal-service v1 (api-global, apikey statique). field ∈
+    {portfolio/regionalSector, portfolio/v2/sector, portfolio/holding/v2}."""
+    url = SAL_URL.format(type=SAL_TYPE, field=field, sec=sec_id)
+    headers = {"apikey": SAL_APIKEY, "Accept": "application/json",
+               "User-Agent": "Mozilla/5.0 (compatible; charlie-enricher)"}
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, params=SAL_PARAMS, headers=headers, timeout=30)
+            if r.status_code == 404:
+                return None
+            # 206 + corps texte = throttle transitoire de l'API publique → retry.
+            if r.status_code == 206 or "json" not in r.headers.get("content-type", ""):
+                raise ValueError(f"non-json {r.status_code}")
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            if attempt == retries - 1:
+                return None
+            time.sleep(1.5 * (attempt + 1))
     return None
 
 
+def fetch_portfolio(sec_id: str, token: str) -> dict | None:
+    """Récupère les 3 blocs de ventilation sal-service. Renvoie un dict
+    {region, sector, holding} (chaque valeur = JSON brut ou None)."""
+    region  = _sal_get("portfolio/regionalSector", sec_id)
+    time.sleep(RATE_LIMIT_SEC)
+    sector  = _sal_get("portfolio/v2/sector", sec_id)
+    time.sleep(RATE_LIMIT_SEC)
+    holding = _sal_get("portfolio/holding/v2", sec_id)
+    if region is None and sector is None and holding is None:
+        return None
+    return {"region": region, "sector": sector, "holding": holding}
+
+
+# ─── Parseurs (structure SAL réelle, figée par probe 19/06) ───────────────────
+
 def _to_frac(val) -> float | None:
-    """% Morningstar → fraction (0-1). Tolère str avec virgule."""
+    """% Morningstar (0-100) → fraction (0-1). Ignore 0/None/négatif."""
     try:
         f = float(str(val).replace(",", "."))
     except (ValueError, TypeError):
@@ -216,98 +223,76 @@ def _to_frac(val) -> float | None:
 
 
 def parse_geos(data: dict) -> list[dict]:
+    """region → $.fundPortfolio : dict plat {northAmerica, unitedKingdom, ...}
+    valeurs en % (0-100)."""
+    region = (data or {}).get("region") or {}
+    fp = region.get("fundPortfolio")
+    if not isinstance(fp, dict):
+        return []
     results: list[dict] = []
-    # Chemin A : dict plat region* → valeur (ex. RegionalExposure / equityRegion)
-    for key in ("equityRegion", "regionalExposure", "RegionalExposure",
-                "geographicBreakdown", "countryExposure"):
-        gd = data.get(key)
-        if isinstance(gd, dict) and gd:
-            for raw_k, val in gd.items():
-                norm = raw_k.lower().replace("region", "").replace("_", "")
-                if norm in GEO_MAP:
-                    frac = _to_frac(val)
-                    if frac:
-                        label, code = GEO_MAP[norm]
-                        results.append({"country_code": code, "country_label": label,
-                                        "weight": frac, "source": SOURCE})
-            if results:
-                return results
-    # Chemin B : liste [{name/code, value}]
-    lst = _walk_lists(data, lambda d: any(k in d for k in ("countryCode", "name", "type"))
-                      and any(k in d for k in ("value", "weighting", "percent")))
-    if lst:
-        for it in lst:
-            name = (it.get("name") or it.get("countryName") or it.get("type") or "").strip()
-            code = (it.get("countryCode") or it.get("code") or "")[:10]
-            val  = it.get("value") or it.get("weighting") or it.get("percent")
-            frac = _to_frac(val)
-            if frac and (name or code):
-                norm = name.lower().replace(" ", "").replace("-", "")
-                if norm in GEO_MAP:
-                    label, mapped_code = GEO_MAP[norm]
-                else:
-                    label, mapped_code = (name or code), (code or "XX")
-                results.append({"country_code": mapped_code, "country_label": label[:100],
-                                "weight": frac, "source": SOURCE})
+    for raw_k, val in fp.items():
+        norm = raw_k.lower()
+        if norm not in GEO_MAP:
+            continue                       # ignore portfolioDate/masterPortfolioId
+        frac = _to_frac(val)
+        if frac:
+            label, code = GEO_MAP[norm]
+            results.append({"country_code": code, "country_label": label,
+                            "weight": frac, "source": SOURCE})
     return results
 
 
 def parse_sectors(data: dict) -> list[dict]:
+    """sector → $.EQUITY.fundPortfolio : dict plat {basicMaterials, ...} en %."""
+    sector = (data or {}).get("sector") or {}
+    eq = sector.get("EQUITY")
+    fp = (eq or {}).get("fundPortfolio") if isinstance(eq, dict) else None
+    if not isinstance(fp, dict):
+        return []
     results: list[dict] = []
-    for key in ("equitySectors", "globalStockSector", "GlobalStockSector",
-                "stockSectorBreakdown", "sectorBreakdown"):
-        sd = data.get(key)
-        if isinstance(sd, dict) and sd:
-            for raw_k, val in sd.items():
-                norm = raw_k.lower().replace("sector", "").replace("_", "")
-                if norm in SECTOR_MAP:
-                    frac = _to_frac(val)
-                    if frac:
-                        results.append({"sector_name": SECTOR_MAP[norm],
-                                        "weight": frac, "source": SOURCE})
-            if results:
-                return results
-    lst = _walk_lists(data, lambda d: any(k in d for k in ("name", "sectorName", "type"))
-                      and any(k in d for k in ("value", "weighting", "percent")))
-    if lst:
-        for it in lst:
-            name = (it.get("name") or it.get("sectorName") or it.get("type") or "").strip()
-            val  = it.get("value") or it.get("weighting") or it.get("percent")
-            frac = _to_frac(val)
-            if frac and name:
-                label = SECTOR_MAP.get(name.lower().replace(" ", ""), name)
-                results.append({"sector_name": label[:100], "weight": frac, "source": SOURCE})
-    return results[:15]
+    for raw_k, val in fp.items():
+        norm = raw_k.lower()
+        if norm not in SECTOR_MAP:
+            continue                       # ignore portfolioDate
+        frac = _to_frac(val)
+        if frac:
+            results.append({"sector_name": SECTOR_MAP[norm],
+                            "weight": frac, "source": SOURCE})
+    return results
 
 
 def parse_holdings(data: dict) -> list[dict]:
-    results: list[dict] = []
-    lst = _walk_lists(
-        data,
-        lambda d: any(k in d for k in ("securityName", "holdingName", "name"))
-        and any(k in d for k in ("weighting", "weight", "portfolioWeight")),
-    )
-    for i, h in enumerate(lst or [], start=1):
-        name = (h.get("securityName") or h.get("holdingName") or h.get("name") or "").strip()
-        if not name:
+    """holding → top positions. equityHoldingPage (actions) ou boldHoldingPage
+    (obligataires) → holdingList[*] {securityName, weighting, country, sector...}."""
+    holding = (data or {}).get("holding") or {}
+    rows: list[dict] = []
+    for page_key in ("equityHoldingPage", "boldHoldingPage", "otherHoldingPage"):
+        page = holding.get(page_key)
+        if isinstance(page, dict):
+            rows.extend(page.get("holdingList") or [])
+    # Dédup par nom, tri par poids décroissant.
+    seen: set[str] = set()
+    parsed: list[dict] = []
+    for h in sorted(rows, key=lambda x: _to_frac(x.get("weighting")) or 0, reverse=True):
+        name = (h.get("securityName") or "").strip()
+        frac = _to_frac(h.get("weighting"))
+        if not name or not frac or name.lower() in seen:
             continue
-        frac = _to_frac(h.get("weighting") or h.get("weight") or h.get("portfolioWeight"))
-        if not frac:
-            continue
-        results.append({
-            "rank": len(results) + 1,
+        seen.add(name.lower())
+        ident = (h.get("ticker") or h.get("isin") or "")
+        parsed.append({
+            "rank": len(parsed) + 1,
             "position_name": name[:200],
-            "ticker": ((h.get("ticker") or h.get("isin") or "") or None) and
-                      str(h.get("ticker") or h.get("isin"))[:20],
-            "asset_type": (h.get("assetType") or h.get("type") or None),
-            "sector": (h.get("sector") or h.get("sectorName") or None),
-            "country": (h.get("country") or h.get("countryCode") or None),
+            "ticker": (str(ident)[:20] or None),
+            "asset_type": (h.get("holdingType") or None),
+            "sector": (h.get("sector") or None),
+            "country": (h.get("country") or None),
             "weight": frac,
             "source": SOURCE,
         })
-        if len(results) >= 10:
+        if len(parsed) >= 10:
             break
-    return results
+    return parsed
 
 
 # ─── Sélection des cibles (fill-only, priorité AUM) ───────────────────────────
@@ -426,24 +411,18 @@ def run(apply: bool, limit: int | None, offset: int,
             if data is None:
                 print("  (aucune réponse / 404)")
             else:
-                top = data[0] if isinstance(data, list) and data else data
-                print("  TOP-LEVEL KEYS:",
-                      sorted(top.keys()) if isinstance(top, dict) else type(top))
-                print(json.dumps(top, ensure_ascii=False, indent=1)[:2000])
+                print(f"  géo={parse_geos(data)}")
+                print(f"  sect={parse_sectors(data)}")
+                print(f"  holdings={[(h['rank'], h['position_name'], h['weight']) for h in parse_holdings(data)]}")
             continue
 
         if data is None:
             stats["no_portfolio"] += 1
             continue
 
-        top = data[0] if isinstance(data, list) and data else data
-        if not isinstance(top, dict):
-            stats["no_data"] += 1
-            continue
-
-        geos     = parse_geos(top)
-        sectors  = parse_sectors(top)
-        holdings = parse_holdings(top)
+        geos     = parse_geos(data)
+        sectors  = parse_sectors(data)
+        holdings = parse_holdings(data)
 
         if not (geos or sectors or holdings):
             stats["no_data"] += 1

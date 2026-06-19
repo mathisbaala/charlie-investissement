@@ -34,5 +34,11 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
-      - name: Probe SAL — région/secteur/holdings via sal-service (3 ISIN)
-        run: python3 scripts/scrapers/_ms_sal_probe.py IE00B87KCF77 IE00BFMXXD54 LU0328684104
+      - name: Probe — parsers réels sur 3 ISIN (géo/secteur/holdings)
+        run: |
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin LU0328684104
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin IE00B87KCF77
+          python3 scripts/scrapers/populate-holdings-morningstar.py --probe --isin IE00BFMXXD54
+
+      - name: Dry-run — valider la sélection AUM (limit 5, aucune écriture)
+        run: python3 scripts/scrapers/populate-holdings-morningstar.py --limit 5
