@@ -79,6 +79,41 @@ TIMEOUT        = 15
 ISIN_RE        = re.compile(r"^FR[A-Z0-9]{9}[0-9]$")
 # Placeholders AMF / parts non cotées au quotidien (cf. geco-performance-enricher).
 SKIP_PATTERNS  = ("fonds dédié", "***", "fcpe ", "ficpv ", "spécial ")
+# Cache ISIN→idInterne : évite de re-résoudre tout l'univers (2 appels AMF/fonds)
+# à chaque run. Un hit → on saute la résolution. Un miss est re-tenté après
+# MISS_TTL_DAYS (au cas où GECO ajoute le fonds). Les hits sont permanents
+# (idInterne stable pour une part).
+SHARE_MAP_TABLE = "investissement_geco_share_map"
+MISS_TTL_DAYS   = 30
+
+
+# ─── Cache ISIN → idInterne ─────────────────────────────────────────────────────
+
+def load_share_cache(client, isins: list[str]) -> dict:
+    """{isin: {'share_id': int|None, 'miss': bool, 'resolved_at': str}} depuis le cache."""
+    out = {}
+    for i in range(0, len(isins), 300):
+        chunk = isins[i:i + 300]
+        try:
+            r = (client.table(SHARE_MAP_TABLE)
+                 .select("isin,share_id,miss,resolved_at").in_("isin", chunk).execute())
+            for row in (r.data or []):
+                out[row["isin"]] = row
+        except Exception as e:
+            print(f"  ⚠️  lecture cache share_id : {e}")
+    return out
+
+
+def persist_share_cache(client, rows: list[dict]) -> None:
+    """Upsert des résolutions (share_id ou miss) dans le cache, par lots."""
+    if not rows:
+        return
+    for i in range(0, len(rows), 500):
+        batch = rows[i:i + 500]
+        try:
+            client.table(SHARE_MAP_TABLE).upsert(batch, on_conflict="isin").execute()
+        except Exception as e:
+            print(f"  ⚠️  écriture cache share_id (lot {i//500+1}) ignorée : {e}")
 
 
 # ─── Sélection des cibles ──────────────────────────────────────────────────────
@@ -305,20 +340,45 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
             else "OPCVM FR sans VL fraîche"
         print(f"  Sélection des cibles ({scope})…", flush=True)
         targets = select_targets(client, limit, offset=offset, ignore_stale=ignore_stale)
-    print(f"  {len(targets)} fonds à traiter   (workers={workers}, délai={delay}s)\n")
+    print(f"  {len(targets)} fonds à traiter   (workers={workers}, délai={delay}s)")
+
+    # Cache ISIN→idInterne : on ne résout en live que les ISIN absents du cache
+    # (ou dont le miss a expiré). En régime permanent, presque tout est en cache
+    # → 1 seul appel chart/fonds au lieu de 3.
+    cache = load_share_cache(client, [t["isin"] for t in targets])
+    miss_cutoff = (datetime.now(timezone.utc) - timedelta(days=MISS_TTL_DAYS)).isoformat()
+    hits = sum(1 for c in cache.values() if c.get("share_id"))
+    print(f"  cache share_id : {hits} hits / {len(cache)} entrées\n")
 
     min_backfill = (date.today() - timedelta(days=365 * LOOKBACK_YEARS)).isoformat()
     lock = threading.Lock()
-    state = {"ok": 0, "no_share": 0, "no_nav": 0, "prices": 0, "done": 0}
+    state = {"ok": 0, "no_share": 0, "no_nav": 0, "prices": 0, "done": 0, "resolved": 0}
     errors = []
+    new_cache: list[dict] = []  # résolutions live à persister en fin de run
 
     def process(args):
         n, t = args
         isin, last = t["isin"], t.get("last")
         session = requests.Session()
-        time.sleep(delay)
 
-        share_id = _find_share_id(session, isin)
+        # 1) Cache : hit → share_id direct ; miss récent → on saute (pas de re-résolution).
+        cached = cache.get(isin)
+        share_id = cached.get("share_id") if cached else None
+        if share_id is None and cached and cached.get("miss") \
+                and (cached.get("resolved_at") or "") >= miss_cutoff:
+            with lock:
+                state["no_share"] += 1
+                state["done"] += 1
+            return
+
+        # 2) Inconnu / miss expiré → résolution live (1 ou 2 appels), puis cache.
+        if share_id is None:
+            time.sleep(delay)
+            share_id = _find_share_id(session, isin)
+            with lock:
+                state["resolved"] += 1
+                new_cache.append({"isin": isin, "share_id": share_id,
+                                  "miss": share_id is None})
         if not share_id:
             with lock:
                 state["no_share"] += 1
@@ -366,9 +426,16 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         list(ex.map(process, enumerate(targets, 1)))
 
+    # Persiste les résolutions live (hits permanents + miss avec TTL) pour les
+    # prochains runs. En dry-run on ne touche pas le cache.
+    if apply and new_cache:
+        persist_share_cache(client, new_cache)
+
     print(f"\n  → {state['ok']}/{len(targets)} OPCVM résolus sur GECO | "
           f"{state['no_share']} sans share | {state['no_nav']} sans VL | "
           f"{state['prices']} VL {'écrites' if apply else '(dry-run)'}")
+    print(f"  cache : {state['resolved']} résolutions live "
+          f"({len(new_cache)} mises en cache), reste servi par le cache")
     if errors:
         print(f"  {len(errors)} erreurs (5 premières) : "
               + ", ".join(f"{e['isin']}:{e['error']}" for e in errors[:5]))
