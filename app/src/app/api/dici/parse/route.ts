@@ -104,6 +104,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "file_base64 requis" }, { status: 400 });
     }
 
+    // Garde-fou COÛT : un PDF est facturé par Claude au prorata du nombre de
+    // pages (texte + image par page). Un document de centaines de pages coûterait
+    // une fortune en tokens. Un DICI/KID fait 2-3 pages → quelques centaines de
+    // Ko. On plafonne donc la taille AVANT tout appel au modèle. La taille brute
+    // ≈ longueur base64 × 3/4.
+    const MAX_PDF_BYTES = Number(process.env.DICI_MAX_BYTES ?? 3_000_000); // ~3 Mo
+    const approxBytes = Math.floor((file_base64.length * 3) / 4);
+    if (approxBytes > MAX_PDF_BYTES) {
+      return NextResponse.json(
+        {
+          error: "Fichier trop volumineux",
+          code: "too_large",
+          max_mb: Math.round(MAX_PDF_BYTES / 1_000_000),
+        },
+        { status: 413 },
+      );
+    }
+
+    // Garde-fou COÛT/ABUS : vérifier que c'est bien un PDF (magie %PDF) avant
+    // d'envoyer quoi que ce soit au modèle — sinon n'importe quel blob arbitraire
+    // serait facturé.
+    const head = Buffer.from(file_base64.slice(0, 16), "base64").toString("latin1");
+    if (!head.startsWith("%PDF")) {
+      return NextResponse.json(
+        { error: "Le fichier n'est pas un PDF valide", code: "not_pdf" },
+        { status: 422 },
+      );
+    }
+
     const limited = await aiRateLimit(req, AI_COST.dici);
     if (limited) return limited;
 

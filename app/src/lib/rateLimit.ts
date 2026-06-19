@@ -11,6 +11,12 @@ import { supabase } from "@/lib/supabase";
 //   coûts : 1 recherche=1, 1 chat=2, 1 upload DICI=3
 const HOUR_LIMIT = Number(process.env.AI_HOUR_LIMIT ?? 25);
 const DAY_LIMIT  = Number(process.env.AI_DAY_LIMIT ?? 25);
+// Plafond GLOBAL journalier (toutes IP confondues) : plafond dur de dépense.
+// Le plafond par IP ne stoppe pas une attaque distribuée (rotation d'IP) ; ce
+// plafond-ci borne le coût absolu d'une journée quoi qu'il arrive. Réglable via
+// env (sans toucher au code). À ~3 unités par DICI / 2 par chat / 1 par
+// recherche, 2000 = large marge pour un usage démo, mur net en cas d'abus.
+const GLOBAL_DAY_LIMIT = Number(process.env.AI_GLOBAL_DAY_LIMIT ?? 2000);
 
 // Coût relatif par type d'appel (l'extraction DICI en vision coûte bien plus
 // cher qu'une simple interprétation de requête).
@@ -22,9 +28,24 @@ export const AI_COST = {
 } as const;
 
 function clientIp(req: NextRequest): string {
+  // IMPORTANT : ne PAS faire confiance au premier maillon de x-forwarded-for —
+  // un client peut envoyer son propre en-tête XFF, et Vercel le préserve (en
+  // préfixant la vraie IP) ; prendre split(",")[0] laisserait n'importe qui
+  // usurper une IP arbitraire à chaque requête et contourner le quota par IP.
+  // x-real-ip / x-vercel-forwarded-for sont posés par le proxy Vercel et ne sont
+  // pas usurpables → on les privilégie.
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const vercel = req.headers.get("x-vercel-forwarded-for")?.trim();
+  if (vercel) return vercel.split(",")[0].trim();
+  // Dernier recours (hors Vercel) : on prend le DERNIER maillon de XFF, le plus
+  // proche du proxy de confiance, plutôt que le premier (usurpable).
   const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
 
 /**
@@ -38,10 +59,25 @@ export async function aiRateLimit(req: NextRequest, cost = 1): Promise<NextRespo
     const ip = clientIp(req);
     const { data, error } = await supabase.rpc("inv_ai_rate_limit", {
       p_ip: ip, p_hour_limit: HOUR_LIMIT, p_day_limit: DAY_LIMIT, p_cost: cost,
+      p_global_day_limit: GLOBAL_DAY_LIMIT,
     });
     if (error || !data) return null;
-    const r = data as { allowed: boolean; scope: "ok" | "hour" | "day" };
+    const r = data as { allowed: boolean; scope: "ok" | "hour" | "day" | "global" };
     if (r.allowed) return null;
+
+    // Plafond global atteint : ce n'est pas la faute de l'utilisateur, c'est une
+    // protection de dépense côté service → 503 + message neutre (on ne révèle
+    // pas qu'on rationne, et on n'invite pas à « revenir demain » à tort).
+    if (r.scope === "global") {
+      return NextResponse.json(
+        {
+          error: "ai_unavailable",
+          scope: "global",
+          message: "Le service d'analyse est momentanément saturé. Réessayez plus tard.",
+        },
+        { status: 503, headers: { "Retry-After": "3600" } },
+      );
+    }
 
     const perHour = r.scope === "hour";
     return NextResponse.json(
