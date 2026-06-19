@@ -206,44 +206,42 @@ def compound(rates_pct: list[float]) -> float:
     return round((result - 1) * 100, 2)
 
 
-def compute_perf_3y_5y(taux: dict[str, float]) -> tuple[float | None, float | None]:
+def _window_ending_latest(taux: dict[str, float], latest: int, n: int) -> float | None:
+    """Cumul composé des n années CONSÉCUTIVES finissant à `latest`
+    (ex. n=3, latest=2025 → 2023+2024+2025). None si une année manque."""
+    years = [str(latest - k) for k in range(n - 1, -1, -1)]
+    vals = [taux.get(y) for y in years]
+    if all(v is not None for v in vals):
+        return compound([v for v in vals])  # type: ignore[arg-type]
+    return None
+
+
+def compute_perfs(taux: dict[str, float]) -> tuple[float | None, float | None, float | None]:
     """
-    Calcule p3y (cumul 2022-2024) et p5y (cumul 2020-2024).
-    Les fonds euros ont des "années pleines" : on prend les 3 et 5 dernières
-    années pleines disponibles avec préférence pour la fenêtre 22-24 / 20-24
-    (cohérente avec le calcul sur les OPCVM).
+    Calcule (p1y, p3y, p5y) en années DYNAMIQUES : la fenêtre finit toujours sur
+    la dernière année pleine publiée par GVFM (pas une année figée dans le code).
+    En 2026, GVFM publie les taux 2025 → p1y=2025, p3y=cumul 2023-2025,
+    p5y=cumul 2021-2025. Les fonds euros raisonnent en années pleines (taux servi
+    annuel), donc « 1y » = dernière année servie. None si la fenêtre est trouée.
     """
-    p3y = None
-    p5y = None
-
-    # P3Y : 2022 + 2023 + 2024 (préféré) ou 3 dernières années pleines
-    years_22_24 = [taux.get(y) for y in ("2022", "2023", "2024")]
-    if all(v is not None for v in years_22_24):
-        p3y = compound([v for v in years_22_24 if v is not None])
-    else:
-        # Fallback : 3 dernières années consécutives
-        sorted_years = sorted(taux.keys())
-        if len(sorted_years) >= 3:
-            last_3 = sorted_years[-3:]
-            # Vérifier qu'elles sont consécutives
-            if int(last_3[2]) - int(last_3[0]) == 2:
-                p3y = compound([taux[y] for y in last_3])
-
-    # P5Y : 2020 + 2021 + 2022 + 2023 + 2024
-    years_20_24 = [taux.get(y) for y in ("2020", "2021", "2022", "2023", "2024")]
-    if all(v is not None for v in years_20_24):
-        p5y = compound([v for v in years_20_24 if v is not None])
-
-    return p3y, p5y
+    if not taux:
+        return None, None, None
+    latest = max(int(y) for y in taux.keys())
+    p1y = taux.get(str(latest))
+    p3y = _window_ending_latest(taux, latest, 3)
+    p5y = _window_ending_latest(taux, latest, 5)
+    return p1y, p3y, p5y
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run(apply: bool):
+def run(apply: bool, refresh: bool = False):
     print("=" * 70)
-    print("  Fonds Euros Enricher — GVFM (performance_3y + performance_5y)")
+    print("  Fonds Euros Enricher — GVFM (taux servis → perf 1y/3y/5y)")
     print("=" * 70)
-    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}")
+    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}"
+          + ("  [REFRESH : écrase les perf existantes]" if refresh
+             else "  [fill-only : ne remplit que les trous]"))
     print()
 
     started = datetime.now(timezone.utc)
@@ -280,11 +278,20 @@ def run(apply: bool):
 
     # 3. Matcher + enrichir
     now = datetime.now(timezone.utc).isoformat()
-    matched = updated_p3y = updated_p5y = no_mapping = no_match = 0
+    matched = updated = no_mapping = no_match = 0
     skipped_existing = 0
 
-    print(f"  {'ISIN':18} | {'Name':32} | {'GVFM match':30} | p3y    | p5y")
-    print("  " + "─" * 110)
+    def _take(field: str, val, fund) -> bool:
+        """Décide si on écrit `val` dans `field` : refresh → toujours (si val
+        change) ; fill-only → seulement si le champ est NULL en base."""
+        if val is None:
+            return False
+        if refresh:
+            return fund.get(field) != val
+        return fund.get(field) is None
+
+    print(f"  {'ISIN':18} | {'Name':32} | {'GVFM match':30} | p1y   | p3y    | p5y")
+    print("  " + "─" * 118)
 
     for fund in db_funds:
         isin = fund["isin"]
@@ -308,23 +315,24 @@ def run(apply: bool):
             continue
 
         matched += 1
-        p3y, p5y = compute_perf_3y_5y(gvfm_rec["taux"])
+        p1y, p3y, p5y = compute_perfs(gvfm_rec["taux"])
 
         update: dict = {}
-        if p3y is not None and fund.get("performance_3y") is None:
-            update["performance_3y"] = p3y
-            updated_p3y += 1
-        elif p3y is not None and fund.get("performance_3y") is not None:
-            skipped_existing += 1
-        if p5y is not None and fund.get("performance_5y") is None:
-            update["performance_5y"] = p5y
-            updated_p5y += 1
+        for field, val in (("performance_1y", p1y), ("performance_3y", p3y),
+                           ("performance_5y", p5y)):
+            if _take(field, val, fund):
+                update[field] = val
+            elif val is not None and not refresh and fund.get(field) is not None:
+                skipped_existing += 1
+        if update:
+            updated += 1
 
         match_label = f"{gvfm_key[:28]}({gvfm_rec['fund_type'][:3]})"
+        p1y_str = f"{p1y:5.2f}%" if p1y is not None else "  —  "
         p3y_str = f"{p3y:5.2f}%" if p3y is not None else "  —  "
         p5y_str = f"{p5y:5.2f}%" if p5y is not None else "  —  "
         marker = "✓" if update else "·"
-        print(f"  {marker} {isin:16} | {fund['name'][:32]:32} | {match_label:30} | {p3y_str} | {p5y_str}")
+        print(f"  {marker} {isin:16} | {fund['name'][:32]:32} | {match_label:30} | {p1y_str} | {p3y_str} | {p5y_str}")
 
         if apply and update:
             # Recompute completeness with new fields
@@ -346,23 +354,26 @@ def run(apply: bool):
     print(f"  Sans mapping (no GVFM)    : {no_mapping}")
     print(f"  Mapping mais pas trouvé   : {no_match}")
     print(f"  Matchés et données OK     : {matched}")
-    print(f"  → p3y ajouté              : {updated_p3y}")
-    print(f"  → p5y ajouté              : {updated_p5y}")
-    print(f"  Déjà rempli (skip)        : {skipped_existing}")
+    print(f"  → fonds mis à jour        : {updated}")
+    if not refresh:
+        print(f"  Déjà rempli (skip)        : {skipped_existing}")
     print()
 
     if apply:
         log_run(
             "fonds-euros-enricher",
             "success" if matched > 0 else "partial",
-            records_processed=updated_p3y + updated_p5y,
+            records_processed=updated,
             records_failed=no_match + no_mapping,
             started_at=started,
         )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Enrichit performance_3y/5y des fonds en euros depuis GVFM")
+    parser = argparse.ArgumentParser(description="Enrichit perf 1y/3y/5y des fonds en euros depuis GVFM")
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase (sinon dry-run)")
+    parser.add_argument("--refresh", action="store_true",
+                        help="Écraser les perf existantes (refresh annuel). Sans ce flag : "
+                             "fill-only (ne remplit que les champs NULL).")
     args = parser.parse_args()
-    run(apply=args.apply)
+    run(apply=args.apply, refresh=args.refresh)
