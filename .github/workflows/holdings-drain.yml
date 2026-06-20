@@ -43,7 +43,7 @@ on:
         type: boolean
         default: false
       probe:
-        description: "Dry-run probe (n'écrit rien, mesure le taux de résolution)"
+        description: "Dry-run (n'écrit rien — imprime le résumé résolus/sans-secId/sans-portfolio)"
         required: false
         type: boolean
         default: false
@@ -79,8 +79,10 @@ jobs:
           ENRICHER="${{ inputs.enricher }}"
           LIMIT="${{ inputs.limit }}"
           OFFSET="${{ inputs.offset }}"
+          # probe=true → dry-run : pas de --apply, le script imprime le résumé
+          # résolus/sans-secId/sans-portfolio sans rien écrire (fill-only mesuré).
           APPLY="--apply"
-          if [ "${{ inputs.probe }}" = "true" ]; then APPLY="--probe"; fi
+          if [ "${{ inputs.probe }}" = "true" ]; then APPLY=""; fi
 
           case "$ENRICHER" in
             morningstar)
@@ -91,15 +93,11 @@ jobs:
               ;;
             justetf)
               # justetf-holdings n'a pas d'offset (fill-only priorité AUM interne).
-              FLAG="--apply"
-              if [ "${{ inputs.probe }}" = "true" ]; then FLAG=""; fi
-              python3 scripts/scrapers/justetf-holdings-scraper.py $FLAG --limit "$LIMIT"
+              python3 scripts/scrapers/justetf-holdings-scraper.py $APPLY --limit "$LIMIT"
               ;;
             issuer-ishares|issuer-amundi|issuer-xtrackers)
               ISSUER="${ENRICHER#issuer-}"
-              FLAG="--apply"
-              if [ "${{ inputs.probe }}" = "true" ]; then FLAG=""; fi
-              python3 scripts/scrapers/issuer-holdings.py --issuer "$ISSUER" $FLAG --limit "$LIMIT"
+              python3 scripts/scrapers/issuer-holdings.py --issuer "$ISSUER" $APPLY --limit "$LIMIT"
               ;;
             *)
               echo "Enricher inconnu : $ENRICHER" >&2; exit 1
