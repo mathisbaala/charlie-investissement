@@ -391,12 +391,21 @@ def _isins_already_done(client) -> set[str]:
 
 
 def _record_attempts(client, attempts: list[dict]) -> None:
-    """Upsert en masse des tentatives (PK isin,source) — idempotent."""
+    """Upsert en masse des tentatives (PK isin,source) — idempotent.
+
+    Dédoublonne par (isin,source) AVANT l'upsert : Postgres refuse deux lignes de
+    même PK dans un seul ON CONFLICT (« cannot affect row a second time »). Un
+    fonds peut être noté 2× dans le buffer — typiquement « ok » puis « timeout »
+    si SIGALRM se déclenche pendant le write. On garde la DERNIÈRE issue."""
     if not attempts:
         return
-    for i in range(0, len(attempts), 500):
+    dedup: dict[tuple, dict] = {}
+    for a in attempts:
+        dedup[(a["isin"], a["source"])] = a
+    rows = list(dedup.values())
+    for i in range(0, len(rows), 500):
         client.table(ATTEMPTS_TABLE).upsert(
-            attempts[i:i + 500], on_conflict="isin,source").execute()
+            rows[i:i + 500], on_conflict="isin,source").execute()
 
 
 def select_targets(client, limit: int | None, offset: int,
