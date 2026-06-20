@@ -27,6 +27,13 @@ describe("serializeForNlp — nouveaux critères de contexte", () => {
       .toContain("tendance à renforcer");
   });
 
+  it("sérialise les versements programmés", () => {
+    expect(serializeForNlp({ ...EMPTY_PROFILE, versements: "mensuel" }))
+      .toContain("versements programmés mensuels");
+    expect(serializeForNlp({ ...EMPTY_PROFILE, versements: "non" }))
+      .toContain("versement unique");
+  });
+
   it("sérialise les zones géographiques avec leurs libellés lisibles", () => {
     const s = serializeForNlp({ ...EMPTY_PROFILE, geographies: ["zone_euro", "emergents"] });
     expect(s).toContain("zones géographiques privilégiées");
@@ -44,6 +51,7 @@ describe("isProfileActive — nouveaux critères", () => {
     expect(isProfileActive({ ...EMPTY_PROFILE, income_need: "ponctuel" })).toBe(true);
     expect(isProfileActive({ ...EMPTY_PROFILE, reaction_baisse: "conserver" })).toBe(true);
     expect(isProfileActive({ ...EMPTY_PROFILE, geographies: ["monde"] })).toBe(true);
+    expect(isProfileActive({ ...EMPTY_PROFILE, versements: "mensuel" })).toBe(true);
   });
 
   it("reste inactif pour un profil vide", () => {
@@ -58,6 +66,7 @@ describe("profileToScreenerFilters — nouveaux critères = contexte uniquement"
       income_need: "regulier",
       reaction_baisse: "vendre",
       geographies: ["europe", "asie"],
+      versements: "mensuel",
     })).toEqual({});
   });
 });

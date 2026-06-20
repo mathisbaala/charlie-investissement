@@ -11,10 +11,12 @@ export type Experience = "novice" | "informe" | "experimente";
 export type ManagementPref = "actif" | "passif";
 export type IncomeNeed = "non" | "ponctuel" | "regulier";
 export type ReactionBaisse = "vendre" | "conserver" | "renforcer";
+export type Versements = "non" | "mensuel" | "trimestriel" | "annuel";
 
 export type RichClientProfile = {
   age: number | null;
   amount_eur: number | null;
+  versements: Versements | null;
   horizon_years: number | null;
   objectif: Objectif | null;
   income_need: IncomeNeed | null;
@@ -36,6 +38,7 @@ export type RichClientProfile = {
 export const EMPTY_PROFILE: RichClientProfile = {
   age: null,
   amount_eur: null,
+  versements: null,
   horizon_years: null,
   objectif: null,
   income_need: null,
@@ -88,6 +91,7 @@ export function isProfileActive(p: RichClientProfile): boolean {
     p.esg !== "indifferent" ||
     p.objectif !== null ||
     p.income_need !== null ||
+    p.versements !== null ||
     p.age !== null ||
     p.horizon_years !== null ||
     p.tmi !== null ||
@@ -132,6 +136,13 @@ const INCOME_LABELS: Record<IncomeNeed, string> = {
   regulier: "besoin de revenus réguliers / distribution",
 };
 
+const VERSEMENTS_LABELS: Record<Versements, string> = {
+  non:         "versement unique (pas de versements programmés)",
+  mensuel:     "versements programmés mensuels (investissement progressif)",
+  trimestriel: "versements programmés trimestriels",
+  annuel:      "versements programmés annuels",
+};
+
 const REACTION_LABELS: Record<ReactionBaisse, string> = {
   vendre:    "face à une forte baisse, tendance à vendre (sensibilité au risque élevée)",
   conserver: "face à une forte baisse, tendance à conserver ses positions",
@@ -159,6 +170,7 @@ export function serializeForNlp(p: RichClientProfile): string {
   if (p.experience)     parts.push(EXP_LABELS[p.experience]);
   if (p.objectif)       parts.push(OBJ_LABELS[p.objectif]);
   if (p.income_need)    parts.push(INCOME_LABELS[p.income_need]);
+  if (p.versements)     parts.push(VERSEMENTS_LABELS[p.versements]);
   if (p.risk_profile)   parts.push(RISK_LABELS[p.risk_profile]);
   if (p.reaction_baisse) parts.push(REACTION_LABELS[p.reaction_baisse]);
   if (p.perte_max && p.perte_max !== "illimitee")
