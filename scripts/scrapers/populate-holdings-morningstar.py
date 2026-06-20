@@ -84,7 +84,7 @@ SOURCE         = "morningstar"
 # total, donc il ne se déclenche jamais sur un flux qui goutte → un seul fonds
 # pathologique peut figer un run entier de 350 min (constaté 20/06). SIGALRM
 # coupe net au-delà de ce délai et on passe au fonds suivant (re-tenté + TTL).
-FUND_DEADLINE_S = 45
+FUND_DEADLINE_S = 20   # un fonds légitime répond en <10s ; au-delà = hang à skipper
 _HAS_ALARM      = hasattr(signal, "SIGALRM")
 
 
