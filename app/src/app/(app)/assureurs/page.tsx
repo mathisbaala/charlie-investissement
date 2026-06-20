@@ -49,27 +49,36 @@ const TYPE_SHORT: Record<ContractType, string> = {
 const insurerHref  = (company: string) => `/recherche?insurer=${encodeURIComponent(company)}`;
 const contractHref = (key: string)     => `/recherche?contracts=${encodeURIComponent(key)}`;
 
-const CONTRACTS_PREVIEW = 4;
+// Hauteur fixe de carte : toutes les cartes s'alignent en une grille régulière
+// (plus de trous ni de cartes inégales). Le surplus de contrats défile à
+// l'intérieur de la carte plutôt que d'allonger la carte (et de creuser un vide
+// chez la voisine plus courte).
+const CARD_HEIGHT = "h-[300px]";
 
-// ─── Carte assureur (Direction B : tableau de contrats aligné) ───────────────────
+// ─── Carte assureur (hauteur fixe · liste de contrats scrollable) ────────────────
 
 function InsurerCard(
-  { insurer, allContracts, env, hideClosed }:
-  { insurer: Insurer; allContracts: Contract[]; env: Envelope; hideClosed: boolean },
+  { insurer, allContracts, env, hideClosed, query }:
+  { insurer: Insurer; allContracts: Contract[]; env: Envelope; hideClosed: boolean; query: string },
 ) {
-  const [showAll, setShowAll] = useState(false);
-
   // Contrats visibles : enveloppe active + filtre statut commercial.
-  const visible = visibleContracts(allContracts, insurer.company, env, hideClosed);
-  const shown = showAll ? visible : visible.slice(0, CONTRACTS_PREVIEW);
-  const extra = visible.length - shown.length;
+  let visible = visibleContracts(allContracts, insurer.company, env, hideClosed);
+
+  // Recherche : si la requête ne matche pas le nom de l'assureur mais des contrats,
+  // on restreint la liste aux contrats correspondants (la carte remonte parce que
+  // l'un de ses contrats matche — on montre lesquels).
+  const needle = query.trim().toLowerCase();
+  const companyMatches = needle ? insurer.company.toLowerCase().includes(needle) : true;
+  if (needle && !companyMatches) {
+    visible = visible.filter((c) => c.contract.toLowerCase().includes(needle));
+  }
 
   return (
-    <Card className="px-5 py-4">
+    <Card className={`px-5 py-4 flex flex-col ${CARD_HEIGHT}`}>
       {/* En-tête : clic → tous les supports de l'assureur dans le screener */}
       <Link
         href={insurerHref(insurer.company)}
-        className="group flex items-start justify-between gap-2 -mx-1 px-1 py-1 rounded-lg hover:bg-paper-2 transition-colors"
+        className="group shrink-0 flex items-start justify-between gap-2 -mx-1 px-1 py-1 rounded-lg hover:bg-paper-2 transition-colors"
       >
         <div className="min-w-0">
           <p className="text-body-lg font-semibold text-ink group-hover:text-accent-ink truncate">
@@ -95,15 +104,15 @@ function InsurerCard(
         <ChevronRight size={15} className="text-muted group-hover:text-accent-ink shrink-0 mt-0.5" />
       </Link>
 
-      {/* Tableau de contrats aligné : pastille statut · nom (+ « aussi X ») · supports */}
-      {visible.length > 0 && (
-        <div className="mt-3.5">
-          <div className="grid grid-cols-[1fr_auto] gap-3 pb-1.5 border-b border-line-soft">
+      {visible.length > 0 ? (
+        // Tableau de contrats : en-tête figé, lignes défilantes (scrollbar fine).
+        <div className="mt-3.5 flex flex-col min-h-0 flex-1">
+          <div className="grid grid-cols-[1fr_auto] gap-3 pb-1.5 border-b border-line-soft shrink-0">
             <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Contrat</span>
             <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold text-right">Supports</span>
           </div>
-          <ul>
-            {shown.map((c) => {
+          <ul className="min-h-0 flex-1 overflow-y-auto scrollbar-thin -mr-2 pr-2">
+            {visible.map((c) => {
               // PEP exclu du marqueur « aussi X » (cohérent avec son exclusion
               // des onglets d'enveloppe primaires).
               const others = otherEnvelopes(c, env).filter((t) => t !== "pep" && t in TYPE_SHORT);
@@ -144,22 +153,18 @@ function InsurerCard(
               );
             })}
           </ul>
-          {extra > 0 && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="text-label text-accent hover:underline mt-2.5"
-            >
-              Voir les {extra} autre{extra > 1 ? "s" : ""} contrat{extra > 1 ? "s" : ""}
-            </button>
-          )}
-          {showAll && visible.length > CONTRACTS_PREVIEW && (
-            <button
-              onClick={() => setShowAll(false)}
-              className="text-label text-muted hover:underline mt-2.5 ml-3"
-            >
-              Réduire
-            </button>
-          )}
+        </div>
+      ) : (
+        // Pas de détail de contrat (ex. AV Luxembourg « redondant ») : on remplit
+        // la carte avec un accès direct aux supports plutôt que de laisser un vide.
+        <div className="mt-3.5 flex-1 flex items-center justify-center">
+          <Link
+            href={insurerHref(insurer.company)}
+            className="inline-flex items-center gap-1.5 text-label font-medium text-accent hover:underline"
+          >
+            Voir tous les supports référencés
+            <ChevronRight size={14} />
+          </Link>
         </div>
       )}
     </Card>
@@ -267,9 +272,15 @@ export default function AssureursPage() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = insurers.filter((i) => {
-      if (needle && !i.company.toLowerCase().includes(needle)) return false;
       const all = contractsByCompany.get(i.company) ?? [];
-      return isInsurerVisible(all, i.company, env, hideClosed);
+      if (!isInsurerVisible(all, i.company, env, hideClosed)) return false;
+      // La recherche matche le nom de l'assureur OU le nom d'un de ses contrats
+      // (sous l'enveloppe active) : taper « Premium » remonte les assureurs qui
+      // référencent un contrat « Premium ».
+      if (!needle) return true;
+      if (i.company.toLowerCase().includes(needle)) return true;
+      return visibleContracts(all, i.company, env, hideClosed)
+        .some((c) => c.contract.toLowerCase().includes(needle));
     });
     return [...list].sort((a, b) => b.funds - a.funds);
   }, [insurers, q, env, hideClosed, contractsByCompany]);
@@ -308,12 +319,14 @@ export default function AssureursPage() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="px-5 py-4">
+            <Card key={i} className="px-5 py-4 h-[300px]">
               <Skeleton className="h-5 w-1/2" />
               <Skeleton className="h-3 w-1/3 mt-2" />
-              <Skeleton className="h-3 w-full mt-4" />
+              <Skeleton className="h-3 w-full mt-5" />
               <Skeleton className="h-3 w-full mt-2.5" />
               <Skeleton className="h-3 w-2/3 mt-2.5" />
+              <Skeleton className="h-3 w-full mt-2.5" />
+              <Skeleton className="h-3 w-1/2 mt-2.5" />
             </Card>
           ))}
         </div>
@@ -354,7 +367,7 @@ export default function AssureursPage() {
           <p className="text-label text-muted-2 mb-3">
             {filtered.length.toLocaleString("fr-FR")} assureur{filtered.length > 1 ? "s" : ""} · {ENV_LABEL[env]}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((insurer) => (
               <InsurerCard
                 key={insurer.company}
@@ -362,6 +375,7 @@ export default function AssureursPage() {
                 allContracts={contractsByCompany.get(insurer.company) ?? []}
                 env={env}
                 hideClosed={hideClosed}
+                query={q}
               />
             ))}
           </div>
