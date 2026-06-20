@@ -348,10 +348,19 @@ INVESCO_HOLDINGS_URL = (
 
 def invesco_fetch_holdings(session: requests.Session, isin: str) -> list[dict] | None:
     """GET dng-api Invesco pour un ISIN → liste de constituants (index d'abord)."""
+    # dng-api est protégé par un WAF anti-bot (renvoie 406 sur les rafales) :
+    # headers légitimes (Origin/Referer invesco.com + Accept navigateur) pour
+    # passer pour un appel XHR de la page produit. Reste à pacer (petits lots).
+    inv_headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-GB,en;q=0.9",
+        "Origin": "https://www.invesco.com",
+        "Referer": "https://www.invesco.com/",
+    }
     for variation in ("index", "fund"):
         try:
             resp = session.get(INVESCO_HOLDINGS_URL.format(isin=isin, variation=variation),
-                               timeout=FETCH_TIMEOUT, headers={"Accept": "application/json"})
+                               timeout=FETCH_TIMEOUT, headers=inv_headers)
             if resp.status_code != 200:
                 continue
             rows = (resp.json() or {}).get("holdings") or []
