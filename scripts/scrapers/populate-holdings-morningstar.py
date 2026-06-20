@@ -314,18 +314,28 @@ def _isins_with_geo(client) -> set[str]:
     return have
 
 
-def select_targets(client, limit: int | None, offset: int) -> list[dict]:
-    """OPCVM/ETF avec morningstar_rating, SANS géo, triés AUM décroissant."""
+def select_targets(client, limit: int | None, offset: int,
+                   include_unrated: bool = False) -> list[dict]:
+    """OPCVM/ETF SANS géo, triés AUM décroissant.
+
+    Par défaut on se restreint aux fonds notés Morningstar (morningstar_rating
+    non nul) : pré-filtre prudent qui évite de gaspiller des appels de résolution
+    sur des fonds que Morningstar ne couvre pas. Mais `resolve_sec_id` cherche en
+    réalité par ISIN dans le screener EMEA — il ne DÉPEND pas du rating, et
+    Morningstar référence beaucoup plus de fonds qu'il n'en note. `include_unrated`
+    élargit donc la cible aux non-notés pour attaquer le mur des OPCVM sans
+    ventilation (taux de résolution plus faible, à mesurer en --probe d'abord)."""
     have_geo = _isins_with_geo(client)
     out: list[dict] = []
     page = 1000
     db_offset = 0
     while True:
-        rows = (client.table("investissement_funds")
-                .select("isin, name, aum_eur")
-                .not_.is_("morningstar_rating", "null")
-                .in_("product_type", ["opcvm", "etf", "fcp", "sicav"])
-                .order("aum_eur", desc=True, nullsfirst=False)
+        q = (client.table("investissement_funds")
+             .select("isin, name, aum_eur")
+             .in_("product_type", ["opcvm", "etf", "fcp", "sicav"]))
+        if not include_unrated:
+            q = q.not_.is_("morningstar_rating", "null")
+        rows = (q.order("aum_eur", desc=True, nullsfirst=False)
                 .range(db_offset, db_offset + page - 1)
                 .execute().data or [])
         if not rows:
@@ -365,12 +375,13 @@ def write_breakdowns(client, isin: str, geos, sectors, holdings, now_iso: str) -
 # ─── Run ──────────────────────────────────────────────────────────────────────
 
 def run(apply: bool, limit: int | None, offset: int,
-        single_isin: str | None, probe: bool) -> None:
+        single_isin: str | None, probe: bool, include_unrated: bool = False) -> None:
     print("=" * 60)
     print("  Populate Holdings — Morningstar EMEA (fill-only, priorité AUM)")
     print("=" * 60)
     print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}"
-          f"{'  [PROBE: dump JSON brut]' if probe else ''}")
+          f"{'  [PROBE: dump JSON brut]' if probe else ''}"
+          f"{'  [INCLUDE-UNRATED]' if include_unrated else ''}")
 
     started = datetime.now(timezone.utc)
     client  = get_client()
@@ -388,7 +399,7 @@ def run(apply: bool, limit: int | None, offset: int,
     if single_isin:
         funds = [{"isin": single_isin, "name": single_isin, "aum_eur": None}]
     else:
-        funds = select_targets(client, limit, offset)
+        funds = select_targets(client, limit, offset, include_unrated)
 
     print(f"  {len(funds)} fonds cibles (MS rating, sans géo, AUM desc, "
           f"offset {offset})", flush=True)
@@ -466,9 +477,12 @@ def main():
     ap.add_argument("--isin",   type=str, help="Un seul ISIN (test)")
     ap.add_argument("--probe",  action="store_true",
                     help="Dump le JSON brut de l'API (figer le format avant le run de masse)")
+    ap.add_argument("--include-unrated", action="store_true",
+                    help="Viser AUSSI les fonds sans morningstar_rating (mur OPCVM "
+                         "non-notés). Taux de résolution plus faible : --probe d'abord.")
     args = ap.parse_args()
     run(apply=args.apply, limit=args.limit, offset=args.offset,
-        single_isin=args.isin, probe=args.probe)
+        single_isin=args.isin, probe=args.probe, include_unrated=args.include_unrated)
 
 
 if __name__ == "__main__":
