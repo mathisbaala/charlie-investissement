@@ -5,6 +5,7 @@ import {
   Caveat,
   DM_Mono,
 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -57,7 +58,10 @@ export default function RootLayout({
       lang="fr"
       className={`${instrumentSerif.variable} ${dmSans.variable} ${caveat.variable} ${dmMono.variable} h-full`}
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
