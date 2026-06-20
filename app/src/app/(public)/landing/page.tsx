@@ -63,7 +63,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-6"
-      style={{ background: "oklch(0.968 0.022 76)" }}>
+      style={{ background: "var(--color-cream)" }}>
 
       {/* Radial bloom top-right */}
       <div
@@ -105,7 +105,7 @@ export default function LandingPage() {
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Trouver{" "}
-          <em className="not-italic" style={{ color: "oklch(0.62 0.13 45)" }}>
+          <em className="not-italic" style={{ color: "var(--color-accent)" }}>
             le bon support
           </em>
           <br />
@@ -122,10 +122,10 @@ export default function LandingPage() {
           />
           <button
             onClick={handleSubmit}
-            className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-body font-semibold text-paper transition-colors"
-            style={{ background: "var(--color-brown)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-brown-2)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-brown)")}
+            className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-body font-semibold text-paper transition-colors active:translate-y-px"
+            style={{ background: "var(--color-ink)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-ink-strong)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-ink)")}
           >
             Chercher
             <ArrowRight size={14} />

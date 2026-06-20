@@ -12,7 +12,7 @@ export function Card({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`bg-paper rounded-xl border border-line ${className}`} {...props}>
+    <div className={`bg-paper rounded-xl border border-line-soft ${className}`} {...props}>
       {children}
     </div>
   );

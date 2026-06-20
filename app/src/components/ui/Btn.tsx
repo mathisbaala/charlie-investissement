@@ -2,7 +2,7 @@
 
 import React from "react";
 
-type BtnVariant = "primary" | "ghost" | "outline" | "accent-soft";
+type BtnVariant = "primary" | "ghost" | "outline" | "accent" | "accent-soft";
 type BtnSize    = "sm" | "md" | "lg";
 
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,9 +14,12 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<BtnVariant, string> = {
-  primary:      "bg-brown text-paper hover:bg-brown-2 border-transparent",
+  // CTA principal = encre sombre (style Charlie Prospection)
+  primary:      "bg-ink text-paper hover:bg-ink-strong border-transparent",
   ghost:        "bg-transparent text-ink-2 hover:bg-paper-2 border-transparent",
   outline:      "bg-paper text-ink border-line hover:bg-paper-2",
+  // accent solide = terracotta clay (action secondaire chaleureuse)
+  accent:       "bg-brown text-paper hover:bg-brown-2 border-transparent",
   "accent-soft":"bg-accent-soft text-accent-ink border-accent/20 hover:bg-accent/20",
 };
 
@@ -36,7 +39,7 @@ export function Btn({
   ...props
 }: BtnProps) {
   const base =
-    "inline-flex items-center justify-center font-medium border transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none";
+    "inline-flex items-center justify-center font-medium border transition-colors duration-100 cursor-pointer active:translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:active:translate-y-0 select-none";
   return (
     <button
       className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}

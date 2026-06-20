@@ -11,7 +11,7 @@ const HOLDINGS_PREVIEW = 15;
 
 // Palette "Charlie earth tones" — assez disctincte pour 10 tranches
 const PALETTE = [
-  "#8B7355", "#6B9E9F", "#C4956A", "#7A8E6B", "#9E7A8B",
+  "#9F4325", "#6B9E9F", "#C4956A", "#7A8E6B", "#9E7A8B",
   "#5A7A8B", "#B8956A", "#6B7A5A", "#8B6B6B", "#6B8B7A",
 ];
 

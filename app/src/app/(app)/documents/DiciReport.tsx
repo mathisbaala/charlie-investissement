@@ -613,7 +613,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
         {fiche.matched_isin ? (
           <button
             onClick={() => router.push(`/fonds/${fiche.matched_isin}`)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-ink text-paper hover:bg-ink-strong transition-colors active:translate-y-px"
           >
             <ArrowRight size={14} />
             Voir la fiche produit complète
@@ -623,7 +623,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
             onClick={() =>
               router.push(`/recherche?q=${encodeURIComponent(fiche.isin ?? fiche.name)}`)
             }
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-brown text-paper hover:bg-brown-2 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-meta font-medium bg-ink text-paper hover:bg-ink-strong transition-colors active:translate-y-px"
           >
             <Search size={13} />
             Rechercher ce fonds

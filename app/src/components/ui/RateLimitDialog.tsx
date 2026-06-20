@@ -53,7 +53,7 @@ export function RateLimitDialog() {
 
         <button
           onClick={() => setOpen(false)}
-          className="mt-5 w-full bg-brown text-paper rounded-lg py-2 text-meta font-medium hover:bg-ink transition-colors"
+          className="mt-5 w-full bg-ink text-paper rounded-lg py-2 text-meta font-medium hover:bg-ink-strong transition-colors active:translate-y-px"
         >
           Compris
         </button>
