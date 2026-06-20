@@ -99,12 +99,16 @@ MONTHLY_STEPS = [
     # Comble la compo des OPCVM (géo/secteur/holdings) via Morningstar —
     # résolution secId par screener ecint entitlé, ventilation par sal-service v1
     # (api-global, apikey statique ; PAS oauth — le realm oauth n'entitle pas
-    # sal-service). Gisement disjoint des ETF ci-dessus (~7,1 k OPCVM ms-ratés
-    # sans géo) drainé en masse 19/06. offset 0 = on (re)comble toujours le
-    # top-N AUM encore manquant (nouveaux fonds + ratés transitoires) ; fill-only
-    # strict ⇒ les fonds déjà ventilés sont nativement skippés. Avant compute-metrics.
+    # sal-service). --include-unrated : la résolution secId par ISIN ne dépend PAS
+    # du morningstar_rating (Morningstar référence bien plus de fonds qu'il n'en
+    # note ; probe 20/06 = ~97 % de résolution sur les non-notés) → on draine TOUT
+    # l'univers OPCVM/ETF (~14 k sans géo), pas seulement les notés. offset 0 = on
+    # (re)comble toujours le top-N AUM encore manquant ; le dedup « déjà fait »
+    # (géo ∪ holdings MS) saute nativement les fonds traités, monétaires inclus.
+    # IMPORTANT : un seul bucket modéré par run, JAMAIS de runs dos à dos —
+    # l'API publique sal-service throttle sous charge soutenue (constaté 20/06).
     ("scrapers/populate-holdings-morningstar.py",
-     ["--limit", str(MS_HOLDINGS_BUCKET), "--offset", "0"]),
+     ["--limit", str(MS_HOLDINGS_BUCKET), "--offset", "0", "--include-unrated"]),
     ("enrichers/compute-metrics.py", []),
     # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
     # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline
