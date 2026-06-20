@@ -90,6 +90,10 @@ MONTHLY_STEPS = [
     # + ~256 Xtrackers, fill-only/refresh mensuel, même modèle qu'iShares.
     ("scrapers/issuer-holdings.py", ["--issuer", "amundi", "--refresh"]),
     ("scrapers/issuer-holdings.py", ["--issuer", "xtrackers", "--refresh"]),
+    # Invesco : dng-api donne l'exposition réelle (holdings/index) mais derrière
+    # un WAF anti-bot qui renvoie 406 sur les rafales. PETIT lot fill-only (PAS
+    # --refresh) pour rester sous le radar — draine les ~121 ETF en quelques mois.
+    ("scrapers/issuer-holdings.py", ["--issuer", "invesco", "--limit", "25"]),
     # 2ᵉ source de compo, ETF uniquement : JustETF comble la géo/secteur/holdings
     # des ETF que FT/émetteurs ne ventilent pas. Fill-only (exclut nativement les
     # ETF déjà dotés de secteurs), priorité AUM décroissant. Avant compute-metrics
