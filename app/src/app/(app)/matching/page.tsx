@@ -18,6 +18,8 @@ import {
   type PerteMax,
   type Experience,
   type ManagementPref,
+  type IncomeNeed,
+  type ReactionBaisse,
   EMPTY_PROFILE,
   loadStoredProfile,
   saveStoredProfile,
@@ -32,7 +34,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     <button
       type="button"
       onClick={onClick}
-      className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
+      className={`shrink-0 whitespace-nowrap px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
         active
           ? "bg-brown text-paper border-brown shadow-sm"
           : "bg-paper text-ink-2 border-line hover:border-brown/30 hover:text-ink"
@@ -40,6 +42,21 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
     >
       {label}
     </button>
+  );
+}
+
+// Rangée de chips sur UNE seule ligne, scrollable horizontalement. On ne revient
+// jamais à la ligne (sinon « Défiscalisation » se retrouve seul sur sa ligne et
+// les blocs deviennent inégaux). Un dégradé de bord droit signale qu'il reste des
+// options à faire défiler ; il s'efface visuellement quand tout tient à l'écran.
+function ChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5 pr-2">
+        {children}
+      </div>
+      <div className="pointer-events-none absolute -right-5 top-0 bottom-0 w-12 bg-gradient-to-l from-paper via-paper/70 to-transparent" />
+    </div>
   );
 }
 
@@ -70,12 +87,28 @@ const RISK_OPTIONS: { value: RiskProfile; label: string; desc: string; color: st
   { value: "offensif",  label: "Offensif",  desc: "SRI 5–7", color: "text-warn-dark" },
 ];
 
+const HORIZON_OPTIONS: { value: number; label: string }[] = [
+  { value: 1,  label: "< 2 ans" },
+  { value: 3,  label: "2–4 ans" },
+  { value: 5,  label: "5 ans" },
+  { value: 8,  label: "8 ans" },
+  { value: 10, label: "10 ans" },
+  { value: 15, label: "15 ans" },
+  { value: 20, label: "20 ans+" },
+];
+
 const OBJ_OPTIONS: { value: Objectif; label: string }[] = [
   { value: "capitalisation",  label: "Capitalisation" },
   { value: "revenus",         label: "Revenus" },
   { value: "retraite",        label: "Retraite" },
   { value: "transmission",    label: "Transmission" },
   { value: "defiscalisation", label: "Défiscalisation" },
+];
+
+const INCOME_OPTIONS: { value: IncomeNeed; label: string }[] = [
+  { value: "non",      label: "Aucun (capitalisation)" },
+  { value: "ponctuel", label: "Ponctuel" },
+  { value: "regulier", label: "Régulier" },
 ];
 
 const ESG_OPTIONS: { value: EsgPref; label: string }[] = [
@@ -91,12 +124,19 @@ const EXP_OPTIONS: { value: Experience; label: string }[] = [
   { value: "experimente", label: "Expérimenté" },
 ];
 
+const REACTION_OPTIONS: { value: ReactionBaisse; label: string }[] = [
+  { value: "vendre",    label: "Je vends" },
+  { value: "conserver", label: "Je conserve" },
+  { value: "renforcer", label: "Je renforce" },
+];
+
 const MGMT_OPTIONS: { value: ManagementPref; label: string }[] = [
   { value: "actif",  label: "Gestion active" },
   { value: "passif", label: "Indicielle (ETF)" },
 ];
 
 const TER_OPTIONS: { value: number; label: string }[] = [
+  { value: 0.3, label: "< 0,3 %" },
   { value: 0.5, label: "< 0,5 %" },
   { value: 1,   label: "< 1 %" },
   { value: 1.5, label: "< 1,5 %" },
@@ -121,6 +161,16 @@ const ASSET_OPTIONS = [
   { value: "multi_actifs",   label: "Multi-actifs" },
 ];
 
+const GEO_OPTIONS = [
+  { value: "monde",         label: "Monde" },
+  { value: "europe",        label: "Europe" },
+  { value: "zone_euro",     label: "Zone euro" },
+  { value: "amerique_nord", label: "Amérique du Nord" },
+  { value: "emergents",     label: "Émergents" },
+  { value: "asie",          label: "Asie" },
+  { value: "france",        label: "France" },
+];
+
 const EXCLUSION_OPTIONS = [
   { value: "tabac",    label: "Tabac" },
   { value: "armes",    label: "Armes" },
@@ -128,6 +178,16 @@ const EXCLUSION_OPTIONS = [
   { value: "jeux",     label: "Jeux" },
   { value: "alcool",   label: "Alcool" },
 ];
+
+const PERTE_OPTIONS: { value: PerteMax; label: string }[] = [
+  { value: "5",  label: "< 5 %" },
+  { value: "10", label: "< 10 %" },
+  { value: "20", label: "< 20 %" },
+  { value: "30", label: "< 30 %" },
+  { value: "illimitee", label: "Sans limite" },
+];
+
+const TMI_OPTIONS: Tmi[] = ["0", "11", "30", "41", "45"];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -160,7 +220,7 @@ export default function ProfilClientPage() {
   function set<K extends keyof RichClientProfile>(key: K, val: RichClientProfile[K]) {
     setProfile((p) => ({ ...p, [key]: val }));
   }
-  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes">(key: K, val: string) {
+  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes" | "geographies">(key: K, val: string) {
     setProfile((p) => {
       const prev = p[key] as string[];
       return { ...p, [key]: prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val] };
@@ -265,12 +325,14 @@ export default function ProfilClientPage() {
         {importError && <p className="mt-3 text-caption text-danger">{importError}</p>}
       </Card>
 
-      {/* ── Formulaire ── */}
-      {/* items-start : chaque carte épouse son contenu plutôt que de s'étirer à
-          la hauteur de sa voisine (sinon vide en bas des cartes courtes). */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      {/* ── Formulaire ──
+          Grille 2 colonnes, cartes étirées à la même hauteur par rangée (pas de
+          items-start). Chaque carte porte 4 critères → blocs harmonieux et alignés.
+          Toutes les rangées de réponses sont sur une seule ligne, scrollables
+          horizontalement (ChipRow) : on ne déborde jamais sur plusieurs lignes. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* Le client */}
+        {/* 1 — Le client */}
         <SectionCard title="Le client">
           <div className="grid grid-cols-2 gap-4">
             <FieldGroup label="Âge">
@@ -289,45 +351,41 @@ export default function ProfilClientPage() {
             </FieldGroup>
           </div>
           <FieldGroup label="Horizon de placement">
-            <div className="flex flex-wrap gap-2">
-              {([2, 5, 10, 15, 20] as const).map((y) => (
-                <Chip
-                  key={y}
-                  label={y === 2 ? "< 3 ans" : y === 20 ? "20 ans+" : `${y} ans`}
-                  active={profile.horizon_years === y}
-                  onClick={() => toggleOne(profile.horizon_years, y, "horizon_years")}
-                />
+            <ChipRow>
+              {HORIZON_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.horizon_years === value}
+                  onClick={() => toggleOne(profile.horizon_years, value, "horizon_years")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
           <FieldGroup label="Objectif principal">
-            <div className="flex flex-wrap gap-2">
+            <ChipRow>
               {OBJ_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.objectif === value}
                   onClick={() => toggleOne(profile.objectif, value, "objectif")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Expérience des marchés">
-            <div className="flex flex-wrap gap-2">
-              {EXP_OPTIONS.map(({ value, label }) => (
-                <Chip key={value} label={label} active={profile.experience === value}
-                  onClick={() => toggleOne(profile.experience, value, "experience")} />
+          <FieldGroup label="Besoin de revenus">
+            <ChipRow>
+              {INCOME_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.income_need === value}
+                  onClick={() => toggleOne(profile.income_need, value, "income_need")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
         </SectionCard>
 
-        {/* Tolérance au risque */}
-        <SectionCard title="Tolérance au risque">
+        {/* 2 — Profil de risque */}
+        <SectionCard title="Profil de risque">
           <FieldGroup label="Profil de risque MIF">
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            <ChipRow>
               {RISK_OPTIONS.map(({ value, label, desc, color }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => toggleOne(profile.risk_profile, value, "risk_profile")}
-                  className={`flex flex-col items-center justify-center px-2 py-3 rounded-xl border text-center transition-all ${
+                  className={`shrink-0 w-[92px] flex flex-col items-center justify-center px-2 py-3 rounded-xl border text-center transition-all ${
                     profile.risk_profile === value
                       ? "bg-brown text-paper border-brown shadow-sm"
                       : "bg-paper text-ink-2 border-line hover:border-brown/30"
@@ -339,85 +397,105 @@ export default function ProfilClientPage() {
                   </span>
                 </button>
               ))}
-            </div>
+            </ChipRow>
+          </FieldGroup>
+          <FieldGroup label="Expérience des marchés">
+            <ChipRow>
+              {EXP_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.experience === value}
+                  onClick={() => toggleOne(profile.experience, value, "experience")} />
+              ))}
+            </ChipRow>
+          </FieldGroup>
+          <FieldGroup label="Réaction à une forte baisse" hint="Indice comportemental de tolérance au risque.">
+            <ChipRow>
+              {REACTION_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.reaction_baisse === value}
+                  onClick={() => toggleOne(profile.reaction_baisse, value, "reaction_baisse")} />
+              ))}
+            </ChipRow>
           </FieldGroup>
           <FieldGroup label="Tolérance aux pertes" hint="Plafonne la perte maximale tolérée sur 3 ans (drawdown).">
-            <div className="flex flex-wrap gap-2">
-              {([
-                { value: "5",  label: "< 5 %" }, { value: "10", label: "< 10 %" },
-                { value: "20", label: "< 20 %" }, { value: "30", label: "< 30 %" },
-                { value: "illimitee", label: "Sans limite" },
-              ] as { value: PerteMax; label: string }[]).map(({ value, label }) => (
+            <ChipRow>
+              {PERTE_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.perte_max === value}
                   onClick={() => toggleOne(profile.perte_max, value, "perte_max")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
         </SectionCard>
 
-        {/* Préférences d'investissement */}
+        {/* 3 — Préférences d'investissement */}
         <SectionCard title="Préférences d'investissement">
-          <FieldGroup label="Préférence ESG">
-            <div className="flex flex-wrap gap-2">
-              {ESG_OPTIONS.map(({ value, label }) => (
-                <Chip key={value} label={label} active={profile.esg === value}
-                  onClick={() => set("esg", value)} />
-              ))}
-            </div>
-          </FieldGroup>
           <FieldGroup label="Classes d'actifs souhaitées">
-            <div className="flex flex-wrap gap-2">
+            <ChipRow>
               {ASSET_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.asset_classes.includes(value)}
                   onClick={() => toggleArray("asset_classes", value)} />
               ))}
-            </div>
+            </ChipRow>
+          </FieldGroup>
+          <FieldGroup label="Zones géographiques" hint="Indicatif — affine les recherches en langage naturel.">
+            <ChipRow>
+              {GEO_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.geographies.includes(value)}
+                  onClick={() => toggleArray("geographies", value)} />
+              ))}
+            </ChipRow>
           </FieldGroup>
           <FieldGroup label="Style de gestion">
-            <div className="flex flex-wrap gap-2">
+            <ChipRow>
               {MGMT_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.management === value}
                   onClick={() => toggleOne(profile.management, value, "management")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Exclusions sectorielles" hint="Indicatif — affine les recherches en langage naturel.">
-            <div className="flex flex-wrap gap-2">
-              {EXCLUSION_OPTIONS.map(({ value, label }) => (
-                <Chip key={value} label={label} active={profile.exclusions.includes(value)}
-                  onClick={() => toggleArray("exclusions", value)} />
+          <FieldGroup label="Préférence ESG">
+            <ChipRow>
+              {ESG_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.esg === value}
+                  onClick={() => set("esg", value)} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
         </SectionCard>
 
-        {/* Frais, fiscalité & enveloppes */}
-        <SectionCard title="Frais & fiscalité">
+        {/* 4 — Frais, fiscalité & enveloppes */}
+        <SectionCard title="Frais, fiscalité & enveloppes">
           <FieldGroup label="Enveloppes disponibles">
-            <div className="flex flex-wrap gap-2">
+            <ChipRow>
               {ENVELOPE_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.envelopes.includes(value)}
                   onClick={() => toggleArray("envelopes", value)} />
               ))}
-            </div>
+            </ChipRow>
+          </FieldGroup>
+          <FieldGroup label="Exclusions sectorielles" hint="Indicatif — affine les recherches en langage naturel.">
+            <ChipRow>
+              {EXCLUSION_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.exclusions.includes(value)}
+                  onClick={() => toggleArray("exclusions", value)} />
+              ))}
+            </ChipRow>
           </FieldGroup>
           <FieldGroup label="Frais courants maximum" hint="Plafonne le TER (frais de gestion annuels).">
-            <div className="flex flex-wrap gap-2">
+            <ChipRow>
               {TER_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.max_ter === value}
                   onClick={() => toggleOne(profile.max_ter, value, "max_ter")} />
               ))}
               <Chip label="Sans frais d'entrée" active={profile.no_entry_fee}
                 onClick={() => set("no_entry_fee", !profile.no_entry_fee)} />
-            </div>
+            </ChipRow>
           </FieldGroup>
           <FieldGroup label="Tranche marginale d'imposition (TMI)">
-            <div className="flex flex-wrap gap-2">
-              {(["0", "11", "30", "41", "45"] as Tmi[]).map((v) => (
+            <ChipRow>
+              {TMI_OPTIONS.map((v) => (
                 <Chip key={v} label={`${v} %`} active={profile.tmi === v}
                   onClick={() => toggleOne(profile.tmi, v, "tmi")} />
               ))}
-            </div>
+            </ChipRow>
           </FieldGroup>
         </SectionCard>
       </div>

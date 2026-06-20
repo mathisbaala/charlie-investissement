@@ -9,18 +9,23 @@ export type Tmi = "0" | "11" | "30" | "41" | "45";
 export type PerteMax = "5" | "10" | "20" | "30" | "illimitee";
 export type Experience = "novice" | "informe" | "experimente";
 export type ManagementPref = "actif" | "passif";
+export type IncomeNeed = "non" | "ponctuel" | "regulier";
+export type ReactionBaisse = "vendre" | "conserver" | "renforcer";
 
 export type RichClientProfile = {
   age: number | null;
   amount_eur: number | null;
   horizon_years: number | null;
   objectif: Objectif | null;
+  income_need: IncomeNeed | null;
   experience: Experience | null;
   risk_profile: RiskProfile | null;
   perte_max: PerteMax | null;
+  reaction_baisse: ReactionBaisse | null;
   envelopes: string[];
   esg: EsgPref;
   exclusions: string[];
+  geographies: string[];
   tmi: Tmi | null;
   asset_classes: string[];
   management: ManagementPref | null;
@@ -33,12 +38,15 @@ export const EMPTY_PROFILE: RichClientProfile = {
   amount_eur: null,
   horizon_years: null,
   objectif: null,
+  income_need: null,
   experience: null,
   risk_profile: null,
   perte_max: null,
+  reaction_baisse: null,
   envelopes: [],
   esg: "indifferent",
   exclusions: [],
+  geographies: [],
   tmi: null,
   asset_classes: [],
   management: null,
@@ -79,12 +87,15 @@ export function isProfileActive(p: RichClientProfile): boolean {
     p.envelopes.length > 0 ||
     p.esg !== "indifferent" ||
     p.objectif !== null ||
+    p.income_need !== null ||
     p.age !== null ||
     p.horizon_years !== null ||
     p.tmi !== null ||
     p.exclusions.length > 0 ||
+    p.geographies.length > 0 ||
     p.asset_classes.length > 0 ||
     p.experience !== null ||
+    p.reaction_baisse !== null ||
     p.management !== null ||
     p.max_ter !== null ||
     p.no_entry_fee
@@ -115,6 +126,29 @@ const EXP_LABELS: Record<Experience, string> = {
   experimente:  "investisseur expérimenté / averti",
 };
 
+const INCOME_LABELS: Record<IncomeNeed, string> = {
+  non:      "pas de besoin de revenus (logique de capitalisation)",
+  ponctuel: "besoin de revenus ponctuels / retraits occasionnels",
+  regulier: "besoin de revenus réguliers / distribution",
+};
+
+const REACTION_LABELS: Record<ReactionBaisse, string> = {
+  vendre:    "face à une forte baisse, tendance à vendre (sensibilité au risque élevée)",
+  conserver: "face à une forte baisse, tendance à conserver ses positions",
+  renforcer: "face à une forte baisse, tendance à renforcer (forte tolérance au risque)",
+};
+
+// Zones géographiques (vocabulaire UI) → libellé lisible pour le contexte NLP.
+export const GEO_LABELS: Record<string, string> = {
+  monde:         "Monde",
+  europe:        "Europe",
+  zone_euro:     "Zone euro",
+  amerique_nord: "Amérique du Nord",
+  emergents:     "Marchés émergents",
+  asie:          "Asie",
+  france:        "France",
+};
+
 export function serializeForNlp(p: RichClientProfile): string {
   const parts: string[] = [];
 
@@ -124,7 +158,9 @@ export function serializeForNlp(p: RichClientProfile): string {
     : `horizon de placement ${p.horizon_years} ans`);
   if (p.experience)     parts.push(EXP_LABELS[p.experience]);
   if (p.objectif)       parts.push(OBJ_LABELS[p.objectif]);
+  if (p.income_need)    parts.push(INCOME_LABELS[p.income_need]);
   if (p.risk_profile)   parts.push(RISK_LABELS[p.risk_profile]);
+  if (p.reaction_baisse) parts.push(REACTION_LABELS[p.reaction_baisse]);
   if (p.perte_max && p.perte_max !== "illimitee")
                         parts.push(`tolérance aux pertes max ${p.perte_max}%`);
   if (p.envelopes.length)
@@ -134,6 +170,8 @@ export function serializeForNlp(p: RichClientProfile): string {
   if (p.esg === "labelise") parts.push("ESG: fonds labellisé (ISR/Greenfin/Finansol)");
   if (p.exclusions.length)
                         parts.push(`exclusions sectorielles: ${p.exclusions.join(", ")}`);
+  if (p.geographies.length)
+                        parts.push(`zones géographiques privilégiées: ${p.geographies.map((g) => GEO_LABELS[g] ?? g).join(", ")}`);
   if (p.tmi)            parts.push(`TMI ${p.tmi}%`);
   if (p.asset_classes.length)
                         parts.push(`classes d'actifs souhaitées: ${p.asset_classes.join(", ")}`);
@@ -158,6 +196,26 @@ export function serializeForNlp(p: RichClientProfile): string {
 const PERTE_MAX_TO_PCT: Record<PerteMax, number | null> = {
   "5": 5, "10": 10, "20": 20, "30": 30, illimitee: null,
 };
+
+// Exclusions du profil → secteur à écarter (exclude_sectors). Seul « fossiles » a une
+// correspondance sectorielle FIABLE (→ Énergie). tabac/armes/jeux/alcool n'ont pas de
+// secteur dédié dans la taxonomie (Consommation/Industrie seraient trop larges et
+// écarteraient des fonds légitimes) → ils restent en contexte NLP (serializeForNlp),
+// faute de donnée de composition fine filtrable. Limite assumée.
+const EXCLUSION_TO_SECTOR: Record<string, string> = {
+  fossiles: "Énergie",
+};
+
+// Horizon de placement → PLAFOND SRI de CAPACITÉ. Distinct de la tolérance (risk_profile) :
+// un horizon court limite la capacité à supporter le risque quelle que soit l'appétence.
+// On combine ensuite les deux plafonds par min() (le plus contraignant gagne). Reste
+// « SRI seul » : aucune borne de volatilité/drawdown ajoutée. null = pas de plafond.
+function horizonSriCap(h: number): number | null {
+  if (h <= 3) return 2;
+  if (h <= 5) return 4;
+  if (h <= 10) return 6;
+  return null;
+}
 
 // asset_classes du profil (vocabulaire parse-profile) → valeurs asset_class_broad de la base.
 const ASSET_CLASS_TO_BROAD: Record<string, string> = {
@@ -191,10 +249,19 @@ const RISK_TO_SRI_MAX: Record<RiskProfile, number | null> = {
 export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
   const f: ParsedFilters = {};
 
+  // Plafond SRI = le plus contraignant entre la tolérance (risk_profile) et la
+  // capacité (horizon court). On ne pose jamais de plancher (un prudent peut voir
+  // des fonds très sûrs).
+  const sriCaps: number[] = [];
   if (p.risk_profile) {
-    const sriMax = RISK_TO_SRI_MAX[p.risk_profile];
-    if (sriMax != null) f.sri_max = sriMax;
+    const c = RISK_TO_SRI_MAX[p.risk_profile];
+    if (c != null) sriCaps.push(c);
   }
+  if (p.horizon_years != null) {
+    const c = horizonSriCap(p.horizon_years);
+    if (c != null) sriCaps.push(c);
+  }
+  if (sriCaps.length) f.sri_max = Math.min(...sriCaps);
 
   if (p.esg === "art8")      f.sfdr = [8, 9];
   else if (p.esg === "art9") f.sfdr = [9];
@@ -217,5 +284,19 @@ export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
   if (p.max_ter != null) f.ter_max = p.max_ter;
   if (p.no_entry_fee) f.no_entry_fee = true;
 
+  // Exclusions sectorielles (seules celles ayant un secteur fiable deviennent un
+  // filtre dur ; cf. EXCLUSION_TO_SECTOR). Le reste agit via le contexte NLP.
+  const exclSectors = [
+    ...new Set(
+      (p.exclusions ?? []).map((e) => EXCLUSION_TO_SECTOR[e]).filter(Boolean),
+    ),
+  ];
+  if (exclSectors.length) f.exclude_sectors = exclSectors;
+
   return f;
 }
+
+// Note : objectif, TMI, montant, âge, expérience et zones géographiques n'ont pas
+// d'équivalent FILTRE DUR fiable → ils restent du contexte NLP (serializeForNlp) et
+// n'agissent que via une recherche texte ultérieure. Le bouton « Trouver les fonds
+// adaptés » ne transporte que les filtres durs ci-dessus — comportement assumé.
