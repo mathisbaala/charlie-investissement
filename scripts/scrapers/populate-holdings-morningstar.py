@@ -297,14 +297,16 @@ def parse_holdings(data: dict) -> list[dict]:
 
 # ─── Sélection des cibles (fill-only, priorité AUM) ───────────────────────────
 
-def _isins_with_geo(client) -> set[str]:
-    """ISIN ayant DÉJÀ une ventilation géo (peu importe la source) → exclus."""
+def _paginate_isins(client, table: str, source: str | None = None) -> set[str]:
+    """Tous les ISIN distincts d'une table (clé-set par pagination keyset)."""
     have: set[str] = set()
     after = ""
     while True:
-        rows = (client.table("investissement_fund_geos")
-                .select("isin").gt("isin", after).order("isin").limit(1000)
-                .execute().data or [])
+        q = (client.table(table).select("isin").gt("isin", after)
+             .order("isin").limit(1000))
+        if source is not None:
+            q = q.eq("source", source)
+        rows = q.execute().data or []
         if not rows:
             break
         have.update(r["isin"] for r in rows)
@@ -312,6 +314,19 @@ def _isins_with_geo(client) -> set[str]:
             break
         after = rows[-1]["isin"]
     return have
+
+
+def _isins_already_done(client) -> set[str]:
+    """ISIN à NE PAS retraiter. Un fonds est « fait » s'il a :
+      - une ventilation GÉO (peu importe la source) — fill-only inter-sources ; OU
+      - des HOLDINGS Morningstar — couvre les MONÉTAIRES, qui n'ont jamais de géo
+        mais reçoivent leurs holdings : sans ce 2ᵉ critère, ces fonds (gros AUM,
+        donc en tête du tri) seraient re-traités au début de CHAQUE shard offset=0
+        et les runs successifs n'avanceraient jamais dans la traîne.
+    """
+    done = _paginate_isins(client, "investissement_fund_geos")
+    done |= _paginate_isins(client, "investissement_fund_holdings", source=SOURCE)
+    return done
 
 
 def select_targets(client, limit: int | None, offset: int,
@@ -325,7 +340,7 @@ def select_targets(client, limit: int | None, offset: int,
     Morningstar référence beaucoup plus de fonds qu'il n'en note. `include_unrated`
     élargit donc la cible aux non-notés pour attaquer le mur des OPCVM sans
     ventilation (taux de résolution plus faible, à mesurer en --probe d'abord)."""
-    have_geo = _isins_with_geo(client)
+    done = _isins_already_done(client)
     out: list[dict] = []
     page = 1000
     db_offset = 0
@@ -341,12 +356,12 @@ def select_targets(client, limit: int | None, offset: int,
         if not rows:
             break
         for r in rows:
-            if r["isin"] not in have_geo:
+            if r["isin"] not in done:
                 out.append(r)
         if len(rows) < page:
             break
         db_offset += page
-        # Sur-récupère pour appliquer offset+limit après filtrage géo.
+        # Sur-récupère pour appliquer offset+limit après filtrage « déjà fait ».
         if limit and len(out) >= offset + limit + page:
             break
     sliced = out[offset:]
