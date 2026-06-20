@@ -54,7 +54,7 @@ import time
 import json
 import base64
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from collections import Counter
 
@@ -322,17 +322,54 @@ def _paginate_isins(client, table: str, source: str | None = None) -> set[str]:
     return have
 
 
+ATTEMPTS_TABLE = "investissement_fund_holdings_attempts"
+ATTEMPT_TTL_DAYS = 30   # ré-essaie un fonds en échec après ce délai (MS s'enrichit)
+
+
+def _isins_recently_attempted(client, days: int = ATTEMPT_TTL_DAYS) -> set[str]:
+    """ISIN tentés par cette source il y a moins de `days` jours (succès comme
+    ÉCHECS). Sans ce filtre, les fonds en échec (sans secId / sans compo, donc
+    sans données écrites) remontent en tête de CHAQUE run et masquent les ~72 %
+    de fonds couvrables plus profonds dans le tri AUM (mesuré 20/06 : offset 0 =
+    0 % ventilés = couche d'échecs ; offset 2000 = 72 %). Ré-essayés après TTL."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    have: set[str] = set()
+    after = ""
+    while True:
+        rows = (client.table(ATTEMPTS_TABLE)
+                .select("isin").eq("source", SOURCE).gte("attempted_at", cutoff)
+                .gt("isin", after).order("isin").limit(1000)
+                .execute().data or [])
+        if not rows:
+            break
+        have.update(r["isin"] for r in rows)
+        if len(rows) < 1000:
+            break
+        after = rows[-1]["isin"]
+    return have
+
+
 def _isins_already_done(client) -> set[str]:
     """ISIN à NE PAS retraiter. Un fonds est « fait » s'il a :
       - une ventilation GÉO (peu importe la source) — fill-only inter-sources ; OU
       - des HOLDINGS Morningstar — couvre les MONÉTAIRES, qui n'ont jamais de géo
-        mais reçoivent leurs holdings : sans ce 2ᵉ critère, ces fonds (gros AUM,
-        donc en tête du tri) seraient re-traités au début de CHAQUE shard offset=0
-        et les runs successifs n'avanceraient jamais dans la traîne.
+        mais reçoivent leurs holdings ; OU
+      - une TENTATIVE Morningstar récente (< TTL) — couvre les ÉCHECS, qui sinon
+        remontent en tête à chaque run et bloquent la progression dans la traîne.
     """
     done = _paginate_isins(client, "investissement_fund_geos")
     done |= _paginate_isins(client, "investissement_fund_holdings", source=SOURCE)
+    done |= _isins_recently_attempted(client)
     return done
+
+
+def _record_attempts(client, attempts: list[dict]) -> None:
+    """Upsert en masse des tentatives (PK isin,source) — idempotent."""
+    if not attempts:
+        return
+    for i in range(0, len(attempts), 500):
+        client.table(ATTEMPTS_TABLE).upsert(
+            attempts[i:i + 500], on_conflict="isin,source").execute()
 
 
 def select_targets(client, limit: int | None, offset: int,
@@ -422,17 +459,31 @@ def run(apply: bool, limit: int | None, offset: int,
     else:
         funds = select_targets(client, limit, offset, include_unrated)
 
-    print(f"  {len(funds)} fonds cibles (MS rating, sans géo, AUM desc, "
-          f"offset {offset})", flush=True)
+    print(f"  {len(funds)} fonds cibles (sans géo & non tentés <{ATTEMPT_TTL_DAYS}j, "
+          f"AUM desc, offset {offset})", flush=True)
+
+    # Buffer de tentatives (toute issue : ok/no_sec_id/no_portfolio/no_data) →
+    # enregistré en apply pour que les ÉCHECS ne remontent pas au run suivant.
+    attempts: list[dict] = []
+
+    def _note(isin_: str, status: str) -> None:
+        if apply:
+            attempts.append({"isin": isin_, "source": SOURCE,
+                             "status": status, "attempted_at": now_iso})
 
     for i, fund in enumerate(funds, 1):
         isin = fund["isin"]
         name = (fund.get("name") or isin)[:40]
         time.sleep(RATE_LIMIT_SEC)
 
+        if len(attempts) >= 200:
+            _record_attempts(client, attempts)
+            attempts = []
+
         sec_id = resolve_sec_id(isin, token)
         if not sec_id:
             stats["no_sec_id"] += 1
+            _note(isin, "no_sec_id")
             continue
 
         time.sleep(RATE_LIMIT_SEC)
@@ -450,6 +501,7 @@ def run(apply: bool, limit: int | None, offset: int,
 
         if data is None:
             stats["no_portfolio"] += 1
+            _note(isin, "no_portfolio")
             continue
 
         geos     = parse_geos(data)
@@ -458,9 +510,11 @@ def run(apply: bool, limit: int | None, offset: int,
 
         if not (geos or sectors or holdings):
             stats["no_data"] += 1
+            _note(isin, "no_data")
             continue
 
         stats["ok"] += 1
+        _note(isin, "ok")
         geo_sum = round(sum(g["weight"] for g in geos) * 100, 1)
         if i <= 30 or i % 50 == 0:
             print(f"  ✓ {isin} ({name}) — {len(holdings)} pos, "
@@ -473,6 +527,8 @@ def run(apply: bool, limit: int | None, offset: int,
                 stats["write_err"] += 1
                 if stats["write_err"] <= 3:
                     print(f"  ✗ write({isin}) : {e}", flush=True)
+
+    _record_attempts(client, attempts)   # flush final
 
     print(f"\n  Résumé :")
     print(f"    ✓ ventilés          : {stats['ok']}")
