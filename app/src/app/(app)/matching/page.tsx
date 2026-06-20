@@ -20,6 +20,7 @@ import {
   type ManagementPref,
   type IncomeNeed,
   type ReactionBaisse,
+  type Versements,
   EMPTY_PROFILE,
   loadStoredProfile,
   saveStoredProfile,
@@ -109,6 +110,13 @@ const INCOME_OPTIONS: { value: IncomeNeed; label: string }[] = [
   { value: "non",      label: "Aucun (capitalisation)" },
   { value: "ponctuel", label: "Ponctuel" },
   { value: "regulier", label: "Régulier" },
+];
+
+const VERSEMENTS_OPTIONS: { value: Versements; label: string }[] = [
+  { value: "non",         label: "Versement unique" },
+  { value: "mensuel",     label: "Mensuels" },
+  { value: "trimestriel", label: "Trimestriels" },
+  { value: "annuel",      label: "Annuels" },
 ];
 
 const ESG_OPTIONS: { value: EsgPref; label: string }[] = [
@@ -371,6 +379,14 @@ export default function ProfilClientPage() {
               {INCOME_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.income_need === value}
                   onClick={() => toggleOne(profile.income_need, value, "income_need")} />
+              ))}
+            </ChipRow>
+          </FieldGroup>
+          <FieldGroup label="Versements programmés">
+            <ChipRow>
+              {VERSEMENTS_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} label={label} active={profile.versements === value}
+                  onClick={() => toggleOne(profile.versements, value, "versements")} />
               ))}
             </ChipRow>
           </FieldGroup>
