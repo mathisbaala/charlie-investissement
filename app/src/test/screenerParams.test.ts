@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
-import { filtersFromParams, describeScreenerFilters } from '../lib/screenerParams'
+import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -197,5 +197,58 @@ describe('describeScreenerFilters', () => {
       ter_max: 1, no_entry_fee: true, management_style: ['passif'],
     })
     expect(out).toEqual(['Frais ≤ 1 %', "Sans frais d'entrée", 'Gestion indicielle'])
+  })
+})
+
+// sortFromIntent : intention de tri (NLP) → couple (sort_by, sort_dir) sûr.
+describe('sortFromIntent', () => {
+  it('retourne null sans intention', () => {
+    expect(sortFromIntent({})).toBeNull()
+    expect(sortFromIntent({ sort_intent: undefined })).toBeNull()
+  })
+
+  it('mappe une intention valide', () => {
+    expect(sortFromIntent({ sort_intent: { field: 'ter', dir: 'asc' } }))
+      .toEqual({ sort_by: 'ter', sort_dir: 'asc' })
+    expect(sortFromIntent({ sort_intent: { field: 'aum_eur', dir: 'desc' } }))
+      .toEqual({ sort_by: 'aum_eur', sort_dir: 'desc' })
+  })
+
+  it('rejette une colonne non triable', () => {
+    expect(sortFromIntent({ sort_intent: { field: 'risk_score', dir: 'asc' } })).toBeNull()
+    expect(sortFromIntent({ sort_intent: { field: 'bidon', dir: 'asc' } })).toBeNull()
+  })
+
+  it('retombe sur desc pour une direction non « asc »', () => {
+    // @ts-expect-error — direction invalide testée volontairement
+    expect(sortFromIntent({ sort_intent: { field: 'ter', dir: 'x' } }))
+      .toEqual({ sort_by: 'ter', sort_dir: 'desc' })
+  })
+})
+
+// relaxationOrder : filtres relâchables PRÉSENTS, dans l'ordre de drop.
+describe('relaxationOrder', () => {
+  it('ne retourne que les filtres présents, dans l\'ordre canonique', () => {
+    expect(relaxationOrder({ ter_max: true, aum_min: true })).toEqual(['aum_min', 'ter_max'])
+    expect(relaxationOrder({})).toEqual([])
+    const order = relaxationOrder({ ter_max: true, retrocession_min: true, aum_min: true })
+    expect(order).toEqual(['retrocession_min', 'aum_min', 'ter_max'])
+  })
+
+  it('ignore les clés non relâchables (structurantes)', () => {
+    expect(relaxationOrder({ sri_max: true, universe: true } as Record<string, boolean>)).toEqual([])
+  })
+
+  it('RELAXABLE_ORDER n\'inclut aucun filtre structurant', () => {
+    for (const k of ['universe', 'asset_class', 'envelopes', 'region', 'sector', 'sri_max', 'sfdr']) {
+      expect(RELAXABLE_ORDER as readonly string[]).not.toContain(k)
+    }
+  })
+})
+
+describe('relaxLabel', () => {
+  it('donne un libellé lisible, identité en repli', () => {
+    expect(relaxLabel('ter_max')).toBe('Frais')
+    expect(relaxLabel('inconnu')).toBe('inconnu')
   })
 })

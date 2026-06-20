@@ -73,4 +73,37 @@ describe("sanitizeParsedFilters", () => {
       manager_search: "Amundi",
     });
   });
+
+  it("ne garde que les labels durabilité officiels", () => {
+    expect(sanitizeParsedFilters({ labels: ["isr", "bidon", "greenfin"] })).toEqual({
+      labels: ["isr", "greenfin"],
+    });
+    expect(sanitizeParsedFilters({ labels: ["msci"] })).toEqual({}); // aucun valide → champ absent
+  });
+
+  it("ne conserve beats_benchmark que s'il vaut strictement true", () => {
+    expect(sanitizeParsedFilters({ beats_benchmark: true })).toEqual({ beats_benchmark: true });
+    expect(sanitizeParsedFilters({ beats_benchmark: "true" })).toEqual({});
+    expect(sanitizeParsedFilters({ beats_benchmark: false })).toEqual({});
+  });
+
+  it("valide sort_intent (colonne triable connue + direction)", () => {
+    expect(sanitizeParsedFilters({ sort_intent: { field: "ter", dir: "asc" } })).toEqual({
+      sort_intent: { field: "ter", dir: "asc" },
+    });
+    // dir absente ou invalide → défaut "desc"
+    expect(sanitizeParsedFilters({ sort_intent: { field: "aum_eur" } })).toEqual({
+      sort_intent: { field: "aum_eur", dir: "desc" },
+    });
+    // colonne hors whitelist → champ écarté (sinon retomberait silencieusement sur le défaut)
+    expect(sanitizeParsedFilters({ sort_intent: { field: "risk_score", dir: "asc" } })).toEqual({});
+    expect(sanitizeParsedFilters({ sort_intent: "ter" })).toEqual({});
+  });
+
+  it("écarte le plancher SRI quand la fourchette est inversée (sri_min > sri_max)", () => {
+    expect(sanitizeParsedFilters({ sri_min: 5, sri_max: 3 })).toEqual({ sri_max: 3 });
+    // fourchette cohérente → les deux conservés
+    expect(sanitizeParsedFilters({ sri_min: 2, sri_max: 5 })).toEqual({ sri_min: 2, sri_max: 5 });
+    expect(sanitizeParsedFilters({ sri_min: 3, sri_max: 3 })).toEqual({ sri_min: 3, sri_max: 3 });
+  });
 });

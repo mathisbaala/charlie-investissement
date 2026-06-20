@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedFilters } from "@/lib/types";
+import { SORTABLE_COLUMNS } from "@/lib/screenerParams";
 
 // Initialisation paresseuse : le client n'est construit qu'au premier appel LLM.
 // Évite de dépendre de la clé API au chargement du module — les utilitaires purs
@@ -35,6 +36,10 @@ const ENUMS = {
   sector: ["Technologie", "Santé", "Finance", "Consommation", "Industrie", "Énergie", "Immobilier", "Environnement", "Communication", "Matériaux"],
   management_style: ["passif", "actif", "smart_beta", "alternatif"],
 } as const;
+
+// Labels officiels de durabilité (DDA). Distincts de SFDR (auto-déclaratif) :
+// « labellisé ISR/Greenfin/Finansol » → labels ; « ESG / durable » → sfdr.
+const LABELS = ["isr", "greenfin", "finansol"] as const;
 
 // Bornes plausibles par champ numérique : [min, max]. Une valeur hors bornes est
 // écartée (pas clampée — une valeur aberrante trahit une mauvaise interprétation).
@@ -115,9 +120,32 @@ export function sanitizeParsedFilters(raw: unknown): ParsedFilters {
   if (typeof r.manager_search === "string" && r.manager_search.trim()) out.manager_search = r.manager_search.trim().slice(0, 100);
   if (typeof r.free_text === "string" && r.free_text.trim()) out.free_text = r.free_text.trim().slice(0, 100);
 
+  // Labels officiels durabilité (sous-ensemble de isr/greenfin/finansol).
+  const labels = cleanEnumArray(r.labels, LABELS);
+  if (labels) out.labels = labels;
+
   // Booléens
   if (r.has_kid === true) out.has_kid = true;
   if (r.no_entry_fee === true) out.no_entry_fee = true;
+  if (r.beats_benchmark === true) out.beats_benchmark = true;
+
+  // Intention de tri (éphémère) : field doit être une colonne triable connue,
+  // dir ∈ {asc,desc} (défaut desc). Toute valeur hors liste est écartée — sinon
+  // la route retomberait silencieusement sur le tri par défaut.
+  if (r.sort_intent && typeof r.sort_intent === "object") {
+    const si = r.sort_intent as Record<string, unknown>;
+    if (typeof si.field === "string" && (SORTABLE_COLUMNS as readonly string[]).includes(si.field)) {
+      out.sort_intent = { field: si.field, dir: si.dir === "asc" ? "asc" : "desc" };
+    }
+  }
+
+  // ── Cohérence inter-champs ──────────────────────────────────────────────────
+  // Les champs sont validés isolément ci-dessus ; rien n'empêche le LLM de produire
+  // une fourchette inversée (sri_min > sri_max). On garde alors le PLAFOND (logique
+  // d'adéquation : ne jamais proposer plus risqué que demandé) et on écarte le plancher.
+  if (out.sri_min != null && out.sri_max != null && out.sri_min > out.sri_max) {
+    delete out.sri_min;
+  }
 
   return out;
 }
@@ -169,6 +197,26 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - retrocession_min: rétrocession CGP min en % ex: 0.5
 - manager_search: nom du gestionnaire (ex: "Amundi", "BlackRock", "Carmignac")
 - has_kid: true si l'utilisateur veut uniquement des fonds avec DICI disponible
+- labels: tableau de labels officiels de durabilité parmi ["isr","greenfin","finansol"]
+  (LABEL officiel, distinct de SFDR qui est auto-déclaratif). Déclenché par « labellisé »,
+  « label ISR », « label Greenfin », « label Finansol », « fonds solidaire » (→ finansol).
+  Ne PAS confondre : « ESG » / « durable » → sfdr:[8,9] ; « labellisé ISR » → labels:["isr"].
+- beats_benchmark: true si l'utilisateur veut des fonds qui SURPERFORMENT leur indice
+  (« bat son indice », « surperforme son benchmark », « alpha positif », « bat le marché »).
+- sort_intent: intention de TRI des résultats déduite de la formulation, objet {field, dir}.
+  field parmi ["ter","performance_1y","performance_3y","performance_5y","aum_eur","sharpe_3y",
+  "volatility_1y","max_drawdown_3y","morningstar_rating","track_record_years"], dir "asc" ou "desc".
+  Mapping : « le moins cher » / « frais bas » / « low cost » → {field:"ter",dir:"asc"} ;
+  « le plus performant » / « meilleure perf » / « rendement » → {field:"performance_3y",dir:"desc"}
+  (utiliser performance_1y ou performance_5y si l'horizon est précisé) ;
+  « le plus sûr » / « le moins risqué » → {field:"volatility_1y",dir:"asc"} ;
+  « les plus gros » / « les plus liquides » → {field:"aum_eur",dir:"desc"} ;
+  « meilleur Sharpe » → {field:"sharpe_3y",dir:"desc"} ;
+  « les mieux notés » → {field:"morningstar_rating",dir:"desc"} ;
+  « les plus anciens » / « historique le plus long » → {field:"track_record_years",dir:"desc"}.
+  N'émettre sort_intent QUE si la formulation exprime un classement (superlatif/comparatif) ;
+  sinon l'omettre. Il complète les filtres, il ne les remplace pas (« ETF monde pas cher » →
+  region:["world"] + universe:["etf"] + sort_intent:{field:"ter",dir:"asc"}).
 - free_text: recherche libre dans le nom du fonds (pour les noms de fonds spécifiques).
   Y mettre AUSSI un ticker / code de cotation boursière isolé : un jeton court tout
   en majuscules/chiffres sans espace qui n'est ni une zone, ni un secteur, ni un
@@ -261,6 +309,10 @@ Exemples :
 - "fonds énergie renouvelable ESG" → {"sector":["Énergie"],"sfdr":[8,9],"chips":["Énergie","ESG"]}
 - "DCAM" → {"free_text":"DCAM","chips":["DCAM"]}
 - "ETF CW8" → {"universe":["etf"],"free_text":"CW8","chips":["ETF","CW8"]}
+- "ETF monde le moins cher" → {"universe":["etf"],"region":["world"],"sort_intent":{"field":"ter","dir":"asc"},"chips":["ETF","Monde","Frais bas"]}
+- "fonds actions US les plus performants" → {"asset_class":["action"],"region":["usa"],"sort_intent":{"field":"performance_3y","dir":"desc"},"chips":["Actions","USA","Performant"]}
+- "fonds actions labellisé ISR qui bat son indice" → {"asset_class":["action"],"labels":["isr"],"beats_benchmark":true,"chips":["Actions","Label ISR","Bat son indice"]}
+- "ETF monde les plus gros" → {"universe":["etf"],"region":["world"],"sort_intent":{"field":"aum_eur","dir":"desc"},"chips":["ETF","Monde","Gros encours"]}
 
 Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
 

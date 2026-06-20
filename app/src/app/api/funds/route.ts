@@ -3,9 +3,19 @@ import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
 import { asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
+import { relaxationOrder, relaxLabel } from "@/lib/screenerParams";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// Set vide partagé : jeu de filtres relâchés par défaut (cas nominal, aucun relâchement).
+const EMPTY_DISABLED: Set<string> = new Set();
+
+// Planchers de complétude (data_completeness, 0-100). Base = garde-fou minimal de l'univers
+// curé ; intent = relevé pour les tris par intention (ne pas mettre en avant un fonds vide
+// qui ne « gagne » que sur le critère trié).
+const BASE_MIN_COMPLETENESS = 50;
+const INTENT_MIN_COMPLETENESS = 70;
 
 // Vue enrichie : cgp + colonne `insurers` (tableau d'assureurs référençant le fonds).
 const VIEW = "investissement_funds_cgp_ref";
@@ -85,6 +95,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const sortDir = p(sp, "sort_dir") === "asc";
   const page    = Math.max(1, int(p(sp, "page")) ?? 1);
   const perPage = Math.min(100, Math.max(1, int(p(sp, "per_page")) ?? 50));
+  // Plancher de complétude. Plancher de base : on n'expose que des fonds suffisamment
+  // renseignés. Quand un tri par INTENTION est actif (« le moins cher »…), on relève le
+  // plancher : trier sur un seul critère ne doit pas propulser en tête un fonds quasi vide
+  // (frais bas mais aucune perf / aucun contrat / aucune info). Le relâchement gracieux
+  // ramène au plancher de base AVANT de toucher aux critères du client (cf. plus bas).
+  const prioritizeComplete = p(sp, "prioritize_complete") === "true";
+  const minCompleteness = prioritizeComplete ? INTENT_MIN_COMPLETENESS : BASE_MIN_COMPLETENESS;
 
   const VALID_SORT = new Set([
     "performance_3y","performance_1y","performance_5y","ter","ongoing_charges",
@@ -129,30 +146,34 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // amont par la source : la RPC classée inv_funds_search pour une recherche texte,
   // la vue brute sinon (cf. dataSource ci-dessous). applyFilters s'applique par-dessus
   // les deux — source unique de vérité pour les filtres.
-  const applyFilters = (q: any) => {
+  // `disabled` : ensemble de clés de filtres RELÂCHÉS (relâchement gracieux quand
+  // 0 résultat). Seuls les filtres non structurants sont gardables (cf. RELAXABLE_ORDER) ;
+  // les filtres structurants ignorent ce set. Vide par défaut (cas nominal).
+  const applyFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED) => {
+  const on = (k: string) => !disabled.has(k);
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
   // L'UI envoie ter_max en % ; la base stocke en fraction → diviser par 100.
-  if (terMax != null)   q = (q as any).or(`ter.lte.${terMax / 100},ongoing_charges.lte.${terMax / 100}`);
-  if (p1yMin != null)   q = q.gte("performance_1y", p1yMin);
-  if (p3yMin != null)   q = q.gte("performance_3y", p3yMin);
-  if (p5yMin != null)   q = q.gte("performance_5y", p5yMin);
-  if (volMax != null)   q = q.lte("volatility_1y", volMax);
-  if (vol3Max != null)  q = q.lte("volatility_3y", vol3Max);
-  if (shMin != null)    q = q.gte("sharpe_1y", shMin);
-  if (sh3Min != null)   q = q.gte("sharpe_3y", sh3Min);
+  if (terMax != null && on("ter_max")) q = (q as any).or(`ter.lte.${terMax / 100},ongoing_charges.lte.${terMax / 100}`);
+  if (p1yMin != null && on("perf_1y_min")) q = q.gte("performance_1y", p1yMin);
+  if (p3yMin != null && on("perf_3y_min")) q = q.gte("performance_3y", p3yMin);
+  if (p5yMin != null && on("perf_5y_min")) q = q.gte("performance_5y", p5yMin);
+  if (volMax != null && on("vol_max"))     q = q.lte("volatility_1y", volMax);
+  if (vol3Max != null && on("vol_3y_max")) q = q.lte("volatility_3y", vol3Max);
+  if (shMin != null && on("sharpe_min"))   q = q.gte("sharpe_1y", shMin);
+  if (sh3Min != null && on("sharpe_3y_min")) q = q.gte("sharpe_3y", sh3Min);
   // Perte max (drawdown) : la colonne est un % négatif (ex: -25). « limité à 20% »
   // → on garde les fonds dont le drawdown 3 ans est >= -20 (chute moins profonde).
-  if (ddMax != null)    q = q.gte("max_drawdown_3y", -Math.abs(ddMax));
+  if (ddMax != null && on("drawdown_max")) q = q.gte("max_drawdown_3y", -Math.abs(ddMax));
   // « Sans frais d'entrée » : exclut les fonds à frais d'entrée connus (> 0). On
   // conserve null (inconnu) ET 0 — la plupart des fonds no-load ont entry_fee_max
   // non renseigné ; l'intention est d'écarter les fonds explicitement chargés.
   if (noEntryFee)       q = (q as any).or("entry_fee_max.is.null,entry_fee_max.lte.0");
-  if (aumMin != null)   q = q.gte("aum_eur", aumMin * 1_000_000);
-  if (trMin != null)    q = q.gte("track_record_years", trMin);
-  if (mstarMin != null) q = q.gte("morningstar_rating", mstarMin);
-  if (retroMin != null) q = q.gte("retrocession_cgp", retroMin / 100);
+  if (aumMin != null && on("aum_min"))   q = q.gte("aum_eur", aumMin * 1_000_000);
+  if (trMin != null && on("track_record_min")) q = q.gte("track_record_years", trMin);
+  if (mstarMin != null && on("morningstar_min")) q = q.gte("morningstar_rating", mstarMin);
+  if (retroMin != null && on("retrocession_min")) q = q.gte("retrocession_cgp", retroMin / 100);
 
   // Enveloppes
   if (envelopes.includes("PEA"))     q = q.eq("pea_eligible",     true);
@@ -183,7 +204,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Profil d'allocation (diversifiés uniquement) : prudent / équilibré / dynamique / flexible.
   // Heuristique partielle (colonne NULL pour la plupart) → filtre opt-in, jamais appliqué par défaut.
-  if (allocProfiles.length) q = q.in("allocation_profile", allocProfiles);
+  if (allocProfiles.length && on("allocation_profile")) q = q.in("allocation_profile", allocProfiles);
 
   // Référencement assureur : fonds disponibles chez au moins un des assureurs choisis.
   if (insurers.length)     q = (q as any).overlaps("insurers", insurers);
@@ -211,11 +232,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (hasKid)   q = q.not("kid_url", "is", null);
   // « Bat son indice » : surperformance nette vs benchmark sur 3 ans (alpha > 0).
   // Implique alpha_3y non null (les fonds sans benchmark sont écartés).
-  if (beatsBenchmark) q = q.gt("alpha_3y", 0);
+  if (beatsBenchmark && on("beats_benchmark")) q = q.gt("alpha_3y", 0);
   // Labels officiels durabilité (DDA) : fonds portant AU MOINS UN des labels
   // demandés. labels est un jsonb array → contains (@>) ORé sur chaque label.
   // Élément simple ["isr"] sans virgule interne → sûr dans la syntaxe or().
-  if (esgLabels.length)
+  if (esgLabels.length && on("labels"))
     q = (q as any).or(esgLabels.map((l) => `labels.cs.["${l}"]`).join(","));
 
     return q;
@@ -228,8 +249,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   //    puis plus gros encours), maintenu par inv_refresh_primary_share_class() en fin de
   //    pipeline. → OFFSET/LIMIT et count: "exact" portent directement sur les fonds uniques,
   //    donc pagination et total exacts, sans dédup applicative ni estimation par ratio.
-  const baseFilters = (q: any) =>
-    applyFilters(q.gte("data_completeness", 50).eq("is_primary_share_class", true));
+  const baseFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED, floor: number = minCompleteness) =>
+    applyFilters(q.gte("data_completeness", floor).eq("is_primary_share_class", true), disabled);
 
   // Source des données : pour une recherche TEXTE, on lit la RPC classée par
   // pertinence (inv_funds_search) — le tri par `relevance` agit alors sur TOUTES les
@@ -258,78 +279,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). La dédup est
   // portée par is_primary_share_class (cf. baseFilters), donc 1 page = perPage lignes.
   const offset = (page - 1) * perPage;
-  let pageQuery = useRanked
-    ? baseFilters(rankedSource({ count: "exact" }))
-    : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }));
-  if (useRanked && safeSort === "data_completeness") {
-    pageQuery = pageQuery.order("relevance", { ascending: false, nullsFirst: false });
-  }
-  const { data: pageData, error, count, status } = await pageQuery
-    .order(safeSort, { ascending: sortDir, nullsFirst: false })
-    .range(offset, offset + perPage - 1);
 
-  if (error) {
-    // PostgREST renvoie 416 « Requested range not satisfiable » (code PGRST103)
-    // quand l'offset dépasse le nombre de lignes — typiquement un crawler qui
-    // pagine au-delà des résultats (?page=500…). On répond une page vide cohérente
-    // plutôt qu'un 500 : on récupère juste le total via une requête count-only.
-    //
-    // ⚠ On détecte par le STATUS HTTP 416, pas seulement par error.code : en prod
-    // (runtime Vercel) le body du 416 arrive parfois tronqué, JSON.parse échoue
-    // dans postgrest-js et l'objet error perd son `code` (message = corps brut
-    // illisible type `{"`). Le status, lui, reste fiable. Sans ce garde-fou le
-    // 416 retombait en 500 malgré le test sur PGRST103.
-    if (status === 416 || error.code === "PGRST103") {
-      const { count: rawCount } = await baseFilters(
-        useRanked
-          ? rankedSource({ count: "exact", head: true })
-          : supabase.from(sortSource).select("isin", { count: "exact", head: true }),
-      );
-      const total = rawCount ?? 0;
-      const emptyResp: ScreenerResponse = {
-        data: [],
-        total,
-        page,
-        per_page: perPage,
-        total_pages: Math.ceil(total / perPage),
-      };
-      return NextResponse.json(emptyResp);
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // ── Phase 2 : enrichissement de la page ─────────────────────────────────────
-  // Chemin texte : la RPC inv_funds_search renvoie déjà toutes les colonnes (COLS), et le
-  // classement (ticker exact > nom complet > autre, puis tri courant) est porté par
-  // l'ORDER BY `relevance` côté requête → rien à réordonner. Chemin non-texte : on n'a que
-  // les ISIN triés de la page → on récupère les lignes enrichies (assureurs/contrats inclus)
-  // sur la vue _ref pour ces seuls ISIN, en préservant l'ordre du tri de la phase 1.
-  let raw: Fund[];
-  if (useRanked) {
-    raw = (pageData as unknown as Fund[]) ?? [];
-  } else {
-    const pageIsins = ((pageData as { isin: string }[] | null) ?? []).map((r) => r.isin);
-    if (!pageIsins.length) {
-      raw = [];
-    } else {
-      const { data: enriched, error: enrichErr } = await supabase
-        .from(VIEW).select(COLS).in("isin", pageIsins);
-      if (enrichErr) {
-        return NextResponse.json({ error: enrichErr.message }, { status: 500 });
-      }
-      const ord = new Map(pageIsins.map((isin, i) => [isin, i] as const));
-      raw = ((enriched as unknown as Fund[]) ?? [])
-        .sort((a, b) => (ord.get(a.isin) ?? 1e9) - (ord.get(b.isin) ?? 1e9));
-    }
-  }
-
-  // La dédup est portée par is_primary_share_class côté DB : `raw` ne contient déjà qu'un
-  // représentant par groupe. dedup() reste en filet de sécurité (collapse un éventuel
-  // double-primary transitoire entre deux refreshs, ou les doublons prio↔page ci-dessus).
-  // + frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts).
+  // Frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts). `relevance`
+  // (chemin RPC classé) est un score interne de tri : non exposé dans la réponse publique.
   const toApi = (f: Fund): Fund => {
-    // `relevance` (présent sur le chemin RPC classé) est un score interne de tri :
-    // on ne l'expose pas dans la réponse publique.
     const { relevance: _drop, ...rest } = f as Fund & { relevance?: number };
     void _drop;
     return {
@@ -338,10 +291,130 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ongoing_charges: feeFracToPct(rest.ongoing_charges),
     };
   };
-  const deduped = dedup(raw).map(toApi).slice(0, perPage);
-  // total = nombre exact de fonds uniques correspondants (count: "exact" sur les primaires) :
-  // total_pages couvre toutes les pages, sans page vide en plein milieu.
-  const total = count ?? 0;
+
+  // Compte exact (count-only, HEAD) pour un jeu de filtres relâchés donné — sonde bon
+  // marché du relâchement gracieux (ne récupère ni page ni enrichissement phase 2).
+  const countWith = async (disabled: Set<string>, floor: number = minCompleteness): Promise<number> => {
+    const { count: c } = await baseFilters(
+      useRanked
+        ? rankedSource({ count: "exact", head: true })
+        : supabase.from(sortSource).select("isin", { count: "exact", head: true }),
+      disabled,
+      floor,
+    );
+    return c ?? 0;
+  };
+
+  // Charge une page complète (tri + count + enrichissement phase 2) pour un jeu de filtres
+  // relâchés donné. Retourne {data,total}, ou une réponse d'erreur à propager telle quelle
+  // (500 ; page vide cohérente sur 416). Factorisé pour pouvoir être rejoué après relâchement.
+  type PageOk = { data: Fund[]; total: number };
+  type PageErr = { errorResp: NextResponse };
+  const loadPage = async (disabled: Set<string>, floor: number = minCompleteness): Promise<PageOk | PageErr> => {
+    let pageQuery = useRanked
+      ? baseFilters(rankedSource({ count: "exact" }), disabled, floor)
+      : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }), disabled, floor);
+    // Recherche texte : la PERTINENCE prime toujours, le tri choisi/intention n'est que
+    // tie-break secondaire. Sinon, choisir un tri non-défaut (ex. TER) ferait remonter un
+    // match faible (relevance=1) devant le nom exact (relevance=3) — perte de pertinence.
+    if (useRanked) {
+      pageQuery = pageQuery.order("relevance", { ascending: false, nullsFirst: false });
+    }
+    const { data: pageData, error, count, status } = await pageQuery
+      .order(safeSort, { ascending: sortDir, nullsFirst: false })
+      .range(offset, offset + perPage - 1);
+
+    if (error) {
+      // 416 « Requested range not satisfiable » (PGRST103) : offset au-delà des lignes
+      // (crawler ?page=500…). Page vide cohérente + total via count-only. ⚠ détecter par
+      // le STATUS 416 (body 416 parfois tronqué sur Vercel → error.code perdu dans postgrest-js).
+      if (status === 416 || error.code === "PGRST103") {
+        return { data: [], total: await countWith(disabled, floor) };
+      }
+      return { errorResp: NextResponse.json({ error: error.message }, { status: 500 }) };
+    }
+
+    // ── Phase 2 : enrichissement de la page ───────────────────────────────────
+    // Chemin texte : la RPC renvoie déjà COLS, classé par `relevance` → rien à réordonner.
+    // Chemin non-texte : on n'a que les ISIN triés → on enrichit (assureurs/contrats) ces
+    // seuls ISIN sur la vue _ref, en préservant l'ordre du tri de la phase 1.
+    let raw: Fund[];
+    if (useRanked) {
+      raw = (pageData as unknown as Fund[]) ?? [];
+    } else {
+      const pageIsins = ((pageData as { isin: string }[] | null) ?? []).map((r) => r.isin);
+      if (!pageIsins.length) {
+        raw = [];
+      } else {
+        const { data: enriched, error: enrichErr } = await supabase
+          .from(VIEW).select(COLS).in("isin", pageIsins);
+        if (enrichErr) {
+          return { errorResp: NextResponse.json({ error: enrichErr.message }, { status: 500 }) };
+        }
+        const ord = new Map(pageIsins.map((isin, i) => [isin, i] as const));
+        raw = ((enriched as unknown as Fund[]) ?? [])
+          .sort((a, b) => (ord.get(a.isin) ?? 1e9) - (ord.get(b.isin) ?? 1e9));
+      }
+    }
+    // dedup() = filet (double-primary transitoire entre refreshs, doublons prio↔page).
+    return { data: dedup(raw).map(toApi).slice(0, perPage), total: count ?? 0 };
+  };
+
+  // ── Chargement nominal, puis relâchement gracieux si 0 résultat ──────────────
+  const first = await loadPage(EMPTY_DISABLED);
+  if ("errorResp" in first) return first.errorResp;
+  let deduped = first.data;
+  let total = first.total;
+  let relaxed: string[] = [];
+
+  // 0 résultat (1re page) → relâchement gracieux progressif. Étapes, du moins coûteux au
+  // plus coûteux :
+  //  1) RETOUR au plancher de complétude de base (si on était au plancher « intent » relevé) :
+  //     c'est NOTRE préférence de qualité, pas un critère du client → on la cède en premier,
+  //     silencieusement (mieux vaut des fonds peu renseignés que zéro résultat).
+  //  2) RETRAIT des filtres NON structurants un à un (RELAXABLE_ORDER), signalés à l'UI.
+  //  Les filtres structurants (univers, zone, sri_max…) ne sont jamais touchés.
+  if (total === 0 && page === 1) {
+    const order = relaxationOrder({
+      retrocession_min: retroMin != null,
+      morningstar_min: mstarMin != null,
+      track_record_min: trMin != null,
+      aum_min: aumMin != null,
+      labels: esgLabels.length > 0,
+      allocation_profile: allocProfiles.length > 0,
+      beats_benchmark: beatsBenchmark,
+      sharpe_3y_min: sh3Min != null,
+      sharpe_min: shMin != null,
+      vol_3y_max: vol3Max != null,
+      vol_max: volMax != null,
+      perf_5y_min: p5yMin != null,
+      perf_3y_min: p3yMin != null,
+      perf_1y_min: p1yMin != null,
+      drawdown_max: ddMax != null,
+      ter_max: terMax != null,
+    });
+    // Étape 1 d'abord (label null = silencieux), puis chaque filtre relâchable.
+    const steps: Array<{ key: string | null; label: string | null }> = [];
+    if (minCompleteness > BASE_MIN_COMPLETENESS) steps.push({ key: null, label: null });
+    for (const k of order) steps.push({ key: k, label: relaxLabel(k) });
+
+    const disabled = new Set<string>();
+    let floor = minCompleteness;
+    const applied: string[] = [];
+    for (const step of steps) {
+      if (step.key === null) floor = BASE_MIN_COMPLETENESS;
+      else disabled.add(step.key);
+      if (step.label) applied.push(step.label);
+      if ((await countWith(disabled, floor)) > 0) {
+        const r = await loadPage(disabled, floor);
+        if ("errorResp" in r) return r.errorResp;
+        deduped = r.data;
+        total = r.total;
+        relaxed = applied.slice();
+        break;
+      }
+    }
+  }
 
   // ── Filet recherche approximative (tolérance aux fautes) ────────────────────
   // Zéro correspondance exacte sur une recherche texte (1re page) : on propose les
@@ -377,6 +450,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     per_page: perPage,
     total_pages: Math.ceil(fuzzyTotal / perPage),
     fuzzy: isFuzzy || undefined,
+    relaxed: relaxed.length ? relaxed : undefined,
   };
 
   // Télémétrie : on ne journalise que les recherches « signifiantes » — première page
