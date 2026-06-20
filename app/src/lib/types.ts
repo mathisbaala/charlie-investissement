@@ -214,6 +214,10 @@ export type ScreenerResponse = {
   // true quand les résultats proviennent du filet de recherche approximative
   // (tolérance aux fautes) faute de correspondance exacte — l'UI peut le signaler.
   fuzzy?: boolean;
+  // Libellés des critères automatiquement ASSOUPLIS faute de correspondance exacte
+  // (relâchement gracieux : 0 résultat → on retire les filtres les moins structurants
+  // jusqu'à obtenir des fonds). Vide/absent = aucun assouplissement. L'UI le signale.
+  relaxed?: string[];
 };
 
 export type FundDetailResponse = {
@@ -312,6 +316,10 @@ export type ParsedFilters = {
   beats_benchmark?: boolean;  // « bat son indice » : alpha 3 ans > 0
   labels?: string[];          // labels officiels durabilité (isr/greenfin/finansol)
   chips?: string[];
+  // Intention de TRI déduite de la formulation (« frais bas », « performant »…).
+  // Éphémère comme `chips` : consommé au parse pour choisir sort_by/sort_dir,
+  // jamais sérialisé comme filtre. `field` ∈ colonnes triables (VALID_SORT).
+  sort_intent?: { field: string; dir: "asc" | "desc" };
 };
 
 // ─── FundDetailHF (fiche fonds — adapté aux données disponibles) ──────────────

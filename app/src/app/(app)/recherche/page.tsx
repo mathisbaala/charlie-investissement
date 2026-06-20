@@ -13,7 +13,7 @@ import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, X, Search } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-import { buildParams, filtersFromParams, describeScreenerFilters } from "@/lib/screenerParams";
+import { buildParams, filtersFromParams, describeScreenerFilters, sortFromIntent, DEFAULT_SORT } from "@/lib/screenerParams";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
 import { parseContractKey } from "@/lib/insurer-envelope";
@@ -38,8 +38,12 @@ async function fetchFunds(
   page: number,
   sortBy: string,
   sortDir: string,
+  prioritizeComplete = false,
 ): Promise<ScreenerResponse> {
   const params = buildParams(f, page, sortBy, sortDir);
+  // Tri par intention : on relève le plancher de complétude côté API pour ne pas exposer
+  // un fonds quasi vide qui ne « gagne » que sur le critère trié (cf. /api/funds).
+  if (prioritizeComplete) params.set("prioritize_complete", "true");
   const res = await fetch(`/api/funds?${params.toString()}`);
   if (!res.ok) throw new Error("API error");
   return res.json() as Promise<ScreenerResponse>;
@@ -73,6 +77,8 @@ type SearchCache = {
   sortDir: "asc" | "desc";
   nlpFailed: boolean;
   fuzzy: boolean;
+  relaxed: string[];
+  prioritizeComplete: boolean;
 };
 
 function loadSearchCache(): SearchCache | null {
@@ -102,6 +108,10 @@ function RechercheInner() {
   const [filters,        setFilters]        = useState<ParsedFilters>({});
   const [nlpFailed,      setNlpFailed]      = useState(false);
   const [fuzzy,          setFuzzy]          = useState(false);  // résultats approchants (tolérance fautes)
+  const [relaxed,        setRelaxed]        = useState<string[]>([]);  // critères assouplis (relâchement gracieux)
+  // Tri issu d'une intention NLP (« le moins cher »…) → on privilégie les fonds complets
+  // (plancher de complétude relevé). Désactivé dès que l'utilisateur trie manuellement.
+  const [prioritizeComplete, setPrioritizeComplete] = useState(false);
   const [parsing,        setParsing]        = useState(false);  // analyse NLP en cours
   // Après une restauration depuis le cache, on saute le fetch automatique
   // (les résultats sont déjà là — éviter un rechargement et un nouveau flash).
@@ -166,6 +176,8 @@ function RechercheInner() {
       setSortDir(cache.sortDir);
       setNlpFailed(cache.nlpFailed);
       setFuzzy(cache.fuzzy ?? false);
+      setRelaxed(cache.relaxed ?? []);
+      setPrioritizeComplete(cache.prioritizeComplete ?? false);
       setHasSearched(true);
       setLoading(false);
       return;
@@ -218,18 +230,19 @@ function RechercheInner() {
 
     let cancelled = false;
     setLoading(true);
-    fetchFunds(filters, page, sortBy, sortDir)
+    fetchFunds(filters, page, sortBy, sortDir, prioritizeComplete)
       .then((data) => {
         if (!cancelled) {
           setFunds(data.data);
           setTotal(data.total);
           setTotalPages(data.total_pages);
           setFuzzy(!!data.fuzzy);
+          setRelaxed(data.relaxed ?? []);
           setLoading(false);
           saveSearchCache({
             query, filters, funds: data.data, total: data.total,
             page, totalPages: data.total_pages, sortBy, sortDir, nlpFailed,
-            fuzzy: !!data.fuzzy,
+            fuzzy: !!data.fuzzy, relaxed: data.relaxed ?? [], prioritizeComplete,
           });
         }
       })
@@ -238,7 +251,7 @@ function RechercheInner() {
     // `query`/`nlpFailed` ne pilotent pas le fetch : exclus des deps à dessein
     // (ils ne servent qu'à alimenter le cache au moment du succès).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, page, sortBy, sortDir, hasSearched, parsing]);
+  }, [filters, page, sortBy, sortDir, prioritizeComplete, hasSearched, parsing]);
 
   // ─── Search handler ────────────────────────────────────────────────────────
 
@@ -248,6 +261,8 @@ function RechercheInner() {
     setParsing(true);     // affiche l'état de chargement, gèle le fetch
     setFunds([]);         // vide la liste précédente → aucun chevauchement visuel
     setFuzzy(false);      // évite une bannière « approchants » périmée pendant le chargement
+    setRelaxed([]);       // idem pour la bannière « critères assouplis »
+    setPrioritizeComplete(false); // ré-évalué après le parse (true seulement si tri d'intention)
     setPage(1);
     const raw = query.trim();
     // Un ISIN exact part directement en recherche ciblée, sans analyse NLP : le
@@ -269,6 +284,15 @@ function RechercheInner() {
     const hasFilters = Object.keys(parsed).length > 0;
     setFilters(hasFilters ? parsed : { free_text: query.trim() });
     setNlpFailed(!hasFilters);
+    // Tri piloté par l'intention détectée (« le moins cher » → TER croissant…),
+    // sinon retour au tri par défaut : chaque nouvelle requête repart proprement.
+    const detectedSort = sortFromIntent(parsed);
+    const intentSort = detectedSort ?? DEFAULT_SORT;
+    setSortBy(intentSort.sort_by);
+    setSortDir(intentSort.sort_dir);
+    // Plancher de complétude relevé uniquement quand le tri vient d'une intention NLP
+    // (pas en tri par défaut, déjà classé par complétude).
+    setPrioritizeComplete(detectedSort != null);
     setParsing(false);    // libère le fetch, qui part avec les filtres compris
     router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
   }, [query, router, profile]);
@@ -280,6 +304,8 @@ function RechercheInner() {
     setQuery("");
     setFunds([]);
     setFuzzy(false);
+    setRelaxed([]);
+    setPrioritizeComplete(false);
     setPage(1);
     setHasSearched(false);
     clearSearchCache();
@@ -321,7 +347,9 @@ function RechercheInner() {
 
   // ─── Sort / pagination ─────────────────────────────────────────────────────
 
-  const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPage(1); }, []);
+  // Tri manuel = choix délibéré de l'utilisateur : on lève le plancher de complétude relevé
+  // (il voit alors l'univers complet trié comme demandé).
+  const handleSortByChange  = useCallback((v: string) => { setSortBy(v); setPrioritizeComplete(false); setPage(1); }, []);
   const handleSortDirToggle = useCallback(() => { setSortDir((d) => d === "desc" ? "asc" : "desc"); setPage(1); }, []);
   const handleColumnSort    = useCallback((field: string) => {
     if (field === sortBy) {
@@ -330,6 +358,7 @@ function RechercheInner() {
       setSortBy(field);
       setSortDir("desc");
     }
+    setPrioritizeComplete(false);
     setPage(1);
   }, [sortBy]);
   const goToPrevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
@@ -450,6 +479,12 @@ function RechercheInner() {
           <p className="text-label text-muted px-1">
             Aucune correspondance exacte pour «&nbsp;{query.trim()}&nbsp;» — voici les fonds
             aux noms les plus proches.
+          </p>
+        )}
+        {relaxed.length > 0 && (
+          <p className="text-label text-muted px-1">
+            Aucun fonds ne correspondait à tous les critères — assoupli&nbsp;:{" "}
+            {relaxed.join(", ")}.
           </p>
         )}
       </div>

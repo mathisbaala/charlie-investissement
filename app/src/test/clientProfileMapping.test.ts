@@ -63,6 +63,26 @@ describe("profileToScreenerFilters", () => {
     expect(profileToScreenerFilters({ ...EMPTY_PROFILE, experience: "novice" })).toEqual({});
   });
 
+  it("traduit l'exclusion « fossiles » en exclude_sectors (les autres restent NLP)", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, exclusions: ["fossiles"] }).exclude_sectors).toEqual(["Énergie"]);
+    // tabac/armes/jeux/alcool n'ont pas de secteur fiable → aucun filtre dur
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, exclusions: ["tabac", "armes"] }).exclude_sectors).toBeUndefined();
+    // dédup si « fossiles » apparaît plusieurs fois
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, exclusions: ["fossiles", "tabac", "fossiles"] }).exclude_sectors).toEqual(["Énergie"]);
+  });
+
+  it("plafonne le SRI selon l'horizon (capacité), seul ou combiné au risque par min()", () => {
+    // horizon court seul : capacité limite le SRI même sans risk_profile
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, horizon_years: 2 }).sri_max).toBe(2);
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, horizon_years: 5 }).sri_max).toBe(4);
+    // horizon long : aucun plafond de capacité
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, horizon_years: 20 }).sri_max).toBeUndefined();
+    // combiné : le plus contraignant gagne (dynamique=6, horizon 2 ans=2 → 2)
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "dynamique", horizon_years: 2 }).sri_max).toBe(2);
+    // tolérance plus contraignante que la capacité (prudent=3, horizon 20 ans=∞ → 3)
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, risk_profile: "prudent", horizon_years: 20 }).sri_max).toBe(3);
+  });
+
   it("combine plusieurs champs en un seul jeu de filtres", () => {
     const out = profileToScreenerFilters({
       ...EMPTY_PROFILE, risk_profile: "equilibre", esg: "art8", perte_max: "10", envelopes: ["PEA"],

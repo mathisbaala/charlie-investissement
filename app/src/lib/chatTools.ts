@@ -4,7 +4,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { searchWords, searchOrClause, asExactIsin } from "@/lib/search";
+import { asExactIsin } from "@/lib/search";
 
 const VIEW = "investissement_funds_cgp_ref";
 
@@ -92,18 +92,17 @@ export async function searchFundsForChat(query: string, limit = 8): Promise<Chat
     return ((data as unknown as Row[]) ?? []).map(toChatFund);
   }
 
-  let builder = supabase
-    .from(VIEW)
-    .select(COLS)
+  // Même classement par PERTINENCE que le screener (RPC inv_funds_search : ticker/nom
+  // exact > nom complet > autre colonne), pour que chat et screener s'accordent sur la
+  // même requête. L'AUM ne départage plus qu'à pertinence égale. La RPC porte déjà les
+  // garde-fous (part primaire, complétude ≥ 50, univers curé) — réappliqués par sûreté.
+  const { data } = await (supabase as any)
+    .rpc("inv_funds_search", { q })
+    .select(`${COLS},relevance`)
     .gte("data_completeness", 50)
     .eq("is_primary_share_class", true)
-    .not("product_type", "in", "(action,crypto,fps)");
-
-  for (const word of searchWords(q)) {
-    builder = (builder as { or: (c: string) => typeof builder }).or(searchOrClause(word));
-  }
-
-  const { data } = await builder
+    .not("product_type", "in", "(action,crypto,fps)")
+    .order("relevance", { ascending: false, nullsFirst: false })
     .order("aum_eur", { ascending: false, nullsFirst: false })
     .limit(lim);
 

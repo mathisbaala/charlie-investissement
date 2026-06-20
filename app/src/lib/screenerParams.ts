@@ -6,6 +6,64 @@
 
 import type { ParsedFilters } from "./types";
 
+// Colonnes triables exposées par /api/funds (miroir de VALID_SORT côté route).
+// Source unique partagée : le parsing NLP (sort_intent) ne peut viser qu'une de ces
+// colonnes, et la route retombe sur "data_completeness" pour toute valeur hors liste.
+export const SORTABLE_COLUMNS = [
+  "performance_3y", "performance_1y", "performance_5y", "ter", "ongoing_charges",
+  "aum_eur", "sharpe_1y", "sharpe_3y", "volatility_1y", "max_drawdown_3y",
+  "morningstar_rating", "track_record_years", "data_completeness",
+  "retrocession_cgp", "entry_fee_max", "alpha_3y",
+] as const;
+
+// Tri par défaut du screener (qualité/complétude des données décroissante).
+export const DEFAULT_SORT = { sort_by: "data_completeness", sort_dir: "desc" } as const;
+
+// ─── Relâchement gracieux (0 résultat) ──────────────────────────────────────
+// Ordre de DROP des filtres NON structurants (le moins structurant d'abord). Les
+// filtres absents de cette liste ne sont JAMAIS relâchés : univers, classe d'actif,
+// enveloppes, zone, secteur, exclusions, assureur/contrat, sfdr, sri_max (adéquation),
+// recherche texte — ils définissent l'intention de fond, pas un confort.
+export const RELAXABLE_ORDER = [
+  "retrocession_min", "morningstar_min", "track_record_min", "aum_min",
+  "labels", "allocation_profile", "beats_benchmark",
+  "sharpe_3y_min", "sharpe_min", "vol_3y_max", "vol_max",
+  "perf_5y_min", "perf_3y_min", "perf_1y_min", "drawdown_max", "ter_max",
+] as const;
+
+// Libellés lisibles des critères relâchés (bandeau UI).
+const RELAX_LABELS: Record<string, string> = {
+  retrocession_min: "Rétrocession min", morningstar_min: "Note Morningstar",
+  track_record_min: "Ancienneté min", aum_min: "Encours min",
+  labels: "Labels durabilité", allocation_profile: "Profil d'allocation",
+  beats_benchmark: "Bat son indice", sharpe_3y_min: "Sharpe 3 ans",
+  sharpe_min: "Sharpe", vol_3y_max: "Volatilité 3 ans", vol_max: "Volatilité",
+  perf_5y_min: "Perf 5 ans", perf_3y_min: "Perf 3 ans", perf_1y_min: "Perf 1 an",
+  drawdown_max: "Perte max", ter_max: "Frais",
+};
+
+export function relaxLabel(key: string): string {
+  return RELAX_LABELS[key] ?? key;
+}
+
+// Filtres relâchables PRÉSENTS dans la requête, dans l'ordre de drop. `active` mappe
+// chaque clé relâchable à sa présence (true = filtre posé). Fonction pure (testable).
+export function relaxationOrder(active: Record<string, boolean>): string[] {
+  return (RELAXABLE_ORDER as readonly string[]).filter((k) => active[k]);
+}
+
+// Intention de tri (NLP) → couple (sort_by, sort_dir). null si aucune intention
+// valide. Le tri explicite par colonne (clic UI) reste prioritaire en amont.
+export function sortFromIntent(
+  f: ParsedFilters,
+): { sort_by: string; sort_dir: "asc" | "desc" } | null {
+  const si = f.sort_intent;
+  if (!si || typeof si.field !== "string") return null;
+  if (!(SORTABLE_COLUMNS as readonly string[]).includes(si.field)) return null;
+  const dir = si.dir === "asc" ? "asc" : "desc";
+  return { sort_by: si.field, sort_dir: dir };
+}
+
 export function buildParams(
   f: ParsedFilters,
   page: number,
