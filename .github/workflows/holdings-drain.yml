@@ -27,6 +27,7 @@ on:
           - issuer-ishares       # ETF iShares (compo intégrale émetteur)
           - issuer-amundi        # ETF Amundi
           - issuer-xtrackers     # ETF Xtrackers (DWS)
+          - issuer-invesco       # ETF Invesco (dng-api, index = expo réelle)
       limit:
         description: "Nombre de fonds à traiter (tranche)"
         required: false
@@ -95,7 +96,7 @@ jobs:
               # justetf-holdings n'a pas d'offset (fill-only priorité AUM interne).
               python3 scripts/scrapers/justetf-holdings-scraper.py $APPLY --limit "$LIMIT"
               ;;
-            issuer-ishares|issuer-amundi|issuer-xtrackers)
+            issuer-ishares|issuer-amundi|issuer-xtrackers|issuer-invesco)
               ISSUER="${ENRICHER#issuer-}"
               python3 scripts/scrapers/issuer-holdings.py --issuer "$ISSUER" $APPLY --limit "$LIMIT"
               ;;

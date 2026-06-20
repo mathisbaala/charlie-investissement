@@ -17,6 +17,7 @@ justetf-holdings-scraper.py (qui ne cible que les ETF « sans secteurs »).
   - ishares  : catalogue product-screener (ISIN→productId) + CSV holdings  ✅
   - amundi   : POST /mapi/ProductAPI/getProductsData (résolu par ISIN)      ✅
   - xtrackers: GET /api/pdp/en-gb/etf/<ISIN>/holdings (DWS, résolu par ISIN) ✅
+  - invesco  : GET dng-api.invesco.com .../holdings/index (expo réelle)     ✅
 
 Usage :
     python3 scripts/scrapers/issuer-holdings.py --issuer ishares
@@ -88,6 +89,12 @@ COUNTRY_CODES: dict[str, str] = {
 }
 # Libellés non géographiques à exclure de l'agrégation pays.
 NON_COUNTRY = {"-", "", "Cash", "Cash and/or Derivatives", "(Cash)", "N/A", "Other"}
+
+# Reverse ISO-2 → libellé (premier libellé rencontré). Sert aux sources qui ne
+# donnent que le code pays (ex. Invesco : pays dérivé du préfixe ISIN du titre).
+CODE_TO_LABEL: dict[str, str] = {}
+for _lbl, _code in COUNTRY_CODES.items():
+    CODE_TO_LABEL.setdefault(_code, _lbl)
 
 
 def _pct_to_frac(s: str) -> float | None:
@@ -326,6 +333,56 @@ def xtrackers_fetch_holdings(session: requests.Session, isin: str) -> list[dict]
         return None
 
 
+# ─── Invesco ──────────────────────────────────────────────────────────────────
+# API publique dng-api (back-end AEM headless, découverte 20/06 via inspection
+# réseau). holdings/index = constituants de l'INDICE = exposition économique
+# RÉELLE, correcte même pour les ETF synthétiques/swap (où holdings/fund ne
+# renvoie que le panier substitut, géo trompeuse). Repli sur holdings/fund pour
+# les ETF physiques sans bloc index. Champs : name/isin/weight (poids en %).
+# Pas de secteur ; pays dérivé du préfixe ISIN du titre (proxy domicile).
+INVESCO_HOLDINGS_URL = (
+    "https://dng-api.invesco.com/cache/v1/accounts/en_GB/shareclasses/"
+    "{isin}/holdings/{variation}?idType=isin"
+)
+
+
+def invesco_fetch_holdings(session: requests.Session, isin: str) -> list[dict] | None:
+    """GET dng-api Invesco pour un ISIN → liste de constituants (index d'abord)."""
+    for variation in ("index", "fund"):
+        try:
+            resp = session.get(INVESCO_HOLDINGS_URL.format(isin=isin, variation=variation),
+                               timeout=FETCH_TIMEOUT, headers={"Accept": "application/json"})
+            if resp.status_code != 200:
+                continue
+            rows = (resp.json() or {}).get("holdings") or []
+        except Exception:
+            continue
+        out = []
+        for h in rows:
+            name = (h.get("name") or "").strip()
+            w = h.get("weight")
+            if not name or w is None:
+                continue
+            w = round(float(w) / 100, 6)
+            if w == 0:
+                continue
+            hisin = (h.get("isin") or "").strip().upper()
+            code = hisin[:2] if len(hisin) >= 2 and hisin[:2].isalpha() else None
+            out.append({
+                "position_name": name[:200],
+                "ticker":        None,
+                "asset_type":    None,
+                "sector":        None,  # Invesco ne fournit pas le secteur par ligne
+                "country":       code,
+                "country_label": (CODE_TO_LABEL.get(code, code) if code else None),
+                "weight":        w,
+            })
+        if out:
+            out.sort(key=lambda x: x["weight"], reverse=True)
+            return out
+    return None
+
+
 # ─── Agrégation secteurs / géo depuis les constituants ──────────────────────────
 
 def aggregate_breakdowns(holdings: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -394,6 +451,7 @@ ISSUER_FILTERS = {
     "ishares":   ["blackrock"],
     "amundi":    ["amundi"],
     "xtrackers": ["dws", "xtrackers"],
+    "invesco":   ["invesco"],
 }
 
 
@@ -475,6 +533,8 @@ def run(issuer: str, apply: bool, limit: int | None, isin_filter: str | None,
             holdings = amundi_fetch_holdings(session, isin)
         elif issuer == "xtrackers":
             holdings = xtrackers_fetch_holdings(session, isin)
+        elif issuer == "invesco":
+            holdings = invesco_fetch_holdings(session, isin)
         else:
             print(f"  ⚠ émetteur '{issuer}' inconnu"); return
 
