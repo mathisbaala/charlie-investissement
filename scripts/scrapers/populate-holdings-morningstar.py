@@ -135,7 +135,9 @@ def get_token() -> str:
     return r.json()["access_token"]
 
 
-def _api_get(url: str, params: dict, token: str, retries: int = 4) -> dict | None:
+def _api_get(url: str, params: dict, token: str, retries: int = 3) -> dict | None:
+    # Timeout court (fail-fast) : un endpoint qui pendouille saute vite et le
+    # fonds est re-tenté au run suivant, plutôt que de bloquer le run entier.
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -143,7 +145,7 @@ def _api_get(url: str, params: dict, token: str, retries: int = 4) -> dict | Non
     }
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=params, headers=headers, timeout=30)
+            r = requests.get(url, params=params, headers=headers, timeout=10)
             if r.status_code == 404:
                 return None
             r.raise_for_status()
@@ -151,7 +153,7 @@ def _api_get(url: str, params: dict, token: str, retries: int = 4) -> dict | Non
         except Exception:
             if attempt == retries - 1:
                 return None
-            time.sleep(2 ** attempt)
+            time.sleep(1.5 * (attempt + 1))
     return None
 
 
@@ -173,15 +175,19 @@ def resolve_sec_id(isin: str, token: str) -> str | None:
     return None
 
 
-def _sal_get(field: str, sec_id: str, retries: int = 4) -> dict | None:
+def _sal_get(field: str, sec_id: str, retries: int = 2) -> dict | None:
     """GET sal-service v1 (api-global, apikey statique). field ∈
-    {portfolio/regionalSector, portfolio/v2/sector, portfolio/holding/v2}."""
+    {portfolio/regionalSector, portfolio/v2/sector, portfolio/holding/v2}.
+
+    Fail-fast : timeout court + peu de retries. L'API publique throttle (206)
+    sous charge soutenue ; insister bloque le run. On saute vite, le fonds non
+    écrit n'entre pas dans le set « fait » → il est re-tenté au run suivant."""
     url = SAL_URL.format(type=SAL_TYPE, field=field, sec=sec_id)
     headers = {"apikey": SAL_APIKEY, "Accept": "application/json",
                "User-Agent": "Mozilla/5.0 (compatible; charlie-enricher)"}
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=SAL_PARAMS, headers=headers, timeout=30)
+            r = requests.get(url, params=SAL_PARAMS, headers=headers, timeout=12)
             if r.status_code == 404:
                 return None
             # 206 + corps texte = throttle transitoire de l'API publique → retry.
@@ -192,7 +198,7 @@ def _sal_get(field: str, sec_id: str, retries: int = 4) -> dict | None:
         except Exception:
             if attempt == retries - 1:
                 return None
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep(1.0 * (attempt + 1))
     return None
 
 
