@@ -461,7 +461,7 @@ function RechercheInner() {
               onClick={clearReferencingFilter}
               className="text-label text-accent-ink/80 hover:text-accent-ink underline shrink-0"
             >
-              retirer le filtre
+              Retirer le filtre
             </button>
           </div>
         )}
