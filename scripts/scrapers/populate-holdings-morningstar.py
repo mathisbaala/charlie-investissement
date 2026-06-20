@@ -52,6 +52,7 @@ import os
 import sys
 import time
 import json
+import signal
 import base64
 import argparse
 from datetime import datetime, timezone, timedelta
@@ -77,6 +78,32 @@ SAL_TYPE   = "fund"   # fonctionne pour OPCVM et ETF (même secId Morningstar)
 
 RATE_LIMIT_SEC = 0.30     # API publique : courtoisie
 SOURCE         = "morningstar"
+
+# Deadline DUR par fonds. L'API publique sal-service « dribble » parfois (octets
+# très espacés) : le read-timeout de requests mesure l'écart INTER-octets, pas le
+# total, donc il ne se déclenche jamais sur un flux qui goutte → un seul fonds
+# pathologique peut figer un run entier de 350 min (constaté 20/06). SIGALRM
+# coupe net au-delà de ce délai et on passe au fonds suivant (re-tenté + TTL).
+FUND_DEADLINE_S = 45
+_HAS_ALARM      = hasattr(signal, "SIGALRM")
+
+
+class _FundTimeout(Exception):
+    pass
+
+
+def _on_alarm(signum, frame):
+    raise _FundTimeout()
+
+
+def _arm_deadline(seconds: int) -> None:
+    if _HAS_ALARM:
+        signal.alarm(seconds)
+
+
+def _disarm_deadline() -> None:
+    if _HAS_ALARM:
+        signal.alarm(0)
 
 # ─── Mapping secteurs Morningstar → labels (alignés sur source financial-times,
 # pour que la ventilation agrégée /lookthrough blende par label identique) ────
@@ -471,62 +498,76 @@ def run(apply: bool, limit: int | None, offset: int,
             attempts.append({"isin": isin_, "source": SOURCE,
                              "status": status, "attempted_at": now_iso})
 
+    if _HAS_ALARM:
+        signal.signal(signal.SIGALRM, _on_alarm)
+
     for i, fund in enumerate(funds, 1):
         isin = fund["isin"]
         name = (fund.get("name") or isin)[:40]
-        time.sleep(RATE_LIMIT_SEC)
 
         if len(attempts) >= 200:
             _record_attempts(client, attempts)
             attempts = []
 
-        sec_id = resolve_sec_id(isin, token)
-        if not sec_id:
-            stats["no_sec_id"] += 1
-            _note(isin, "no_sec_id")
-            continue
+        # Deadline dur : tout le traitement réseau d'un fonds est borné ; au-delà,
+        # SIGALRM lève _FundTimeout, on note « timeout » et on passe au suivant.
+        _arm_deadline(FUND_DEADLINE_S)
+        try:
+            time.sleep(RATE_LIMIT_SEC)
+            sec_id = resolve_sec_id(isin, token)
+            if not sec_id:
+                stats["no_sec_id"] += 1
+                _note(isin, "no_sec_id")
+                continue
 
-        time.sleep(RATE_LIMIT_SEC)
-        data = fetch_portfolio(sec_id, token)
+            time.sleep(RATE_LIMIT_SEC)
+            data = fetch_portfolio(sec_id, token)
 
-        if probe:
-            print(f"\n=== {isin} / secId={sec_id} ===")
+            if probe:
+                print(f"\n=== {isin} / secId={sec_id} ===")
+                if data is None:
+                    print("  (aucune réponse / 404)")
+                else:
+                    print(f"  géo={parse_geos(data)}")
+                    print(f"  sect={parse_sectors(data)}")
+                    print(f"  holdings={[(h['rank'], h['position_name'], h['weight']) for h in parse_holdings(data)]}")
+                continue
+
             if data is None:
-                print("  (aucune réponse / 404)")
-            else:
-                print(f"  géo={parse_geos(data)}")
-                print(f"  sect={parse_sectors(data)}")
-                print(f"  holdings={[(h['rank'], h['position_name'], h['weight']) for h in parse_holdings(data)]}")
-            continue
+                stats["no_portfolio"] += 1
+                _note(isin, "no_portfolio")
+                continue
 
-        if data is None:
-            stats["no_portfolio"] += 1
-            _note(isin, "no_portfolio")
-            continue
+            geos     = parse_geos(data)
+            sectors  = parse_sectors(data)
+            holdings = parse_holdings(data)
 
-        geos     = parse_geos(data)
-        sectors  = parse_sectors(data)
-        holdings = parse_holdings(data)
+            if not (geos or sectors or holdings):
+                stats["no_data"] += 1
+                _note(isin, "no_data")
+                continue
 
-        if not (geos or sectors or holdings):
-            stats["no_data"] += 1
-            _note(isin, "no_data")
-            continue
+            stats["ok"] += 1
+            _note(isin, "ok")
+            geo_sum = round(sum(g["weight"] for g in geos) * 100, 1)
+            if i <= 30 or i % 50 == 0:
+                print(f"  ✓ {isin} ({name}) — {len(holdings)} pos, "
+                      f"{len(sectors)} sect, {len(geos)} géo (Σ {geo_sum}%)", flush=True)
 
-        stats["ok"] += 1
-        _note(isin, "ok")
-        geo_sum = round(sum(g["weight"] for g in geos) * 100, 1)
-        if i <= 30 or i % 50 == 0:
-            print(f"  ✓ {isin} ({name}) — {len(holdings)} pos, "
-                  f"{len(sectors)} sect, {len(geos)} géo (Σ {geo_sum}%)", flush=True)
-
-        if apply:
-            try:
-                write_breakdowns(client, isin, geos, sectors, holdings, now_iso)
-            except Exception as e:
-                stats["write_err"] += 1
-                if stats["write_err"] <= 3:
-                    print(f"  ✗ write({isin}) : {e}", flush=True)
+            if apply:
+                try:
+                    write_breakdowns(client, isin, geos, sectors, holdings, now_iso)
+                except Exception as e:
+                    stats["write_err"] += 1
+                    if stats["write_err"] <= 3:
+                        print(f"  ✗ write({isin}) : {e}", flush=True)
+        except _FundTimeout:
+            stats["timeout"] += 1
+            _note(isin, "timeout")
+            if stats["timeout"] <= 10:
+                print(f"  ⏱ {isin} — deadline {FUND_DEADLINE_S}s dépassé, skip", flush=True)
+        finally:
+            _disarm_deadline()
 
     _record_attempts(client, attempts)   # flush final
 
@@ -535,6 +576,8 @@ def run(apply: bool, limit: int | None, offset: int,
     print(f"    ✗ sans secId        : {stats['no_sec_id']}")
     print(f"    ✗ sans portfolio    : {stats['no_portfolio']}")
     print(f"    ✗ données vides     : {stats['no_data']}")
+    if stats["timeout"]:
+        print(f"    ⏱ timeouts (skip)   : {stats['timeout']}")
     if stats["write_err"]:
         print(f"    ✗ erreurs écriture  : {stats['write_err']}")
     if not apply and not probe:
