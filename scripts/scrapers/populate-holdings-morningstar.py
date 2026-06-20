@@ -88,8 +88,12 @@ FUND_DEADLINE_S = 20   # un fonds légitime répond en <10s ; au-delà = hang à
 _HAS_ALARM      = hasattr(signal, "SIGALRM")
 
 
-class _FundTimeout(Exception):
-    pass
+class _FundTimeout(BaseException):
+    """Hérite de BaseException (pas Exception) À DESSEIN : les boucles de retry
+    de _api_get/_sal_get font `except Exception` — si _FundTimeout en héritait,
+    le retry avalerait l'alarme SIGALRM (one-shot, déjà consommée) et la tentative
+    suivante hangerait pour toujours. En BaseException, l'alarme traverse les
+    retries et remonte jusqu'au handler de la boucle principale."""
 
 
 def _on_alarm(signum, frame):
