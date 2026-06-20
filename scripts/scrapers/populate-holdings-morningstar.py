@@ -145,7 +145,7 @@ def _api_get(url: str, params: dict, token: str, retries: int = 3) -> dict | Non
     }
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=params, headers=headers, timeout=10)
+            r = requests.get(url, params=params, headers=headers, timeout=20)
             if r.status_code == 404:
                 return None
             r.raise_for_status()
@@ -187,7 +187,7 @@ def _sal_get(field: str, sec_id: str, retries: int = 2) -> dict | None:
                "User-Agent": "Mozilla/5.0 (compatible; charlie-enricher)"}
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=SAL_PARAMS, headers=headers, timeout=12)
+            r = requests.get(url, params=SAL_PARAMS, headers=headers, timeout=20)
             if r.status_code == 404:
                 return None
             # 206 + corps texte = throttle transitoire de l'API publique → retry.
