@@ -65,7 +65,7 @@ const ROWS: { section: string; rows: Row[] }[] = [
   },
 ];
 
-const FUND_COLORS = ["#6b4a2e", "#2d7d5a", "#b97c2a", "#3d5a8a"];
+const FUND_COLORS = ["#9F4325", "#2d7d5a", "#b97c2a", "#3d5a8a"];
 
 function getBestWorstIdx(row: Row, funds: SelectedFund[]): { bestIdx: number; worstIdx: number } {
   if (!row.best) return { bestIdx: -1, worstIdx: -1 };
@@ -157,20 +157,20 @@ function NavChart({ funds }: { funds: SelectedFund[] }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e8e0d5" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
         <XAxis
           dataKey="date"
           tickFormatter={(v: string) => {
             const d = new Date(v);
             return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`;
           }}
-          tick={{ fontSize: 10, fill: "#9b8f84" }}
+          tick={{ fontSize: 10, fill: "#999895" }}
           tickLine={false}
           interval="preserveStartEnd"
           minTickGap={60}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: "#9b8f84" }}
+          tick={{ fontSize: 10, fill: "#999895" }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(v: number) => `${v}`}
@@ -186,7 +186,7 @@ function NavChart({ funds }: { funds: SelectedFund[] }) {
             const d = new Date(String(label));
             return isNaN(d.getTime()) ? String(label) : d.toLocaleDateString("fr-FR");
           }}
-          contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e8e0d5" }}
+          contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }}
         />
         <Legend
           formatter={(value: string) => <span style={{ fontSize: 11 }}>{value}</span>}

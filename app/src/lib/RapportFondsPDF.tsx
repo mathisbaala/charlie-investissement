@@ -89,7 +89,7 @@ const S = StyleSheet.create({
     alignItems: "center",
   },
   calloutLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 9.5, color: C.clayInk },
-  calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#8A5A3C", marginTop: 3 },
+  calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#86422A", marginTop: 3 },
   calloutValue: { fontFamily: FONT.serif, fontSize: 22, color: C.clay },
   // Warning
   warn: { backgroundColor: C.goldSoft, borderLeftWidth: 2.5, borderLeftColor: C.gold, borderRadius: 3, paddingVertical: 7, paddingHorizontal: 10, marginBottom: 13 },

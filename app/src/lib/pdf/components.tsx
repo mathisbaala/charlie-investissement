@@ -138,7 +138,7 @@ type ChipTone = "neutral" | "accent" | "ok" | "gold";
 export function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?: ChipTone }) {
   const map: Record<ChipTone, { bg: string; bd: string; fg: string }> = {
     neutral: { bg: C.paper2, bd: C.line, fg: C.ink2 },
-    accent: { bg: C.claySoft, bd: "#E0C3AE", fg: C.clayInk },
+    accent: { bg: C.claySoft, bd: "#E6B09B", fg: C.clayInk },
     ok: { bg: C.greenSoft, bd: "#CADFD2", fg: C.green },
     gold: { bg: C.goldSoft, bd: "#E6D2A4", fg: "#7A5E1E" },
   };

@@ -42,19 +42,20 @@ export function registerCharlieFonts() {
   Font.registerHyphenationCallback((word) => [word]);
 }
 
-/** Palette terracotta Charlie, en hex (équivalents des tokens OKLCH de l'app). */
+/** Palette Charlie, en hex (équivalents des tokens OKLCH de l'app — tonalité
+    neutre/lin + accent clay, alignée Charlie Prospection ; cf. globals.css). */
 export const C = {
-  cream: "#F4EFE4", // fond global chaud
-  paper: "#FCFAF4", // cartes / panneaux
-  paper2: "#EFE9DD", // surface alternée
-  ink: "#2B2722", // texte principal (encre brune)
-  ink2: "#5C544A", // texte secondaire
-  muted: "#857D72", // labels, texte tertiaire
-  line: "#E2DACB", // bordures cartes
-  lineSoft: "#EDE7DB", // séparateurs discrets
-  clay: "#9A4222", // accent terracotta
-  claySoft: "#F1E2D6", // fond accent doux
-  clayInk: "#6E3219", // texte sur fond accent
+  cream: "#F5F3F0", // fond global neutre
+  paper: "#FCFCF9", // cartes / panneaux (blanc cassé froid)
+  paper2: "#EDEBE7", // surface alternée
+  ink: "#1B1A18", // texte principal (encre)
+  ink2: "#3B3A38", // texte secondaire
+  muted: "#7C7A76", // labels, texte tertiaire
+  line: "#C9C7C2", // bordures cartes
+  lineSoft: "#DFDEDA", // séparateurs discrets
+  clay: "#9F4325", // accent clay
+  claySoft: "#F7C4B0", // fond accent doux
+  clayInk: "#681600", // texte sur fond accent
   green: "#1E7A4F", // performance positive
   greenSoft: "#E4EFE8",
   red: "#A83A2A", // performance négative (brique chaude)

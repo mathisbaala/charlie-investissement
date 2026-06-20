@@ -1,35 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  /* Convention couleur (volontaire) : les ANCRES de marque sont en hex (valeurs
-     exactes de l'ADN — cream, paper, ink, accent, line), les DÉRIVÉS calculés
-     (soft, ink, status) sont en oklch pour raisonner la clarté/chroma. Ne pas
-     convertir une ancre en oklch sans vérifier le rendu : risque de glissement
-     visible de la couleur de marque sur toute l'app. */
+  /* Convention couleur : charte alignée sur Charlie Prospection (tonalité
+     « neutre/lin » telle qu'elle est rendue en live + accent clay). Tout est en
+     oklch pour raisonner clarté/chroma de façon cohérente. Ne pas réintroduire
+     de teinte chaude (hue ~60-80) sur les surfaces : ce serait revenir à
+     l'ancienne crème beige. Les surfaces restent quasi-achromatiques (hue 90,
+     chroma ≤ 0.008), seul l'accent porte la couleur de marque (clay, hue 38). */
 
-  /* Surfaces — palette terre Charlie (hex de référence de l'ADN) */
-  --color-cream:       #F4EFE4; /* fond global chaud */
-  --color-paper:       #FCFAF4; /* cartes & panneaux (blanc cassé chaud) */
-  --color-paper-2:     #EFE9DD; /* surface alternée / hover */
-  --color-paper-3:     #E7E0D1; /* surface enfoncée */
+  /* Surfaces — tonalité neutre/lin (alignée Charlie Prospection live) */
+  --color-cream:       oklch(0.965 0.005 90); /* fond global neutre */
+  --color-paper:       oklch(0.99  0.003 95); /* cartes & panneaux (blanc cassé froid) */
+  --color-paper-2:     oklch(0.94  0.006 90); /* surface alternée / hover */
+  --color-paper-3:     oklch(0.91  0.008 90); /* surface enfoncée */
 
   /* Texte */
-  --color-ink:         #2B2722; /* texte principal & boutons primaires (encre brune) */
-  --color-ink-strong:  #1A1612; /* hover des boutons primaires (encore plus foncé) */
-  --color-ink-2:       #5C544A; /* texte secondaire */
-  --color-muted:       #857D72; /* labels, texte tertiaire, icônes discrètes */
-  --color-muted-2:     #A89F92; /* placeholders */
+  --color-ink:         oklch(0.22  0.005 90); /* texte principal & boutons primaires (encre) */
+  --color-ink-strong:  oklch(0.30  0.005 90); /* hover des boutons primaires (l'encre s'éclaircit) */
+  --color-ink-2:       oklch(0.35  0.005 90); /* texte secondaire */
+  --color-muted:       oklch(0.58  0.006 90); /* labels, texte tertiaire, icônes discrètes */
+  --color-muted-2:     oklch(0.68  0.005 90); /* placeholders */
 
   /* Bordures */
-  --color-line:        #E2DACB; /* séparateurs & contours de cartes */
-  --color-line-soft:   #EDE7DB; /* hairlines très discrètes */
+  --color-line:        oklch(0.83  0.008 90); /* séparateurs & contours de cartes */
+  --color-line-soft:   oklch(0.9   0.006 90); /* hairlines très discrètes */
 
-  /* Accent terracotta */
-  --color-accent:      #9A4222; /* orange brique (clay) — accent, liens, signaux */
-  --color-accent-soft: oklch(0.93  0.05  50);
-  --color-accent-ink:  oklch(0.42  0.13  40);
-  --color-brown:       oklch(0.53  0.135 45);
-  --color-brown-2:     oklch(0.48  0.135 45);
+  /* Accent terracotta / clay (= --accent de Charlie Prospection) — porte toute
+     la couleur de marque : liens, signaux, états sélectionnés, toggles, nav active */
+  --color-accent:      oklch(0.5   0.13  38); /* clay */
+  --color-accent-soft: oklch(0.86  0.065 42);
+  --color-accent-ink:  oklch(0.34  0.12  38);
+  --color-accent-tint: oklch(0.95  0.028 45);
+  --color-brown:       oklch(0.5   0.13  38); /* alias clay — états sélectionnés, toggles, nav active */
+  --color-brown-2:     oklch(0.45  0.125 38); /* hover clay */
 
   /* Status */
   --color-ok:          oklch(0.55  0.10  150);
