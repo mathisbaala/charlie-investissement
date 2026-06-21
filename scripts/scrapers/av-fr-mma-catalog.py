@@ -36,8 +36,10 @@ def main():
     ap.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     ap.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = ap.parse_args()
+    # use_proxy : cap.mma.fr est un hôte assureur FR (parent www.mma.fr en DataDome)
+    # → route via proxy résidentiel si AV_PROXY_URL posée (anti-blocage IP datacenter CI).
     run_eligibility(COMPANY, CONTRACTS, scraper_name="av-fr-mma-catalog",
-                    apply=args.apply, limit=args.limit)
+                    apply=args.apply, limit=args.limit, use_proxy=True)
 
 
 if __name__ == "__main__":

@@ -45,8 +45,33 @@ DEFAULT_TIMEOUT = 45  # secondes — TOUJOURS borné (anti-hang, cf. incident qu
 RATE_LIMIT = 0.3      # pause entre 2 PDF (politesse)
 
 
-def make_session() -> "cffi_requests.Session":
-    """Session curl_cffi impersonant Chrome (passe les murs TLS/anti-bot légers)."""
+def _proxies(use_proxy: bool) -> dict | None:
+    """Dict de proxy si `use_proxy` ET la variable d'env AV_PROXY_URL est posée.
+
+    Sert à router CERTAINS scrapers (hôtes assureurs FR qui bloquent les IP
+    datacenter de GitHub Actions : maaf.fr, abeille, mma/gmf, quantalys…) via un
+    proxy résidentiel. DORMANT par défaut : sans AV_PROXY_URL, renvoie None →
+    connexion directe (zéro changement). Cf. docs/av-referencing.md §Proxy.
+    Format AV_PROXY_URL : http://user:pass@host:port (ou socks5h://…).
+    """
+    if not use_proxy:
+        return None
+    url = os.environ.get("AV_PROXY_URL", "").strip()
+    if not url:
+        return None
+    return {"http": url, "https": url}
+
+
+def make_session(use_proxy: bool = False) -> "cffi_requests.Session":
+    """Session curl_cffi impersonant Chrome (passe les murs TLS/anti-bot légers).
+
+    use_proxy=True + AV_PROXY_URL posée → route via le proxy résidentiel (pour les
+    hôtes qui bloquent les IP datacenter CI). Sinon connexion directe.
+    """
+    proxies = _proxies(use_proxy)
+    if proxies:
+        print("      ↻ proxy résidentiel actif (AV_PROXY_URL)")
+        return cffi_requests.Session(impersonate="chrome", proxies=proxies)
     return cffi_requests.Session(impersonate="chrome")
 
 
@@ -123,6 +148,7 @@ def run_eligibility(
     scraper_name: str,
     apply: bool,
     limit: int | None = None,
+    use_proxy: bool = False,
 ) -> None:
     """Pipeline commun étapes 2→4.
 
@@ -151,7 +177,7 @@ def run_eligibility(
         known = existing_isins(client)
         print(f"  ISIN en base : {len(known)}")
 
-    session = make_session()
+    session = make_session(use_proxy=use_proxy)
     rows: list[dict] = []        # {isin, contract_name, source_url}
     union: set[str] = set()
     now = datetime.now(timezone.utc).isoformat()
