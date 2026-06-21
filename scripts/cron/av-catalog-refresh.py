@@ -50,7 +50,8 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis
     ("scrapers/av-lux-baloise-catalog.py", []),           # PDF → poppler-utils requis
     ("scrapers/av-lux-generali-catalog.py", []),
-    ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),   # --all = tous les contrats
+    ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),      # contrats KNOWN_CONTRACTS (IDs figés)
+    ("scrapers/av-lux-opcvm360-catalog.py", ["--dynamic"]),  # contrats /licontracts (noms assureur autoritaires : Generali Vie, AG2R, Spirica…)
     ("scrapers/av-lux-swisslife-catalog.py", []),
     ("scrapers/av-lux-utmost-catalog.py", []),            # PDF → poppler-utils requis
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis

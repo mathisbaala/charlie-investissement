@@ -160,6 +160,34 @@ def fetch_contract(contract_id: int) -> list[dict]:
         return []
 
 
+def fetch_licontracts_catalog() -> dict[int, tuple[str, str, str]]:
+    """Liste AUTORITAIRE des contrats rattachés à la clé iframe via l'API
+    /licontracts : idLiContract → (insurerName, name, data_source).
+    Les noms d'assureur viennent directement de l'API (fini « Assureur inconnu » :
+    p.ex. 470 → Generali Vie / « meilleurtaux Allocation Vie »).
+    """
+    url = f"https://services.opcvm360.com/api-v1/licontracts?iframeKey={IFRAME_KEY}"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=30)
+        if not r.ok:
+            print(f"  /licontracts HTTP {r.status_code}")
+            return {}
+        data = r.json().get("data", [])
+    except Exception as e:
+        print(f"  /licontracts erreur : {e}")
+        return {}
+
+    catalog: dict[int, tuple[str, str, str]] = {}
+    for it in data:
+        cid = it.get("idLiContract")
+        if cid is None:
+            continue
+        insurer = (it.get("insurerName") or "").strip() or "Assureur inconnu"
+        name    = (it.get("name") or f"Contrat {cid}").strip()
+        catalog[int(cid)] = (insurer, name, f"opcvm360-{cid}")
+    return catalog
+
+
 # ─── Eligibility ───────────────────────────────────────────────────────────────
 
 def upsert_eligibility(client, isin: str, company: str, contract: str, contract_id: int) -> bool:
@@ -183,9 +211,11 @@ def upsert_eligibility(client, isin: str, company: str, contract: str, contract_
 
 # ─── Run one contract ──────────────────────────────────────────────────────────
 
-def run_contract(contract_id: int, apply: bool, limit: int | None) -> tuple[int, int]:
-    """Scrape un contrat. Retourne (ok, fail)."""
-    company, contract_name, data_source = KNOWN_CONTRACTS.get(
+def run_contract(contract_id: int, apply: bool, limit: int | None,
+                 override: tuple[str, str, str] | None = None) -> tuple[int, int]:
+    """Scrape un contrat. Retourne (ok, fail). `override` = (company, contract,
+    data_source) autoritaire (mode --dynamic) ; sinon fallback KNOWN_CONTRACTS."""
+    company, contract_name, data_source = override or KNOWN_CONTRACTS.get(
         contract_id,
         ("Assureur inconnu", f"Contrat {contract_id}", f"opcvm360-{contract_id}")
     )
@@ -241,7 +271,9 @@ def run_contract(contract_id: int, apply: bool, limit: int | None) -> tuple[int,
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run(contract_ids: list[int], apply: bool, limit: int | None):
+def run(contract_ids: list[int], apply: bool, limit: int | None,
+        overrides: dict[int, tuple[str, str, str]] | None = None):
+    overrides = overrides or {}
     print("=" * 60)
     print("  opcvm360 Generic AV Lux Catalog Scraper")
     print("=" * 60)
@@ -251,7 +283,7 @@ def run(contract_ids: list[int], apply: bool, limit: int | None):
 
     total_ok = total_fail = 0
     for i, cid in enumerate(contract_ids):
-        ok, fail = run_contract(cid, apply, limit)
+        ok, fail = run_contract(cid, apply, limit, override=overrides.get(cid))
         total_ok   += ok
         total_fail += fail
         if i < len(contract_ids) - 1:
@@ -266,15 +298,26 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--contract-id", type=int,    help="ID de contrat à scraper")
     group.add_argument("--all",         action="store_true", help="Scraper tous les contrats KNOWN_CONTRACTS")
-    group.add_argument("--list",        action="store_true", help="Lister les contrats connus")
+    group.add_argument("--dynamic",     action="store_true", help="Découvrir les contrats via /licontracts (noms d'assureur autoritaires)")
+    group.add_argument("--list",        action="store_true", help="Lister les contrats (connus + découverts)")
     parser.add_argument("--apply",  action="store_true", help="Écrire dans Supabase")
     parser.add_argument("--limit",  type=int,            help="Limiter à N fonds par contrat")
     args = parser.parse_args()
 
     if args.list:
-        print("Contrats connus :")
+        print("Contrats KNOWN_CONTRACTS :")
         for cid, (company, name, src) in sorted(KNOWN_CONTRACTS.items()):
             print(f"  {cid:4}  {company:35}  {name}")
+        print("\nContrats découverts via /licontracts :")
+        for cid, (company, name, src) in sorted(fetch_licontracts_catalog().items()):
+            print(f"  {cid:4}  {company:35}  {name}")
+        sys.exit(0)
+
+    if args.dynamic:
+        catalog = fetch_licontracts_catalog()
+        if not catalog:
+            print("Aucun contrat découvert via /licontracts."); sys.exit(1)
+        run(sorted(catalog), apply=args.apply, limit=args.limit, overrides=catalog)
         sys.exit(0)
 
     if args.all:
