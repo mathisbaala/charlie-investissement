@@ -3,6 +3,34 @@
 > Spec autonome pour l'agent qui reprend ce chantier. Daté du 2026-06-21.
 > Pré-requis : aucun sur l'historique. Tout le contexte est ici.
 
+## 0. État d'avancement (mis à jour 2026-06-21)
+
+**FAIT — 6 des 7 assureurs câblés** via un socle commun `scripts/scrapers/_av_pdf_common.py`
+(curl_cffi + pdftotext, éligibilité-only, filtre sur ISIN en base, dédup anti-21000,
+`scraped_at=now()`). Tous validés en dry-run (fetch+parse) ; l'écriture bout-en-bout
+se fait au prochain run `av-refresh.yml` (`workflow_dispatch` pour valider tout de suite).
+
+| Assureur | Scraper | Source | Contrats | ISIN bruts (avant filtre base) |
+|----------|---------|--------|---------:|----:|
+| CNP Assurances | `av-fr-cnp-catalog.py` | PDF cnp.fr (Nuances) + Lucya CNP + EasyVie | 7 | 1568 |
+| Predica / Crédit Agricole | `av-fr-predica-catalog.py` | API WP REST predica.com → PDF par contrat | 12 | 700 |
+| Abeille Vie (ex-Aviva) | `av-fr-abeille-catalog.py` | index `/abdoc/<code>_ANNEXE_FINANCIERE` | 17 | 545 |
+| Groupama Gan Vie | `av-fr-groupama-gan-catalog.py` | webfg.net `/documents/pdf` (4 marques) | 17 | 304 |
+| MACSF | `av-fr-macsf-catalog.py` | PDF macsf.fr (RES) | 3 | 23 |
+| MAAF Vie (Covéa) | `av-fr-maaf-catalog.py` | notices PDF maaf.fr (Winalto) | 3 | 35 |
+| ACM Vie (Crédit Mutuel/CIC) | `av-fr-acm-catalog.py` | hub acm.fr → PDF le plus récent | 6 | 115 |
+
+Câblés dans `scripts/cron/av-catalog-refresh.py` (section « bancassureurs majeurs »),
+avant le prune Tier 4 + le refresh matview.
+
+**RESTE — Covéa MMA & GMF (7e assureur, partiel).** Pas de source publique scriptable :
+listes UC seulement derrière quantalys (SPA cookie-wall) ou DataDome (tout `gmf.fr`/`mma.fr`
+en 403/503). La gamme MAAF (Winalto) est câblée et MMA/GMF partagent l'essentiel des mêmes
+supports Covéa Finance. Pour les couvrir : passer par `av-catalog-refresh-browser.py`
+(Playwright) sur le portail quantalys MMA/GMF, ou attendre une annexe PDF publique.
+
+---
+
 ## 1. Objectif
 
 Ajouter au référencement assurance-vie (`investissement_av_lux_eligibility`) les
