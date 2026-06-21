@@ -44,19 +44,27 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),
     ("scrapers/av-lux-baloise-catalog.py", []),
-    ("scrapers/av-lux-cardif-lux-vie-catalog.py", []),
     ("scrapers/av-lux-generali-catalog.py", []),
-    ("scrapers/av-lux-linxea-catalog.py", []),
     ("scrapers/av-lux-lmep-easypack.py", []),
     ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),  # --all = tous les contrats
     ("scrapers/av-lux-swisslife-catalog.py", []),
-    ("scrapers/av-lux-utmost-catalog.py", []),
-    ("scrapers/av-lux-vitislife-catalog.py", []),
-    ("scrapers/av-lux-wealins-catalog.py", []),
-    ("scrapers/linxea-av-catalog.py", []),
+    ("scrapers/av-lux-utmost-catalog.py", []),    # PDF → nécessite poppler-utils (cf. av-refresh.yml)
+    ("scrapers/av-lux-vitislife-catalog.py", []), # PDF → idem
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──
     ("enrichers/refresh-insurer-mv.py", []),
 ]
+
+# Catalogues NON joués par le job planifié : ils dépendent de `scrapling` (un
+# navigateur furtif) que le projet garde HORS CI car il y casse (décision actée,
+# cf. requirements.txt l.12 — `parsel` l'a remplacé pour SCPI). Leur donnée est
+# déjà seedée en base ; il faut les MIGRER vers requests+parsel (comme SCPI) avant
+# de les planifier. À lancer à la main en attendant.
+#   - scrapers/av-lux-cardif-lux-vie-catalog.py   (scrapling)
+#   - scrapers/av-lux-linxea-catalog.py           (scrapling)
+#   - scrapers/av-lux-wealins-catalog.py          (scrapling)
+#   - scrapers/linxea-av-catalog.py               (scrapling)
+# Note : av-lux-ag2r-catalog.py reste dans la liste (non-fatal) mais nécessite
+# Playwright pour des données réelles ; en CI il dégrade proprement (0 ligne).
 
 
 def run_script(name: str, args: list[str]) -> int:
