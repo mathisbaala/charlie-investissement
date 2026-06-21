@@ -98,6 +98,13 @@ pour un CGP) :
 
 ## 7bis. Proxy résidentiel (contournement blocage IP datacenter CI)
 
+> **STATUT (21/06/2026) : code en place mais NON ACTIVÉ — différé volontairement.**
+> Le mécanisme ci-dessous est mergé et **dormant** (aucun secret `AV_PROXY_URL` posé →
+> connexion directe, comportement inchangé). Jugé non prioritaire ; à activer plus tard
+> (souscrire un proxy + poser le secret, ou self-hosted runner). En attendant, Abeille &
+> MAAF restent re-seedés manuellement chaque trimestre (cf. agent #1). Rien à défaire :
+> le code est sans effet tant qu'il n'est pas activé.
+
 **Problème** : certains hôtes assureurs FR bloquent les **IP datacenter de GitHub
 Actions** (anti-bot DataDome / drop TCP) — vérifié 21/06 sur `maaf.fr` (timeout) et
 Abeille (page anti-bot servie en 200 vide). Le code des scrapers est correct (marche
