@@ -116,7 +116,14 @@ def main():
     now = datetime.now(timezone.utc).isoformat()
     ok = 0
     batch = []
+    seen_keys = set()  # (isin, contract_name) — l'upsert casse (21000) si un même
+                       # couple revient dans un batch (2 contrats Spirica homonymes,
+                       # ou ISIN listé 2×). On déduplique avant écriture.
     for isin, name, url in rows:
+        key = (isin, name)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
         batch.append({"isin": isin, "company_name": COMPANY, "contract_name": name,
                       "source_url": url, "scraped_at": now})
         if len(batch) >= 200:
