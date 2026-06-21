@@ -11,7 +11,7 @@ import sys
 import types
 import importlib.util
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 # Stub `db` pour importer le module sans supabase / env (toutes les fonctions db
@@ -61,6 +61,49 @@ class TrackRecordYears(unittest.TestCase):
         # Un fonds réellement ancien (SCPI 1966) garde son ancienneté réelle.
         expected = round((date.today() - date(1966, 1, 1)).days / 365.25, 1)
         self.assertEqual(cm._track_record_years("1966-01-01", span_days_5y=0), expected)
+
+
+class StalenessGuard(unittest.TestCase):
+    """Garde de péremption : une série figée ne doit plus produire de perf."""
+
+    def _fresh_series(self):
+        # 60 points hebdo sur ~360 j, +10 % → perf 1Y plausible (classe action).
+        return [100.0 + i * (10.0 / 59) for i in range(60)]
+
+    def test_is_stale_thresholds(self):
+        self.assertFalse(cm._is_stale(None))            # pas de prix → pas périmé
+        self.assertFalse(cm._is_stale(date.today().isoformat()))
+        recent = (date.today() - timedelta(days=cm.STALE_DAYS - 5)).isoformat()
+        self.assertFalse(cm._is_stale(recent))          # juste sous le seuil
+        old = (date.today() - timedelta(days=cm.STALE_DAYS + 5)).isoformat()
+        self.assertTrue(cm._is_stale(old))              # au-delà du seuil
+        self.assertTrue(cm._is_stale("2021-06-23"))     # fonds figé en 2021
+        self.assertFalse(cm._is_stale("pas-une-date"))  # robustesse parsing
+
+    def test_stale_series_purges_all_trend_metrics(self):
+        prices = self._fresh_series()
+        spans = {"1y": 360, "3y": 360, "5y": 360}
+        old = (date.today() - timedelta(days=400)).isoformat()
+        metrics = cm.compute_fund_metrics(
+            prices, prices, prices, prices, rf=0.03, spans=spans,
+            asset_class="action", inception="2016-01-01", last_date=old,
+        )
+        # Tous les champs de tendance explicitement à None (purge en base).
+        for f in cm.STALE_PURGE_FIELDS:
+            self.assertIn(f, metrics)
+            self.assertIsNone(metrics[f], f)
+
+    def test_fresh_series_still_computes_perf(self):
+        prices = self._fresh_series()
+        spans = {"1y": 360, "3y": 360, "5y": 360}
+        fresh = date.today().isoformat()
+        metrics = cm.compute_fund_metrics(
+            prices, prices, prices, prices, rf=0.03, spans=spans,
+            asset_class="action", inception="2016-01-01", last_date=fresh,
+        )
+        # Série fraîche → perf 1Y calculée (~+10 %), pas neutralisée par la garde.
+        self.assertIsNotNone(metrics.get("performance_1y"))
+        self.assertAlmostEqual(metrics["performance_1y"], 10.0, delta=0.5)
 
 
 if __name__ == "__main__":
