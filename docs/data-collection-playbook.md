@@ -18,7 +18,7 @@ Ce document est **le runbook** : il catalogue les sources, les scrapers, les pi�
 | Langage | Python 3.11 |
 | Module d'accès DB | `scripts/db.py` — singleton client, helpers `upsert_fund`, `update_funds_bulk`, `upsert_prices`, `log_run` |
 | Variables d'environnement | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (ou `SUPABASE_SERVICE_KEY`) dans `.env` racine |
-| Orchestrateurs | `scripts/cron/daily-pipeline.py`, `scripts/cron/overnight-mass-scrape.py`, scripts shell `wait-and-run-morningstar.sh`, `post-morningstar-pipeline.sh` |
+| Orchestrateurs | `scripts/cron/weekly-pipeline.py` + `monthly-pipeline.py` (cadence réelle via GitHub Actions, cf. §6), `scripts/cron/overnight-mass-scrape.py` (seeding manuel), scripts shell `wait-and-run-morningstar.sh`, `post-morningstar-pipeline.sh` |
 
 ### Tables Supabase principales
 
@@ -318,13 +318,12 @@ Données statiques mises à jour annuellement (livrets) ou trimestriellement (fo
 
 ## 6. Pipeline complet — séquence d'exécution
 
-### Quotidien (cron 03:30 UTC)
+### Quotidien
 
-```bash
-python3 scripts/cron/daily-pipeline.py
-# Lance fetch-opcvm-nav, fetch-etf-prices
-# Si lundi → compute-metrics (relance hebdo des Sharpe/vol/perf)
-```
+> **Supprimé.** Il n'y a plus de pipeline quotidien. L'ancien `daily-pipeline.py`
+> (VL Yahoo via `fetch-opcvm-nav` / `fetch-etf-prices`) a été retiré : ces VL
+> Yahoo sont périmées et entraient en concurrence avec les sources fraîches
+> (FT / JustETF / GECO). La cadence minimale est désormais **hebdomadaire**.
 
 ### Hebdomadaire (lundi soir)
 
@@ -617,7 +616,7 @@ if __name__ == "__main__":
 
 | Anti-pattern | Pourquoi | Solution |
 |-------------|----------|----------|
-| Script de migration relancé dans le pipeline régulier | Risque de corruption en cascade (cf. 7.1) | Migrations one-shot dans dossier `migrations/`, jamais dans `daily-pipeline` |
+| Script de migration relancé dans le pipeline régulier | Risque de corruption en cascade (cf. 7.1) | Migrations one-shot dans dossier `migrations/`, jamais dans les pipelines hebdo/mensuel |
 | `WORKERS=5+` sur source non vérifiée | Blocage IP immédiat | Toujours commencer à 1 |
 | `if data["ter"]:` au lieu de `if data.get("ter") is not None:` | `0.0` est falsy mais valide | Utiliser `is not None` partout |
 | Écrire des perfs annualisées dans `performance_3y/5y` | Mélange avec calculs cumulatifs | Convertir avant : `(1+r)^N - 1` |
