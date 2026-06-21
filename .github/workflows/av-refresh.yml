@@ -37,6 +37,11 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      # pdftotext : requis par 2 scrapers (utmost, vitislife) qui lisent les
+      # annexes financières PDF des contrats.
+      - name: Installer poppler-utils (pdftotext)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
