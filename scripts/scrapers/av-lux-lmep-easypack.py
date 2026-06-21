@@ -40,7 +40,7 @@ from parsel import Selector
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, log_run  # noqa: E402
-from _av_pdf_common import existing_isins  # noqa: E402  (filtre éligibilité-only partagé)
+from _av_pdf_common import existing_isins, make_session  # noqa: E402  (filtre éligibilité-only + proxy partagés)
 
 ROOT     = "https://ag2rlmep-easypack.quantalys.com"
 BASE_URL = f"{ROOT}/LMEPEasypack"
@@ -64,7 +64,9 @@ def _open_session() -> tuple["cffi_requests.Session", str, str]:
     CE franchissement (qui contient #produitsString) ; un 2e GET ne le renverrait
     plus.
     """
-    s = cffi_requests.Session(impersonate="chrome")
+    # use_proxy=True : quantalys peut bloquer/ralentir les IP datacenter → proxy
+    # résidentiel si AV_PROXY_URL posée (sinon connexion directe).
+    s = make_session(use_proxy=True)
     g = s.get(BASE_URL, timeout=TIMEOUT)
     m = re.search(r"window\.location\.href\s*=\s*'([^']+)'", g.text or "")
     if not m:

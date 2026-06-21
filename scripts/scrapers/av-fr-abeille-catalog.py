@@ -56,11 +56,13 @@ def main():
     ap.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = ap.parse_args()
 
-    session = make_session()
+    # use_proxy : Abeille sert une page anti-bot (200 vide) aux IP datacenter
+    # (vérifié 21/06) → découverte ET fetch via proxy résidentiel si AV_PROXY_URL posée.
+    session = make_session(use_proxy=True)
     contracts = discover(session)
     print(f"  Contrats Abeille découverts : {len(contracts)}")
     run_eligibility(COMPANY, contracts, scraper_name="av-fr-abeille-catalog",
-                    apply=args.apply, limit=args.limit)
+                    apply=args.apply, limit=args.limit, use_proxy=True)
 
 
 if __name__ == "__main__":

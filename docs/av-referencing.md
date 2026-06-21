@@ -96,6 +96,46 @@ pour un CGP) :
 - **Valider sans DB** : `--apply` absent = dry-run (ne touche pas `get_client`) ; sonder
   d'abord avec `curl_cffi`. Creds réels = secrets CI → run `workflow_dispatch` pour le bout-en-bout.
 
+## 7bis. Proxy résidentiel (contournement blocage IP datacenter CI)
+
+**Problème** : certains hôtes assureurs FR bloquent les **IP datacenter de GitHub
+Actions** (anti-bot DataDome / drop TCP) — vérifié 21/06 sur `maaf.fr` (timeout) et
+Abeille (page anti-bot servie en 200 vide). Le code des scrapers est correct (marche
+depuis une IP résidentielle) mais le run CI rend 0 → péremption silencieuse à terme.
+Hôtes suspects/concernés : `maaf.fr`, Abeille, `cap.mma.fr`/`cleerly.fr` (Covéa),
+`quantalys.com` (LMEP).
+
+**Mécanisme (en place, DORMANT par défaut)** :
+- Couche HTTP partagée `_av_pdf_common.make_session(use_proxy=...)` + paramètre
+  `run_eligibility(..., use_proxy=...)`. Si `use_proxy=True` **et** la variable d'env
+  `AV_PROXY_URL` est posée → la session curl_cffi route via le proxy. Sinon → connexion
+  directe (zéro changement). Activé sur les scrapers ciblés : **MAAF, Abeille, MMA, GMF,
+  LMEP** (les autres restent en direct pour ne pas dépendre d'un proxy qui pourrait être
+  instable). `av-refresh.yml` expose `AV_PROXY_URL: ${{ secrets.AV_PROXY_URL }}`.
+- Format : `http://user:pass@host:port` (ou `socks5h://user:pass@host:port`).
+
+**Activer (voie 1 — proxy, recommandée, zéro infra)** :
+1. Souscrire un **proxy résidentiel** (offres FR utiles ; ex. Bright Data, Oxylabs,
+   IPRoyal, Smartproxy — choix utilisateur, coût mensuel/au Go).
+2. `gh secret set AV_PROXY_URL --body 'http://USER:PASS@HOST:PORT'` (repo
+   `mathisbaala/charlie-investissement`).
+3. Lancer `av-refresh.yml` en `workflow_dispatch` → vérifier que MAAF/Abeille/MMA/GMF/LMEP
+   écrivent (logs « ↻ proxy résidentiel actif » + lignes éligibilité > 0).
+   Bande passante : les fetchs PDF sont petits (~Mo) ; LMEP pagine ~3119 lignes JSON.
+
+**Activer (voie 2 — self-hosted runner, sans proxy, sans coût/Go)** :
+- Enregistrer un runner sur une machine à IP résidentielle (Settings → Actions → Runners,
+  label ex. `residential`), puis basculer le `runs-on:` du job `av-refresh.yml` (et
+  `av-refresh-browser.yml`) de `ubuntu-latest` vers `[self-hosted, residential]`. Aucun
+  `AV_PROXY_URL` requis (l'IP du runner EST résidentielle). Le code proxy reste dormant.
+- ⚠️ La machine doit être allumée à l'heure du cron (12 jan/avr/juil/oct) ou utiliser
+  `workflow_dispatch` à la demande.
+
+**Note navigateur** : `av-refresh-browser.yml` (Playwright, Linxea/Cardif) n'est PAS
+encore câblé au proxy (la config proxy de Playwright diffère — `--proxy-server` au lancement
+du navigateur). À faire si ces hôtes se bloquent aussi en CI ; sinon la voie 2 (runner) les
+couvre nativement.
+
 ## 8. Historique des travaux (juin 2026)
 
 - **Refresh planifié** câblé (les catalogues étaient seedés une fois, jamais rafraîchis).

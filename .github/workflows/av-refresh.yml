@@ -31,6 +31,13 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Proxy résidentiel OPTIONNEL : contourne le blocage des IP datacenter GitHub
+      # par certains hôtes assureurs FR (maaf.fr, abeille, mma/gmf, quantalys). Si
+      # le secret AV_PROXY_URL n'est pas posé, la variable est vide → les scrapers
+      # tombent en connexion directe (comportement actuel inchangé). Seuls les
+      # scrapers à use_proxy=True l'utilisent. Format : http://user:pass@host:port.
+      # Cf. docs/av-referencing.md §Proxy.
+      AV_PROXY_URL: ${{ secrets.AV_PROXY_URL }}
     steps:
       - uses: actions/checkout@v5
 
