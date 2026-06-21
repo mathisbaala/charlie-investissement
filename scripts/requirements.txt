@@ -10,3 +10,4 @@ yfinance
 pandas
 numpy
 parsel  # parsing HTML/CSS (scpi-primaliance-enricher) — remplace scrapling en CI
+curl_cffi  # client HTTP TLS-impersonation (anti-bot) — remplace scrapling.FetcherSession en CI (léger, sans navigateur)

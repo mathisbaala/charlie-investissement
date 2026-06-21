@@ -54,18 +54,20 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-lux-swisslife-catalog.py", []),
     ("scrapers/av-lux-utmost-catalog.py", []),            # PDF → poppler-utils requis
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis
+    ("scrapers/av-lux-wealins-catalog.py", []),           # migré scrapling→curl_cffi+parsel (21/06)
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──
     ("enrichers/refresh-insurer-mv.py", []),
 ]
 
-# Catalogues NON joués par le job planifié — à réparer/migrer avant de réintégrer :
-#   • scrapling (navigateur furtif gardé HORS CI, cf. requirements.txt l.12 ;
-#     `parsel` l'a remplacé pour SCPI) — leur donnée est déjà seedée :
-#       - scrapers/av-lux-cardif-lux-vie-catalog.py
-#       - scrapers/av-lux-linxea-catalog.py
-#       - scrapers/av-lux-wealins-catalog.py
-#       - scrapers/linxea-av-catalog.py
-#   • sources bloquantes / besoin navigateur (rendaient 0, dont 1 hang 2 h) :
+# Catalogues NON joués par le job planifié — à réparer avant de réintégrer.
+# (Les 4 ex-scrapling ont été migrés vers curl_cffi+parsel le 21/06 → plus de crash
+#  à l'import en CI ; mais 3 restent inopérants pour une autre raison :)
+#   • besoin d'un NAVIGATEUR (Playwright) — pas de simple migration possible :
+#       - scrapers/av-lux-linxea-catalog.py        (JWT Morningstar généré côté navigateur)
+#       - scrapers/av-lux-cardif-lux-vie-catalog.py (APIs /docInfo only via session SPA — 404 en direct)
+#   • URLs source mortes (à re-câbler, indépendant de scrapling) :
+#       - scrapers/linxea-av-catalog.py            (comparateur Linxea 404 → rend 0)
+#   • sources bloquantes (rendaient 0, dont 1 hang 2 h) :
 #       - scrapers/av-lux-lmep-easypack.py   (quantalys.com — pendait sans timeout)
 #       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent)
 

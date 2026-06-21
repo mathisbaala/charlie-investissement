@@ -44,8 +44,12 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
-
+# NB : ce scraper NÉCESSITE un navigateur (Playwright) — les APIs Cardif
+# (/docInfo/api/produits, /docInfo/api/support-list/) ne répondent que dans le
+# contexte de session de la SPA (404 en requête directe, vérifié 21/06). Ce n'est
+# donc PAS une migration scrapling→parsel : le bloqueur CI est le navigateur, pas
+# scrapling (l'import scrapling, inutilisé, a été retiré). À planifier seulement
+# via un workflow avec Playwright, ou laisser en seed manuel.
 try:
     from playwright.sync_api import sync_playwright
     HAS_PLAYWRIGHT = True

@@ -22,8 +22,8 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
-from bs4 import BeautifulSoup
+from curl_cffi import requests as cffi_requests  # TLS-impersonation (anti-bot), sans navigateur
+from parsel import Selector
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, upsert_funds_bulk, log_run
@@ -54,19 +54,19 @@ def parse_sfdr(text: str) -> int | None:
 
 def parse_page(html: str) -> list[dict]:
     """Extrait les fonds d'une page Wealins."""
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
-    if not table:
+    sel = Selector(text=html)
+    tables = sel.css("table")
+    if not tables:
         return []
 
     funds = []
-    rows = table.find_all("tr")
+    rows = tables[0].css("tr")
     for row in rows[1:]:  # skip header
-        cells = row.find_all(["td", "th"])
+        cells = row.css("td, th")
         if len(cells) < 2:
             continue
 
-        texts = [c.get_text(strip=True) for c in cells]
+        texts = ["".join(c.css("*::text").getall()).strip() for c in cells]
         # Columns: Nom, ISIN, Val.date, Devise, Actuel, SFDR, [Détails]
         if len(texts) >= 2:
             name = texts[0].strip()
@@ -133,30 +133,30 @@ def run(apply: bool, limit: int | None):
     print()
 
     started = datetime.now(timezone.utc)
-    session = FetcherSession(impersonate="chrome").__enter__()
+    session = cffi_requests.Session(impersonate="chrome")
 
     # Page 1 — détecte le nombre total de pages
-    r = session.get(BASE_URL, stealthy_headers=True, timeout=20)
-    if r.status != 200:
-        print(f"  ERREUR : {r.status}")
+    r = session.get(BASE_URL, headers=HEADERS, timeout=20)
+    if r.status_code != 200:
+        print(f"  ERREUR : {r.status_code}")
         log_run("av-lux-wealins-catalog", "failed", 0, 0, started_at=started)
         return
 
-    last_page = get_last_page(r.body.decode("utf-8"))
+    last_page = get_last_page(r.text)
     print(f"  {last_page} pages détectées")
 
     all_funds: dict[str, dict] = {}
-    page_htmls = {1: r.body.decode("utf-8")}
+    page_htmls = {1: r.text}
 
     for page_num in range(1, last_page + 1):
         html = page_htmls.get(page_num)
         if html is None:
             time.sleep(RATE_LIMIT)
-            page = session.get(PAGE_URL.format(page=page_num), stealthy_headers=True, timeout=20)
-            if page.status != 200:
-                print(f"  ⚠ page {page_num} : {page.status}")
+            page = session.get(PAGE_URL.format(page=page_num), headers=HEADERS, timeout=20)
+            if page.status_code != 200:
+                print(f"  ⚠ page {page_num} : {page.status_code}")
                 continue
-            html = page.body.decode("utf-8")
+            html = page.text
 
         items = parse_page(html)
         for item in items:

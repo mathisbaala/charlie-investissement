@@ -42,7 +42,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
+from curl_cffi import requests as cffi_requests  # API ECINT via HTTP ; le JWT, lui, exige toujours un navigateur (voir get_jwt_from_browser)
 
 # Pour extraire le JWT avec Playwright (optionnel si JWT_TOKEN passé en env)
 try:
@@ -152,7 +152,7 @@ def get_jwt_from_env() -> str | None:
 # ─── Fetch API Morningstar ─────────────────────────────────────────────────────
 
 def fetch_universe(
-    session: FetcherSession,
+    session,
     token: str,
     universe_id: str,
 ) -> list[dict]:
@@ -182,12 +182,12 @@ def fetch_universe(
 
         try:
             resp = session.get(MS_API_BASE, headers=auth_headers, params=params, timeout=TIMEOUT)
-            if resp.status == 401:
+            if resp.status_code == 401:
                 print(f"  [ecint] JWT expiré (401) sur univers {universe_id}")
                 return rows_all
-            if resp.status != 200:
-                raise Exception(f"HTTP {resp.status}")
-            data = json.loads(resp.body.decode("utf-8"))
+            if resp.status_code != 200:
+                raise Exception(f"HTTP {resp.status_code}")
+            data = json.loads(resp.text)
         except Exception as e:
             print(f"  [ecint] Erreur page {page} univers {universe_id} : {e}")
             break
@@ -364,7 +364,7 @@ def run(apply: bool, limit: int | None):
         log_run("av-lux-linxea-catalog", "failed", 0, 0, started_at=started)
         return
 
-    session = FetcherSession(impersonate="chrome").__enter__()
+    session = cffi_requests.Session(impersonate="chrome")
     client  = get_client() if apply else None
 
     # Collecter tous les fonds avec leurs contrats
