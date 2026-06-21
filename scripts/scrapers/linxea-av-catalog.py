@@ -32,7 +32,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrapling.fetchers import FetcherSession
+from curl_cffi import requests as cffi_requests  # TLS-impersonation (anti-bot), sans navigateur
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, upsert_fund, upsert_funds_bulk, log_run
@@ -107,7 +107,7 @@ def guess_asset_class(name: str, category: str) -> str:
     return "diversifie"
 
 
-def try_linxea_api(session: FetcherSession) -> list[dict]:
+def try_linxea_api(session) -> list[dict]:
     """Tente de récupérer le catalogue via l'API Linxea."""
     results = []
 
@@ -121,9 +121,9 @@ def try_linxea_api(session: FetcherSession) -> list[dict]:
     for url in api_urls:
         try:
             page = session.get(url, headers={**HEADERS, "Accept": "application/json"}, timeout=TIMEOUT)
-            if page.status == 200:
+            if page.status_code == 200:
                 try:
-                    data = json.loads(page.body.decode("utf-8"))
+                    data = json.loads(page.text)
                 except (ValueError, UnicodeDecodeError):
                     continue
                 if isinstance(data, list) and len(data) > 10:
@@ -148,7 +148,7 @@ def try_linxea_api(session: FetcherSession) -> list[dict]:
     return results
 
 
-def try_linxea_html(session: FetcherSession) -> list[dict]:
+def try_linxea_html(session) -> list[dict]:
     """Scrape la page de comparateur de fonds Linxea."""
     results = []
     urls = [
@@ -159,11 +159,11 @@ def try_linxea_html(session: FetcherSession) -> list[dict]:
     for url in urls:
         try:
             time.sleep(RATE_LIMIT)
-            page = session.get(url, stealthy_headers=True, timeout=TIMEOUT)
-            if page.status != 200:
+            page = session.get(url, headers=HEADERS, timeout=TIMEOUT)
+            if page.status_code != 200:
                 continue
 
-            html = page.body.decode("utf-8")
+            html = page.text
 
             # Chercher les données JSON embeddées dans le HTML
             # (Next.js / React souvent embed les données dans __NEXT_DATA__ ou window.__DATA__)
@@ -288,7 +288,7 @@ def map_linxea_fund(item: dict) -> dict | None:
     return row
 
 
-def scrape_contract_funds(session: FetcherSession, contract: str) -> list[dict]:
+def scrape_contract_funds(session, contract: str) -> list[dict]:
     """Scrape les fonds d'un contrat Linxea spécifique."""
     results = []
     urls = [
@@ -300,11 +300,11 @@ def scrape_contract_funds(session: FetcherSession, contract: str) -> list[dict]:
     for url in urls:
         try:
             time.sleep(RATE_LIMIT)
-            page = session.get(url, stealthy_headers=True, timeout=TIMEOUT)
-            if page.status != 200:
+            page = session.get(url, headers=HEADERS, timeout=TIMEOUT)
+            if page.status_code != 200:
                 continue
 
-            html = page.body.decode("utf-8")
+            html = page.text
             isins_found = set(ISIN_RE.findall(html))
             if len(isins_found) > 5:
                 print(f"  [linxea/{contract}] {len(isins_found)} ISINs trouvés")
@@ -335,7 +335,7 @@ def run(apply: bool, limit: int | None):
     print()
 
     started = datetime.now(timezone.utc)
-    session = FetcherSession(impersonate="chrome").__enter__()
+    session = cffi_requests.Session(impersonate="chrome")
 
     all_results: list[dict] = []
 
