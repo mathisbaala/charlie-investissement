@@ -6,11 +6,8 @@ Source : notices d'information PDF publiques MAAF (maaf.fr/fr/files/…), dont
 l'annexe « Liste des supports en unités de compte ». Assureur : MAAF Vie
 (groupe Covéa).
 
-⚠️ Périmètre Covéa : seule la gamme MAAF (Winalto) est accessible par script.
-Les listes UC de MMA (MMA Vie) et GMF (GMF Vie) ne sont publiées que derrière
-quantalys (SPA cookie-wall non scriptable) ou un anti-bot DataDome → non câblées
-ici (cf. docs/tier3-missing-insurers-spec.md). La gamme financière MMA/GMF est
-toutefois très proche de celle de MAAF (mêmes supports Covéa Finance).
+Périmètre Covéa : MAAF (Winalto), MMA (Multisupports, cf. av-fr-mma-catalog) et
+GMF (Multéo, cf. av-fr-gmf-catalog) sont tous câblés depuis le 21/06 (annexe PDF).
 
 ÉLIGIBILITÉ-ONLY (cf. _av_pdf_common).
 

@@ -53,13 +53,16 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-abeille-catalog.py", []),      # Abeille Vie (ex-Aviva, Afer/Lucya Abeille)
     ("scrapers/av-fr-groupama-gan-catalog.py", []), # Groupama Gan Vie (webfg, 4 marques)
     ("scrapers/av-fr-macsf-catalog.py", []),        # MACSF (RES Multisupport)
-    ("scrapers/av-fr-maaf-catalog.py", []),         # MAAF Vie / Covéa (Winalto ; MMA+GMF non scriptables)
+    ("scrapers/av-fr-maaf-catalog.py", []),         # MAAF Vie / Covéa (Winalto)
+    ("scrapers/av-fr-mma-catalog.py", []),          # MMA Vie / Covéa (Multisupports — cap.mma.fr PDF)
+    ("scrapers/av-fr-gmf-catalog.py", []),          # GMF Vie / Covéa (Multéo — miroir cleerly.fr PDF)
     ("scrapers/av-fr-acm-catalog.py", []),          # ACM Vie / Crédit Mutuel-CIC
     # ── AV Luxembourg ─────────────────────────────────────────────────────────
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis
     ("scrapers/av-lux-baloise-catalog.py", []),           # PDF → poppler-utils requis
     ("scrapers/av-lux-generali-catalog.py", []),
+    ("scrapers/av-lux-lmep-easypack.py", []),               # AG2R LMEP (quantalys Easypack, réparé 21/06 : porte JS + payload DataTables)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),      # contrats KNOWN_CONTRACTS (IDs figés)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--dynamic"]),  # contrats /licontracts (noms assureur autoritaires : Generali Vie, AG2R, Spirica…)
     ("scrapers/av-lux-swisslife-catalog.py", []),
@@ -73,22 +76,21 @@ AV_CATALOG_STEPS = [
 ]
 
 # Catalogues NON joués par le job planifié — à réparer avant de réintégrer.
-# (Les 4 ex-scrapling ont été migrés vers curl_cffi+parsel le 21/06 → plus de crash
-#  à l'import en CI ; mais 3 restent inopérants pour une autre raison :)
-#   • besoin d'un NAVIGATEUR (Playwright) — pas de simple migration possible :
-#       - scrapers/av-lux-linxea-catalog.py        (JWT Morningstar généré côté navigateur)
+#   • besoin d'un NAVIGATEUR (Playwright) — joués par av-catalog-refresh-browser.py :
+#       - scrapers/av-lux-linxea-catalog.py        (JWT Morningstar généré côté navigateur ;
+#                                                   API ECINT vivante, IDs d'univers à rafraîchir)
 #       - scrapers/av-lux-cardif-lux-vie-catalog.py (APIs /docInfo only via session SPA — 404 en direct)
-#   • URLs source mortes (à re-câbler, indépendant de scrapling) :
-#       - scrapers/linxea-av-catalog.py            (comparateur Linxea 404 → rend 0)
-#   • sources bloquantes (rendaient 0, dont 1 hang 2 h) :
-#       - scrapers/av-lux-lmep-easypack.py   (quantalys.com — pendait sans timeout)
-#       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent)
+#   • sources bloquantes restantes :
+#       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent ;
+#                                            la gamme AG2R LMEP Lux est désormais couverte
+#                                            par av-lux-lmep-easypack ci-dessus)
+# (scrapers/linxea-av-catalog.py SUPPRIMÉ le 21/06 : comparateur Linxea 404, superseded
+#  par av-lux-linxea-catalog.py.)
 #
-# Tier 3 — périmètre Covéa NON couvert (pas de source publique scriptable) :
-#   • MMA Vie  : liste UC seulement via quantalys (SPA cookie-wall) ou DataDome.
-#   • GMF Vie  : idem (tout gmf.fr en 403/503 DataDome).
-#   La gamme MAAF (Winalto) est câblée ; MMA/GMF partagent l'essentiel des mêmes
-#   supports Covéa Finance. Cf. docs/tier3-missing-insurers-spec.md.
+# Tier 3 — groupe Covéa désormais COMPLET (MAAF/Winalto + MMA/Multisupports +
+#   GMF/Multéo, tous annexe PDF). MMA via cap.mma.fr (sous-domaine doc non
+#   protégé) ; GMF via miroir tiers cleerly.fr (gmf.fr reste DataDome).
+#   Cf. docs/tier3-missing-insurers-spec.md.
 
 
 def run_script(name: str, args: list[str]) -> int:
