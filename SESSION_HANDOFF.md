@@ -104,6 +104,7 @@
 ## 🚧 Prochains chantiers (pour repartir)
 
 - ~~**[ACTION utilisateur]** Faire tourner la clé Anthropic exposée + la recréer dans un Workspace avec spend limit 20 €.~~ → **FAIT (21/06).**
+- ~~**UC AV assureurs** : trou structurel ?~~ → **FAUX (21/06)** : ~22 scrapers existent, **439 contrats / 10,6k UC**. Refresh trimestriel câblé (`av-refresh.yml`). Backlog : 4 scrapers `scrapling`→parsel, lmep/ag2r (sources bloquantes), utmost/vitislife/spirica/mutualistes (rendent 0). Voir mémoire `av-catalog-refresh`.
 - **SCPI prix de part** : source unique = scrape Primaliance (pas d'API) → couverture à étendre.
 - **Actions individuelles** : 0 prix en base (pas de source câblée).
 - **Look-through** : couverture compositions ~3 % → faire monter via le gap-fill mensuel `ft-enricher --fill-breakdowns --by-referencing`.
