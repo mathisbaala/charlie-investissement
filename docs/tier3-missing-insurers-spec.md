@@ -7,9 +7,9 @@
 
 **FAIT — les 7 assureurs majeurs câblés** via un socle commun `scripts/scrapers/_av_pdf_common.py`
 (curl_cffi + pdftotext, éligibilité-only, filtre sur ISIN en base, dédup anti-21000,
-`scraped_at=now()`). Tous validés en dry-run (fetch+parse) ; l'écriture bout-en-bout
-se fait au prochain run `av-refresh.yml` (`workflow_dispatch` pour valider tout de suite).
-Le 7e (Covéa) inclut désormais MMA + GMF (cf. ci-dessous).
+`scraped_at=now()`). Validés en dry-run (fetch+parse) **puis bout-en-bout en CI**
+(`workflow_dispatch` du 2026-06-21, cf. §0.bis). Le 7e (Covéa) inclut désormais MMA + GMF
+(cf. ci-dessous).
 
 | Assureur | Scraper | Source | Contrats | ISIN bruts (avant filtre base) |
 |----------|---------|--------|---------:|----:|
@@ -49,6 +49,45 @@ en curl_cffi : 0 nouvelle clé. La clé connue (`dec511123cYF4gtju8Spf67dr`) exi
 `Referer`/`Origin: iframes.opcvm360.com` (le scraper les envoie déjà). Capter d'autres clés
 nécessiterait un **navigateur headless** observant le trafic réseau des outils de recherche de
 fonds (funds360.fefundinfo, meilleurtaux, altaprofits…) → chantier distinct, ROI à arbitrer.
+
+## 0.bis Validation bout-en-bout en CI (workflow_dispatch 2026-06-21)
+
+Le job `av-refresh.yml` a été lancé manuellement (run réussi) et l'écriture a été vérifiée
+en base de production. **État réel constaté par assureur** (fonds distincts / contrats) :
+
+| Assureur | Fonds en base | Contrats | Écrit par |
+|----------|--------------:|---------:|-----------|
+| CNP Assurances   | 1290 | 7  | ✅ CI (job) |
+| Predica / CA     |  422 | 12 | ✅ CI (job) |
+| Abeille Vie      |  416 | 17 | ⚠️ seed manuel MCP (CI bloqué) |
+| Groupama Gan Vie |  216 | 17 | ✅ CI (job) |
+| ACM Vie          |  107 | 6  | ✅ CI (job) |
+| MAAF Vie         |   34 | 3  | ⚠️ seed manuel MCP (CI bloqué) |
+| MACSF            |   19 | 3  | ✅ CI (job) |
+
+Total : **~2 504 fonds distincts, 65 contrats, ~8 267 liens.**
+
+🔴 **GOTCHA décisif — certains hôtes assureurs bloquent les IP datacenter de GitHub Actions.**
+Le code est correct (tourne depuis une IP résidentielle), mais en CI :
+- **Abeille** (`abeille-assurances.fr`) sert une **page anti-bot en HTTP 200** → la découverte
+  renvoie 0 contrat (aucune erreur visible, juste 0 lien écrit).
+- **MAAF** (`maaf.fr`) **drop la connexion TCP** → `curl (28) connection timed out`.
+- **MMA/GMF** (`cap.mma.fr`, `cleerly.fr`) : reachability CI **non confirmée** — même risque,
+  à vérifier au prochain run.
+
+**Contournement appliqué (2026-06-21) :** Abeille + MAAF seedés une fois en prod via le **MCP
+Supabase** (fetch local depuis IP résidentielle → `INSERT … SELECT … JOIN investissement_funds`,
+idempotent, filtré sur la base) puis `inv_refresh_fund_insurers_mv()`.
+
+**Décision (validée avec le PO le 2026-06-21) : RE-SEED MANUEL TRIMESTRIEL** pour Abeille + MAAF
+(et à surveiller pour MMA/GMF). Pas de proxy ni de self-hosted runner pour l'instant.
+⚠️ La cadence CI est trimestrielle (`0 5 12 1,4,7,10`) : **chaque run remet Abeille/MAAF à 0**
+(re-bloqués). Il faut donc **relancer le seed manuel après chaque run** (prochain : 12/07/2026).
+⚠️ Ce re-seed **ne peut PAS être automatisé à distance** (un agent cron tourne sur IP datacenter →
+bloqué de la même façon) : c'est une action **depuis une session locale** (IP résidentielle).
+Procédure : importer `discover`/`fetch_pdf_text`/`extract_isins` de `_av_pdf_common`, fetcher les
+contrats Abeille/MAAF, générer les `INSERT … SELECT … JOIN investissement_funds`, exécuter via le
+MCP Supabase, puis `SELECT inv_refresh_fund_insurers_mv();`.
 
 ---
 

@@ -84,6 +84,13 @@ pour un CGP) :
   `(isin, contract_name)` avant l'upsert batch** (cf. `av-fr-spirica-catalog.py` `seen_keys`).
 - ⚠️ **Sources bloquantes** (quantalys, opcvm360-direct) : toujours `timeout=` ; le
   `STEP_TIMEOUT` est le filet (incident lmep : hang 2 h).
+- 🔴 **Blocage IP datacenter en CI** : certains hôtes assureurs filtrent les IP des runners
+  GitHub Actions alors qu'ils répondent depuis une IP résidentielle. Symptômes : page anti-bot
+  servie en **HTTP 200** (→ 0 lien découvert, aucune erreur) ou **timeout TCP `curl (28)`**.
+  Constaté sur **Abeille** (`abeille-assurances.fr`) et **MAAF** (`maaf.fr`) ; à surveiller pour
+  MMA/GMF (`cap.mma.fr`/`cleerly.fr`). Contournement = **seed manuel depuis une session locale**
+  via le MCP Supabase (non automatisable à distance : un cron tourne aussi sur IP datacenter).
+  Détail + procédure dans `docs/tier3-missing-insurers-spec.md` §0.bis.
 - ⚠️ **Noms d'assureur** : prendre le nom autoritaire de la source → évite « Assureur
   inconnu » et les doublons d'accent.
 - **Valider sans DB** : `--apply` absent = dry-run (ne touche pas `get_client`) ; sonder
@@ -101,4 +108,6 @@ pour un CGP) :
 - **Tier 1 hygiène** : 20 stubs `manual:user-tobam` purgés (backup `investissement_av_eligibility_tobam_backup_20260621`, RLS).
 - **Tier 4 délistage** (RPC + enricher conservateurs).
 - **Tier 3** (bancassureurs FR : CNP, Predica, Abeille, Groupama/Gan, MACSF, MAAF, ACM) —
-  cf. `docs/tier3-missing-insurers-spec.md` (chantier d'un autre agent).
+  cf. `docs/tier3-missing-insurers-spec.md`. **Validé bout-en-bout en CI le 21/06** : 7/7 assureurs
+  live (~2 504 fonds, 65 contrats) ; 5/7 écrits par le job, Abeille+MAAF seedés manuellement
+  (IP CI bloquée → re-seed manuel trimestriel, cf. gotcha §7).
