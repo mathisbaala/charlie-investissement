@@ -1,7 +1,9 @@
 name: Rafraîchissement catalogues AV
 
-# Catalogues d'unités de compte des contrats d'assurance-vie (~22 assureurs
-# FR + LUX → table investissement_av_lux_eligibility, 357 contrats / 10,4k UC).
+# Catalogues d'unités de compte des contrats d'assurance-vie (~29 assureurs
+# FR + LUX → table investissement_av_lux_eligibility). Inclut les bancassureurs
+# majeurs (Tier 3 juin 2026 : CNP, Predica/CA, Abeille, Groupama/Gan, MACSF,
+# MAAF/Covéa, ACM/Crédit Mutuel) via annexes PDF.
 # Ces catalogues changent lentement (les assureurs ajoutent/retirent des UC) :
 # une cadence TRIMESTRIELLE suffit. Décalé au 12 (≠ le 5 du refresh SCPI) pour
 # ne pas se chevaucher avec l'autre job du groupe `data-refresh`.
@@ -37,8 +39,9 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      # pdftotext : requis par 2 scrapers (utmost, vitislife) qui lisent les
-      # annexes financières PDF des contrats.
+      # pdftotext : requis par les scrapers qui lisent les annexes financières
+      # PDF des contrats (Baloise/Utmost/Vitislife + bancassureurs FR Tier 3 :
+      # CNP, Predica, Abeille, Groupama/Gan, MACSF, MAAF, ACM via _av_pdf_common).
       - name: Installer poppler-utils (pdftotext)
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
 

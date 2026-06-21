@@ -45,6 +45,16 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-spirica-catalog.py", []),      # rend 0 (sylvea.fr 404) — à re-câbler
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
+    # ── AV France — bancassureurs majeurs (Tier 3, annexes PDF, juin 2026) ─────
+    #    Tous éligibilité-only via _av_pdf_common (curl_cffi + pdftotext, filtre
+    #    sur ISIN en base). ~65 contrats / ~11,9k liens bruts au câblage.
+    ("scrapers/av-fr-cnp-catalog.py", []),          # CNP Assurances (Lucya CNP, Nuances, EasyVie)
+    ("scrapers/av-fr-predica-catalog.py", []),      # Predica / Crédit Agricole (WP REST → PDF)
+    ("scrapers/av-fr-abeille-catalog.py", []),      # Abeille Vie (ex-Aviva, Afer/Lucya Abeille)
+    ("scrapers/av-fr-groupama-gan-catalog.py", []), # Groupama Gan Vie (webfg, 4 marques)
+    ("scrapers/av-fr-macsf-catalog.py", []),        # MACSF (RES Multisupport)
+    ("scrapers/av-fr-maaf-catalog.py", []),         # MAAF Vie / Covéa (Winalto ; MMA+GMF non scriptables)
+    ("scrapers/av-fr-acm-catalog.py", []),          # ACM Vie / Crédit Mutuel-CIC
     # ── AV Luxembourg ─────────────────────────────────────────────────────────
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis
@@ -73,6 +83,12 @@ AV_CATALOG_STEPS = [
 #   • sources bloquantes (rendaient 0, dont 1 hang 2 h) :
 #       - scrapers/av-lux-lmep-easypack.py   (quantalys.com — pendait sans timeout)
 #       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent)
+#
+# Tier 3 — périmètre Covéa NON couvert (pas de source publique scriptable) :
+#   • MMA Vie  : liste UC seulement via quantalys (SPA cookie-wall) ou DataDome.
+#   • GMF Vie  : idem (tout gmf.fr en 403/503 DataDome).
+#   La gamme MAAF (Winalto) est câblée ; MMA/GMF partagent l'essentiel des mêmes
+#   supports Covéa Finance. Cf. docs/tier3-missing-insurers-spec.md.
 
 
 def run_script(name: str, args: list[str]) -> int:
