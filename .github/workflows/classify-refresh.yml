@@ -5,7 +5,10 @@ name: Garde de classification (OpenFIGI)
 # en régime permanent, ne checke que les nouveaux ISIN. Mensuel (2e mardi).
 on:
   schedule:
-    - cron: "0 5 8-14 * 2" # 2e mardi du mois, 05:00 UTC
+    # Cible : 2e mardi du mois, 05:00 UTC. Cron OU (jour-mois/jour-semaine) →
+    # se déclenche tous les mardis (+ jours 8-14) ; le filtrage « 2e mardi »
+    # réel est fait par une garde dans le step ci-dessous.
+    - cron: "0 5 8-14 * 2"
   workflow_dispatch: {}
 
 # Groupe de concurrence DÉDIÉ (pas data-refresh) : la garde ne lit/écrit que
@@ -39,7 +42,18 @@ jobs:
         run: pip install -r scripts/requirements.txt
 
       - name: OpenFIGI — reclasser les titres vifs mal classés opcvm
-        run: python3 scripts/scrapers/openfigi-classify.py --apply
+        # Garde « 2e mardi » : neutralise le OU jour-du-mois/jour-de-semaine du
+        # cron. On ne lance le balayage qu'au 2e mardi sur déclenchement planifié ;
+        # le manuel (workflow_dispatch) passe toujours.
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DOW=$(date -u +%u); DOM=$(date -u +%-d)
+            if [ "$DOW" != "2" ] || [ "$DOM" -lt 8 ] || [ "$DOM" -gt 14 ]; then
+              echo "Planifié hors 2e mardi (jour-semaine=$DOW, jour-mois=$DOM) — skip."
+              exit 0
+            fi
+          fi
+          python3 scripts/scrapers/openfigi-classify.py --apply
 
       - name: Alerte en cas d'échec
         if: failure()

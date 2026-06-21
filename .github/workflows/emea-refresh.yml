@@ -6,7 +6,10 @@ name: Perfs OPCVM étrangers (Morningstar EMEA)
 # (non-FR sans prix) → indépendant des autres jobs, groupe de concurrence dédié.
 on:
   schedule:
-    - cron: "0 6 1-7 * 1" # 1er lundi du mois, 06:00 UTC (après le mensuel de 05:00)
+    # Cible : 1er lundi, 06:00 UTC (après le mensuel de 05:00). Cron OU
+    # (jour-mois/jour-semaine) → se déclenche tous les lundis ; le filtrage
+    # « 1er lundi » est fait par une garde dans le step (anti-throttle Morningstar).
+    - cron: "0 6 1-7 * 1"
   workflow_dispatch: {}
 
 concurrency:
@@ -37,7 +40,18 @@ jobs:
         run: pip install -r scripts/requirements.txt
 
       - name: Morningstar EMEA — perfs OPCVM étrangers (refresh)
-        run: python3 scripts/scrapers/ms-emea-perf-enricher.py --apply --refresh
+        # Garde « 1er lundi » : neutralise le OU jour-du-mois/jour-de-semaine du
+        # cron pour ne solliciter Morningstar (throttle) qu'une fois par mois sur
+        # déclenchement planifié ; le manuel (workflow_dispatch) passe toujours.
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DOW=$(date -u +%u); DOM=$(date -u +%-d)
+            if [ "$DOW" != "1" ] || [ "$DOM" -gt 7 ]; then
+              echo "Planifié hors 1er lundi (jour-semaine=$DOW, jour-mois=$DOM) — skip."
+              exit 0
+            fi
+          fi
+          python3 scripts/scrapers/ms-emea-perf-enricher.py --apply --refresh
 
       - name: Alerte en cas d'échec
         if: failure()
