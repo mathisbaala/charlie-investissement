@@ -56,6 +56,8 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-lux-utmost-catalog.py", []),            # PDF → poppler-utils requis
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis
     ("scrapers/av-lux-wealins-catalog.py", []),           # migré scrapling→curl_cffi+parsel (21/06)
+    # ── Délistage : purge les liens confirmés périmés (UC retirées d'un contrat) ──
+    ("enrichers/prune-stale-av-eligibility.py", []),
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──
     ("enrichers/refresh-insurer-mv.py", []),
 ]
