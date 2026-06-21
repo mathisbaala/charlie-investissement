@@ -1,258 +1,227 @@
 #!/usr/bin/env python3
 """
-av-lux-lmep-easypack.py — Catalogue fonds LMEP via Quantalys Easypack
-=======================================================================
-La Mondiale Europartner (AG2R La Mondiale) publie son univers de fonds AV Luxembourg
-via un portail Quantalys "Easypack" accessible sans authentification :
+av-lux-lmep-easypack.py — Catalogue UC LMEP (AG2R La Mondiale Europartner)
+==========================================================================
+La Mondiale Europartner (AG2R La Mondiale, AV Luxembourg) publie son univers de
+supports via un portail Quantalys "Easypack" public :
   https://ag2rlmep-easypack.quantalys.com/LMEPEasypack
 
-Le portail charge les données via une API DataTables (POST JSON) sur :
-  POST /LMEPEasypack/Data
+⚠️ Réparé 2026-06-21 (était au backlog : ancienne version en `requests` rendait 0
+et pendait). Deux corrections :
+  1. ANTI-BOT : la page pose une porte JS (`window.location.href='/redirect_<TOKEN>/…'`)
+     qui dépose les cookies de session. Il faut la suivre dans une session
+     curl_cffi (impersonate chrome), sinon l'API /Data répond vide. Plain
+     `requests` ne passait pas la porte → 0 ligne, d'où l'ancien échec silencieux.
+  2. PAYLOAD : l'API DataTables exige les `columns[i][name]` (71 colonnes, lues
+     dans le driver JS), la liste des bassins `Values.lstContrats[i]` (lus dans le
+     hidden #produitsString) et `Values.lstIDProduits`. L'ancien payload générique
+     renvoyait recordsTotal=0.
 
-Champs disponibles : name, isin, type, catégorie, manager, currency, sri
+ÉLIGIBILITÉ-ONLY : ne récupère que des ISIN puis n'écrit QUE le lien
+(isin, contrat) dans investissement_av_lux_eligibility, filtré sur les ISIN déjà
+présents dans investissement_funds. N'insère/écrase JAMAIS de fonds (contrairement
+à l'ancienne version qui faisait un upsert_funds_bulk — supprimé).
 
 Usage :
-    python3 scripts/scrapers/av-lux-lmep-easypack.py [--apply] [--limit N]
+    python3 scripts/scrapers/av-lux-lmep-easypack.py            # dry-run
+    python3 scripts/scrapers/av-lux-lmep-easypack.py --apply
 """
 
 import re
 import sys
 import json
+import time
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
+from curl_cffi import requests as cffi_requests
+from parsel import Selector
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, upsert_funds_bulk, log_run
+from db import get_client, log_run  # noqa: E402
+from _av_pdf_common import existing_isins  # noqa: E402  (filtre éligibilité-only partagé)
 
-# ─── Config ────────────────────────────────────────────────────────────────────
+ROOT     = "https://ag2rlmep-easypack.quantalys.com"
+BASE_URL = f"{ROOT}/LMEPEasypack"
+DATA_URL = f"{BASE_URL}/Data"
+DRIVER_JS = f"{ROOT}/Areas/Partenaire/Easypack/LMEPEasypack/Supports/LMEPEasypack.js"
 
-BASE_URL    = "https://ag2rlmep-easypack.quantalys.com/LMEPEasypack"
-DATA_URL    = f"{BASE_URL}/Data"
-COMPANY     = "AG2R La Mondiale / LMEP"
-CONTRACT    = "LMEP Europartner Luxembourg"
+COMPANY  = "AG2R La Mondiale"
+CONTRACT = "LMEP Europartner Luxembourg"
 
-HEADERS = {
-    "User-Agent":   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    "Accept":       "application/json, text/javascript, */*",
-    "Content-Type": "application/x-www-form-urlencoded",
-    "Referer":      BASE_URL,
-    "X-Requested-With": "XMLHttpRequest",
-}
-
-ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{10}$")
-PAGE_SIZE = 500
+ISIN_RE   = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}\d$")
+PAGE_SIZE = 400
+TIMEOUT   = 45
+MIN_EXPECTED = 500  # garde anti-régression : sous ce seuil, on logge un échec
+                    # (la source en porte ~3100 UC ; <500 = porte/payload cassé).
 
 
-# ─── Extraction ───────────────────────────────────────────────────────────────
+def _open_session() -> tuple["cffi_requests.Session", str, str]:
+    """Ouvre une session, franchit la porte JS, renvoie (session, referer, html).
 
-def fetch_page(session: requests.Session, draw: int, start: int, length: int) -> dict:
-    """Requête DataTables standard vers l'endpoint /LMEPEasypack/Data."""
-    # Paramètres DataTables server-side
-    payload = {
-        "draw": draw,
-        "start": start,
-        "length": length,
-        "search[value]": "",
-        "search[regex]": "false",
-        "order[0][column]": "0",
-        "order[0][dir]": "asc",
-    }
-    try:
-        r = session.post(DATA_URL, data=payload, headers=HEADERS, timeout=30)
-        if r.ok:
-            return r.json()
-    except Exception:
-        pass
-    return {}
+    ⚠️ L'URL de redirect porte un token à usage unique : on lit le HTML servi par
+    CE franchissement (qui contient #produitsString) ; un 2e GET ne le renverrait
+    plus.
+    """
+    s = cffi_requests.Session(impersonate="chrome")
+    g = s.get(BASE_URL, timeout=TIMEOUT)
+    m = re.search(r"window\.location\.href\s*=\s*'([^']+)'", g.text or "")
+    if not m:
+        # Pas de porte (peut arriver si cookies déjà posés) — page directe.
+        return s, BASE_URL, g.text or ""
+    referer = ROOT + m.group(1)
+    page = s.get(referer, timeout=TIMEOUT)  # dépose les cookies + sert la page UC
+    return s, referer, page.text or ""
 
 
-def parse_row(row) -> dict | None:
-    """Interprète une ligne de données DataTables (list ou dict)."""
-    # Les lignes peuvent être des listes ou des dicts selon la config DataTables
-    if isinstance(row, list):
-        # Format tableau : [name, isin, type, category, manager, currency, sri, ...]
-        if len(row) < 2:
-            return None
-        name = str(row[0]).strip() if row[0] else ""
-        isin = str(row[1]).strip().upper() if len(row) > 1 else ""
-        currency = str(row[5]).strip() if len(row) > 5 else ""
-        sri_raw = str(row[6]).strip() if len(row) > 6 else ""
-    elif isinstance(row, dict):
-        name = str(row.get("name") or row.get("Name") or row.get("FundName") or "").strip()
-        isin = str(row.get("isin") or row.get("ISIN") or row.get("Isin") or "").strip().upper()
-        currency = str(row.get("currency") or row.get("Currency") or "").strip()
-        sri_raw = str(row.get("sri") or row.get("Sri") or row.get("srri") or "").strip()
-    else:
-        return None
-
-    if not ISIN_RE.match(isin):
-        return None
-
-    fund: dict = {
-        "isin":            isin,
-        "av_lux_eligible": True,
-        "data_source":     "lmep-easypack",
-    }
-    if name:
-        fund["name"] = name
-    if currency and re.match(r"^[A-Z]{3}$", currency):
-        fund["currency"] = currency
-    if sri_raw:
-        m = re.search(r"(\d)", sri_raw)
-        if m:
-            v = int(m.group(1))
-            if 1 <= v <= 7:
-                fund["sri"] = v
-                fund["srri"] = v
-
-    return fund
-
-
-def extract_all_funds() -> list[dict]:
-    session = requests.Session()
-    funds: dict[str, dict] = {}
-    draw = 1
-    start = 0
-
-    # Premier appel pour connaître le total
-    resp = fetch_page(session, draw, start=0, length=PAGE_SIZE)
-    if not resp:
-        print("  ⚠ Pas de réponse DataTables — test format alternatif")
+def _discover_bassins(html: str) -> list[str]:
+    """Lit les ID_Bassin (contrats) dans le hidden #produitsString de la page."""
+    ps = Selector(html).css("#produitsString::attr(value)").get()
+    if not ps:
         return []
+    try:
+        arr = json.loads(ps)
+    except Exception:
+        return []
+    return sorted({str(x["ID_Bassin"]) for x in arr
+                   if isinstance(x, dict) and x.get("ID_Bassin") is not None})
 
-    total = resp.get("recordsTotal") or resp.get("recordsFiltered") or 0
-    data = resp.get("data") or resp.get("aaData") or []
-    print(f"  recordsTotal={total}  première page: {len(data)} lignes")
 
-    for row in data:
-        f = parse_row(row)
-        if f and f["isin"] not in funds:
-            funds[f["isin"]] = f
+def _discover_columns(session) -> list[str]:
+    """Lit les noms de colonnes DataTables dans le driver JS (ordre significatif)."""
+    js = session.get(DRIVER_JS, timeout=TIMEOUT).text
+    return re.findall(r'name:"([^"]+)"', js or "")
 
-    # Pages suivantes
-    while start + PAGE_SIZE < total:
-        start += PAGE_SIZE
-        draw += 1
-        resp = fetch_page(session, draw, start, PAGE_SIZE)
-        data = resp.get("data") or resp.get("aaData") or []
+
+def _build_payload(columns, bassins, start, length) -> dict:
+    p = {
+        "draw": "1", "start": str(start), "length": str(length),
+        "search[value]": "", "search[regex]": "false",
+        "order[0][column]": "5", "order[0][dir]": "asc",  # tri par sNom (col 5)
+        "langueSearch": "",
+        "Values.lstIDProduits[0]": "1", "Values.lstIDProduits[1]": "2",
+    }
+    for i, name in enumerate(columns):
+        p[f"columns[{i}][data]"] = str(i)
+        p[f"columns[{i}][name]"] = name
+        p[f"columns[{i}][searchable]"] = "true"
+        p[f"columns[{i}][orderable]"] = "true"
+        p[f"columns[{i}][search][value]"] = ""
+        p[f"columns[{i}][search][regex]"] = "false"
+    for i, b in enumerate(bassins):
+        p[f"Values.lstContrats[{i}]"] = b
+    return p
+
+
+def fetch_isins() -> list[str]:
+    """Toutes les UC (ISIN distincts) du portail LMEP Easypack."""
+    session, referer, html = _open_session()
+    bassins = _discover_bassins(html)
+    columns = _discover_columns(session)
+    if not bassins or not columns:
+        print(f"  ⚠ découverte incomplète (bassins={len(bassins)}, colonnes={len(columns)})")
+        return []
+    print(f"  Contrats (bassins) : {len(bassins)} | colonnes DataTables : {len(columns)}")
+
+    headers = {
+        "X-Requested-With": "XMLHttpRequest", "Referer": referer,
+        "Origin": ROOT, "Accept": "application/json, text/javascript, */*",
+    }
+    isins: set[str] = set()
+    start, total = 0, None
+    while True:
+        payload = _build_payload(columns, bassins, start, PAGE_SIZE)
+        # Retry par page : les pages profondes ralentissent (timeout ponctuel) — un
+        # échec isolé ne doit pas interrompre toute la collecte.
+        j = None
+        for attempt in range(3):
+            try:
+                r = session.post(DATA_URL, data=payload, headers=headers, timeout=TIMEOUT)
+                if r.status_code != 200:
+                    print(f"  ⚠ HTTP {r.status_code} sur /Data (start={start}, essai {attempt+1})")
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                j = r.json()
+                break
+            except Exception as e:
+                print(f"  ⚠ POST start={start} essai {attempt+1} : {str(e)[:60]}")
+                time.sleep(1.5 * (attempt + 1))
+        if j is None:
+            print(f"  ⚠ page start={start} abandonnée après 3 essais — collecte partielle.")
+            break
+        if total is None:
+            total = j.get("recordsTotal") or j.get("recordsFiltered") or 0
+            print(f"  recordsTotal = {total}")
+        data = j.get("data") or j.get("aaData") or []
         if not data:
             break
         for row in data:
-            f = parse_row(row)
-            if f and f["isin"] not in funds:
-                funds[f["isin"]] = f
+            code = ""
+            if isinstance(row, dict):
+                code = str(row.get("sCodeISIN") or "").strip().upper()
+            if ISIN_RE.match(code):
+                isins.add(code)
+        start += PAGE_SIZE
+        if total and start >= total:
+            break
+        time.sleep(0.3)
+    return sorted(isins)
 
-    return list(funds.values())
-
-
-def upsert_eligibility(client, isin: str) -> bool:
-    row = {
-        "isin":          isin,
-        "company_name":  COMPANY,
-        "contract_name": CONTRACT,
-        "source_url":    BASE_URL,
-        "scraped_at":    datetime.now(timezone.utc).isoformat(),
-    }
-    try:
-        client.table("investissement_av_lux_eligibility") \
-            .upsert(row, on_conflict="isin,contract_name") \
-            .execute()
-        return True
-    except Exception as e:
-        if "42P01" not in str(e) and "does not exist" not in str(e).lower():
-            print(f"    ⚠ eligibility {isin}: {e}")
-        return False
-
-
-# ─── Main ─────────────────────────────────────────────────────────────────────
 
 def run(apply: bool, limit: int | None):
     print("=" * 60)
-    print("  LMEP Easypack — Quantalys DataTables Scraper")
-    print("=" * 60)
+    print(f"  {COMPANY} — LMEP Easypack (catalogue UC)")
     print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}")
-    print()
-
+    print("=" * 60)
     started = datetime.now(timezone.utc)
 
-    print("  Extraction des fonds LMEP Easypack…")
-    funds = extract_all_funds()
+    isins = fetch_isins()
+    print(f"  ISIN distincts récupérés : {len(isins)}")
 
-    if not funds:
-        print("  ⚠ Aucun fonds extrait — vérifier l'URL et le format DataTables")
-        # Essai alternatif : GET simple
-        print("  Tentative GET simple…")
-        try:
-            r = requests.get(BASE_URL, headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-            }, timeout=20)
-            print(f"  HTTP {r.status_code} — {len(r.content)} octets")
-            if r.ok:
-                # Chercher des ISINs dans la page HTML
-                isins = re.findall(r'\b([A-Z]{2}[A-Z0-9]{10})\b', r.text)
-                unique_isins = list(dict.fromkeys(isins))
-                print(f"  {len(unique_isins)} ISINs trouvés dans la page HTML")
-                for i in unique_isins[:10]:
-                    print(f"    {i}")
-        except Exception as e:
-            print(f"  ERREUR : {e}")
-        log_run("av-lux-lmep-easypack", "failed", 0, 0, started_at=started)
+    if len(isins) < MIN_EXPECTED:
+        # Garde anti-régression : ne pas écrire un catalogue tronqué en silence.
+        print(f"  ✗ sous le seuil attendu ({MIN_EXPECTED}) — porte/payload probablement cassé.")
+        if apply:
+            log_run("av-lux-lmep-easypack", "failed", 0, 0, started_at=started)
         return
 
-    print(f"  {len(funds)} fonds extraits")
-
-    if limit:
-        funds = funds[:limit]
-
     if not apply:
-        print("\n  Aperçu (10 premiers) :")
-        for f in funds[:10]:
-            sri = f"SRI={f['sri']}" if f.get("sri") else "    "
-            print(f"  {f['isin']}  {f.get('currency','?'):4}  {sri:6}  {f.get('name','')[:50]}")
-        print(f"\n  Seraient écrits : {len(funds)} fonds + {len(funds)} lignes eligibility")
+        print("  Aperçu (10 premiers ISIN) :", ", ".join(isins[:10]))
+        print(f"  DRY-RUN — rien écrit. {len(isins)} ISIN bruts (avant filtre base).")
         return
 
     client = get_client()
+    known = existing_isins(client)
+    kept = [x for x in isins if x in known]
+    if limit:
+        kept = kept[:limit]
+    print(f"  ISIN en base : {len(known)} | éligibles LMEP retenus : {len(kept)}")
 
-    funds_with_name    = [f for f in funds if f.get("name")]
-    funds_without_name = [f for f in funds if not f.get("name")]
-    print(f"\n  Fonds avec nom : {len(funds_with_name)} | sans nom : {len(funds_without_name)}")
+    now = datetime.now(timezone.utc).isoformat()
+    batch, ok = [], 0
+    for x in kept:  # déjà distincts → pas de doublon (isin, contract) possible
+        batch.append({
+            "isin": x, "company_name": COMPANY, "contract_name": CONTRACT,
+            "source_url": BASE_URL, "scraped_at": now,
+        })
+        if len(batch) >= 200:
+            client.table("investissement_av_lux_eligibility") \
+                .upsert(batch, on_conflict="isin,contract_name").execute()
+            ok += len(batch)
+            batch = []
+    if batch:
+        client.table("investissement_av_lux_eligibility") \
+            .upsert(batch, on_conflict="isin,contract_name").execute()
+        ok += len(batch)
 
-    ok, fail = upsert_funds_bulk(funds_with_name, batch_size=100) if funds_with_name else (0, 0)
-    print(f"  Upsert investissement_funds (avec nom) : {ok} OK, {fail} échec")
-
-    if funds_without_name:
-        enrich_ok = enrich_fail = 0
-        for f in funds_without_name:
-            enrich = {k: v for k, v in f.items() if k not in ("name",) and v is not None}
-            try:
-                client.table("investissement_funds") \
-                    .update({k: v for k, v in enrich.items() if k != "isin"}) \
-                    .eq("isin", f["isin"]).execute()
-                enrich_ok += 1
-            except Exception:
-                enrich_fail += 1
-        print(f"  Enrichissement sans-nom : {enrich_ok} mis à jour, {enrich_fail} ignorés")
-
-    elig_ok = elig_fail = 0
-    for f in funds:
-        if upsert_eligibility(client, f["isin"]):
-            elig_ok += 1
-        else:
-            elig_fail += 1
-    print(f"  Upsert eligibility : {elig_ok} OK, {elig_fail} non traités")
-
-    status = "success" if fail == 0 else "partial"
-    log_run("av-lux-lmep-easypack", status, ok, fail, started_at=started)
-    print(f"\n  Terminé en {(datetime.now(timezone.utc) - started).seconds}s")
+    print(f"  Éligibilité écrite : {ok} lignes.")
+    log_run("av-lux-lmep-easypack", "success", ok, 0, started_at=started)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="LMEP Easypack Catalog")
+    parser = argparse.ArgumentParser(description="LMEP Easypack — catalogue UC (éligibilité-only)")
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
-    parser.add_argument("--limit", type=int,            help="Limiter à N fonds")
+    parser.add_argument("--limit", type=int, help="Limiter à N ISIN (debug)")
     args = parser.parse_args()
     run(apply=args.apply, limit=args.limit)
