@@ -5,10 +5,11 @@
 
 ## 0. État d'avancement (mis à jour 2026-06-21)
 
-**FAIT — 6 des 7 assureurs câblés** via un socle commun `scripts/scrapers/_av_pdf_common.py`
+**FAIT — les 7 assureurs majeurs câblés** via un socle commun `scripts/scrapers/_av_pdf_common.py`
 (curl_cffi + pdftotext, éligibilité-only, filtre sur ISIN en base, dédup anti-21000,
 `scraped_at=now()`). Tous validés en dry-run (fetch+parse) ; l'écriture bout-en-bout
 se fait au prochain run `av-refresh.yml` (`workflow_dispatch` pour valider tout de suite).
+Le 7e (Covéa) inclut désormais MMA + GMF (cf. ci-dessous).
 
 | Assureur | Scraper | Source | Contrats | ISIN bruts (avant filtre base) |
 |----------|---------|--------|---------:|----:|
@@ -23,11 +24,31 @@ se fait au prochain run `av-refresh.yml` (`workflow_dispatch` pour valider tout 
 Câblés dans `scripts/cron/av-catalog-refresh.py` (section « bancassureurs majeurs »),
 avant le prune Tier 4 + le refresh matview.
 
-**RESTE — Covéa MMA & GMF (7e assureur, partiel).** Pas de source publique scriptable :
-listes UC seulement derrière quantalys (SPA cookie-wall) ou DataDome (tout `gmf.fr`/`mma.fr`
-en 403/503). La gamme MAAF (Winalto) est câblée et MMA/GMF partagent l'essentiel des mêmes
-supports Covéa Finance. Pour les couvrir : passer par `av-catalog-refresh-browser.py`
-(Playwright) sur le portail quantalys MMA/GMF, ou attendre une annexe PDF publique.
+**FAIT — Covéa complet (7e assureur, 2026-06-21).** L'affirmation initiale « non scriptable »
+était FAUSSE :
+- **MMA** : `av-fr-mma-catalog.py` — guide « MMA Multisupports » servi en PDF par le sous-domaine
+  documentaire **`cap.mma.fr`** (PAS protégé par DataDome, contrairement à `www.mma.fr`). 39 ISIN.
+- **GMF** : `av-fr-gmf-catalog.py` — guide « Multéo » via un **miroir tiers `cleerly.fr`** (30 ISIN).
+  ⚠️ `gmf.fr` reste DataDome ; aucun sous-domaine doc ouvert → le miroir (daté 2022) est la seule
+  source HTTP, susceptible de se périmer (job non-fatal → re-sonder une URL GMF de 1re main si 404).
+
+Playwright/quantalys s'avère **inutile** pour Covéa.
+
+**Backlog AV mineur résorbé (2026-06-21) :**
+- **LMEP/EasyPack** (AG2R La Mondiale, quantalys Easypack) RÉPARÉ → `av-lux-lmep-easypack.py`
+  réécrit (porte JS `redirect_<token>` + payload DataTables avec `columns[i][name]`/bassins ;
+  curl_cffi ; **éligibilité-only** ; 3119 UC). Réintégré au job.
+- **Utmost** simplifié (éligibilité-only via socle PDF, extraction ISIN robuste — fin des « 0
+  intermittents » liés au parsing par position). 69 UC.
+- **linxea-av-catalog.py** SUPPRIMÉ (comparateur 404, superseded par `av-lux-linxea-catalog.py`,
+  lequel reste navigateur-only — API ECINT vivante, IDs d'univers à rafraîchir).
+
+**Levier opcvm360 (sondé 2026-06-21) — pas de nouvelle clé récupérable en HTTP.** Chaque
+distributeur injecte sa `iframeKey` côté JS → absente du HTML statique. ~30 comparateurs sondés
+en curl_cffi : 0 nouvelle clé. La clé connue (`dec511123cYF4gtju8Spf67dr`) exige les en-têtes
+`Referer`/`Origin: iframes.opcvm360.com` (le scraper les envoie déjà). Capter d'autres clés
+nécessiterait un **navigateur headless** observant le trafic réseau des outils de recherche de
+fonds (funds360.fefundinfo, meilleurtaux, altaprofits…) → chantier distinct, ROI à arbitrer.
 
 ---
 
