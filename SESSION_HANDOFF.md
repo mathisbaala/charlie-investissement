@@ -91,7 +91,7 @@
 
 ## ⚠️ Pièges à éviter (à jour)
 
-1. **Clé Anthropic** : la régénérer dans un **Workspace avec spend limit mensuelle** (Console) = seul plafond dur garanti au centime. ACTION en attente (voir prochains chantiers).
+1. **Clé Anthropic** : rotée le 21/06 dans un **Workspace avec spend limit mensuelle** (Console) = plafond dur garanti au centime. ✅ Fait.
 2. **Recalcul td-enricher** (benchmark/alpha) : relancer **APRÈS** le code `map_index` final, sinon alphas obsolètes (cf. mémoire `alpha-bonds-euro-indices`).
 3. **Scrapers en seeding** : NE PAS les lancer en mode upsert global (destructif). Les enrichers sont fill-only ; les refreshs ciblent des colonnes précises.
 4. **`.env` locaux = stubs** : vérif locale = `tsc` + `vitest` (pas de build complet, pas d'appel DB/IA réel). Credentials réels = env Vercel.
@@ -103,7 +103,7 @@
 
 ## 🚧 Prochains chantiers (pour repartir)
 
-- **[ACTION utilisateur]** Faire tourner la clé Anthropic exposée + la recréer dans un Workspace avec spend limit 20 €.
+- ~~**[ACTION utilisateur]** Faire tourner la clé Anthropic exposée + la recréer dans un Workspace avec spend limit 20 €.~~ → **FAIT (21/06).**
 - **SCPI prix de part** : source unique = scrape Primaliance (pas d'API) → couverture à étendre.
 - **Actions individuelles** : 0 prix en base (pas de source câblée).
 - **Look-through** : couverture compositions ~3 % → faire monter via le gap-fill mensuel `ft-enricher --fill-breakdowns --by-referencing`.
