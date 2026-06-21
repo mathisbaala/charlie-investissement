@@ -48,6 +48,21 @@ MIN_SPAN_1Y = 300            # ~0.82 an
 MIN_SPAN_3Y = 365 * 3 - 90  # ~2.75 ans
 MIN_SPAN_5Y = 365 * 5 - 120 # ~4.67 ans
 
+# Garde de PÉREMPTION : au-delà de ce délai sans nouveau prix, les métriques de
+# tendance (perf/vol/Sharpe/drawdown) sont calées sur une fenêtre qui se termine
+# il y a > STALE_DAYS jours → périmées et trompeuses (ex. un fonds figé en 2021
+# affichant encore +29 % « à 1 an »). On les purge (None). Seuil large (90 j)
+# pour ne pas toucher la traîne saine rafraîchie chaque semaine, mais attraper
+# les fonds figés/liquidés. SRRI et ancienneté (plus stables) sont conservés.
+STALE_DAYS = 90
+
+STALE_PURGE_FIELDS = (
+    "performance_1y", "performance_3y", "performance_5y",
+    "volatility_1y", "volatility_3y",
+    "sharpe_1y", "sharpe_3y",
+    "max_drawdown_1y", "max_drawdown_3y",
+)
+
 # ─── Calculs financiers ────────────────────────────────────────────────────────
 
 def perf_total(prices: list[float]) -> float | None:
@@ -176,10 +191,25 @@ def _track_record_years(inception: str | None, span_days_5y: int) -> float | Non
     return None
 
 
+def _is_stale(last_date: str | None) -> bool:
+    """True si le dernier prix date de plus de STALE_DAYS jours."""
+    if not last_date:
+        return False
+    try:
+        return (TODAY - date.fromisoformat(last_date[:10])).days > STALE_DAYS
+    except (ValueError, TypeError):
+        return False
+
+
 def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=None,
-                         asset_class=None, inception=None) -> dict:
+                         asset_class=None, inception=None, last_date=None) -> dict:
     metrics = {}
     spans = spans or {"1y": 0, "3y": 0, "5y": 0}
+
+    # Garde de péremption : série figée depuis > STALE_DAYS → perf/vol/Sharpe/
+    # drawdown trompeuses (fenêtre se terminant dans le passé). On les purge.
+    if _is_stale(last_date):
+        return {f: None for f in STALE_PURGE_FIELDS}
 
     # Convention : toutes les métriques sont stockées en % (9.82 = 9.82%, -2.7 = -2.7%)
     # Sauf sharpe_1y (adimensionnel)
@@ -290,6 +320,7 @@ def fetch_prices_for_isin(client, isin: str) -> dict[str, list[float]]:
         "3y":   [p for _, p in w3],
         "1y":   [p for _, p in w1],
         "span": {"5y": span_days(w5), "3y": span_days(w3), "1y": span_days(w1)},
+        "last_date": all_prices[-1][0] if all_prices else None,
     }
 
 
@@ -311,6 +342,73 @@ def fetch_fund_meta(client, isins: list[str]) -> dict[str, dict]:
                 "inception_date": r.get("inception_date"),
             }
     return out
+
+
+# Produits dont la perf DÉRIVE de la série de prix → seuls concernés par la
+# purge de péremption. crypto (CoinGecko), fonds euros (taux annuels), SCPI
+# (métriques trimestrielles) et OPCVM étrangers sans série (Morningstar EMEA)
+# tirent leur perf d'ailleurs : une série de prix périmée n'y rend PAS la perf
+# obsolète, donc on ne les purge jamais sur ce critère.
+PRICE_DERIVED_TYPES = ("opcvm", "etf")
+
+
+def purge_stale_metrics(client, apply: bool) -> int:
+    """Purge les métriques de tendance des fonds au dernier prix périmé.
+
+    Le calcul principal ne visite que les fonds ayant un prix dans les 365 j
+    (isins_with_recent_prices) : les fonds figés plus longtemps (liquidés,
+    fermés) gardent indéfiniment la perf écrite jadis par un scraper —
+    trompeuse (ex. R-CO THEMATIC, dernier prix 2021, affichait +29 % « à 1 an »).
+    On les remet à None via la vue de couverture, sans toucher aux produits dont
+    la perf ne vient pas de la série de prix (cf. PRICE_DERIVED_TYPES).
+
+    PIÈGE : on exige `n_points > 0`. Une série de prix périmée ne rend la perf
+    obsolète que si la perf EST dérivée de cette série. ~1300 opcvm ont un
+    `last_price_date` ancien mais AUCUN point réel (perf venue de Morningstar
+    EMEA / GECO direct) : purger sur le seul âge effacerait leur perf légitime."""
+    cutoff = (TODAY - timedelta(days=STALE_DAYS)).isoformat()
+
+    # 1) ISINs ayant une VRAIE série de prix (n_points>0) mais figée (vue de
+    #    couverture). Le n_points>0 exclut les fonds dont la perf vient d'ailleurs.
+    stale_isins: list[str] = []
+    offset, page_size = 0, 1000
+    while True:
+        page = client.table("investissement_fund_price_coverage") \
+            .select("isin") \
+            .lt("last_price_date", cutoff) \
+            .gt("n_points", 0) \
+            .order("isin") \
+            .range(offset, offset + page_size - 1) \
+            .execute().data or []
+        stale_isins.extend(r["isin"] for r in page)
+        if len(page) < page_size:
+            break
+        offset += page_size
+
+    if not stale_isins:
+        print("  Purge péremption : aucun fonds au prix périmé.")
+        return 0
+
+    # 2) Ne garder que les produits price-derived ayant ENCORE une métrique non
+    #    nulle (sinon écriture inutile). Lecture par lots (plafond PostgREST).
+    cols = "isin, product_type, " + ", ".join(STALE_PURGE_FIELDS)
+    updates = []
+    CHUNK = 300
+    for i in range(0, len(stale_isins), CHUNK):
+        rows = client.table("investissement_funds") \
+            .select(cols) \
+            .in_("isin", stale_isins[i:i + CHUNK]) \
+            .in_("product_type", list(PRICE_DERIVED_TYPES)) \
+            .execute().data or []
+        for r in rows:
+            if any(r.get(f) is not None for f in STALE_PURGE_FIELDS):
+                updates.append({"isin": r["isin"], **{f: None for f in STALE_PURGE_FIELDS}})
+
+    print(f"  Purge péremption : {len(updates)} fonds price-derived au prix > {STALE_DAYS} j")
+    if apply and updates:
+        ok, fail = update_funds_bulk(updates, batch_size=200)
+        print(f"    → {ok} purgés, {fail} échec")
+    return len(updates)
 
 
 def run(apply: bool, limit: int | None, isin_filter: str | None):
@@ -384,6 +482,7 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             spans=prices["span"],
             asset_class=meta.get("asset_class_broad"),
             inception=meta.get("inception_date"),
+            last_date=prices.get("last_date"),
         )
 
         if not metrics:
@@ -417,6 +516,12 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
             vol   = f"{r.get('volatility_1y', 0)*100:.1f}%"   if r.get("volatility_1y") else "N/A"
             sharpe = f"{r.get('sharpe_1y', 0):.2f}"           if r.get("sharpe_1y") else "N/A"
             print(f"  {r['isin']} | perf1Y:{perf1:8} | vol1Y:{vol:6} | sharpe:{sharpe}")
+
+    # Purge des métriques périmées sur tout l'univers price-derived (y compris les
+    # fonds figés que la boucle ci-dessus ne visite pas). Sautée en mode ciblé.
+    if not isin_filter and not limit:
+        print()
+        purge_stale_metrics(client, apply)
 
 
 if __name__ == "__main__":
