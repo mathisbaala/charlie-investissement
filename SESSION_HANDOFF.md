@@ -17,7 +17,9 @@
 
 - **Backlog AV** *(déployé)* — Faux chantier : Spirica + mutualistes fonctionnent (sondés live le 22/06 : sources 200, ~280/336 ISIN en base, 62 080 lignes Spirica fraîches du 21/06). Seuls les commentaires `# rend 0 — à re-câbler` étaient périmés → corrigés (`av-catalog-refresh.py`). Reste réel = Abeille/MAAF/MMA/GMF bloqués par IP datacenter (proxy dormant = décision utilisateur).
 - **Look-through — double-comptage géo + polish FE** *(déployé, `34baba5` + `6b10262`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. Polish FE : re-fetch sur clé ISIN stable + garde de course, accessibilité des barres (role=img/aria-label), erreur réseau distinguée. **Chantier look-through clos à 100 %.** 245/245 tests, tsc clean.
-- **SCPI — DVM + TOF sur la fiche** *(déployé, `9c44ee2`)* — La table `scpi_metrics` portait déjà taux de distribution (DVM, 109), taux d'occupation (TOF, 101) et capitalisation, mais seul le prix de part était affiché. Ajout des lignes DVM + TOF (avec l'année). Couverture prix SCPI = 116/191 (le reste = SCPI fiscales fermées, légitime). Capitalisation non ajoutée (= doublon Encours).
+- **SCPI — DVM + TOF sur la fiche** *(déployé, `9c44ee2`)* — La table `scpi_metrics` portait déjà taux de distribution (DVM, 109), taux d'occupation (TOF, 101) et capitalisation, mais seul le prix de part était affiché. Ajout des lignes DVM + TOF (avec l'année). Couverture prix SCPI = 116/191 (le reste = SCPI fiscales fermées, légitime). Capitalisation non ajoutée (= doublon Encours). *Vérifié live en QA : Primovie affiche « Taux de distribution (2024) 4,04 % » + « Taux d'occupation (2024) 94,7 % ».*
+- **QA prod read-only** — Parcours CGP complet sondé (recherche NLP, fiches ETF+SCPI, comparaison, look-through, profil, assureurs, documents). **Health 98/100, zéro erreur console, zéro bug fonctionnel.** Les 3 livraisons du jour vérifiées live (dont la dédup géo confirmée via l'API : un pays = une ligne). Rapport : `.gstack/qa-reports/qa-report-charlie-investissement-2026-06-22.md` (gitignored). Seul finding **F1** (chips Profil scrollables) → **fermé, working-as-designed** (scroll single-line volontaire + dégradé d'affordance, `Card` sans overflow-hidden donc non rogné).
+- **Décisions fermes prises** : (a) **Actions individuelles = WON'T-DO** (`b04c16f`) — exclues du screener+recherche par design, simples holdings look-through, prix inutile ; (b) **Proxy AV non activé** — re-seed manuel trimestriel retenu (secret `AV_PROXY_URL` non posé, vérifié `gh secret list`).
 - **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
 
 ---
@@ -128,17 +130,21 @@
 - ~~**Fonds euros perfs bidons**~~ → 43 `performance_1y` extraites du nom **nullées** (22/06).
 - ~~**Look-through ~3 %**~~ → en réalité **~24 %** (≈ 5 985 fonds / 24 868 ; Morningstar 2 818, FT 1 628, émetteurs ~1 147, justETF 392). Drain compo en cours (cadence espacée anti-throttle).
 
-### 🚧 Ouverts
-- **Backlog AV résiduel** *(workflow `av-refresh`, séparé du weekly-refresh)* — **réduit à presque rien (vérifié 22/06)** :
-  - ~~spirica / mutualistes « rendent 0 »~~ → **FAUX** : sources live, ont tourné le 21/06 (Spirica 62 080 lignes, mutualistes ~280 ISIN en base). Commentaires « à re-câbler » dans `av-catalog-refresh.py` **corrigés**.
-  - ~~scrapling→parsel~~ → **backlog vide** (seul cardif-lux-vie importe encore scrapling, mais c'est un cas navigateur déjà géré par le job browser).
-  - **Reste seulement** : Abeille/MAAF/MMA/GMF bloqués en CI par **IP datacenter**. **DÉCISION 22/06 : on reste en re-seed manuel trimestriel** (proxy résidentiel `AV_PROXY_URL` **non activé** — secret non posé, vérifié via `gh secret list` ; code prêt mais dormant `469817c`). Données fraîches en base (seed manuel 21/06 : Abeille 3 653, MAAF 78). **Ne pas re-proposer d'activer le proxy** sans signal explicite (= abonnement payant à trancher). + linxea/cardif-lux-vie (job browser séparé), ag2r (redondant, exclu volontairement).
-  - Voir mémoire `av-catalog-refresh` + `tier3-bancassureurs-av`.
-- **Drain compo Morningstar** : ~24 % → à monter, mais **cadence espacée obligatoire** (sal-service throttle — jamais de runs dos à dos). `holdings-drain.yml` shardé.
-- ~~**SCPI**~~ → **TRAITÉ (22/06, `9c44ee2`)** : couverture prix **116/191** (les ~73 manquantes = SCPI fiscales fermées = légitime, source = Primaliance) **et** DVM (taux de distribution) + TOF (taux d'occupation) désormais **exposés sur la fiche** (étaient en base, non affichés). Reste mineur : 34 prix `period=2024-Q4` (= dernier exercice annuel, pas un bug) et 74 lignes sans horodatage de provenance.
-- ~~**Actions individuelles** (0 prix)~~ → **WON'T-DO (DÉCISION FERME 22/06)** : les 4 780 actions sont **exclues du screener + recherche par design** (`api/funds/route.ts:198` : `not product_type in (action,crypto,fps,structuré)`) → **invisibles aux CGP**. Elles ne servent que de **constituants look-through** (poids/nom, le prix y est inutile). Câbler un pipeline de prix pour 4 780 titres = coût de maintenance pur, zéro valeur produit. **Ne plus re-proposer** sauf si la stratégie produit ajoute un univers actions au screener.
-- **Couverture prix OPCVM** : 11 545 / 22 106 ≈ **52 %** (le reste = fonds vivants sans source FT/GECO, lacune de couverture, pas du mort à purger).
-- **Normaliser `investissement_fund_prices.source`** *(réservé à un autre intervenant, ~2j ; optimisation storage NON urgente — Pro avec ~6,6 Go de marge)* : `source_id` (smallint) est **déjà backfillé**, la colonne `source` (text) **existe encore** → reste le `DROP COLUMN` + `VACUUM FULL` (~130 Mo). Touche les **6 scrapers d'ingestion** → **jamais à chaud**. Cf. mémoire `fund-prices-source-id-migration` + `db-storage-optimization-20260619`.
+### ✅ Tranché / clos le 22/06 (ne plus relister)
+- ~~**SCPI**~~ → **TRAITÉ** (`9c44ee2`) : couverture prix 116/191 (reste = SCPI fiscales fermées) + DVM/TOF exposés sur la fiche.
+- ~~**Actions individuelles** (0 prix)~~ → **WON'T-DO** (`b04c16f`) : exclues du screener+recherche par design (`api/funds/route.ts:198`), simples constituants look-through, prix inutile. Réouverture seulement si on ajoute un univers actions au screener. Cf. mémoire `actions-no-price-wontdo`.
+- ~~**Backlog AV résiduel**~~ → réduit à zéro côté code (Spirica/mutualistes OK, scrapling→parsel vide). Reste Abeille/MAAF/MMA/GMF bloqués IP datacenter → **DÉCISION : re-seed manuel trimestriel** (proxy `AV_PROXY_URL` non activé, ne pas re-proposer sans signal). Cf. `tier3-bancassureurs-av`.
+- ~~**QA prod**~~ → 98/100, F1 fermé (working-as-designed).
+
+### 🔒 Reste ouvert MAIS hors de ma main (ne PAS toucher — collision)
+- **Migration `source_id`** — *réservé à un autre intervenant (~2j)*. `source_id` backfillé, reste `DROP COLUMN source` + `VACUUM FULL` (~130 Mo). Non urgent (Pro, ~6,6 Go marge). Touche les 6 scrapers d'ingestion → jamais à chaud. Cf. `fund-prices-source-id-migration`.
+- **Drain compo Morningstar** — *zone agent / throttle*. ~24 % → à monter, mais **cadence espacée obligatoire** (sal-service throttle, jamais de runs dos à dos). `holdings-drain.yml` shardé.
+- **Couverture prix OPCVM (~52 %)** — *dépend des pipelines FT/GECO = `weekly-refresh`, surveillé par l'agent*. Lacune de couverture (fonds vivants sans source), pas du mort à purger. Monter la couverture = toucher la rotation FT/GECO → collision.
+- **PEA éligibilité** + **FE_Q fonds euros** — *traités par l'agent (22/06)*, ne pas y retoucher.
+
+### 🟢 Traitable maintenant, sans collision
+- **(rien de pré-existant)** — le board énuméré est soldé. Les seuls leviers restants sont soit tranchés, soit en zone agent/réservée.
+- Candidats NEUFS optionnels (à valider avant de lancer) : dédup **secteurs** du look-through (même classe que la géo, mais pas de code fiable → mapping de synonymes FR/EN, fuzzy/risqué) ; itération **pertinence recherche** (tri/NLP, pur FE/API). Aucun n'est un chantier dû — à ouvrir seulement sur ta demande.
 
 ---
 
