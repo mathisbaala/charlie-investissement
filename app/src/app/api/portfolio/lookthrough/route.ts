@@ -27,14 +27,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select("isin, position_name, ticker, weight").in("isin", isins).limit(4000),
   ]);
 
+  // Géo agrégée par code ISO (clé) pour ne pas double-compter un même pays libellé
+  // différemment selon la source (« Germany » FT vs « Allemagne » Morningstar).
   const geo = blendExposure(((geoRes.data ?? []) as any[]).map((g) => ({
-    isin: g.isin, label: g.country_label || g.country_code, weight: Number(g.weight),
+    isin: g.isin, label: g.country_label || g.country_code,
+    key: g.country_code || g.country_label, weight: Number(g.weight),
   })));
   const sectors = blendExposure(((secRes.data ?? []) as any[]).map((s) => ({
     isin: s.isin, label: s.sector_name, weight: Number(s.weight),
   })));
   const overlaps = findOverlaps(((holdRes.data ?? []) as any[]).map((h) => ({
-    isin: h.isin, position_name: h.position_name, ticker: h.ticker, weight: h.weight,
+    isin: h.isin, position_name: h.position_name, ticker: h.ticker, weight: Number(h.weight),
   })));
 
   return NextResponse.json(
