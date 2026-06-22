@@ -180,7 +180,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
               <>
                 <InsurerChips insurers={(fund.insurers ?? []).map((r) => r.company)} max={6} />
                 <p className="text-caption text-muted-2 mt-2 leading-snug">
-                  Donnée partielle. L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas référencé.
+                  L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas référencé.
                 </p>
               </>
             ) : (
