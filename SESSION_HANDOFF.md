@@ -17,6 +17,7 @@
 
 - **Backlog AV** *(déployé)* — Faux chantier : Spirica + mutualistes fonctionnent (sondés live le 22/06 : sources 200, ~280/336 ISIN en base, 62 080 lignes Spirica fraîches du 21/06). Seuls les commentaires `# rend 0 — à re-câbler` étaient périmés → corrigés (`av-catalog-refresh.py`). Reste réel = Abeille/MAAF/MMA/GMF bloqués par IP datacenter (proxy dormant = décision utilisateur).
 - **Look-through — double-comptage géo** *(déployé, `34baba5`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. 245/245 tests, tsc clean.
+- **SCPI — DVM + TOF sur la fiche** *(déployé, `9c44ee2`)* — La table `scpi_metrics` portait déjà taux de distribution (DVM, 109), taux d'occupation (TOF, 101) et capitalisation, mais seul le prix de part était affiché. Ajout des lignes DVM + TOF (avec l'année). Couverture prix SCPI = 116/191 (le reste = SCPI fiscales fermées, légitime). Capitalisation non ajoutée (= doublon Encours).
 - **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
 
 ---
@@ -134,7 +135,7 @@
   - **Reste seulement** : Abeille/MAAF/MMA/GMF bloqués en CI par **IP datacenter** → re-seed manuel trimestriel, ou activer le **proxy résidentiel dormant** (`AV_PROXY_URL`, code prêt `469817c`) = **décision utilisateur**. + linxea/cardif-lux-vie (job browser séparé), ag2r (redondant, exclu volontairement).
   - Voir mémoire `av-catalog-refresh` + `tier3-bancassureurs-av`.
 - **Drain compo Morningstar** : ~24 % → à monter, mais **cadence espacée obligatoire** (sal-service throttle — jamais de runs dos à dos). `holdings-drain.yml` shardé.
-- **SCPI prix de part** : couverture réelle **115/191** (les ~73 manquantes = SCPI fiscales fermées = légitime). Source unique = scrape Primaliance.
+- ~~**SCPI**~~ → **TRAITÉ (22/06, `9c44ee2`)** : couverture prix **116/191** (les ~73 manquantes = SCPI fiscales fermées = légitime, source = Primaliance) **et** DVM (taux de distribution) + TOF (taux d'occupation) désormais **exposés sur la fiche** (étaient en base, non affichés). Reste mineur : 34 prix `period=2024-Q4` (= dernier exercice annuel, pas un bug) et 74 lignes sans horodatage de provenance.
 - **Actions individuelles** : **0 prix** en base (4 780 lignes, pas de source câblée). Déprioritisé CGP FR.
 - **Couverture prix OPCVM** : 11 545 / 22 106 ≈ **52 %** (le reste = fonds vivants sans source FT/GECO, lacune de couverture, pas du mort à purger).
 - **Normaliser `investissement_fund_prices.source`** *(réservé à un autre intervenant, ~2j ; optimisation storage NON urgente — Pro avec ~6,6 Go de marge)* : `source_id` (smallint) est **déjà backfillé**, la colonne `source` (text) **existe encore** → reste le `DROP COLUMN` + `VACUUM FULL` (~130 Mo). Touche les **6 scrapers d'ingestion** → **jamais à chaud**. Cf. mémoire `fund-prices-source-id-migration` + `db-storage-optimization-20260619`.
