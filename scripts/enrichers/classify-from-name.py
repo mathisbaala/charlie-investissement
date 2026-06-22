@@ -324,6 +324,16 @@ def run(apply: bool, limit: int | None):
 
     print(f"\n  ✓ {ok} mis à jour, {fail} échecs")
 
+    # Profil d'allocation dérivé de la composition RÉELLE (part actions vs
+    # oblig/cash des holdings). Fill-only : ne touche que les diversifiés sans
+    # profil, jamais un mandat déclaré ni un « flexible ». Re-exécuté à chaque
+    # run → la couverture grandit avec le drain look-through (chantier compo).
+    try:
+        rpc = client.rpc("inv_fill_allocation_profile_from_composition").execute()
+        print(f"  ✓ allocation_profile dérivé de la compo : {rpc.data} diversifiés")
+    except Exception as e:
+        print(f"  ⚠ dérivation compo allocation_profile échouée : {e}")
+
     log_run(
         scraper="classify-from-name",
         status="success" if fail == 0 else "partial",
