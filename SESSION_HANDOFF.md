@@ -19,6 +19,8 @@
 - **Look-through — double-comptage géo + polish FE** *(déployé, `34baba5` + `6b10262`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. Polish FE : re-fetch sur clé ISIN stable + garde de course, accessibilité des barres (role=img/aria-label), erreur réseau distinguée. **Chantier look-through clos à 100 %.** 245/245 tests, tsc clean.
 - **SCPI — DVM + TOF sur la fiche** *(déployé, `9c44ee2`)* — La table `scpi_metrics` portait déjà taux de distribution (DVM, 109), taux d'occupation (TOF, 101) et capitalisation, mais seul le prix de part était affiché. Ajout des lignes DVM + TOF (avec l'année). Couverture prix SCPI = 116/191 (le reste = SCPI fiscales fermées, légitime). Capitalisation non ajoutée (= doublon Encours). *Vérifié live en QA : Primovie affiche « Taux de distribution (2024) 4,04 % » + « Taux d'occupation (2024) 94,7 % ».*
 - **QA prod read-only** — Parcours CGP complet sondé (recherche NLP, fiches ETF+SCPI, comparaison, look-through, profil, assureurs, documents). **Health 98/100, zéro erreur console, zéro bug fonctionnel.** Les 3 livraisons du jour vérifiées live (dont la dédup géo confirmée via l'API : un pays = une ligne). Rapport : `.gstack/qa-reports/qa-report-charlie-investissement-2026-06-22.md` (gitignored). Seul finding **F1** (chips Profil scrollables) → **fermé, working-as-designed** (scroll single-line volontaire + dégradé d'affordance, `Card` sans overflow-hidden donc non rogné).
+- **Look-through — dédup secteurs** *(déployé, `70952fb`)* — Suite du fix géo : la base mêle 3 taxonomies de secteurs (Morningstar « Technology » / GICS « Information Technology » / FR « Technologie ») → l'agrégation triple-comptait. `canonicalSector()` rabat les variantes dominantes sur un libellé FR unique + écarte le junk (ISIN collé en secteur, « Volatilité sur 1 an »). *Vérifié live : secteurs renvoyés en FR canonique sans doublon.* 250/250 tests.
+- **Pertinence recherche — investigué, RAS** — Sondé en prod (NLP « obligataire court terme faible risque » → 1 185 ; « ETF S&P 500 » → 37 pertinents ; typo « Amundo » → Amundi via fuzzy pg_trgm ; loading states corrects, deep-link sans flash). **Déjà excellente après le sprint 20/06 → aucun changement défendable.** Pas de code touché (ne pas re-ouvrir comme chantier).
 - **Décisions fermes prises** : (a) **Actions individuelles = WON'T-DO** (`b04c16f`) — exclues du screener+recherche par design, simples holdings look-through, prix inutile ; (b) **Proxy AV non activé** — re-seed manuel trimestriel retenu (secret `AV_PROXY_URL` non posé, vérifié `gh secret list`).
 - **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
 
@@ -143,8 +145,10 @@
 - **PEA éligibilité** + **FE_Q fonds euros** — *traités par l'agent (22/06)*, ne pas y retoucher.
 
 ### 🟢 Traitable maintenant, sans collision
-- **(rien de pré-existant)** — le board énuméré est soldé. Les seuls leviers restants sont soit tranchés, soit en zone agent/réservée.
-- Candidats NEUFS optionnels (à valider avant de lancer) : dédup **secteurs** du look-through (même classe que la géo, mais pas de code fiable → mapping de synonymes FR/EN, fuzzy/risqué) ; itération **pertinence recherche** (tri/NLP, pur FE/API). Aucun n'est un chantier dû — à ouvrir seulement sur ta demande.
+- **(plus rien)** — le board énuméré est soldé ET les 2 candidats neufs sont résolus :
+  - ~~dédup secteurs look-through~~ → **LIVRÉ** (`70952fb`, vérifié live).
+  - ~~itération pertinence recherche~~ → **INVESTIGUÉ, RAS** (déjà excellente, sprint 20/06 ; pas de bug → pas de changement).
+- Tous les leviers restants sont en **zone agent** (Morningstar drain, couverture OPCVM) ou **réservés** (migration `source_id`). Rien d'actionnable de mon côté sans collision.
 
 ---
 
