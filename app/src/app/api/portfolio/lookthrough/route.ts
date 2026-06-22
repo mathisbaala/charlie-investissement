@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { blendExposure, findOverlaps } from "@/lib/lookthrough";
+import { blendExposure, findOverlaps, canonicalSector } from "@/lib/lookthrough";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +33,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     isin: g.isin, label: g.country_label || g.country_code,
     key: g.country_code || g.country_label, weight: Number(g.weight),
   })));
-  const sectors = blendExposure(((secRes.data ?? []) as any[]).map((s) => ({
-    isin: s.isin, label: s.sector_name, weight: Number(s.weight),
-  })));
+  // Secteurs canonicalisés (3 taxonomies en base → un libellé FR) ; le junk
+  // (ISIN collé en secteur, artefacts) renvoie null et est écarté AVANT le blend
+  // pour ne pas gonfler le dénominateur de fonds contributeurs.
+  const sectors = blendExposure(((secRes.data ?? []) as any[])
+    .map((s) => ({ isin: s.isin, label: canonicalSector(s.sector_name), weight: Number(s.weight) }))
+    .filter((s): s is { isin: string; label: string; weight: number } => s.label !== null));
   const overlaps = findOverlaps(((holdRes.data ?? []) as any[]).map((h) => ({
     isin: h.isin, position_name: h.position_name, ticker: h.ticker, weight: Number(h.weight),
   })));
