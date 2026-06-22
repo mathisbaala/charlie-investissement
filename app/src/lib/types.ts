@@ -341,6 +341,9 @@ export type FundDetailHF = {
   region_exposure: string | null;      // exposition géographique brute
   currency: string | null;
   price_per_share: number | null;       // prix de part (SCPI — investissement_scpi_metrics)
+  dvm: number | null;                   // SCPI : taux de distribution (DVM), en % (ex. 5.0)
+  tof: number | null;                   // SCPI : taux d'occupation financier, en % (ex. 91.2)
+  scpi_period: string | null;           // SCPI : période des métriques (ex. « 2024-Q4 »)
   inception_date: string | null;
   track_record_years: number | null;
   hedged: boolean | null;              // version couverte en devise

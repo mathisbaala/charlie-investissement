@@ -87,10 +87,12 @@ export default async function FondPage({
     // colonne de investissement_funds) → fetch dédié, sinon le champ reste null.
     supabase
       .from("investissement_scpi_metrics")
-      .select("price_per_share")
+      .select("price_per_share, dvm, tof, period")
       .eq("isin", upper)
       .maybeSingle(),
   ]);
+
+  const scpi = scpiMetrics as { price_per_share: number | null; dvm: number | null; tof: number | null; period: string | null } | null;
 
   const nav_history: NavPointHF[] = (prices ?? []).map((p: any) => ({
     date: p.price_date,
@@ -132,7 +134,10 @@ export default async function FondPage({
     region_normalized: fund.region_normalized,
     region_exposure: (fund as any).region_exposure ?? null,
     currency: fund.currency,
-    price_per_share: (scpiMetrics as { price_per_share: number | null } | null)?.price_per_share ?? null,
+    price_per_share: scpi?.price_per_share ?? null,
+    dvm: scpi?.dvm ?? null,
+    tof: scpi?.tof ?? null,
+    scpi_period: scpi?.period ?? null,
     inception_date: fund.inception_date,
     track_record_years: fund.track_record_years,
     hedged: (fund as any).hedged ?? null,
