@@ -128,6 +128,14 @@ Plafond structurel `data_completeness` = **56 pts** (les champs `ter`, `kid_pars
 
 Données statiques mises à jour annuellement (livrets) ou trimestriellement (fonds euros). ISINs synthétiques :
 
+> ⚠️ **Gotcha FE_Q (résolu 21/06)** : les fonds euros seedés par Quantalys
+> (`FE_Q_QUA*`) avaient un `performance_1y` = le **nombre présent dans le nom**
+> (ex. « ARC R PRO E 4,5% » → 4.5 ; taux de vintage 2012-2015 ou % de
+> participation aux bénéfices), PAS une vraie perf. Hors mapping GVFM. Nettoyé
+> par `migrations/20260621200000_feq_null_name_derived_perf.sql` (43 perf_1y →
+> NULL, backup `investissement_funds_feq_perf_backup_20260621`). Les vrais taux
+> fonds euros viennent de `fonds-euros-enricher.py` (mapping GVFM), pas du nom.
+
 | Préfixe | Instrument |
 |---------|-----------|
 | `FR_LIVRET_A`, `FR_LDDS`, `FR_LEP`, `FR_PEL`, `FR_CEL`, `FR_LIVRET_JEUNE`, `FR_LIVRET_B` | Livrets réglementés |
@@ -363,6 +371,19 @@ python3 scripts/scrapers/justetf-fields-enricher.py --apply
 python3 scripts/migrations/derive-srri-from-volatility.py --apply
 python3 scripts/scrapers/sfdr-enricher.py --apply --heuristic
 python3 scripts/scrapers/pea-eligibility-fix.py --apply
+# PEA = DEUX couches : (1) heuristique sur le NOM ci-dessus (pea-eligibility-fix) ;
+# (2) gate sur la COMPOSITION via investissement_fund_geos (≥80% UE/EEE), appliqué
+# par migration reviewée — PAS un cron auto (cf. migration
+# 20260621210000_pea_recompo_geos_gate). GOTCHAS du gate compo :
+#   • filtrer asset_class_broad='action' (≠ asset_class='actions' qui contient des
+#     ETF OBLIGATAIRES → 100% UE mais NON PEA) ;
+#   • sources géo fiables = ISO2 (issuer:*/justetf, couverture ≥80%) OU FT-Eurozone
+#     normalisée ; NE PAS utiliser la géo Morningstar coarse (bucket EU inclut la
+#     Suisse, exclut le UK) ;
+#   • JAMAIS délister un fonds dont le nom contient « pea » (ETF synthétiques type
+#     Amundi PEA S&P500 = éligibles malgré sous-jacents US) ;
+#   • retraits par liste explicite (faux négatif pire que faux positif pour un CGP) ;
+#   • resync du label JSONB 'pea' sur la colonne pea_eligible après coup.
 
 # Phase 5 : SCPI/crypto/equities
 python3 scripts/scrapers/scpi-lab-enricher.py --apply
@@ -462,7 +483,26 @@ Trois facteurs cumulés :
 | KID GECO format DOCX | AMF distribue certains KIDs en DOCX | Support ajouté dans `kid-bulk-parser.py` via `python-docx` |
 | KID SRI graphique | PRIIPS templates avec SRI en image | Fallback LLM Claude (`--llm`) |
 
----
+### 7.3. Schedule GitHub Actions droppé (best-effort)
+
+**Sévérité** : Faible (pas de corruption ; donnée hebdo non rafraîchie ce cycle)
+**Date** : lundi 22/06/2026
+**Détection** : surveillance — `weekly-refresh` (cron `0 4 * * 1`) n'avait produit
+**aucun run** à 07:43 UTC (3h43 après l'heure prévue) ; dernier run *schedule* = 15/06.
+
+**Cause** : GitHub exécute les workflows `schedule` en **best-effort** et les
+**diffère ou abandonne** quand la file est congestionnée — ce qui arrive surtout
+sur les crons à la **minute ronde** (`0`), où tout le monde planifie. Ce n'est PAS
+un bug du pipeline (aucun run en échec → pas d'auto-alerte `if: failure()`, qui ne
+se déclenche que sur un run réellement exécuté).
+
+**Remédiation immédiate** : relance manuelle `gh workflow run weekly-refresh.yml`.
+
+**Prévention** : décaler les crons hors des minutes rondes (et de `0 4` en
+particulier). `weekly-refresh` passé à `17 4 * * 1`. À migrer progressivement pour
+les autres workflows à minute ronde. ⚠️ La détection « run schedule manquant »
+n'est PAS couverte par `if: failure()` (qui suppose un run) : seule une
+surveillance externe (ou un check « dernier run < 8 j ») la voit.
 
 ## 8. Données encore à collecter (gaps)
 

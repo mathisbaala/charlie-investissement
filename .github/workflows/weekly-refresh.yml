@@ -4,8 +4,11 @@ name: Rafraîchissement hebdomadaire
 # Cadence pensée pour des CGP : hebdomadaire, sans suivi quotidien.
 on:
   schedule:
-    # Lundi 04:00 UTC (≈ 05:00/06:00 Paris) — données prêtes avant la semaine.
-    - cron: "0 4 * * 1"
+    # Lundi 04:17 UTC (≈ 06:17 Paris) — données prêtes avant la semaine.
+    # ⚠️ Minute volontairement DÉCALÉE de l'heure ronde : GitHub exécute les
+    # schedules en best-effort et diffère/abandonne ceux calés sur « :00 » (file
+    # congestionnée). Le run du 22/06 (cron « 0 4 ») a été droppé — cf. playbook §7.3.
+    - cron: "17 4 * * 1"
   workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
 
 concurrency:
