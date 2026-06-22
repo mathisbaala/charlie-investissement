@@ -59,7 +59,7 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
       )}
 
       <p className="text-caption text-muted-2 mt-4 leading-snug">
-        Donnée partielle. L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas
+        L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas
         référencé.
       </p>
     </Card>

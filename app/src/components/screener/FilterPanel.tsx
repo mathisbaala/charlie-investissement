@@ -450,7 +450,7 @@ export function FilterPanel({
               </div>
               <p className="text-caption text-muted-2 mt-2 leading-snug">
                 Cliquez sur l&apos;assureur pour le sélectionner, ou sur le chevron pour filtrer par contrat
-                précis. Donnée partielle — l&apos;absence ne signifie pas non-référencement.
+                précis. L&apos;absence ne signifie pas non-référencement.
               </p>
             </Section>
 

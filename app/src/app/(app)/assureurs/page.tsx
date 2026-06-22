@@ -383,7 +383,7 @@ export default function AssureursPage() {
       )}
 
       <p className="text-caption text-muted-2 mt-6 leading-snug max-w-[640px]">
-        Donnée partielle. L&apos;absence d&apos;un assureur ou d&apos;un contrat ne signifie pas
+        L&apos;absence d&apos;un assureur ou d&apos;un contrat ne signifie pas
         qu&apos;un fonds n&apos;y est pas référencé.
       </p>
     </PageShell>
