@@ -7,6 +7,7 @@ import { ChatPanel } from "@/components/chrome/ChatPanel";
 import { ToastProvider } from "@/components/ui/Toast";
 import { SelectionProvider } from "@/components/SelectionProvider";
 import { RateLimitDialog } from "@/components/ui/RateLimitDialog";
+import { WelcomeTour } from "@/components/chrome/WelcomeTour";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [chatOpen, setChatOpen] = useState(false);
@@ -37,6 +38,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Modal « crédits du jour épuisés » (déclenché sur 429 des routes IA) */}
           <RateLimitDialog />
+
+          {/* Visite guidée de première visite (5 onglets + Charlie), une seule fois */}
+          <WelcomeTour />
         </div>
       </SelectionProvider>
     </ToastProvider>
