@@ -40,9 +40,9 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-allianz-catalog.py", []),
     ("scrapers/av-fr-axa-catalog.py", []),
     ("scrapers/av-fr-cardif-catalog.py", []),
-    ("scrapers/av-fr-mutualistes-catalog.py", []),  # rend 0 actuellement — à re-câbler
+    ("scrapers/av-fr-mutualistes-catalog.py", []),  # OK (vérifié 22/06 : 8 PDF live, ~280 ISIN en base)
     ("scrapers/av-fr-oradea-catalog.py", []),
-    ("scrapers/av-fr-spirica-catalog.py", []),      # rend 0 (sylvea.fr 404) — à re-câbler
+    ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
     # ── AV France — bancassureurs majeurs (Tier 3, annexes PDF, juin 2026) ─────
