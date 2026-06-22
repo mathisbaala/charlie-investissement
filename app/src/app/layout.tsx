@@ -6,6 +6,7 @@ import {
   DM_Mono,
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -37,9 +38,29 @@ const dmMono = DM_Mono({
   display: "swap",
 });
 
+const TITLE = "Charlie Investissement";
+const DESCRIPTION = "L'intelligence la plus profonde sur chaque fonds.";
+
 export const metadata: Metadata = {
-  title: "Charlie Investissement",
-  description: "L'intelligence la plus profonde sur chaque fonds.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: SITE_URL,
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 // Rendu mobile correct : largeur = écran, pas de zoom desktop par défaut.

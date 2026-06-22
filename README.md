@@ -15,7 +15,7 @@ data/           Données traitées (raw/ exclu du git)
 
 ## Application web (`app/`)
 
-Déployée sur Vercel (auto-deploy au push `main`) : `charlie-investissement.vercel.app`.
+Déployée sur Vercel (auto-deploy au push `main`). Domaine principal : `www.charliewealth.fr` (l'apex `charliewealth.fr` redirige en 308 ; `charlie-investissement.vercel.app` reste actif).
 Fonctionnalités principales :
 
 - **Screener** : recherche multi-critères + tri + recherche en langage naturel (Claude).
