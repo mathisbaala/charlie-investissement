@@ -59,6 +59,11 @@ jobs:
             --apply --include-unrated --offset 0 \
             --limit "${{ inputs.limit || '1000' }}"
 
+      # Dérive allocation_profile des diversifiés depuis la compo FRAÎCHEMENT
+      # drainée ci-dessus (fill-only). La couverture grandit avec le drain.
+      - name: Dériver allocation_profile depuis la composition
+        run: python3 scripts/enrichers/derive-allocation-profile.py
+
       - name: Alerte en cas d'échec
         if: failure()
         env:
