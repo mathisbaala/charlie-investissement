@@ -26,6 +26,31 @@ describe('blendExposure', () => {
     ])
     expect(out).toEqual([{ label: 'USA', weight: 100 }])
   })
+  it('fusionne les libellés d\'une même clé (Germany/Allemagne → un seul pays)', () => {
+    // A en anglais (DE), B en français (DE) : sans clé ils feraient 2 lignes.
+    const out = blendExposure([
+      { isin: 'A', label: 'Germany', key: 'DE', weight: 0.5 },
+      { isin: 'A', label: 'France', key: 'FR', weight: 0.5 },
+      { isin: 'B', label: 'Allemagne', key: 'DE', weight: 1.0 },
+    ])
+    // DE = (0.5+1)/2 = 75 ; libellé canonique = le plus fréquent (1 vs 1 → alpha → Allemagne)
+    expect(out).toEqual([{ label: 'Allemagne', weight: 75 }, { label: 'France', weight: 25 }])
+  })
+  it('libellé canonique = le plus fréquent dans le panier', () => {
+    const out = blendExposure([
+      { isin: 'A', label: 'Germany', key: 'DE', weight: 0.4 },
+      { isin: 'B', label: 'Germany', key: 'DE', weight: 0.4 },
+      { isin: 'C', label: 'Allemagne', key: 'DE', weight: 0.4 },
+    ])
+    expect(out).toEqual([{ label: 'Germany', weight: 40 }])
+  })
+  it('sans clé, agrège par label (rétrocompatible)', () => {
+    const out = blendExposure([
+      { isin: 'A', label: 'USA', weight: 0.6 },
+      { isin: 'B', label: 'USA', weight: 1.0 },
+    ])
+    expect(out).toEqual([{ label: 'USA', weight: 80 }])
+  })
   it('tri décroissant + cap au top N', () => {
     const rows = Array.from({ length: 15 }, (_, i) => ({ isin: 'A', label: `P${i}`, weight: (i + 1) / 100 }))
     const out = blendExposure(rows, 12)
