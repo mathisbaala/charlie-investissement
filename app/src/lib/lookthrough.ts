@@ -3,8 +3,18 @@
 // agrégée équipondérée + détection de doublons. Les poids en entrée sont des
 // fractions (0-1) ; la sortie est en % (0-100).
 
-export type ExpoRow = { isin: string; label: string; weight: number };
+// `key` (optionnel) = identité d'agrégation stable inter-sources (ex. code ISO
+// pays) : deux libellés différents d'une même entité (« Germany »/« Allemagne »,
+// tous deux code `DE`) fusionnent en une seule ligne au lieu d'être double-comptés.
+// Absent → on agrège par `label` (rétrocompatible).
+export type ExpoRow = { isin: string; label: string; weight: number; key?: string };
 export type Expo = { label: string; weight: number };
+
+/** Libellé canonique d'une clé = le plus fréquent dans le panier (tie-break alpha). */
+function pickLabel(votes: Map<string, number>): string {
+  return Array.from(votes.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+}
 
 // Lignes génériques / non identifiables → exclues de la détection de doublons.
 export const GENERIC_POSITIONS = new Set([
@@ -22,13 +32,18 @@ export function blendExposure(rows: ExpoRow[], limit = 12): Expo[] {
   const contributors = new Set(rows.map((r) => r.isin));
   const n = contributors.size;
   if (n === 0) return [];
-  const acc = new Map<string, number>();
+  const acc = new Map<string, number>();              // clé → somme des poids
+  const labelVotes = new Map<string, Map<string, number>>(); // clé → (libellé → occurrences)
   for (const r of rows) {
     if (r.weight == null || Number.isNaN(r.weight) || !r.label) continue;
-    acc.set(r.label, (acc.get(r.label) ?? 0) + r.weight);
+    const key = r.key || r.label;
+    acc.set(key, (acc.get(key) ?? 0) + r.weight);
+    const votes = labelVotes.get(key) ?? new Map<string, number>();
+    votes.set(r.label, (votes.get(r.label) ?? 0) + 1);
+    labelVotes.set(key, votes);
   }
   return Array.from(acc.entries())
-    .map(([label, sum]) => ({ label, weight: Math.round((sum / n) * 1000) / 10 }))
+    .map(([key, sum]) => ({ label: pickLabel(labelVotes.get(key)!), weight: Math.round((sum / n) * 1000) / 10 }))
     .filter((x) => x.weight > 0)
     .sort((a, b) => b.weight - a.weight)
     .slice(0, limit);
