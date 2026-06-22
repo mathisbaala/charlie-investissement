@@ -16,7 +16,7 @@
 > documentant chaque item pour ne plus y revenir.
 
 - **Backlog AV** *(déployé)* — Faux chantier : Spirica + mutualistes fonctionnent (sondés live le 22/06 : sources 200, ~280/336 ISIN en base, 62 080 lignes Spirica fraîches du 21/06). Seuls les commentaires `# rend 0 — à re-câbler` étaient périmés → corrigés (`av-catalog-refresh.py`). Reste réel = Abeille/MAAF/MMA/GMF bloqués par IP datacenter (proxy dormant = décision utilisateur).
-- **Look-through — double-comptage géo** *(déployé, `34baba5`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. 245/245 tests, tsc clean.
+- **Look-through — double-comptage géo + polish FE** *(déployé, `34baba5` + `6b10262`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. Polish FE : re-fetch sur clé ISIN stable + garde de course, accessibilité des barres (role=img/aria-label), erreur réseau distinguée. **Chantier look-through clos à 100 %.** 245/245 tests, tsc clean.
 - **SCPI — DVM + TOF sur la fiche** *(déployé, `9c44ee2`)* — La table `scpi_metrics` portait déjà taux de distribution (DVM, 109), taux d'occupation (TOF, 101) et capitalisation, mais seul le prix de part était affiché. Ajout des lignes DVM + TOF (avec l'année). Couverture prix SCPI = 116/191 (le reste = SCPI fiscales fermées, légitime). Capitalisation non ajoutée (= doublon Encours).
 - **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
 
