@@ -9,7 +9,19 @@
 
 ---
 
-## 🎯 Ce qui a été livré aujourd'hui (par chantier)
+## 🔄 Journal 22/06 (post-19/06) — réglage des chantiers ouverts un par un
+
+> Objectif de la session : reprendre la liste « Prochains chantiers » et la **traiter
+> intégralement**, en vérifiant l'état RÉEL (base + live) avant de coder, et en
+> documentant chaque item pour ne plus y revenir.
+
+- **Backlog AV** *(déployé)* — Faux chantier : Spirica + mutualistes fonctionnent (sondés live le 22/06 : sources 200, ~280/336 ISIN en base, 62 080 lignes Spirica fraîches du 21/06). Seuls les commentaires `# rend 0 — à re-câbler` étaient périmés → corrigés (`av-catalog-refresh.py`). Reste réel = Abeille/MAAF/MMA/GMF bloqués par IP datacenter (proxy dormant = décision utilisateur).
+- **Look-through — double-comptage géo** *(déployé, `34baba5`)* — Vrai bug : l'« Exposition agrégée » groupait par libellé brut, donc « Germany » (FT) et « Allemagne » (Morningstar) comptaient double (même code `DE`). Fix : agrégation par **code ISO** + libellé canonique, rétrocompatible. 245/245 tests, tsc clean.
+- **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
+
+---
+
+## 🎯 Ce qui a été livré le 19/06 (par chantier)
 
 ### 1. Analyse de DICI + rapport de fonds design  *(chantier principal de fin de journée)*
 - **Bug racine résolu** : la clé `ANTHROPIC_API_KEY` en prod était **invalide** (`401 invalid x-api-key`) → toutes les fonctionnalités IA tombaient (DICI, chat, recherche NLP). Clé remplacée dans Vercel + redéployée → **tout refonctionne**.
