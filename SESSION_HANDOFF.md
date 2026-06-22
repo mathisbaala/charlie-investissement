@@ -98,7 +98,7 @@
 
 ## 🟢 État opérationnel actuel (prod)
 
-- **Frontend** : Next.js 16 sur Vercel, auto-déploy au push `main`. Domaine `charlie-investissement.vercel.app`.
+- **Frontend** : Next.js 16 sur Vercel, auto-déploy au push `main`. Domaine principal `www.charliewealth.fr` (apex `charliewealth.fr` → 308 ; `charlie-investissement.vercel.app` conservé).
 - **IA opérationnelle** sur 4 routes (`/api/parse`, `/api/dici/parse`, `/api/chat`, `/api/parse-profile`) — clé valide, vérifié 200 partout.
 - **DICI live** : upload → rapport design + enrichissement marché. Vérifié end-to-end (upload navigateur réel) sans erreur console.
 - **Garde-fous coût actifs** : par IP (`AI_HOUR_LIMIT`/`AI_DAY_LIMIT` = 25/25), GLOBAL (`AI_GLOBAL_DAY_LIMIT` = 60), taille PDF (`DICI_MAX_BYTES` = 3 Mo), validation `%PDF`. Tous réglables via env Vercel (redeploy requis).
