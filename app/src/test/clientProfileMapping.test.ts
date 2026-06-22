@@ -59,8 +59,27 @@ describe("profileToScreenerFilters", () => {
     expect(profileToScreenerFilters({ ...EMPTY_PROFILE, no_entry_fee: false }).no_entry_fee).toBeUndefined();
   });
 
-  it("n'émet pas de filtre dur pour l'expérience (contexte NLP uniquement)", () => {
-    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, experience: "novice" })).toEqual({});
+  it("n'émet pas de filtre dur pour l'expérience (seulement une préférence douce)", () => {
+    // novice → préférence douce (écarte les produits complexes au CLASSEMENT), jamais
+    // un filtre dur qui restreindrait l'univers.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, experience: "novice" })).toEqual({
+      prefs: { novice: true },
+    });
+    // informé / expérimenté : aucune préférence émise.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, experience: "informe" })).toEqual({});
+  });
+
+  it("traduit les signaux profil en préférences DOUCES (prefs), pas en filtres durs", () => {
+    // objectif revenus → income ; income_need régulier → income aussi.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, objectif: "revenus" }).prefs).toEqual({ income: true });
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, income_need: "regulier" }).prefs).toEqual({ income: true });
+    // TMI ≥ 30 → favoriser PER/PEA (boost, pas filtre).
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, tmi: "41" }).prefs).toEqual({ envelopes: ["PEA", "PER"] });
+    // TMI < 30 → aucune préférence enveloppe.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, tmi: "11" }).prefs).toBeUndefined();
+    // Petit montant (< 10 000 €) → accessible retail.
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, amount_eur: 5_000 }).prefs).toEqual({ small_ticket: true });
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, amount_eur: 50_000 }).prefs).toBeUndefined();
   });
 
   it("traduit l'exclusion « fossiles » en exclude_sectors (les autres restent NLP)", () => {

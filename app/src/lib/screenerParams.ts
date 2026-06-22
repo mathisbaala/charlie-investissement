@@ -106,6 +106,11 @@ export function buildParams(
   if (f.has_kid)                     sp.set("has_kid",           "true");
   if (f.beats_benchmark)             sp.set("beats_benchmark",   "true");
   if (f.labels?.length)              sp.set("labels",            f.labels.join(","));
+  // Préférences DOUCES (couloir fit, pas des filtres durs) → pref_*.
+  if (f.prefs?.income)               sp.set("pref_income",       "true");
+  if (f.prefs?.envelopes?.length)    sp.set("pref_envelopes",    f.prefs.envelopes.join(","));
+  if (f.prefs?.novice)               sp.set("pref_novice",       "true");
+  if (f.prefs?.small_ticket)         sp.set("pref_small_ticket", "true");
   sp.set("sort_by",  sortBy);
   sp.set("sort_dir", sortDir);
   sp.set("page",     String(page));
@@ -151,6 +156,15 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
   }
   if (sp.get("manager_search")) f.manager_search = sp.get("manager_search")!;
   if (sp.get("search"))         f.free_text      = sp.get("search")!;
+
+  // Préférences douces (round-trip URL → UI). Vide si l'URL n'en porte aucune.
+  const prefs: NonNullable<ParsedFilters["prefs"]> = {};
+  if (sp.get("pref_income")       === "true") prefs.income = true;
+  if (sp.get("pref_novice")       === "true") prefs.novice = true;
+  if (sp.get("pref_small_ticket") === "true") prefs.small_ticket = true;
+  const prefEnv = list("pref_envelopes");
+  if (prefEnv?.length) prefs.envelopes = prefEnv;
+  if (Object.keys(prefs).length) f.prefs = prefs;
 
   return f;
 }

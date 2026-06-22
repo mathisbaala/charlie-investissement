@@ -305,10 +305,28 @@ export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
   ];
   if (exclSectors.length) f.exclude_sectors = exclSectors;
 
+  // ── Préférences DOUCES (couloir fit, jamais des filtres durs) ──────────────
+  // Signaux du profil sans équivalent filtre fiable : ils ne RESTREIGNENT pas
+  // l'univers (sinon on exclurait des fonds légitimes faute de donnée propre —
+  // pas de colonne distribuant/capitalisant, pas de yield), ils NUANCENT le
+  // classement par adéquation. Continuent aussi d'alimenter le contexte NLP.
+  const prefs: NonNullable<ParsedFilters["prefs"]> = {};
+  // Objectif revenus / besoin de revenus réguliers → favoriser les classes
+  // génératrices de revenus (immobilier/SCPI, obligataire, monétaire, diversifié prudent).
+  if (p.objectif === "revenus" || p.income_need === "regulier") prefs.income = true;
+  // TMI élevée (≥ 30 %) → favoriser les enveloppes fiscalement efficaces (PER/PEA),
+  // sans les imposer (le client peut détenir d'autres enveloppes).
+  if (p.tmi && Number(p.tmi) >= 30) prefs.envelopes = ["PEA", "PER"];
+  // Investisseur novice → écarter doucement les produits complexes (alternatif, smart beta).
+  if (p.experience === "novice") prefs.novice = true;
+  // Petit montant (< 10 000 €) → privilégier les fonds accessibles au retail.
+  if (p.amount_eur != null && p.amount_eur < 10_000) prefs.small_ticket = true;
+  if (Object.keys(prefs).length) f.prefs = prefs;
+
   return f;
 }
 
-// Note : objectif, TMI, montant, âge, expérience et zones géographiques n'ont pas
-// d'équivalent FILTRE DUR fiable → ils restent du contexte NLP (serializeForNlp) et
-// n'agissent que via une recherche texte ultérieure. Le bouton « Trouver les fonds
-// adaptés » ne transporte que les filtres durs ci-dessus — comportement assumé.
+// Note : âge, montant exact et zones géographiques n'ont pas d'équivalent filtre dur
+// fiable → ils restent du contexte NLP (serializeForNlp). objectif/revenus/TMI/
+// expérience/petit montant alimentent désormais les PRÉFÉRENCES DOUCES (f.prefs) qui
+// nuancent le classement par adéquation côté /api/funds, sans rigidifier l'univers.
