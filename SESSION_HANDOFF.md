@@ -22,6 +22,7 @@
 - **Look-through — dédup secteurs** *(déployé, `70952fb`)* — Suite du fix géo : la base mêle 3 taxonomies de secteurs (Morningstar « Technology » / GICS « Information Technology » / FR « Technologie ») → l'agrégation triple-comptait. `canonicalSector()` rabat les variantes dominantes sur un libellé FR unique + écarte le junk (ISIN collé en secteur, « Volatilité sur 1 an »). *Vérifié live : secteurs renvoyés en FR canonique sans doublon.* 250/250 tests.
 - **Pertinence recherche — investigué, RAS** — Sondé en prod (NLP « obligataire court terme faible risque » → 1 185 ; « ETF S&P 500 » → 37 pertinents ; typo « Amundo » → Amundi via fuzzy pg_trgm ; loading states corrects, deep-link sans flash). **Déjà excellente après le sprint 20/06 → aucun changement défendable.** Pas de code touché (ne pas re-ouvrir comme chantier).
 - **Décisions fermes prises** : (a) **Actions individuelles = WON'T-DO** (`b04c16f`) — exclues du screener+recherche par design, simples holdings look-through, prix inutile ; (b) **Proxy AV non activé** — re-seed manuel trimestriel retenu (secret `AV_PROXY_URL` non posé, vérifié `gh secret list`).
+- **Pertinence recherche — score d'adéquation (fit)** *(déployé, `a70d92c`)* — Itération de fond **demandée par le user** (dépasse le « RAS » ci-dessus). Le couloir **intention/profil** (recherche descriptive OU profil client) est désormais re-classé par un **score de fit composite** (TS pur, `app/src/lib/fitScore.ts`, **aucune migration**) : `0.55·complétude + 0.22·qualité(Morningstar/alpha/Sharpe/ancienneté/encours) + 0.13·adéquation − 0.10·dépassement doux + prefs`. **Complétude DOMINANTE** = garde-fou : un fonds bien renseigné n'est pas rétrogradé sous un fonds creux, et la **navigation neutre garde `data_completeness` strict** (inchangée). Trois leviers : (a) classement par adéquation à l'intention/au profil ; (b) **proximité douce** — les seuils de confort non structurants sont élargis (TER ×1.15, drawdown +5, perf −3, vol +3, Sharpe −0.2) et le quasi-match est classé **DERRIÈRE** au lieu d'être exclu ; SRI/SFDR/univers/zone/enveloppes/labels restent **durs** ; (c) **signaux profil exploités** (objectif revenus → classes génératrices de revenus, TMI ≥ 30 → PER/PEA, novice → moins d'alternatif, petit montant → accessible retail) en **préférences douces** `prefs` (jamais des filtres durs), aussi injectées dans le parse NLP quand un profil est actif. Un **tri explicite** (clic colonne / « le moins cher ») désactive le couloir = **mode strict**. **QA prod live 8/8** : neutre inchangé (7 844, tri completeness) ; fit `action` top tous dc=100 ordonnés qualité ; `ter_max=0.2` = **+20 quasi-matches** (433 vs 413 strict) **invisibles en page 1** ; `pref_income` bascule le top vers oblig + SCPI ; mode strict = seuils exacts ; texte/fuzzy/ISIN intacts ; latence **0,44–0,91 s** (couloir fit enrichit ≤ 300 lignes, pas de timeout). 266 tests, tsc clean. Transparence per-fonds (« pourquoi ça colle ») **non retenue** ce sprint. Cf. mémoire `fit-score-ranking-20260622`.
 - **À suivre** : voir « Prochains chantiers » plus bas (liste réconciliée au 22/06).
 
 ---
@@ -102,6 +103,7 @@
 - **DICI live** : upload → rapport design + enrichissement marché. Vérifié end-to-end (upload navigateur réel) sans erreur console.
 - **Garde-fous coût actifs** : par IP (`AI_HOUR_LIMIT`/`AI_DAY_LIMIT` = 25/25), GLOBAL (`AI_GLOBAL_DAY_LIMIT` = 60), taille PDF (`DICI_MAX_BYTES` = 3 Mo), validation `%PDF`. Tous réglables via env Vercel (redeploy requis).
 - **Modèles** : extraction DICI + recherche/profil sur **Haiku 4.5** (cheap) ; chat sur **Sonnet 4.6**.
+- **Recherche / screener** : couloir **intention/profil** classé par **score d'adéquation (fit)** (complétude dominante) ; **navigation neutre** = tri `data_completeness` strict (inchangé) ; **proximité douce** (quasi-match classé derrière) + **prefs profil** douces. Déployé `a70d92c` (cf. Journal 22/06 + mémoire `fit-score-ranking-20260622`).
 - Logs serveur Vercel : 0 erreur depuis le fix clé.
 
 ---
@@ -115,6 +117,7 @@
 5. **Rate-limit fail-open** : une panne de comptage laisse passer (on ne casse pas le produit) → le plafond Anthropic reste le filet ultime.
 6. **Morningstar EMEA** : credentials en secrets CI ; 1 worker (blocage IP).
 7. **Vue cgp** : le screener exclut `action`/`crypto`/`fps`/`structuré` (sinon offre sur-annoncée).
+8. **QA-data impossible hors prod** : les secrets Supabase/Anthropic sont marqués **« Sensitive »** sur Vercel → non relisibles (`vercel env pull` rend des valeurs **vides** ; preview de branche = 0 env → **500**). Seul l'env **production** injecte les secrets au runtime → toute QA contre la vraie base se fait **en prod après merge** (rollback instantané = filet). Ne pas tenter de QA une preview/un local avec data réelle, c'est une impasse.
 
 ---
 
@@ -137,6 +140,7 @@
 - ~~**Actions individuelles** (0 prix)~~ → **WON'T-DO** (`b04c16f`) : exclues du screener+recherche par design (`api/funds/route.ts:198`), simples constituants look-through, prix inutile. Réouverture seulement si on ajoute un univers actions au screener. Cf. mémoire `actions-no-price-wontdo`.
 - ~~**Backlog AV résiduel**~~ → réduit à zéro côté code (Spirica/mutualistes OK, scrapling→parsel vide). Reste Abeille/MAAF/MMA/GMF bloqués IP datacenter → **DÉCISION : re-seed manuel trimestriel** (proxy `AV_PROXY_URL` non activé, ne pas re-proposer sans signal). Cf. `tier3-bancassureurs-av`.
 - ~~**QA prod**~~ → 98/100, F1 fermé (working-as-designed).
+- ~~**Pertinence recherche (itération de fond)**~~ → **LIVRÉ** (`a70d92c`) : score d'adéquation (fit) + proximité douce + prefs profil dans le couloir intention/profil ; navigation neutre inchangée. QA prod live 8/8. Cf. mémoire `fit-score-ranking-20260622`. Reste optionnel : transparence per-fonds (« pourquoi ça colle »), non retenue ce sprint.
 
 ### 🔒 Reste ouvert MAIS hors de ma main (ne PAS toucher — collision)
 - **Migration `source_id`** — *réservé à un autre intervenant (~2j)*. `source_id` backfillé, reste `DROP COLUMN source` + `VACUUM FULL` (~130 Mo). Non urgent (Pro, ~6,6 Go marge). Touche les 6 scrapers d'ingestion → jamais à chaud. Cf. `fund-prices-source-id-migration`.
@@ -147,7 +151,7 @@
 ### 🟢 Traitable maintenant, sans collision
 - **(plus rien)** — le board énuméré est soldé ET les 2 candidats neufs sont résolus :
   - ~~dédup secteurs look-through~~ → **LIVRÉ** (`70952fb`, vérifié live).
-  - ~~itération pertinence recherche~~ → **INVESTIGUÉ, RAS** (déjà excellente, sprint 20/06 ; pas de bug → pas de changement).
+  - ~~itération pertinence recherche~~ → **LIVRÉ** (`a70d92c`, 22/06) : le « RAS » initial a été dépassé à la demande du user → score d'adéquation (fit) + proximité douce + prefs profil ; QA prod live 8/8.
 - Tous les leviers restants sont en **zone agent** (Morningstar drain, couverture OPCVM) ou **réservés** (migration `source_id`). Rien d'actionnable de mon côté sans collision.
 
 ---
