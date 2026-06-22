@@ -22,12 +22,12 @@ function Bars({ title, rows }: { title: string; rows: Expo[] }) {
       <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">{title}</p>
       <div className="space-y-1.5">
         {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-3">
-            <span className="text-meta text-ink-2 w-40 shrink-0 truncate">{r.label}</span>
-            <div className="flex-1 h-2 bg-paper-2 rounded-full overflow-hidden">
+          <div key={r.label} className="flex items-center gap-3" role="img" aria-label={`${r.label} : ${pct(r.weight)}`}>
+            <span className="text-meta text-ink-2 w-40 shrink-0 truncate" aria-hidden="true">{r.label}</span>
+            <div className="flex-1 h-2 bg-paper-2 rounded-full overflow-hidden" aria-hidden="true">
               <div className="h-full bg-accent/70 rounded-full" style={{ width: `${(r.weight / max) * 100}%` }} />
             </div>
-            <span className="text-meta font-mono text-ink-2 w-14 text-right shrink-0">{pct(r.weight)}</span>
+            <span className="text-meta font-mono text-ink-2 w-14 text-right shrink-0" aria-hidden="true">{pct(r.weight)}</span>
           </div>
         ))}
       </div>
@@ -38,16 +38,28 @@ function Bars({ title, rows }: { title: string; rows: Expo[] }) {
 export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  // Clé stable : `funds` est un nouveau tableau à chaque render du parent ; on
+  // dépend de la liste d'ISIN (string) pour ne re-fetcher QUE sur changement réel
+  // de sélection. La garde `ignore` jette une réponse périmée si la sélection a
+  // changé entre-temps (évite d'écraser le bon résultat par un ancien).
+  const isinsKey = funds.map((f) => f.isin).join(",");
 
   useEffect(() => {
-    const isins = funds.map((f) => f.isin).join(",");
+    let ignore = false;
     setLoading(true);
-    fetch(`/api/portfolio/lookthrough?isins=${isins}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setData(d))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  }, [funds]);
+    setError(false);
+    fetch(`/api/portfolio/lookthrough?isins=${isinsKey}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
+      .then((d) => { if (!ignore) setData(d); })
+      .catch(() => { if (!ignore) { setData(null); setError(true); } })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [isinsKey]);
 
   // TER moyen équipondéré (depuis la sélection, déjà en %).
   const terVals = funds.map((f) => f.ongoing_charges).filter((v): v is number => v != null);
@@ -101,9 +113,14 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
                       <span className="text-caption px-2 py-0.5 rounded-full font-medium border bg-warn-soft text-warn border-warn/20">
                         {o.count} fonds
                       </span>
-                      <span className="text-caption text-muted-2" title={o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n")}>
-                        jusqu&apos;à {pct(o.max_weight)}
-                      </span>
+                      {(() => {
+                        const detail = o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n");
+                        return (
+                          <span className="text-caption text-muted-2" title={detail} aria-label={`jusqu'à ${pct(o.max_weight)} — ${detail.replace(/\n/g, ", ")}`}>
+                            jusqu&apos;à {pct(o.max_weight)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -117,7 +134,9 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
 
           {!hasExpo && !hasOverlap && (
             <p className="text-meta text-muted-2 italic leading-snug">
-              Exposition agrégée indisponible pour cette sélection.
+              {error
+                ? "Impossible de charger l'exposition agrégée pour le moment. Réessayez."
+                : "Exposition agrégée indisponible pour cette sélection."}
             </p>
           )}
         </>
