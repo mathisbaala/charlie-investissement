@@ -280,30 +280,62 @@ describe("GET /api/funds — robustesse pagination", () => {
 
   // Perte max : la colonne max_drawdown_3y est un % négatif. drawdown_max=20
   // (magnitude) → on garde les fonds dont le drawdown est >= -20.
-  it("drawdown_max borne max_drawdown_3y à la magnitude négative", async () => {
+  // Un filtre seul + tri par défaut = couloir ADÉQUATION → PROXIMITÉ DOUCE active :
+  // les seuils de confort sont élargis de SOFT_TOLERANCE (drawdown +5, perf -3, vol +3,
+  // sharpe -0.2) ; le score de fit pénalise ensuite le dépassement. La colonne ciblée
+  // reste la bonne (c'est ce que vérifient ces tests). Le mode STRICT (tri explicite)
+  // est couvert juste après.
+  it("drawdown_max borne max_drawdown_3y (magnitude négative, élargie de 5)", async () => {
     dataResult = { data: [], error: null, count: 0 };
     await GET(req("?drawdown_max=20"));
-    expect(gteData).toContainEqual(["max_drawdown_3y", -20]);
+    expect(gteData).toContainEqual(["max_drawdown_3y", -25]);
   });
 
   // Magnitude toujours négative même si l'appelant envoie un nombre négatif.
-  it("drawdown_max normalise un signe négatif (abs)", async () => {
+  it("drawdown_max normalise un signe négatif (abs, élargie de 5)", async () => {
     dataResult = { data: [], error: null, count: 0 };
     await GET(req("?drawdown_max=-30"));
-    expect(gteData).toContainEqual(["max_drawdown_3y", -30]);
+    expect(gteData).toContainEqual(["max_drawdown_3y", -35]);
   });
 
-  it("perf_5y_min filtre performance_5y", async () => {
+  it("perf_5y_min filtre performance_5y (seuil élargi de 3 en proximité douce)", async () => {
     dataResult = { data: [], error: null, count: 0 };
     await GET(req("?perf_5y_min=8"));
-    expect(gteData).toContainEqual(["performance_5y", 8]);
+    expect(gteData).toContainEqual(["performance_5y", 5]);
   });
 
-  it("vol_3y_max filtre volatility_3y et sharpe_3y_min filtre sharpe_3y", async () => {
+  it("vol_3y_max filtre volatility_3y et sharpe_3y_min filtre sharpe_3y (élargis)", async () => {
     dataResult = { data: [], error: null, count: 0 };
     await GET(req("?vol_3y_max=12&sharpe_3y_min=0.5"));
-    expect(lteData).toContainEqual(["volatility_3y", 12]);
-    expect(gteData).toContainEqual(["sharpe_3y", 0.5]);
+    expect(lteData).toContainEqual(["volatility_3y", 15]);
+    expect(gteData).toContainEqual(["sharpe_3y", 0.3]);
+  });
+
+  // Mode STRICT : un tri EXPLICITE (clic colonne / intention « le moins cher ») sort du
+  // couloir adéquation → la proximité douce est désactivée, les seuils restent exacts.
+  it("tri explicite désactive la proximité douce (seuils stricts)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?perf_5y_min=8&drawdown_max=20&sort_by=performance_3y"));
+    expect(gteData).toContainEqual(["performance_5y", 8]);
+    expect(gteData).toContainEqual(["max_drawdown_3y", -20]);
+  });
+
+  // Couloir ADÉQUATION : un filtre + tri par défaut → vivier des plus complets
+  // re-classé par fit. La complétude domine (B 90 passe devant A 60), le total vient
+  // du count exact du vivier.
+  it("re-classe le vivier par adéquation (complétude dominante)", async () => {
+    const min = (isin: string, dc: number) => ({
+      isin, data_completeness: dc, aum_eur: 1_000_000, ter: null,
+      share_class_group_id: null,
+    });
+    dataQueue = [
+      { data: [{ isin: "A" }, { isin: "B" }], error: null, count: 2 }, // vivier (ISIN)
+      { data: [min("A", 60), min("B", 90)], error: null, count: null }, // enrichissement
+    ];
+    const res = await GET(req("?asset_class=action"));
+    const body = await res.json();
+    expect(body.data.map((f: { isin: string }) => f.isin)).toEqual(["B", "A"]);
+    expect(body.total).toBe(2);
   });
 
   // « Sans frais d'entrée » : clause OR null-safe (null inconnu OU <= 0), pour

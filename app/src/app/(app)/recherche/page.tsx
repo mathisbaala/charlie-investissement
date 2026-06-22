@@ -25,6 +25,7 @@ import {
   clearStoredProfile,
   isProfileActive,
   serializeForNlp,
+  profileToScreenerFilters,
 } from "@/lib/clientProfile";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -281,6 +282,14 @@ function RechercheInner() {
       : raw;
 
     const parsed = await parseQuery(fullQuery);
+    // Profil actif : on injecte ses PRÉFÉRENCES DOUCES (revenus, TMI, novice, petit
+    // montant) dans les filtres compris — le LLM ne les produit pas. Elles ne
+    // restreignent pas l'univers, elles nuancent le classement par adéquation
+    // (sans effet si une intention de tri explicite est détectée plus bas).
+    if (isProfileActive(profile)) {
+      const prefs = profileToScreenerFilters(profile).prefs;
+      if (prefs) parsed.prefs = { ...prefs, ...parsed.prefs };
+    }
     const hasFilters = Object.keys(parsed).length > 0;
     setFilters(hasFilters ? parsed : { free_text: query.trim() });
     setNlpFailed(!hasFilters);

@@ -59,14 +59,20 @@ describe("isProfileActive — nouveaux critères", () => {
   });
 });
 
-describe("profileToScreenerFilters — nouveaux critères = contexte uniquement", () => {
-  it("n'émet aucun filtre dur pour les champs de contexte", () => {
-    expect(profileToScreenerFilters({
+describe("profileToScreenerFilters — nouveaux critères = contexte / préférences douces", () => {
+  it("n'émet aucun filtre DUR pour les champs de contexte (au plus des prefs douces)", () => {
+    const f = profileToScreenerFilters({
       ...EMPTY_PROFILE,
       income_need: "regulier",
       reaction_baisse: "vendre",
       geographies: ["europe", "asie"],
       versements: "mensuel",
-    })).toEqual({});
+    });
+    // income_need régulier → préférence douce income ; le reste reste du contexte NLP.
+    expect(f).toEqual({ prefs: { income: true } });
+    // Aucune clé de FILTRE DUR n'est posée (univers/zone/sri/etc. intacts).
+    const { prefs: _prefs, ...hard } = f;
+    void _prefs;
+    expect(hard).toEqual({});
   });
 });
