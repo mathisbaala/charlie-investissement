@@ -1,4 +1,4 @@
-import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort, fmtEur } from "@/lib/format";
+import { dt, productTypeLabel, capitalize, fmtYears, fmtAumShort, fmtEur, nf1, nf2 } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 import { Card } from "@/components/ui/Card";
 
@@ -125,6 +125,10 @@ function MorningstarRow({ rating }: { rating: number | null }) {
 
 export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
   const styleLabel = fund.management_style ? (STYLE_LABELS[fund.management_style] ?? capitalize(fund.management_style)) : null;
+  // Métriques SCPI (investissement_scpi_metrics) : DVM et TOF sont des chiffres
+  // ANNUELS — on suffixe l'année (de `period`, ex. « 2024-Q4 ») pour la transparence.
+  const scpiYear = fund.scpi_period?.slice(0, 4) ?? null;
+  const yearSuffix = scpiYear ? ` (${scpiYear})` : "";
 
   return (
     <Card className="px-6 py-5">
@@ -140,6 +144,8 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
           <Row label="Prix de part" value={fund.price_per_share != null ? fmtEur(fund.price_per_share) : null} />
+          <Row label={`Taux de distribution${yearSuffix}`} value={fund.dvm != null ? `${nf2.format(fund.dvm)} %` : null} />
+          <Row label={`Taux d'occupation${yearSuffix}`} value={fund.tof != null ? `${nf1.format(fund.tof)} %` : null} />
           <BoolRow label="Couverture de change" value={fund.hedged} yes="Couvert" no="Non couvert" />
           <Row label="Gestionnaire" value={fund.gestionnaire ?? fund.management_company} />
           <Row label="Encours" value={fmtAumShort(fund.aum_eur)} />
