@@ -4,12 +4,19 @@ import { feeFracToPct } from "@/lib/format";
 import { asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import { relaxationOrder, relaxLabel } from "@/lib/screenerParams";
+import { rankByFit, SOFT_TOLERANCE, type FitContext } from "@/lib/fitScore";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 // Set vide partagé : jeu de filtres relâchés par défaut (cas nominal, aucun relâchement).
 const EMPTY_DISABLED: Set<string> = new Set();
+
+// Taille du vivier re-classé par adéquation (couloir intention/profil). On récupère
+// les CANDIDATE_CAP fonds les plus COMPLETS qualifiant les filtres, puis on les
+// re-classe en TS par fit. Au-delà (rare sur une recherche ciblée), la pagination
+// profonde retombe sur le tri completeness côté DB (cf. loadPage).
+const CANDIDATE_CAP = 300;
 
 // Planchers de complétude (data_completeness, 0-100). Base = garde-fou minimal de l'univers
 // curé ; intent = relevé pour les tris par intention (ne pas mettre en avant un fonds vide
@@ -111,6 +118,54 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   ]);
   const safeSort = VALID_SORT.has(sortBy) ? sortBy : "data_completeness";
 
+  // ── Préférences DOUCES (couloir fit, jamais des filtres durs) ───────────────
+  // Issues du profil client (objectif revenus, TMI, novice, petit montant). Elles
+  // ne restreignent pas l'univers — elles nuancent le classement par adéquation.
+  const prefIncome      = p(sp, "pref_income") === "true";
+  const prefEnvelopes   = arr(p(sp, "pref_envelopes"));
+  const prefNovice      = p(sp, "pref_novice") === "true";
+  const prefSmallTicket = p(sp, "pref_small_ticket") === "true";
+
+  // « Intention/profil actif » = la requête porte au moins un filtre dur OU une
+  // préférence douce. À l'inverse, la NAVIGATION NEUTRE (aucun filtre, tri par
+  // défaut) reste triée par data_completeness côté DB — inchangée, « strict ».
+  const anyHardFilter =
+    sfdr.length > 0 || sriMin != null || sriMax != null || terMax != null ||
+    p1yMin != null || p3yMin != null || p5yMin != null || volMax != null ||
+    vol3Max != null || shMin != null || sh3Min != null || ddMax != null ||
+    noEntryFee || aumMin != null || trMin != null || mstarMin != null ||
+    retroMin != null || envelopes.length > 0 || universe.length > 0 ||
+    assetClasses.length > 0 || allocProfiles.length > 0 || insurers.length > 0 ||
+    contracts.length > 0 || regions.length > 0 || sectors.length > 0 ||
+    exclSectors.length > 0 || exclRegions.length > 0 || mgmtStyles.length > 0 ||
+    currency.length > 0 || !!mgr || gestIn.length > 0 || hasKid ||
+    beatsBenchmark || esgLabels.length > 0;
+  const anyPref = prefIncome || prefEnvelopes.length > 0 || prefNovice || prefSmallTicket;
+  const hasIntent = anyHardFilter || anyPref;
+
+  // Re-classement par adéquation : seulement hors recherche texte (qui a déjà son
+  // score `relevance`), quand il y a une intention/profil, ET que le tri est le tri
+  // PAR DÉFAUT (data_completeness desc). Un tri explicite (clic colonne, intention
+  // « le moins cher ») reste prioritaire et n'est jamais écrasé par le fit.
+  const reRank = search.length === 0 && hasIntent && safeSort === "data_completeness" && !sortDir;
+  // La proximité douce (élargissement des seuils non structurants) n'est active que
+  // dans ce couloir : ailleurs (texte, neutre, relâchement), les seuils restent durs.
+  const softProximity = reRank;
+
+  const fitCtx: FitContext = {
+    terMax, drawdownMax: ddMax,
+    perf1yMin: p1yMin, perf3yMin: p3yMin, perf5yMin: p5yMin,
+    volMax, vol3yMax: vol3Max, sharpeMin: shMin, sharpe3yMin: sh3Min, sriMax,
+    sfdr: sfdr.length ? sfdr : undefined,
+    labels: esgLabels.length ? esgLabels : undefined,
+    beatsBenchmark: beatsBenchmark || undefined,
+    envelopes: envelopes.length ? envelopes : undefined,
+    preferIncome: prefIncome || undefined,
+    preferEnvelopes: prefEnvelopes.length ? prefEnvelopes : undefined,
+    novice: prefNovice || undefined,
+    smallTicket: prefSmallTicket || undefined,
+  };
+
   // ── Raccourci recherche par ISIN exact ──────────────────────────────────────
   // Coller un ISIN = « trouve-moi CE fonds précisément ». On court-circuite donc
   // les autres filtres ET les garde-fous de l'univers curé (data_completeness,
@@ -151,21 +206,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // les filtres structurants ignorent ce set. Vide par défaut (cas nominal).
   const applyFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED) => {
   const on = (k: string) => !disabled.has(k);
+  // PROXIMITÉ DOUCE (couloir fit uniquement) : on élargit les seuils de CONFORT non
+  // structurants d'une marge de tolérance (SOFT_TOLERANCE) pour ne plus exclure un
+  // quasi-match (frais 0,52 % vs seuil 0,50 %) ; le score de fit pénalise ensuite le
+  // dépassement → le quasi-match passe juste DERRIÈRE le match exact. Hors couloir fit
+  // (softProximity=false), les seuils restent stricts. SRI/SFDR restent toujours durs.
   if (sfdr.length)      q = q.in("sfdr_article", sfdr);
   if (sriMin != null)   q = q.gte("risk_score", sriMin);
   if (sriMax != null)   q = q.lte("risk_score", sriMax);
   // L'UI envoie ter_max en % ; la base stocke en fraction → diviser par 100.
-  if (terMax != null && on("ter_max")) q = (q as any).or(`ter.lte.${terMax / 100},ongoing_charges.lte.${terMax / 100}`);
-  if (p1yMin != null && on("perf_1y_min")) q = q.gte("performance_1y", p1yMin);
-  if (p3yMin != null && on("perf_3y_min")) q = q.gte("performance_3y", p3yMin);
-  if (p5yMin != null && on("perf_5y_min")) q = q.gte("performance_5y", p5yMin);
-  if (volMax != null && on("vol_max"))     q = q.lte("volatility_1y", volMax);
-  if (vol3Max != null && on("vol_3y_max")) q = q.lte("volatility_3y", vol3Max);
-  if (shMin != null && on("sharpe_min"))   q = q.gte("sharpe_1y", shMin);
-  if (sh3Min != null && on("sharpe_3y_min")) q = q.gte("sharpe_3y", sh3Min);
+  if (terMax != null && on("ter_max")) {
+    const terCut = (softProximity ? terMax * (1 + SOFT_TOLERANCE.terRel) : terMax) / 100;
+    q = (q as any).or(`ter.lte.${terCut},ongoing_charges.lte.${terCut}`);
+  }
+  const perfFloor = (m: number) => softProximity ? m - SOFT_TOLERANCE.perfAbs : m;
+  if (p1yMin != null && on("perf_1y_min")) q = q.gte("performance_1y", perfFloor(p1yMin));
+  if (p3yMin != null && on("perf_3y_min")) q = q.gte("performance_3y", perfFloor(p3yMin));
+  if (p5yMin != null && on("perf_5y_min")) q = q.gte("performance_5y", perfFloor(p5yMin));
+  if (volMax != null && on("vol_max"))     q = q.lte("volatility_1y", softProximity ? volMax + SOFT_TOLERANCE.volAbs : volMax);
+  if (vol3Max != null && on("vol_3y_max")) q = q.lte("volatility_3y", softProximity ? vol3Max + SOFT_TOLERANCE.volAbs : vol3Max);
+  if (shMin != null && on("sharpe_min"))   q = q.gte("sharpe_1y", softProximity ? shMin - SOFT_TOLERANCE.sharpeAbs : shMin);
+  if (sh3Min != null && on("sharpe_3y_min")) q = q.gte("sharpe_3y", softProximity ? sh3Min - SOFT_TOLERANCE.sharpeAbs : sh3Min);
   // Perte max (drawdown) : la colonne est un % négatif (ex: -25). « limité à 20% »
   // → on garde les fonds dont le drawdown 3 ans est >= -20 (chute moins profonde).
-  if (ddMax != null && on("drawdown_max")) q = q.gte("max_drawdown_3y", -Math.abs(ddMax));
+  if (ddMax != null && on("drawdown_max")) q = q.gte("max_drawdown_3y", -(Math.abs(ddMax) + (softProximity ? SOFT_TOLERANCE.drawdownAbs : 0)));
   // « Sans frais d'entrée » : exclut les fonds à frais d'entrée connus (> 0). On
   // conserve null (inconnu) ET 0 — la plupart des fonds no-load ont entry_fee_max
   // non renseigné ; l'intention est d'écarter les fonds explicitement chargés.
@@ -311,6 +375,33 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   type PageOk = { data: Fund[]; total: number };
   type PageErr = { errorResp: NextResponse };
   const loadPage = async (disabled: Set<string>, floor: number = minCompleteness): Promise<PageOk | PageErr> => {
+    // ── Couloir ADÉQUATION (intention/profil, tri par défaut) ──────────────────
+    // On récupère le vivier des CANDIDATE_CAP fonds les plus COMPLETS qualifiant les
+    // filtres (tri/cut côté DB sur la vue légère, bon marché), on l'enrichit (COLS),
+    // puis on le RE-CLASSE en TS par score de fit (complétude dominante + adéquation
+    // − dépassement doux + préférences profil). La pagination profonde au-delà du
+    // vivier retombe sur le chemin DB classique (tri completeness).
+    if (reRank && offset < CANDIDATE_CAP) {
+      const { data: poolRows, error: poolErr, count: poolCount, status: poolStatus } =
+        await baseFilters(
+          supabase.from(sortSource).select("isin", { count: "exact" }), disabled, floor,
+        )
+          .order("data_completeness", { ascending: false, nullsFirst: false })
+          .range(0, CANDIDATE_CAP - 1);
+      if (poolErr) {
+        if (poolStatus === 416 || poolErr.code === "PGRST103")
+          return { data: [], total: await countWith(disabled, floor) };
+        return { errorResp: NextResponse.json({ error: poolErr.message }, { status: 500 }) };
+      }
+      const poolIsins = ((poolRows as { isin: string }[] | null) ?? []).map((r) => r.isin);
+      if (!poolIsins.length) return { data: [], total: poolCount ?? 0 };
+      const { data: enriched, error: enrichErr } = await supabase
+        .from(VIEW).select(COLS).in("isin", poolIsins);
+      if (enrichErr) return { errorResp: NextResponse.json({ error: enrichErr.message }, { status: 500 }) };
+      const ranked = rankByFit(dedup((enriched as unknown as Fund[]) ?? []).map(toApi), fitCtx);
+      return { data: ranked.slice(offset, offset + perPage), total: poolCount ?? 0 };
+    }
+
     let pageQuery = useRanked
       ? baseFilters(rankedSource({ count: "exact" }), disabled, floor)
       : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }), disabled, floor);

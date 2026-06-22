@@ -320,6 +320,15 @@ export type ParsedFilters = {
   // Éphémère comme `chips` : consommé au parse pour choisir sort_by/sort_dir,
   // jamais sérialisé comme filtre. `field` ∈ colonnes triables (VALID_SORT).
   sort_intent?: { field: string; dir: "asc" | "desc" };
+  // Préférences DOUCES (jamais des filtres durs) : signaux du profil client sans
+  // équivalent filtre fiable, consommés UNIQUEMENT par le score d'adéquation (fit)
+  // pour nuancer le classement du couloir intention/profil. Sérialisées en pref_*.
+  prefs?: {
+    income?: boolean;        // objectif revenus / besoin de revenus réguliers
+    envelopes?: string[];    // enveloppes à FAVORISER (TMI élevé → PER/PEA), pas à filtrer
+    novice?: boolean;        // investisseur novice → écarter les produits complexes
+    small_ticket?: boolean;  // petit montant → favoriser l'accessible retail
+  };
 };
 
 // ─── FundDetailHF (fiche fonds — adapté aux données disponibles) ──────────────
