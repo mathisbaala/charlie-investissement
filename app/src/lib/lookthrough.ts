@@ -22,6 +22,46 @@ export const GENERIC_POSITIONS = new Set([
   "divers", "n/a", "na", "non communiqué", "non communique", "-",
 ]);
 
+// ─── Canonicalisation des secteurs ────────────────────────────────────────────
+// La base mélange 3 taxonomies de secteurs : Morningstar (« Technology »), GICS
+// (« Information Technology ») et des traductions FR (« Technologie »). Sans
+// canonicalisation, un panier multi-sources triple-compte le même secteur. On
+// rabat les variantes dominantes (clé = nom en minuscules) sur un libellé FR
+// unique. La longue traîne GICS fine (« Aerospace & Defense »…) et les secteurs
+// obligataires (« Treasury »…) passent tels quels (collisions rares à 1-4 fonds).
+const SECTOR_CANON: Record<string, string> = {
+  "technology": "Technologie", "information technology": "Technologie", "technologie": "Technologie",
+  "financial services": "Services financiers", "financials": "Services financiers",
+  "financial": "Services financiers", "services financiers": "Services financiers",
+  "healthcare": "Santé", "health care": "Santé", "santé": "Santé",
+  "consumer cyclical": "Consommation cyclique", "consumer discretionary": "Consommation cyclique",
+  "consumer, cyclical": "Consommation cyclique", "biens de consommation cycliques": "Consommation cyclique",
+  "consumer defensive": "Consommation défensive", "consumer staples": "Consommation défensive",
+  "consumer non-cyclical": "Consommation défensive", "consumer, non-cyclical": "Consommation défensive",
+  "biens de consommation non cycliques": "Consommation défensive",
+  "industrials": "Industrie", "industrial": "Industrie", "industrie": "Industrie",
+  "basic materials": "Matériaux", "materials": "Matériaux", "matières premières": "Matériaux",
+  "communication services": "Communication", "communication": "Communication",
+  "communications": "Communication", "télécommunication": "Communication",
+  "telecommunications": "Communication", "telecommunication services": "Communication",
+  "energy": "Énergie", "énergie": "Énergie",
+  "utilities": "Services aux collectivités",
+  "real estate": "Immobilier", "immobilier": "Immobilier", "reits": "Immobilier",
+};
+// Junk évident à NE PAS afficher comme secteur (artefacts d'enrichers).
+const ISIN_LIKE = /^[A-Z]{2}[A-Z0-9]{9}\d$/;
+const SECTOR_JUNK = new Set(["unknown", "fx", "volatilité sur 1 an (en eur)"]);
+
+/** Libellé de secteur canonique (FR) ; null si junk (ISIN collé, artefact) à écarter. */
+export function canonicalSector(name: string | null): string | null {
+  if (!name) return null;
+  const t = name.trim();
+  if (!t || ISIN_LIKE.test(t)) return null;
+  const low = t.toLowerCase();
+  if (SECTOR_JUNK.has(low)) return null;
+  return SECTOR_CANON[low] ?? t;
+}
+
 /**
  * Exposition agrégée ÉQUIPONDÉRÉE sur les fonds qui portent la ventilation :
  * blended[label] = moyenne du poids sur ces fonds. La somme reste ~100 % (on

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { blendExposure, findOverlaps, holdingKey } from '../lib/lookthrough'
+import { blendExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
 
 describe('blendExposure', () => {
   it('équipondère sur les fonds contributeurs (somme ~100 %)', () => {
@@ -56,6 +56,37 @@ describe('blendExposure', () => {
     const out = blendExposure(rows, 12)
     expect(out.length).toBe(12)
     expect(out[0].label).toBe('P14')
+  })
+})
+
+describe('canonicalSector', () => {
+  it('rabat les 3 taxonomies du même secteur sur un libellé FR', () => {
+    expect(canonicalSector('Technology')).toBe('Technologie')
+    expect(canonicalSector('Information Technology')).toBe('Technologie')
+    expect(canonicalSector('Technologie')).toBe('Technologie')
+  })
+  it('est insensible à la casse et aux espaces', () => {
+    expect(canonicalSector('  HEALTH CARE ')).toBe('Santé')
+    expect(canonicalSector('Healthcare')).toBe('Santé')
+  })
+  it('écarte le junk (ISIN collé en secteur, artefacts) → null', () => {
+    expect(canonicalSector('IT0005588881')).toBeNull()
+    expect(canonicalSector('Volatilité sur 1 an (en EUR)')).toBeNull()
+    expect(canonicalSector('Unknown')).toBeNull()
+    expect(canonicalSector('')).toBeNull()
+    expect(canonicalSector(null)).toBeNull()
+  })
+  it('laisse passer la longue traîne GICS fine telle quelle', () => {
+    expect(canonicalSector('Aerospace & Defense')).toBe('Aerospace & Defense')
+    expect(canonicalSector('Treasury')).toBe('Treasury')
+  })
+  it('fait fusionner les variantes dans blendExposure (un seul secteur)', () => {
+    // 2 fonds : A « Technology » 100 %, B « Technologie » 100 % → 1 ligne à 100
+    const rows = [
+      { isin: 'A', label: canonicalSector('Technology')!, weight: 1.0 },
+      { isin: 'B', label: canonicalSector('Technologie')!, weight: 1.0 },
+    ]
+    expect(blendExposure(rows)).toEqual([{ label: 'Technologie', weight: 100 }])
   })
 })
 
