@@ -101,17 +101,31 @@
 
 ---
 
-## 🚧 Prochains chantiers (pour repartir)
+## 🚧 Prochains chantiers (état réel au 22/06)
 
-- ~~**[ACTION utilisateur]** Faire tourner la clé Anthropic exposée + la recréer dans un Workspace avec spend limit 20 €.~~ → **FAIT (21/06).**
-- ~~**UC AV assureurs** : trou structurel ?~~ → **FAUX (21/06)** : ~22 scrapers existent, **439 contrats / 10,6k UC**. Refresh trimestriel câblé (`av-refresh.yml`). Backlog : 4 scrapers `scrapling`→parsel, lmep/ag2r (sources bloquantes), utmost/vitislife/spirica/mutualistes (rendent 0). Voir mémoire `av-catalog-refresh`.
-- **SCPI prix de part** : source unique = scrape Primaliance (pas d'API) → couverture à étendre.
-- **Actions individuelles** : 0 prix en base (pas de source câblée).
-- **Look-through** : couverture compositions ~3 % → faire monter via le gap-fill mensuel `ft-enricher --fill-breakdowns --by-referencing`.
-- **Sécurité Supabase** : activer la *leaked-password protection* (dashboard) — dernier point du durcissement.
-- **Presets d'accès rapide CGP** : proposés mais EN ATTENTE (mode collecte) — ne pas re-proposer sans signal.
-- **Audit PEA large** : heuristique d'éligibilité par le nom (pas de source officielle).
-- **Normaliser `investissement_fund_prices.source`** *(optimisation storage, NON urgent — on est sur Pro avec ~6,6 Go de marge)* : la colonne `source` est un texte (`'financial-times'`, `'yahoo-finance'`, `'justetf'`, `'amf-geco'`, `'coingecko-daily'`, `'yahoo-crypto'`) répété sur **10,5 M lignes ≈ ~130 Mo**. La passer en code court (`smallint` FK vers une table `investissement_price_sources`, ou `enum`) récupérerait ~130 Mo. **Risque** : touche les **6 scrapers d'ingestion** qui écrivent `source=...` → à faire comme **changement testé séparément** (mapper les 6 valeurs, migrer la colonne, adapter chaque scraper + les requêtes qui filtrent par `source`), **jamais à chaud**. Seul gros levier de stockage restant (cf. mémoire `db-storage-optimization-20260619`).
+> ⚠️ Cette section a été **réconciliée le 22/06** contre l'état réel en base + git
+> (le handoff datait du 19/06 et listait comme « à faire » des chantiers déjà clos).
+
+### ✅ Clos depuis le 19/06 (ne plus relister comme à faire)
+- ~~**Clé Anthropic exposée**~~ → **FAIT (21/06)**, Workspace avec spend limit.
+- ~~**UC AV assureurs** (trou structurel ?)~~ → **FAUX** : Tier 3 **7/7 bancassureurs câblés** (21/06), validé bout-en-bout en CI, refresh trimestriel (`av-refresh.yml`).
+- ~~**Sécurité Supabase — leaked-password**~~ → **CLOS (20/06)**, plan Pro.
+- ~~**Presets d'accès rapide CGP**~~ → **REJETÉ DÉFINITIVEMENT (20/06)** — ne JAMAIS re-proposer.
+- ~~**Audit PEA large**~~ → re-gaté sur la **composition** (22/06, `ce3366c`/`21d9f8e`), **3 069 fonds éligibles** en base.
+- ~~**Fonds euros perfs bidons**~~ → 43 `performance_1y` extraites du nom **nullées** (22/06).
+- ~~**Look-through ~3 %**~~ → en réalité **~24 %** (≈ 5 985 fonds / 24 868 ; Morningstar 2 818, FT 1 628, émetteurs ~1 147, justETF 392). Drain compo en cours (cadence espacée anti-throttle).
+
+### 🚧 Ouverts
+- **Backlog AV résiduel** *(workflow `av-refresh`, séparé du weekly-refresh)* — **réduit à presque rien (vérifié 22/06)** :
+  - ~~spirica / mutualistes « rendent 0 »~~ → **FAUX** : sources live, ont tourné le 21/06 (Spirica 62 080 lignes, mutualistes ~280 ISIN en base). Commentaires « à re-câbler » dans `av-catalog-refresh.py` **corrigés**.
+  - ~~scrapling→parsel~~ → **backlog vide** (seul cardif-lux-vie importe encore scrapling, mais c'est un cas navigateur déjà géré par le job browser).
+  - **Reste seulement** : Abeille/MAAF/MMA/GMF bloqués en CI par **IP datacenter** → re-seed manuel trimestriel, ou activer le **proxy résidentiel dormant** (`AV_PROXY_URL`, code prêt `469817c`) = **décision utilisateur**. + linxea/cardif-lux-vie (job browser séparé), ag2r (redondant, exclu volontairement).
+  - Voir mémoire `av-catalog-refresh` + `tier3-bancassureurs-av`.
+- **Drain compo Morningstar** : ~24 % → à monter, mais **cadence espacée obligatoire** (sal-service throttle — jamais de runs dos à dos). `holdings-drain.yml` shardé.
+- **SCPI prix de part** : couverture réelle **115/191** (les ~73 manquantes = SCPI fiscales fermées = légitime). Source unique = scrape Primaliance.
+- **Actions individuelles** : **0 prix** en base (4 780 lignes, pas de source câblée). Déprioritisé CGP FR.
+- **Couverture prix OPCVM** : 11 545 / 22 106 ≈ **52 %** (le reste = fonds vivants sans source FT/GECO, lacune de couverture, pas du mort à purger).
+- **Normaliser `investissement_fund_prices.source`** *(réservé à un autre intervenant, ~2j ; optimisation storage NON urgente — Pro avec ~6,6 Go de marge)* : `source_id` (smallint) est **déjà backfillé**, la colonne `source` (text) **existe encore** → reste le `DROP COLUMN` + `VACUUM FULL` (~130 Mo). Touche les **6 scrapers d'ingestion** → **jamais à chaud**. Cf. mémoire `fund-prices-source-id-migration` + `db-storage-optimization-20260619`.
 
 ---
 
