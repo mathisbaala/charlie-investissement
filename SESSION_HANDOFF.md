@@ -142,9 +142,11 @@
 - ~~**QA prod**~~ → 98/100, F1 fermé (working-as-designed).
 - ~~**Pertinence recherche (itération de fond)**~~ → **LIVRÉ** (`a70d92c`) : score d'adéquation (fit) + proximité douce + prefs profil dans le couloir intention/profil ; navigation neutre inchangée. QA prod live 8/8. Cf. mémoire `fit-score-ranking-20260622`. Reste optionnel : transparence per-fonds (« pourquoi ça colle »), non retenue ce sprint.
 
+### ✅ Traités le 22/06 (2e passe — vérif live + action)
+- **Migration `source_id` — DROP fait** : observation post-déploiement OK (`source_id` 0 NULL, seul writer `upsert_prices` n'écrit que `source_id`, aucune vue/index/RPC ne référençait `source`) → `ALTER TABLE investissement_fund_prices DROP COLUMN source` appliqué (instantané). **Reste `VACUUM FULL` NON fait, différé par choix** : table 1,98 Go, lock exclusif de plusieurs minutes sur table chaude pour ~130 Mo → non urgent (Pro, marge ~6,6 Go), à faire en fenêtre calme. Code (`db.py`) + mémoire `fund-prices-source-id-migration` à jour.
+- **Drain compo Morningstar — relancé** : couverture vérifiée live = **5 985 / 24 150 etf+opcvm = 24,8 %** (stable depuis le 20/06, aucun agent ne tournait dessus). Un run `holdings-drain.yml` (morningstar, offset 0, limit 1000, `--include-unrated`) **déclenché le 22/06** pour attaquer le mur OPCVM non-notés. **Cadence espacée obligatoire** (sal-service throttle, jamais de runs dos à dos) → relancer manuellement les shards suivants un par un.
+
 ### 🔒 Reste ouvert MAIS hors de ma main (ne PAS toucher — collision)
-- **Migration `source_id`** — *réservé à un autre intervenant (~2j)*. `source_id` backfillé, reste `DROP COLUMN source` + `VACUUM FULL` (~130 Mo). Non urgent (Pro, ~6,6 Go marge). Touche les 6 scrapers d'ingestion → jamais à chaud. Cf. `fund-prices-source-id-migration`.
-- **Drain compo Morningstar** — *zone agent / throttle*. ~24 % → à monter, mais **cadence espacée obligatoire** (sal-service throttle, jamais de runs dos à dos). `holdings-drain.yml` shardé.
 - **Couverture prix OPCVM (~52 %)** — *dépend des pipelines FT/GECO = `weekly-refresh`, surveillé par l'agent*. Lacune de couverture (fonds vivants sans source), pas du mort à purger. Monter la couverture = toucher la rotation FT/GECO → collision.
 - **PEA éligibilité** + **FE_Q fonds euros** — *traités par l'agent (22/06)*, ne pas y retoucher.
 

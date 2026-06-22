@@ -476,10 +476,9 @@ def upsert_prices(isin: str, prices: list[dict], source: str, batch_size: int = 
 
     Note:
         La signature garde source=str pour la rétrocompat des 6 scrapers
-        appelants. En interne on n'écrit plus que la colonne smallint
-        `source_id` ; la colonne text `source` est désormais ignorée à
-        l'écriture (laissée en place jusqu'au prochain DROP COLUMN, cf.
-        memory/ migration source_id).
+        appelants. En interne on n'écrit que la colonne smallint `source_id`.
+        La colonne text legacy `source` a été supprimée le 22/06/2026
+        (DROP COLUMN), cf. memory/ migration source_id.
     """
     src_id = _SOURCE_ID.get(source)
     if src_id is None:
