@@ -1,0 +1,40 @@
+-- ============================================================================
+-- Rescaling NAV — balayage systématique des changements d'unité (24/06, via MCP)
+-- ============================================================================
+-- SUITE de rescale-nav-multiscale-20260623.sql (qui n'avait traité que 5 ETF
+-- repérés pendant /recul). Balayage COMPLET du reste de l'univers masqué par la
+-- garde __insane : un événement source du 2026-05-19 (+ quelques bascules
+-- isolées) a divisé/multiplié la NAV de dizaines d'ETF par ~10-185 (changement
+-- d'unité/convention), faisant exploser vol/drawdown.
+--
+-- POURQUOI un balayage : à la question « tout est résolu ? », la vérif a montré
+-- que le correctif précédent était partiel — ~70 fonds restaient avec EXACTEMENT
+-- le même bug déjà résolu. D'où ce passage générique.
+--
+-- DÉTECTION (sûre, sur les fonds masqués opcvm/etf hors crypto/levier) :
+--   candidat = série avec EXACTEMENT UN saut brutal (>×5 ou <÷5) entre 2 points
+--   consécutifs. Un tel saut est physiquement IMPOSSIBLE en marché réel (move
+--   quotidien max ~±20 %) → c'est un changement d'unité, pas un mouvement réel.
+--   Un saut UNIQUE (sans retour) = bascule de niveau persistante (≠ spike isolé,
+--   qui ferait 2 sauts et était déjà traité par repair-nav-glitches). Exclus :
+--   séries à plusieurs sauts (5, à inspecter) ou sans saut brutal (44 = déclin
+--   réel type H2O/Transition Evergreen, ou vraie volatilité).
+--
+-- FIX : aligner le segment AVANT la bascule sur le segment APRÈS (le plus récent
+--   = la donnée courante = la vraie). facteur = avg(nav, [J,J+21j]) /
+--   avg(nav, [J-21j,J[) ; UPDATE des points price_date<J : nav *= facteur.
+--   Invariant pour les métriques (ratios) ; corrige aussi l'affichage absolu.
+--   3 fonds écartés (saut en tout début/fin → pas d'ancre des deux côtés).
+--
+-- RÉSULTAT : 21 932 points rescalés sur 67 ISIN ; 0 saut brutal restant.
+--   Garde __insane 126 → 59. Les 67 ré-exposés avec vol/dd réalistes (ex.
+--   Carmignac Flexible Bond vol 1,4 ; SPDR ACWI vol 15 ; UBS USA Value vol 13).
+--   Recompute via compute-metrics.yml (run 28060317158, success).
+--   Backup investissement_fund_prices_switch_backup_20260624 (isin, price_date,
+--   old_nav, source_id, factor, jump_date ; RLS). Revert : UPDATE … SET
+--   nav=old_nav FROM backup WHERE price_date<jump_date.
+--
+-- RESTE MASQUÉ (59) = à investiguer séparément : déclins réels, glitchs internes
+--   sub-seuil, ou séries à plusieurs sauts (cf. CHANTIERS.md).
+-- NOTE : fichier d'AUDIT — déjà appliqué via MCP, non ré-exécutable tel quel.
+-- ============================================================================
