@@ -122,4 +122,12 @@ describe("sanitizeParsedFilters", () => {
     expect(sanitizeParsedFilters({ maturity_year_min: 2032, maturity_year_max: 2027 }))
       .toEqual({ maturity_year_min: 2032 });
   });
+
+  it("conserve l.univers private equity (fcpr/fcpi/fip/fpci)", () => {
+    expect(sanitizeParsedFilters({ universe: ["fcpr", "fcpi", "fip", "fpci"] }))
+      .toEqual({ universe: ["fcpr", "fcpi", "fip", "fpci"] });
+    // mix valide + invalide -> ne garde que les valides
+    expect(sanitizeParsedFilters({ universe: ["fcpr", "sicav"] }))
+      .toEqual({ universe: ["fcpr"] });
+  });
 });
