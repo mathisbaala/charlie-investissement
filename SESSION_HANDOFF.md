@@ -1,11 +1,25 @@
-# 📋 Session Handoff — 19 juin 2026
+# 📋 Session Handoff — 23 juin 2026
 
-> Journée dense : **26 commits** poussés sur `main` (auto-déploy Vercel). Sprints DDA
-> (alpha vs indice, durabilité, look-through), rafraîchissements de données planifiés,
-> nettoyage de l'univers, et surtout : **analyse de DICI remise en service + rapport
-> de fonds design + durcissement des coûts IA**.
+> Base du document : journée dense du **19 juin** (26 commits, sprints DDA), réconciliée
+> le **22 juin** (réglage des chantiers ouverts un par un), puis **auditée et nettoyée
+> le 23 juin** (`/chantier` → voir `CHANTIERS.md` + journal ci-dessous).
 >
 > Doc précédente (19 mai) archivée dans `docs/bilans/`.
+
+---
+
+## 🔄 Journal 23/06 — audit chantiers (`/chantier`) + nettoyages
+
+> Audit complet du projet (doc + git + code + base). Verdict : **projet sain** —
+> `tsc` clean, 272/272 tests verts, zéro `TODO/FIXME` réel dans le front. Carte
+> actionnable écrite dans **`CHANTIERS.md`** (fichier unique, mémoire vivante des
+> chantiers). Trois nettoyages traités, deux faux-doutes levés en base.
+
+- **`fetch_ter_morningstar` — tranché définitivement** (`scripts/scrapers/fetch-ter-fundinfo.py`) : le commentaire « désactivé temporairement » était périmé. Vérifié : script **hors CI active**, et le TER Morningstar est possédé par les enrichers dédiés `morningstar-ter-fill.py` (rating connu sans TER) + `morningstar-lt-enricher.py` (rating NULL). Le re-câbler ici doublait le throttle Morningstar. → Finder retiré du dispatcher (**Boursorama seul actif**), décision rendue permanente et documentée dans le code. `py_compile` OK.
+- **Branche morte `docs/av-tier3-validation`** : 0 commit en avance sur `main` → **supprimée local + remote**.
+- **Placeholder AUM ETF 1e9** (`fetch-etf-extended.py:427`) : **confirmé inerte** — script hors CI, **0 ETF** en base à `aum_eur=1e9` (le seul fonds à cette valeur est `FE_UAF_LIFE`, un fonds euros seedé à 1 Md€ rond, sans rapport). Won't-do.
+- **Alpha diversifiés — confirmé NON fait** : 14/14 607 diversifiés ont un alpha (0,1 %). Reste **le seul vrai chantier de fond** (benchmarks composites = vrai code). Les classes mono sont, elles, débloquées (action 42 %, oblig 38 %, monétaire 39 %, matières premières 22 %, alternatif 6,5 %, immo 3,1 %).
+- **Couverture prix OPCVM — confirmée non corrigeable par code** : 63 % avec un prix, **48,9 % frais (≤35j)**. Plafond structurel (fonds vivants sans source publique), grignoté en continu par `weekly-refresh`. Pas un bug, ne pas chercher à « clore ».
 
 ---
 

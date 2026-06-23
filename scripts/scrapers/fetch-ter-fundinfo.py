@@ -179,10 +179,16 @@ def fetch_ter_morningstar(session: FetcherSession, isin: str) -> dict | None:
 
 # ─── Dispatcher ───────────────────────────────────────────────────────────────
 
+# Décision (2026-06-23) : Boursorama est le SEUL finder actif ici.
+#  - fetch_ter_fundinfo   : retiré — doc.fundinfo.com injoignable (DNS mort).
+#  - fetch_ter_morningstar: retiré DÉFINITIVEMENT — le TER Morningstar est désormais
+#    possédé par l'enricher dédié `morningstar-ter-fill.py` (cible rating connu sans TER)
+#    et `morningstar-lt-enricher.py` (rating NULL). Le re-câbler ici ferait double emploi
+#    et doublerait le throttle Morningstar (source déjà sous tension, cf. mémoire
+#    `morningstar-emea-holdings-enricher`). Les fonctions sont conservées plus haut
+#    comme fallback manuel ad hoc, mais ne sont pas dans le dispatcher.
 FINDERS = [
     fetch_ter_boursorama,
-    # fetch_ter_fundinfo,    # désactivé : doc.fundinfo.com inaccessible (DNS)
-    # fetch_ter_morningstar, # désactivé temporairement pendant morningstar-lt-enricher
 ]
 
 def find_ter(session: FetcherSession, isin: str) -> dict | None:
