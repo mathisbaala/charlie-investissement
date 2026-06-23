@@ -221,30 +221,41 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
     if _perf_plausible(p1y, asset_class):
         metrics["performance_1y"]  = p1y
         dd = max_drawdown(prices_1y)
-        if dd is not None:
-            metrics["max_drawdown_1y"] = round(dd * 100, 4)
+        metrics["max_drawdown_1y"] = round(dd * 100, 4) if dd is not None else None
         vol1y = volatility_annualized(prices_1y)
-        if vol1y:
-            metrics["volatility_1y"] = _clamp(round(vol1y * 100, 4))
+        metrics["volatility_1y"] = _clamp(round(vol1y * 100, 4)) if vol1y else None
         sh1 = sharpe_ratio(prices_1y, rf)
         metrics["sharpe_1y"] = _clamp(sh1) if sh1 is not None else None
     else:
+        # Fenêtre invalide (trop courte) ou perf implausible (série corrompue) :
+        # AUCUNE métrique 1Y n'est fiable. On purge TOUT le bloc — sinon une
+        # volatilité/sharpe/drawdown périmée d'un calcul antérieur (série depuis
+        # réparée ou raccourcie) survit en base, et la garde __insane doit la
+        # masquer en aval. Un fonds sans fenêtre 1Y valide ne doit avoir aucune
+        # métrique de risque 1Y.
         metrics["performance_1y"] = None
+        metrics["volatility_1y"] = None
+        metrics["sharpe_1y"] = None
+        metrics["max_drawdown_1y"] = None
 
     # ── 3Y ──
     p3y = _clamp(round(perf_total(prices_3y) * 100, 4)) if _valid_perf(prices_3y, MIN_POINTS_3Y, spans["3y"], MIN_SPAN_3Y) else None
     if _perf_plausible(p3y, asset_class):
         metrics["performance_3y"]  = p3y
         dd3 = max_drawdown(prices_3y)
-        if dd3 is not None:
-            metrics["max_drawdown_3y"] = round(dd3 * 100, 4)
+        metrics["max_drawdown_3y"] = round(dd3 * 100, 4) if dd3 is not None else None
         vol3y = volatility_annualized(prices_3y)
-        if vol3y:
-            metrics["volatility_3y"] = _clamp(round(vol3y * 100, 4))
+        metrics["volatility_3y"] = _clamp(round(vol3y * 100, 4)) if vol3y else None
         sh3 = sharpe_ratio(prices_3y, rf)
         metrics["sharpe_3y"] = _clamp(sh3) if sh3 is not None else None
     else:
+        # Idem 1Y : purge complète du bloc 3Y quand la fenêtre est invalide /
+        # la perf implausible (un fonds < ~2,75 ans ne doit pas exposer de
+        # vol/sharpe/drawdown « 3 ans »).
         metrics["performance_3y"] = None
+        metrics["volatility_3y"] = None
+        metrics["sharpe_3y"] = None
+        metrics["max_drawdown_3y"] = None
 
     # ── 5Y ──
     p5y = _clamp(round(perf_total(prices_5y) * 100, 4)) if _valid_perf(prices_5y, MIN_POINTS_5Y, spans["5y"], MIN_SPAN_5Y) else None

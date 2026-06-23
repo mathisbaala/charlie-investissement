@@ -106,5 +106,43 @@ class StalenessGuard(unittest.TestCase):
         self.assertAlmostEqual(metrics["performance_1y"], 10.0, delta=0.5)
 
 
+class InvalidWindowPurgesRiskMetrics(unittest.TestCase):
+    """Régression : une fenêtre 3Y (ou 1Y) invalide doit purger TOUTES ses
+    métriques de risque (vol/sharpe/drawdown), pas seulement la perf. Sinon une
+    valeur périmée d'un calcul antérieur (série depuis réparée/raccourcie) survit
+    en base et la garde __insane doit la masquer en aval (ex. vol_3y 169 sur un
+    fonds obligataire de 8 mois d'historique)."""
+
+    def _short_series(self, n):
+        # n points réguliers, ~+1 % cumulé : amplitude/points insuffisants pour 3Y.
+        return [100.0 + i * (1.0 / max(n - 1, 1)) for i in range(n)]
+
+    def test_invalid_3y_window_nulls_all_3y_risk_metrics(self):
+        prices_1y = self._short_series(60)        # 1Y valide
+        prices_3y = self._short_series(60)         # mêmes points, mais span 3Y court
+        spans = {"1y": 360, "3y": 200, "5y": 200}  # span 3Y < MIN_SPAN_3Y → invalide
+        fresh = date.today().isoformat()
+        metrics = cm.compute_fund_metrics(
+            prices_1y, prices_3y, prices_3y, prices_3y, rf=0.03, spans=spans,
+            asset_class="obligation", inception="2025-10-01", last_date=fresh,
+        )
+        # La fenêtre 3Y est invalide → perf ET risque 3Y explicitement purgés.
+        for f in ("performance_3y", "volatility_3y", "sharpe_3y", "max_drawdown_3y"):
+            self.assertIn(f, metrics)
+            self.assertIsNone(metrics[f], f)
+
+    def test_invalid_1y_window_nulls_all_1y_risk_metrics(self):
+        tiny = self._short_series(10)              # < MIN_POINTS_1Y → 1Y invalide
+        spans = {"1y": 60, "3y": 60, "5y": 60}
+        fresh = date.today().isoformat()
+        metrics = cm.compute_fund_metrics(
+            tiny, tiny, tiny, tiny, rf=0.03, spans=spans,
+            asset_class="action", inception="2026-04-01", last_date=fresh,
+        )
+        for f in ("performance_1y", "volatility_1y", "sharpe_1y", "max_drawdown_1y"):
+            self.assertIn(f, metrics)
+            self.assertIsNone(metrics[f], f)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
