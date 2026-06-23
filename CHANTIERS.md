@@ -1,12 +1,17 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (5ᵉ passe)
+> Dernier audit : 2026-06-23 (6ᵉ passe)
 
-État global : **projet sain et bien tenu** — `tsc` clean, 272/272 tests verts, zéro
-marqueur `TODO/FIXME` réel dans le front, doc à jour (`SESSION_HANDOFF.md` réconcilié
-au 22/06). L'essentiel du backlog est **soldé ou tranché par décision**. Ce qui reste
-est soit **automatisé et tourne seul** (drain compo), soit **en suspens par choix**
-(scrapers bloqués IP), soit de la **dette mineure**.
+État global : **projet sain et bien tenu** — `tsc` clean (vérifié), **272/272 tests verts**
+(vérifié), zéro marqueur `TODO/FIXME` réel dans le front, working tree propre, doc à jour
+(`SESSION_HANDOFF.md` retitré « 23 juin »). L'essentiel du backlog est **soldé ou tranché
+par décision**. Ce qui reste : **un seul chantier de fond actif** (recalcul alpha
+diversifiés, run CI **en vol**), le reste est soit **automatisé et tourne seul** (drain
+compo), soit **en suspens par choix** (scrapers bloqués IP), soit de la **dette mineure**.
+
+> ✅ **Alpha diversifiés — TERMINÉ** (23/06) : run `28020564756` **success** (23 min,
+> 8 097 alpha écrits, 0 échec). Diversifiés **14 → 2 110** avec alpha ; zéro régression
+> sur les autres classes. Voir « ✅ Réglés ».
 
 ---
 
@@ -42,16 +47,6 @@ est soit **automatisé et tourne seul** (drain compo), soit **en suspens par cho
 
 ---
 
-## 🚧 Chantiers en cours
-
-### Alpha vs indice pour les fonds diversifiés — code livré, recalcul CI lancé
-- **Priorité** : 🟠 Importante
-- **Détecté le** : 2026-06-22
-- **Où** : `supabase/migrations/20260623130000_diversified_composite_benchmarks.sql`, `scripts/enrichers/td-enricher.py`, `.github/workflows/td-refresh.yml`
-- **État (2026-06-23)** : **résolu côté code, recalcul en cours**. Benchmarks **composites** créés (`mix_25_75` prudent / `mix_50_50` équilibré-flexible-inconnu / `mix_75_25` dynamique) = mélange quotidien rééquilibré `msci_world` + `global_agg` (séries vérifiées saines : oblig +7 % < mix 50/50 +33,5 % < actions +64,5 % sur 3 ans). `map_index` mappe les diversifiés sur le composite selon `allocation_profile` (borne alpha ±20 %/an). **Simulation SQL** : 2 098 diversifiés primaires produisent un alpha dans la borne (sur 2 713 ayant une série 3 ans), alpha moyen −3 %/an (sous-perf vs passif = attendu). Passe de **14 → ~2 100+**.
-- **Comment l'aborder** : ✅ migration appliquée en base + composites construits + code commité. **Reste : `td-refresh.yml` (workflow_dispatch) à terminer** pour écrire les alpha. Le plafond (~2 700 sur 14 600) = couverture prix des diversifiés, pas la logique d'alpha. Une fois le run vert → passer en « Réglés ».
-- **Effort estimé** : terminé (reste l'attente du run CI)
-
 ## ✨ Features & améliorations
 
 ### Transparence per-fonds du score d'adéquation (« pourquoi ça colle »)
@@ -73,19 +68,18 @@ Les trois items mineurs détectés au 23/06 (finder TER « temporaire », branch
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### Titre de `SESSION_HANDOFF.md` daté du 19/06 alors que le contenu va jusqu'au 22/06
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-06-23
-- **Où** : `SESSION_HANDOFF.md:1`
-- **Le problème** : le titre « Session Handoff — 19 juin 2026 » est trompeur : le journal et les chantiers sont réconciliés au 22/06. Cosmétique mais peut induire en erreur à la reprise.
-- **Comment l'aborder** : retitrer en « 22 juin 2026 » (ou « 19→22 juin »). En attente d'accord.
-- **Effort estimé** : rapide
+### (aucun écart ouvert)
+L'écart signalé en 5ᵉ passe (titre `SESSION_HANDOFF.md` périmé) est **corrigé** : le
+fichier est désormais titré « Session Handoff — 23 juin 2026 » et son journal va jusqu'au
+23/06. Aucun autre écart doc↔code détecté à cette passe.
 
 ---
 
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Alpha vs indice des fonds diversifiés** — *Réglé le 2026-06-23* : benchmarks **composites** actions/oblig pondérés par profil (`mix_25_75`/`mix_50_50`/`mix_75_25`, mélange quotidien rééquilibré `msci_world`+`global_agg`, fonction `inv_rebuild_composite_indices()`) + mapping `map_index` sur `allocation_profile` dans `td-enricher.py` (borne ±20 %/an). Migration `20260623130000`. **Diversifiés 14 → 2 110 avec alpha** (run `28020564756` success, 8 097 alpha total écrits, 0 échec) ; **zéro régression** (action 3 919 / oblig 1 959 / monétaire 169 inchangés). Distribution saine : moyenne −3 %/an (sous-perf active vs passif = attendu), bornes respectées. Plafond = couverture prix des diversifiés (~2 700 ayant une série), pas la logique. Fix de robustesse au passage : écriture incrémentale + timeout CI 120 min (commit `aed711e`). Cf. mémoire [[diversified-composite-benchmarks]].
 
 - **Couverture prix OPCVM FR — cœur récupérable drainé** — *Réglé le 2026-06-23* : run `geco-nav.py --apply` complet (manuel, fill-only non destructif — n'écrit que des dates postérieures à la dernière VL connue) → 4 164/5 802 résolus, **1 180 VL écrites, +1 086 OPCVM FR repassés frais ≤5j (4 048 → 5 134)** — ~2× l'estimation initiale (~550). Zéro erreur HTTP / throttle (3 workers, 1,2 s/req), 23 min, loggé `investissement_pipeline_runs`. Données vérifiées saines (0 nav ≤0, EUR only, 0 date future). **Effet de bord tranché** : la garde fraîcheur (`inv_prices_stale` dans la vue `_cgp`) démasque les métriques des ~1 086 fonds nouvellement frais, **non encore recalculées contre la nouvelle queue** (geco-nav = étape 4 ; `compute-metrics` = étape 5 du `weekly-pipeline`) → **laissé à l'auto-réparation du `weekly-refresh`** (décision 23/06, évite le piège `ft-metrics-wipe` d'un compute-metrics manuel). Baseline consigné en mémoire (`opcvm-fr-price-coverage.md`). Reste hors périmètre : volet LU (~510, Morningstar EMEA) + plancher structurel ~8 600 (légitime).
 - **`fetch_ter_morningstar` — tranché définitivement** — *Réglé le 2026-06-23* : finder Morningstar retiré du dispatcher de `fetch-ter-fundinfo.py` (Boursorama seul actif). Le TER Morningstar est possédé par les enrichers dédiés `morningstar-ter-fill.py` (rating connu sans TER) + `morningstar-lt-enricher.py` (rating NULL) ; le re-câbler ici doublait le throttle. Commentaire « temporairement » remplacé par la décision permanente. `py_compile` OK. (Script hors CI active de toute façon.)

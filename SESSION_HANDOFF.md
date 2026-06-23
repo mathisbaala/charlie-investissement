@@ -8,6 +8,12 @@
 
 ---
 
+## 🔄 Journal 23/06 (suite) — Alpha des fonds diversifiés (chantier de fond)
+
+- **Alpha diversifiés — RÉSOLU** *(migration `20260623130000` + commits `5e5e813`/`aed711e`)* : les ~14 600 diversifiés étaient à alpha=0 (14 notés) faute d'indice mono-classe pertinent. Solution sans réécrire le moteur d'alpha : des indices **composites** actions/oblig (`mix_25_75` prudent / `mix_50_50` équilibré-flexible-inconnu / `mix_75_25` dynamique), construits par **mélange quotidien rééquilibré** de `msci_world` + `global_agg` (net EUR) via la fonction SQL `inv_rebuild_composite_indices()` ; `td-enricher.map_index` mappe chaque diversifié sur son composite selon `allocation_profile` (avant le match exact, pour ne pas capter un indice actions de passage ; borne alpha dédiée ±20 %/an). **Résultat : diversifiés 14 → 2 110 avec alpha**, run `td-refresh` success (8 097 alpha total, 0 échec), **zéro régression** (action/oblig/monétaire inchangés), distribution saine (moyenne −3 %/an = sous-perf active vs passif, attendu). Plafond = couverture prix des diversifiés (~2 700 avec série), pas la logique. **Fix robustesse** : écriture incrémentale (flush/500) + timeout CI 60→120 min (le 1er run avait été annulé au timeout en écrivant tout à la fin). Cf. mémoire `diversified-composite-benchmarks`.
+
+---
+
 ## 🔄 Journal 23/06 — audit chantiers (`/chantier`) + nettoyages
 
 > Audit complet du projet (doc + git + code + base). Verdict : **projet sain** —
