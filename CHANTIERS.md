@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (2ᵉ passe)
+> Dernier audit : 2026-06-23 (3ᵉ passe)
 
 État global : **projet sain et bien tenu** — `tsc` clean, 272/272 tests verts, zéro
 marqueur `TODO/FIXME` réel dans le front, doc à jour (`SESSION_HANDOFF.md` réconcilié
@@ -11,14 +11,6 @@ est soit **automatisé et tourne seul** (drain compo), soit **en suspens par cho
 ---
 
 ## 🚧 Chantiers en cours
-
-### Gate fraîcheur des métriques dérivées (AUTRE AGENT — ne pas toucher)
-- **Priorité** : 🟠 Importante
-- **Détecté le** : 2026-06-23
-- **Où** : `supabase/migrations/20260623120000_gate_stale_derived_metrics.sql` (untracked) ; miroir TS attendu dans `app/src/lib/format.ts`
-- **Le problème** : masque (NULL) les perfs/vol/sharpe/drawdown/alpha quand la série de prix est absente/périmée (>45j)/minuscule (<8 pts), pour opcvm/etf/crypto. **Travail d'un autre agent, partiellement atterri** : la migration est **déjà appliquée en PROD** (`inv_prices_stale` existe, la vue `investissement_funds_cgp` gate déjà `__stale` en live), **MAIS** (a) le fichier de migration est **non commité** (DB ≠ git), (b) le miroir TS `shouldGateDerivedMetrics` référencé dans le COMMENT de la migration **n'existe pas encore** dans `format.ts`.
-- **Comment l'aborder** : **laissé à l'agent qui l'a écrit** (décision user 2026-06-23). Risques à surveiller de son côté : commiter la migration (sinon perdue / DB désynchro), créer le miroir TS pour que le front masque comme la vue. NE PAS commiter ni modifier depuis ce poste.
-- **Effort estimé** : moyen (côté l'autre agent)
 
 ### Drain composition look-through (OPCVM)
 - **Priorité** : 🟡 Moyenne
