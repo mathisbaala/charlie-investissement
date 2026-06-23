@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (9ᵉ passe — réparation des séries NAV corrompues + recompute GECO soldés)
+> Dernier audit : 2026-06-23 (10ᵉ passe — `/recul` : rescaling 5 séries multi-échelle + dédoublonnage migrations)
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
 **272/272 tests verts** (20 fichiers), **working tree propre**, **CI verte** (dernier run
@@ -69,13 +69,13 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 
 ## 🧹 Dette technique
 
-### Re-fetch des ~7 séries multi-échelle / régime (reliquat du correctif NAV)
+### 2 séries en détresse réelle restant masquées (légitime)
 - **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-23
-- **Où** : `investissement_fund_prices` — Invesco Euro Corp Hybrid (`IE00BKWD3966`), Transition Evergreen (`FR0000035784`), UBS Select Factor Mix (`IE00BDGV0308`), First Trust Global (`IE00BYTH6238`), Amundi Prime Japan (`LU1931974775`), Xtrackers ASX (`LU0328474803`), H2O Multibonds (`FR0013536109`)
-- **Le problème** : ces séries ne sont **pas** de simples glitchs ponctuels mais des **changements d'échelle/régime persistants** (ex. ETF Japon JPY ~2000 vs queue EUR ~37, séries oscillant ×100) ou un **crash réel** (H2O). Le correctif NAV du 23/06 a retiré leur spike isolé mais la frontière de régime subsiste → toujours masquées par la garde `__insane` (correct : pas de fabrication à l'aveugle).
-- **Comment l'aborder** : re-fetch source ciblé (FT/GECO/Morningstar EMEA selon le fonds) pour ré-écrire la série dans une échelle/devise unique ; H2O = vérifier si le drawdown est réel (side-pocket) avant de toucher. Pas de gain UI tant que masquées.
-- **Effort estimé** : moyen
+- **Où** : `investissement_fund_prices` — H2O Multibonds (`FR0013536109`), Transition Evergreen (`FR0000035784`)
+- **Le problème** : **NON corrompues** — ce sont des **déclins réels** (H2O side-pockets ~20→1 ; Transition Evergreen crash cleantech ~4→0,1). La garde `__insane` les masque par leur drawdown réel (dd <−90). Ce n'est pas un bug ; les masquer est défendable (drawdown extrême mais réel).
+- **Comment l'aborder** : rien d'impératif. Option : exception ciblée si on veut afficher leur perf réelle malgré le drawdown (décision produit). Les 5 autres séries multi-échelle du reliquat ont été **réparées par rescaling** le 23/06 (voir « ✅ Réglés »).
+- **Effort estimé** : rapide (décision produit)
 
 > Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont tous traités ou confirmés inertes — voir « ✅ Réglés ».
 
@@ -93,6 +93,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Séries NAV multi-échelle (régime) — rescalées** — *Réglé le 2026-06-23* : reliquat du correctif NAV (`/recul`). Diagnostic des 7 séries restantes : **5 ETF** = deux échelles nettes avec **une bascule contiguë** (la source est passée à l'échelle récente ~dizaines = la vraie ; historique ~milliers ×85-119 erroné) → **rescaling** du segment historique vers l'échelle récente par facteur constant (invariant pour les métriques, corrige aussi l'affichage). **1 266 points sur 5 ISIN** (UBS Select, Invesco Hybrid, Xtrackers ASX, Amundi Prime Japan, First Trust Global) ; 0 saut restant, séries mono-échelle réalistes. Backup `investissement_fund_prices_rescale_backup_20260623` (RLS) + audit `scripts/db-fixes/rescale-nav-multiscale-20260623.sql`, recompute `compute-metrics.yml`. Les **2 dernières** (H2O Multibonds, Transition Evergreen) = détresse RÉELLE (pas corruption) → laissées masquées (légitime, cf. 🧹 Dette technique).
 
 - **Réparation des séries de prix NAV corrompues** — *Réglé le 2026-06-23* : la garde `__insane` masquait le symptôme ; ce correctif **répare la cause** en base. Détection robuste en SQL (médiane ±70 j excluant ±10 j → neutralise les runs de glitchs ≤3 points ; garde anti-split lmed/rmed ∈ [0.8,1.25] ; 3 gardes anti-multi-échelle : exclusion crypto/blockchain, span new>8, désaccord médiane-série ×8). **65 points corrigés sur 25 ISIN** (lot d'ingestion 2024-05-22/24 ÷3,7 ; sentinelles BNP S&P 500 = 9,90 ×17 et Amundi Smart Overnight = 982,15 ; spikes ×100 sur dates-batch 2025-01-06 / 2025-10-20). Backup `investissement_fund_prices_glitch_backup_20260623` (RLS, revert documenté) + audit `scripts/db-fixes/repair-nav-glitches-20260623.sql`. Recompute via `compute-metrics.yml` (l'autorité, **pas** de piège `ft-metrics-wipe` — celui-ci ne vise que l'enrichissement opportuniste) déclenché immédiatement, run `28036782929` success. **Vérifié bout en bout** : garde `__insane` 145 → 131 ; **18 séries entièrement assainies et ré-exposées** dans la vue `_cgp` avec vol/sharpe/drawdown réalistes (UniGlobal vol_3y 84,5→6,2 ; HSBC Govt 74→2,2 ; UBS Japan 10000→18,3). Reliquat = 7 séries multi-échelle/régime non réparables à l'aveugle (re-fetch, cf. 🧹 Dette technique). Idempotent (`UPDATE … WHERE nav=old_nav`), 0 prix supprimé.
 
