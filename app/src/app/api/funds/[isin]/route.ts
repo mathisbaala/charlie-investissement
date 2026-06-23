@@ -57,7 +57,7 @@ export async function GET(
   threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
   const since = threeYearsAgo.toISOString().split("T")[0];
 
-  const [pricesRes, holdingsRes, sectorsRes, geosRes, insurersRes, scpiRes] = await Promise.all([
+  const [pricesRes, holdingsRes, sectorsRes, geosRes, insurersRes, scpiRes, metricsRes] = await Promise.all([
     supabase
       .from("investissement_fund_prices")
       .select("price_date, nav")
@@ -94,7 +94,25 @@ export async function GET(
       .select("price_per_share, dvm, tof, period")
       .eq("isin", upper)
       .maybeSingle(),
+    // Métriques dérivées du prix, lues depuis la vue gardée (source unique de la
+    // garde de fraîcheur, cf. SQL inv_prices_stale) : quand la série est absente,
+    // périmée ou minuscule, perf/vol/sharpe/drawdown/alpha y sont déjà NULL. La
+    // fiche reprend donc ces valeurs gardées plutôt que les valeurs brutes de la
+    // table (qui peuvent être un fossile calculé sur 2 points de 2021).
+    supabase
+      .from("investissement_funds_cgp")
+      .select(
+        "performance_1y, performance_3y, performance_5y, volatility_1y, volatility_3y, sharpe_1y, sharpe_3y, max_drawdown_1y, max_drawdown_3y, alpha_1y, alpha_3y, alpha_5y"
+      )
+      .eq("isin", upper)
+      .maybeSingle(),
   ]);
+
+  // Métriques dérivées gardées (NULL si série non fiable). Repli sur les valeurs
+  // brutes de la table uniquement si la lecture de la vue échoue (rare), pour ne
+  // jamais casser la fiche — le screener, lui, est gardé en dur côté SQL.
+  const gm = metricsRes.data as Record<string, number | null> | null;
+  const useGated = !!gm;
 
   const scpi = scpiRes.data as { price_per_share: number | null; dvm: number | null; tof: number | null; period: string | null } | null;
 
@@ -154,17 +172,18 @@ export async function GET(
     risk_score: fund.sri,
     srri: fund.srri,
     management_style: (fund as any).management_style ?? null,
-    performance_1y: fund.performance_1y,
-    // Base stocke 3y/5y en cumulé (sauf SCPI/livret = taux annuels) → annualisation
-    // conditionnelle, alignée avec inv_annualize_pt SQL / vue CGP.
-    performance_3y: annualizeForType(fund.performance_3y, 3, fund.product_type),
-    performance_5y: annualizeForType(fund.performance_5y, 5, fund.product_type),
-    volatility_1y: fund.volatility_1y,
-    volatility_3y: fund.volatility_3y,
-    sharpe_1y: fund.sharpe_1y,
-    sharpe_3y: fund.sharpe_3y,
-    max_drawdown_1y: fund.max_drawdown_1y,
-    max_drawdown_3y: fund.max_drawdown_3y,
+    // Valeurs gardées issues de la vue CGP (perf 3y/5y déjà annualisées par
+    // inv_annualize_pt côté SQL). Repli sur la table + annualisation TS seulement
+    // si la vue n'a pas répondu.
+    performance_1y: useGated ? gm!.performance_1y : fund.performance_1y,
+    performance_3y: useGated ? gm!.performance_3y : annualizeForType(fund.performance_3y, 3, fund.product_type),
+    performance_5y: useGated ? gm!.performance_5y : annualizeForType(fund.performance_5y, 5, fund.product_type),
+    volatility_1y: useGated ? gm!.volatility_1y : fund.volatility_1y,
+    volatility_3y: useGated ? gm!.volatility_3y : fund.volatility_3y,
+    sharpe_1y: useGated ? gm!.sharpe_1y : fund.sharpe_1y,
+    sharpe_3y: useGated ? gm!.sharpe_3y : fund.sharpe_3y,
+    max_drawdown_1y: useGated ? gm!.max_drawdown_1y : fund.max_drawdown_1y,
+    max_drawdown_3y: useGated ? gm!.max_drawdown_3y : fund.max_drawdown_3y,
     ongoing_charges: feeFracToPct(fund.ongoing_charges),
     ter: feeFracToPct(fund.ter),
     benchmark_index: (fund as any).benchmark_index ?? null,
@@ -173,9 +192,9 @@ export async function GET(
     benchmark_perf_1y: (fund as any).benchmark_perf_1y ?? null,
     benchmark_perf_3y: annualizeCumul((fund as any).benchmark_perf_3y, 3),
     benchmark_perf_5y: annualizeCumul((fund as any).benchmark_perf_5y, 5),
-    alpha_1y: (fund as any).alpha_1y ?? null,
-    alpha_3y: (fund as any).alpha_3y ?? null,
-    alpha_5y: (fund as any).alpha_5y ?? null,
+    alpha_1y: useGated ? gm!.alpha_1y : ((fund as any).alpha_1y ?? null),
+    alpha_3y: useGated ? gm!.alpha_3y : ((fund as any).alpha_3y ?? null),
+    alpha_5y: useGated ? gm!.alpha_5y : ((fund as any).alpha_5y ?? null),
     tracking_diff_1y: (fund as any).tracking_diff_1y ?? null,
     tracking_diff_3y: (fund as any).tracking_diff_3y ?? null,
     tracking_diff_5y: (fund as any).tracking_diff_5y ?? null,
