@@ -18,6 +18,7 @@ import { DurabiliteCard } from "./DurabiliteCard";
 import { CompositionCard } from "./CompositionCard";
 import { SimilarFundsCard } from "./SimilarFundsCard";
 import { ReferencementCard } from "./ReferencementCard";
+import { PrivateEquityCard, isPrivateEquity } from "./PrivateEquityCard";
 
 const LABEL_DISPLAY: Record<string, string> = {
   isr: "ISR",
@@ -34,6 +35,10 @@ const LABEL_DISPLAY: Record<string, string> = {
 interface Props { fund: FundDetailHF; }
 
 export function FundSheetClient({ fund }: Props) {
+  // Non coté (FCPR/FCPI/FIP/FPCI) : pas de VL quotidienne ni de perf annualisée
+  // comparable → on neutralise les blocs « cotés » (KPI perf, graphe VL, perf nette,
+  // écart de réplication, risque vol/sharpe) au profit d'une carte dédiée.
+  const isPE = isPrivateEquity(fund.product_type);
   return (
     <div className="h-full overflow-y-auto bg-cream">
       <div className="max-w-[1100px] mx-auto px-4 py-5 md:px-8 md:py-8">
@@ -138,11 +143,14 @@ export function FundSheetClient({ fund }: Props) {
           )}
         </Card>
 
-        {/* KPI strip */}
-        <KpiStrip fund={fund} />
+        {/* Non coté : carte dédiée à la place des KPI/graphe de perf */}
+        {isPE && <PrivateEquityCard fund={fund} />}
 
-        {/* NAV Chart */}
-        {fund.nav_history.length > 1 && (
+        {/* KPI strip — masqué pour le non coté (perf annualisée non pertinente) */}
+        {!isPE && <KpiStrip fund={fund} />}
+
+        {/* NAV Chart — masqué pour le non coté (pas de VL quotidienne) */}
+        {!isPE && fund.nav_history.length > 1 && (
           <Card className="px-4 py-4 md:px-7 md:py-5 mt-5">
             <NavChart data={fund.nav_history} />
           </Card>
@@ -151,12 +159,12 @@ export function FundSheetClient({ fund }: Props) {
         {/* Grille de cartes : 1 colonne sur mobile, 2 sur desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
           <CharacteristicsCard fund={fund} />
-          <RisqueCard fund={fund} />
+          {!isPE && <RisqueCard fund={fund} />}
           <EnveloppesCard fund={fund} />
           <ReferencementCard fund={fund} />
           <FeesCard fund={fund} />
-          <TrackingDifferenceCard fund={fund} />
-          <PerfNetteCard fund={fund} />
+          {!isPE && <TrackingDifferenceCard fund={fund} />}
+          {!isPE && <PerfNetteCard fund={fund} />}
           <DurabiliteCard fund={fund} />
           <CompositionCard fund={fund} />
           <SimilarFundsCard isin={fund.isin} />

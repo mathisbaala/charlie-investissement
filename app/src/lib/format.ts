@@ -165,7 +165,7 @@ export function fmtYears(v: number | null | undefined): string | null {
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
   opcvm: "OPCVM", etf: "ETF", scpi: "SCPI", fps: "FPS",
   "fonds-euros": "Fonds euros", fonds_euros: "Fonds euros", opci: "OPCI",
-  fcp: "FCP", sicav: "SICAV", fpci: "FPCI", fcpr: "FCPR",
+  fcp: "FCP", sicav: "SICAV", fpci: "FPCI", fcpr: "FCPR", fcpi: "FCPI", fip: "FIP",
   action: "Action", obligation: "Obligation", crypto: "Crypto", livret: "Livret",
 };
 
