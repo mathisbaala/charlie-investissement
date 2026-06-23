@@ -25,11 +25,6 @@ export function PrivateEquityCard({ fund }: { fund: FundDetailHF }) {
   if (!isPrivateEquity(fund.product_type)) return null;
 
   const vintage = fund.inception_date ? new Date(fund.inception_date).getFullYear() : null;
-  const eligibility = fund.av_lux_eligible
-    ? "Assurance-vie (Luxembourg)"
-    : fund.av_fr_eligible
-    ? "Assurance-vie (France)"
-    : null;
 
   return (
     <Card className="px-5 py-5 md:px-7 md:py-6 mt-5">
@@ -51,20 +46,20 @@ export function PrivateEquityCard({ fund }: { fund: FundDetailHF }) {
         ni performance annualisée pour ce support.
       </p>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-5">
         {vintage != null && <Fact label="Millésime" value={String(vintage)} />}
         {fund.risk_score != null && <Fact label="Risque (SRI)" value={`${fund.risk_score} / 7`} />}
         <Fact
           label="Durée de blocage"
           value={fund.holding_period_years != null ? `${fund.holding_period_years} ans` : "5 à 10 ans (indicatif)"}
         />
-        {eligibility && <Fact label="Éligibilité" value={eligibility} />}
       </div>
 
       <p className="text-caption text-muted-2 mt-5 leading-snug max-w-2xl">
-        Capital à risque et parts bloquées pendant la durée de vie du fonds. Un éventuel avantage
-        fiscal est soumis à conditions (durée de détention, plafonds). Consultez le DICI avant toute
-        souscription.
+        Selon le produit, l&apos;accès se fait en souscription directe (avantage fiscal IR sous
+        conditions de durée et de plafonds) ou via certains contrats d&apos;assurance-vie&nbsp;: la
+        disponibilité en assurance-vie dépend du contrat et n&apos;est pas garantie. Capital à risque,
+        parts bloquées pendant la durée de vie du fonds. Consultez le DICI avant toute souscription.
       </p>
     </Card>
   );
