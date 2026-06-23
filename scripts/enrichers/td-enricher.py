@@ -584,6 +584,22 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     updates: list[dict] = []
     clears: list[dict] = []
     mapped = unmapped = computed = mismatch_ccy = exact = category = 0
+    # Écriture INCRÉMENTALE : on flush les alpha calculés tous les FLUSH_EVERY fonds
+    # au lieu de tout garder pour la fin. Sur l'univers complet (avec les diversifiés
+    # désormais mappés) le run dépasse parfois 45 min ; un flush en cours de route
+    # rend le recalcul résistant au timeout CI (sinon un timeout = 0 écriture).
+    FLUSH_EVERY = 500
+    written_ok = written_fail = 0
+
+    def flush_updates() -> None:
+        nonlocal written_ok, written_fail, updates
+        if not (apply and updates):
+            return
+        ok, fail = update_funds_bulk(updates, batch_size=200)
+        written_ok += ok
+        written_fail += fail
+        print(f"  …flush {len(updates)} → {ok} OK ({written_ok} cumulés)", flush=True)
+        updates = []
 
     def record_clear(fund: dict) -> None:
         if fund.get("benchmark_index") is None:
@@ -694,18 +710,20 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
             exact += 1
         if i % 500 == 0:
             print(f"  [{i:5d}/{len(funds)}] mappés:{mapped} calculés:{computed}")
+        if apply and len(updates) >= FLUSH_EVERY:
+            flush_updates()
 
     print(f"\n  → {mapped} mappés (devise OK), {unmapped} non mappés, "
           f"{mismatch_ccy} écartés (devise ≠ indice), {computed} alpha calculés "
           f"({exact} exacts, {category} catégorie), {len(clears)} à purger")
 
     if apply:
-        if updates:
-            print(f"  Écriture dans Supabase ({len(updates)} fonds)…", end=" ", flush=True)
-            ok, fail = update_funds_bulk(updates, batch_size=200)
-            print(f"✓ {ok} OK, {fail} échec")
+        flush_updates()  # écrit le reliquat (< FLUSH_EVERY) accumulé en fin de boucle
+        if written_ok or written_fail:
+            print(f"  ✓ {written_ok} alpha écrits ({written_fail} échec)")
             log_run(scraper="benchmark-enricher", status="success",
-                    records_processed=ok, records_failed=fail, started_at=started)
+                    records_processed=written_ok, records_failed=written_fail,
+                    started_at=started)
         if clears:
             print(f"  Purge des fonds dé-mappés ({len(clears)})…", end=" ", flush=True)
             ok_c, fail_c = update_funds_bulk(clears, batch_size=200)

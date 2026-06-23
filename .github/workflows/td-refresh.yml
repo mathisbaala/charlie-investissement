@@ -15,7 +15,10 @@ concurrency:
 jobs:
   tracking-difference:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 120 min : le recalcul couvre tout l'univers primaire (~33k fonds, ~25k à
+    # charger). Depuis l'ajout des composites diversifiés, il dépasse 60 min.
+    # L'écriture est incrémentale (flush au fil de l'eau) → résistant au timeout.
+    timeout-minutes: 120
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
