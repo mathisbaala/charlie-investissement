@@ -37,13 +37,9 @@ compo), soit **en suspens par choix** (scrapers bloqués IP), soit de la **dette
 - **Comment l'aborder** : **décision ferme = re-seed manuel trimestriel** (secret `AV_PROXY_URL` dormant, non posé volontairement). Réouvrir seulement si un proxy résidentiel est décidé. Vanguard (~29 ETF, GraphQL ouvert) = seul proprement scrapable mais gain marginal (+0,1 pt), jugé non rentable.
 - **Effort estimé** : moyen (si proxy un jour activé)
 
-### Couverture prix OPCVM — reste le volet LU (FR drainé le 23/06, voir « ✅ Réglés »)
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-06-22
-- **Où** : refresh Morningstar EMEA (`emea-refresh.yml`)
-- **État (2026-06-23)** : **volet FR résolu** (run GECO complet → +1 086 fonds frais, voir Réglés). Reste **~510 LU primaires ≥50M** récupérables via la source Morningstar EMEA existante, **plus** le plancher structurel **~8 600 non récupérables** (parts secondaires, micro-encours, fonds fermés/morts, faux ISIN) qui ne sera **jamais** chassé (légitime).
-- **Comment l'aborder** : fill-only, aucun code neuf — déclencher un refresh Morningstar EMEA (`emea-refresh.yml`). ⚠️ **throttle sal-service : jamais de runs dos à dos**, cadence espacée (cf. mémoire enricher Morningstar holdings). Gain attendu modeste (~510 fonds), priorité basse une fois le gros volet FR fait.
-- **Effort estimé** : moyen (un run espacé), non urgent
+> Le volet LU est **résolu le 23/06** (voir « ✅ Réglés ») — il ne s'agissait pas d'un trou de
+> données mais d'un faux positif de la garde de fraîcheur. Reste hors périmètre le plancher
+> structurel ~8 600 (parts secondaires, micro-encours, fonds fermés/morts) jamais chassé (légitime).
 
 ---
 
@@ -78,6 +74,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Couverture prix OPCVM — volet LU** — *Réglé le 2026-06-23* : **diagnostic ≠ fiche du chantier**. Ce n'était PAS un trou à scraper (le refresh EMEA aurait été inutile : les perfs LU sont déjà en base, fraîches <40j, moyenne +14,9 %/1 an). C'était un **faux positif de la garde de fraîcheur** du matin (`inv_prices_stale`) : elle masque toute métrique d'un opcvm/etf/crypto **sans série de prix locale**, or les LU/IE n'en ont jamais eu — leur perf vient d'une **source externe directe** (AMF GECO / catalogue / Morningstar), pas d'un fossile maison. **Fix** = migration `20260623140000` : la vue `_cgp` démasque **uniquement les 3 perfs** (1/3/5 ans) d'un fonds sans série locale, **si** fraîches (`updated_at` <150j) **et** saines (bornes par métrique, écarte les ~5 aberrantes) ; vol/sharpe/drawdown/alpha **restent masqués** (provenance non garantie), et le vrai fossile (série locale **morte** >45j) **reste masqué** (non-régression vérifiée : 1 827 fossiles, 0 perf ré-exposée). Résultat : **734 perfs LU démasquées (488 primaires ≥50M)**, validé end-to-end sur l'API prod (`LU1295551144` : 1y 18,1 / 3y 13,9, vol/sharpe NULL). Provenance non utilisable comme gate (382/498 sans estampille). `tsc` clean, 272/272 tests. Cf. mémoire [[stale-metrics-freshness-gate]].
 
 - **Alpha vs indice des fonds diversifiés** — *Réglé le 2026-06-23* : benchmarks **composites** actions/oblig pondérés par profil (`mix_25_75`/`mix_50_50`/`mix_75_25`, mélange quotidien rééquilibré `msci_world`+`global_agg`, fonction `inv_rebuild_composite_indices()`) + mapping `map_index` sur `allocation_profile` dans `td-enricher.py` (borne ±20 %/an). Migration `20260623130000`. **Diversifiés 14 → 2 110 avec alpha** (run `28020564756` success, 8 097 alpha total écrits, 0 échec) ; **zéro régression** (action 3 919 / oblig 1 959 / monétaire 169 inchangés). Distribution saine : moyenne −3 %/an (sous-perf active vs passif = attendu), bornes respectées. Plafond = couverture prix des diversifiés (~2 700 ayant une série), pas la logique. Fix de robustesse au passage : écriture incrémentale + timeout CI 120 min (commit `aed711e`). Cf. mémoire [[diversified-composite-benchmarks]].
 
