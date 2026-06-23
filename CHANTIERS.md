@@ -32,14 +32,13 @@ est soit **automatisé et tourne seul** (drain compo), soit **en suspens par cho
 - **Comment l'aborder** : **décision ferme = re-seed manuel trimestriel** (secret `AV_PROXY_URL` dormant, non posé volontairement). Réouvrir seulement si un proxy résidentiel est décidé. Vanguard (~29 ETF, GraphQL ouvert) = seul proprement scrapable mais gain marginal (+0,1 pt), jugé non rentable.
 - **Effort estimé** : moyen (si proxy un jour activé)
 
-### Couverture prix OPCVM (~49 % frais) — cœur récupérable ~1 000
-- **Priorité** : 🟡 Moyenne
+### Couverture prix OPCVM — reste le volet LU (FR drainé le 23/06, voir « ✅ Réglés »)
+- **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-22
-- **Où** : pipelines FT/GECO (`weekly-refresh.yml`), `scripts/scrapers/geco-nav.py`, refresh Morningstar EMEA (`emea-refresh.yml`)
-- **État vérifié (2026-06-23, 4ᵉ passe — analyse fine du trou)** : 20 660 OPCVM, 48,9 % frais. Le trou (~10 561) se décompose : **~8 600 = plafond LÉGITIME** (parts secondaires, micro-encours, fonds fermés/morts, faux ISIN OT/SU/SC) → ne pas chasser. **MAIS ~1 000 = RÉCUPÉRABLES** : ~550 FR primaires gros encours dont **549 sont `amf-geco` simplement PÉRIMÉS** (>35j, pas jamais résolus → GECO les atteint, la rotation a pris du retard) + ~510 LU primaires ≥50M (source Morningstar EMEA existante).
-- **Le problème** : ce n'était PAS « non corrigeable » comme écrit avant — un cœur de ~1 000 fonds vivants a une source qui marche, il manque juste un passage de rafraîchissement ciblé. Gain potentiel : +~5 pts de couverture fraîche.
-- **Comment l'aborder** : **fill-only, AUCUN code neuf**. (a) FR : `geco-nav.py --apply` en mode défaut = cible les périmés triés par encours (le cœur des 549). (b) LU : refresh Morningstar EMEA (⚠️ throttle, jamais de runs dos à dos). Le hic = ces enrichers vivent dans `weekly-refresh.yml`/`emea-refresh.yml` (zone agent) ; déclencher = coordonner avec l'agent data, pas un changement de code. Reste structurel : ~8 600 non récupérables.
-- **Effort estimé** : moyen (un run ciblé), pas lourd
+- **Où** : refresh Morningstar EMEA (`emea-refresh.yml`)
+- **État (2026-06-23)** : **volet FR résolu** (run GECO complet → +1 086 fonds frais, voir Réglés). Reste **~510 LU primaires ≥50M** récupérables via la source Morningstar EMEA existante, **plus** le plancher structurel **~8 600 non récupérables** (parts secondaires, micro-encours, fonds fermés/morts, faux ISIN) qui ne sera **jamais** chassé (légitime).
+- **Comment l'aborder** : fill-only, aucun code neuf — déclencher un refresh Morningstar EMEA (`emea-refresh.yml`). ⚠️ **throttle sal-service : jamais de runs dos à dos**, cadence espacée (cf. mémoire enricher Morningstar holdings). Gain attendu modeste (~510 fonds), priorité basse une fois le gros volet FR fait.
+- **Effort estimé** : moyen (un run espacé), non urgent
 
 ---
 
@@ -88,6 +87,7 @@ Les trois items mineurs détectés au 23/06 (finder TER « temporaire », branch
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
 
+- **Couverture prix OPCVM FR — cœur récupérable drainé** — *Réglé le 2026-06-23* : run `geco-nav.py --apply` complet (manuel, fill-only non destructif — n'écrit que des dates postérieures à la dernière VL connue) → 4 164/5 802 résolus, **1 180 VL écrites, +1 086 OPCVM FR repassés frais ≤5j (4 048 → 5 134)** — ~2× l'estimation initiale (~550). Zéro erreur HTTP / throttle (3 workers, 1,2 s/req), 23 min, loggé `investissement_pipeline_runs`. Données vérifiées saines (0 nav ≤0, EUR only, 0 date future). **Effet de bord tranché** : la garde fraîcheur (`inv_prices_stale` dans la vue `_cgp`) démasque les métriques des ~1 086 fonds nouvellement frais, **non encore recalculées contre la nouvelle queue** (geco-nav = étape 4 ; `compute-metrics` = étape 5 du `weekly-pipeline`) → **laissé à l'auto-réparation du `weekly-refresh`** (décision 23/06, évite le piège `ft-metrics-wipe` d'un compute-metrics manuel). Baseline consigné en mémoire (`opcvm-fr-price-coverage.md`). Reste hors périmètre : volet LU (~510, Morningstar EMEA) + plancher structurel ~8 600 (légitime).
 - **`fetch_ter_morningstar` — tranché définitivement** — *Réglé le 2026-06-23* : finder Morningstar retiré du dispatcher de `fetch-ter-fundinfo.py` (Boursorama seul actif). Le TER Morningstar est possédé par les enrichers dédiés `morningstar-ter-fill.py` (rating connu sans TER) + `morningstar-lt-enricher.py` (rating NULL) ; le re-câbler ici doublait le throttle. Commentaire « temporairement » remplacé par la décision permanente. `py_compile` OK. (Script hors CI active de toute façon.)
 - **Branche morte `docs/av-tier3-validation`** — *Réglé le 2026-06-23* : supprimée en local + remote (aucun commit en avance sur `main`).
 - **Placeholder AUM ETF 1e9** — *Réglé le 2026-06-23 (confirmé inerte, won't-do)* : `fetch-etf-extended.py:427` n'est câblé à aucun workflow CI et n'a jamais pollué la base — 0 ETF à `aum_eur=1e9`. Le seul fonds à cette valeur est `FE_UAF_LIFE` (fonds euros seedé à 1 Md€ rond, sans rapport). Aucune action.
