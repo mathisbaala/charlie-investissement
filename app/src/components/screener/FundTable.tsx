@@ -27,6 +27,16 @@ function EligPill({ label, active }: { label: string; active: boolean | null }) 
   );
 }
 
+// Fonds obligataire daté : pastille « Échéance YYYY » (millésime cible).
+function MaturityBadge({ year }: { year?: number | null }) {
+  if (!year) return null;
+  return (
+    <span className="inline-block shrink-0 px-1.5 py-0.5 rounded text-caption font-medium bg-accent-soft text-accent-ink whitespace-nowrap">
+      Échéance {year}
+    </span>
+  );
+}
+
 function SortTh({
   field, label, align = "right", sortBy, sortDir, onSort, children,
 }: {
@@ -69,7 +79,10 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="font-medium text-ink leading-tight">{decodeHtml(f.name)}</div>
+              <div className="flex items-start gap-1.5">
+                <div className="font-medium text-ink leading-tight">{decodeHtml(f.name)}</div>
+                <MaturityBadge year={f.maturity_year} />
+              </div>
               <div className="text-label text-muted font-mono mt-0.5 truncate">
                 {f.isin} · {f.gestionnaire ?? "—"}
               </div>
@@ -180,6 +193,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <div className="font-medium text-ink leading-tight truncate max-w-[250px]">{decodeHtml(f.name)}</div>
+                    <MaturityBadge year={f.maturity_year} />
                   </div>
                   <div className="text-label text-muted font-mono mt-0.5">
                     {f.isin} · {f.gestionnaire ?? "—"}

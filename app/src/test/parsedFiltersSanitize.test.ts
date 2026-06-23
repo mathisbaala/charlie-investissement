@@ -106,4 +106,20 @@ describe("sanitizeParsedFilters", () => {
     expect(sanitizeParsedFilters({ sri_min: 2, sri_max: 5 })).toEqual({ sri_min: 2, sri_max: 5 });
     expect(sanitizeParsedFilters({ sri_min: 3, sri_max: 3 })).toEqual({ sri_min: 3, sri_max: 3 });
   });
+
+  it("conserve target_maturity et borne le millésime d'échéance (2024-2045)", () => {
+    expect(sanitizeParsedFilters({ target_maturity: true })).toEqual({ target_maturity: true });
+    expect(sanitizeParsedFilters({ target_maturity: true, maturity_year_min: 2028, maturity_year_max: 2030 }))
+      .toEqual({ target_maturity: true, maturity_year_min: 2028, maturity_year_max: 2030 });
+    // hors bornes plausibles -> annee ecartee
+    expect(sanitizeParsedFilters({ maturity_year_min: 1999 })).toEqual({});
+    expect(sanitizeParsedFilters({ maturity_year_max: 2099 })).toEqual({});
+    // target_maturity ne vaut que pour true (pas de coercition)
+    expect(sanitizeParsedFilters({ target_maturity: "oui" })).toEqual({});
+  });
+
+  it("ecarte le plafond de millesime quand la fourchette est inversee", () => {
+    expect(sanitizeParsedFilters({ maturity_year_min: 2032, maturity_year_max: 2027 }))
+      .toEqual({ maturity_year_min: 2032 });
+  });
 });

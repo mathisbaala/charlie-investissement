@@ -54,6 +54,10 @@ const NUM_BOUNDS: Record<string, [number, number]> = {
   track_record_min: [0, 100],
   morningstar_min: [1, 5],
   retrocession_min: [0, 100],
+  // Millésime d'échéance des fonds obligataires datés (bornes alignées sur la couverture
+  // réelle en base : 2024→2036, marge jusqu'à 2045).
+  maturity_year_min: [2024, 2045],
+  maturity_year_max: [2024, 2045],
 };
 
 function cleanNum(v: unknown, [lo, hi]: [number, number]): number | undefined {
@@ -128,6 +132,9 @@ export function sanitizeParsedFilters(raw: unknown): ParsedFilters {
   if (r.has_kid === true) out.has_kid = true;
   if (r.no_entry_fee === true) out.no_entry_fee = true;
   if (r.beats_benchmark === true) out.beats_benchmark = true;
+  // Fonds obligataires datés (à échéance). Un millésime précis (« daté 2028 ») arrive
+  // via maturity_year_min/max ; le booléen seul isole le sous-univers sans cibler d'année.
+  if (r.target_maturity === true) out.target_maturity = true;
 
   // Intention de tri (éphémère) : field doit être une colonne triable connue,
   // dir ∈ {asc,desc} (défaut desc). Toute valeur hors liste est écartée — sinon
@@ -145,6 +152,11 @@ export function sanitizeParsedFilters(raw: unknown): ParsedFilters {
   // d'adéquation : ne jamais proposer plus risqué que demandé) et on écarte le plancher.
   if (out.sri_min != null && out.sri_max != null && out.sri_min > out.sri_max) {
     delete out.sri_min;
+  }
+  // Fourchette de millésime inversée → on garde le plancher, on écarte le plafond aberrant.
+  if (out.maturity_year_min != null && out.maturity_year_max != null &&
+      out.maturity_year_min > out.maturity_year_max) {
+    delete out.maturity_year_max;
   }
 
   return out;
@@ -203,6 +215,14 @@ Retourne un objet JSON valide avec ces champs optionnels :
   Ne PAS confondre : « ESG » / « durable » → sfdr:[8,9] ; « labellisé ISR » → labels:["isr"].
 - beats_benchmark: true si l'utilisateur veut des fonds qui SURPERFORMENT leur indice
   (« bat son indice », « surperforme son benchmark », « alpha positif », « bat le marché »).
+- target_maturity: true si l'utilisateur cherche des FONDS OBLIGATAIRES DATÉS (à échéance /
+  « target maturity » / millésimés / de portage / « buy and hold » obligataire) — des fonds
+  qui portent un panier d'obligations jusqu'à une année cible. Toujours accompagner de
+  asset_class:["obligation"].
+- maturity_year_min, maturity_year_max: année(s) d'échéance cible si précisée (2024-2045).
+  « daté 2028 » → min=2028, max=2028 ; « échéance 2027 à 2030 » → min=2027, max=2030 ;
+  « qui arrive à échéance avant 2029 » → max=2029 ; « à partir de 2030 » → min=2030.
+  Émettre AUSSI target_maturity:true dès qu'une de ces bornes est posée.
 - sort_intent: intention de TRI des résultats déduite de la formulation, objet {field, dir}.
   field parmi ["ter","performance_1y","performance_3y","performance_5y","aum_eur","sharpe_3y",
   "volatility_1y","max_drawdown_3y","morningstar_rating","track_record_years"], dir "asc" ou "desc".
@@ -241,6 +261,7 @@ Règles de mapping :
 - "Brésil" / "brésilien" → region:["brazil"]
 - "actions" / "fonds actions" / "equity" / "titres" → asset_class:["action"]
 - "obligataire" / "obligations" / "oblig" / "bonds" / "crédit" / "taux" / "high yield" / "investment grade" → asset_class:["obligation"]
+- "fonds daté" / "obligataire daté" / "fonds à échéance" / "à échéance" / "target maturity" / "fonds de portage" / "millésimé" / "fonds obligataire 20XX" → target_maturity:true + asset_class:["obligation"] (+ maturity_year_min/max si une année est citée)
 - "diversifié" / "multi-actifs" / "multi-asset" / "allocation" / "patrimonial" / "flexible" / "mixte" / "profilé" → asset_class:["diversifie"]
 - "monétaire" / "money market" / "cash" / "trésorerie" / "court terme" → asset_class:["monetaire"]
 - "immobilier" / "SCPI" / "pierre papier" / "foncier" / "SCI" → asset_class:["immobilier"]
@@ -287,6 +308,9 @@ Exemples :
 - "ETF monde éligibles PEA article 8" → {"sfdr":[8],"envelopes":["PEA"],"universe":["etf"],"region":["world"],"chips":["ETF","Monde","PEA éligible","Article 8"]}
 - "fonds actions américaines" → {"asset_class":["action"],"region":["usa"],"chips":["Actions","USA"]}
 - "fonds obligataire ISR à faible risque éligible assurance vie" → {"asset_class":["obligation"],"sfdr":[8,9],"sri_max":3,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire","ISR","Risque faible","Assurance-vie"]}
+- "fonds obligataire daté 2028 éligible assurance vie" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_min":2028,"maturity_year_max":2028,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire daté","Échéance 2028","Assurance-vie"]}
+- "fonds à échéance entre 2027 et 2030" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_min":2027,"maturity_year_max":2030,"chips":["Fonds à échéance","2027–2030"]}
+- "obligations de portage qui arrivent à échéance avant 2029" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_max":2029,"chips":["Fonds à échéance","≤ 2029"]}
 - "fonds diversifié patrimonial prudent" → {"asset_class":["diversifie"],"sri_max":3,"chips":["Diversifié","Prudent"]}
 - "fonds actions monde référencés chez AXA" → {"asset_class":["action"],"region":["world"],"insurers":["AXA France"],"chips":["Actions","Monde","AXA France"]}
 - "fonds action monde peu exposé tech/US" → {"asset_class":["action"],"region":["world"],"exclude_sectors":["Technologie"],"exclude_regions":["usa"],"chips":["Actions","Monde","Hors tech","Hors US"]}

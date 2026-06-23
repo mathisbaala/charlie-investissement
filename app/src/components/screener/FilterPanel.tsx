@@ -150,6 +150,10 @@ function toggleArr<T>(arr: T[] | undefined, val: T): T[] {
   return a.includes(val) ? a.filter((x) => x !== val) : [...a, val];
 }
 
+// Millésimes proposés pour le filtre « fonds à échéance ». Couverture réelle en base :
+// 2024→2036 ; on étend jusqu'à 2040 pour absorber les nouveaux lancements.
+const MATURITY_YEARS = Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2024 + i);
+
 export function FilterPanel({
   filters, onChange, onApply, onReset, onClose, resultCount,
 }: FilterPanelProps) {
@@ -522,6 +526,60 @@ export function FilterPanel({
             </div>
           </Section>
         )}
+
+        <Divider />
+
+        {/* Fonds obligataires datés (à échéance) */}
+        <Section title="Fonds à échéance">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!f.target_maturity}
+            onClick={() =>
+              f.target_maturity
+                ? onChange({ ...f, target_maturity: undefined, maturity_year_min: undefined, maturity_year_max: undefined })
+                : set("target_maturity", true)
+            }
+            className="flex items-center gap-3 cursor-pointer group w-full text-left"
+          >
+            <div
+              className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${f.target_maturity ? "bg-brown" : "bg-paper-3 border border-line"}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-paper shadow-sm transition-transform ${f.target_maturity ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+            <span className="text-meta text-ink-2 group-hover:text-ink">Obligataires datés uniquement</span>
+          </button>
+
+          {f.target_maturity && (
+            <div className="grid grid-cols-2 gap-2.5 mt-3">
+              <div className="space-y-1.5">
+                <div className="text-caption text-muted uppercase tracking-wider font-semibold">Échéance de</div>
+                <select
+                  value={f.maturity_year_min ?? ""}
+                  onChange={(e) => set("maturity_year_min", e.target.value ? +e.target.value : undefined)}
+                  className="w-full border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+                >
+                  <option value="">Toutes</option>
+                  {MATURITY_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-caption text-muted uppercase tracking-wider font-semibold">à</div>
+                <select
+                  value={f.maturity_year_max ?? ""}
+                  onChange={(e) => set("maturity_year_max", e.target.value ? +e.target.value : undefined)}
+                  className="w-full border border-line rounded-lg px-2.5 py-1.5 text-meta font-mono text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+                >
+                  <option value="">Toutes</option>
+                  {MATURITY_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          <p className="text-caption text-muted-2 mt-2 leading-snug">
+            Fonds obligataires qui portent leurs titres jusqu&apos;à une année cible (millésime).
+          </p>
+        </Section>
 
         <Divider />
 

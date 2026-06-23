@@ -252,3 +252,39 @@ describe('relaxLabel', () => {
     expect(relaxLabel('inconnu')).toBe('inconnu')
   })
 })
+
+// Fonds obligataires datés (à échéance) : découvrabilité du sous-univers daté.
+// Avant le correctif, aucune notion d'échéance n'existait — « obligataire daté 2028 »
+// retombait sur ~4 260 fonds obligataires indifférenciés. buildParams/filtersFromParams
+// doivent porter target_maturity + les bornes de millésime en round-trip.
+describe('params — fonds à échéance (obligataire daté)', () => {
+  it('sérialise target_maturity et les bornes de millésime', () => {
+    const f: ParsedFilters = { target_maturity: true, maturity_year_min: 2027, maturity_year_max: 2030 }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('target_maturity')).toBe('true')
+    expect(sp.get('maturity_year_min')).toBe('2027')
+    expect(sp.get('maturity_year_max')).toBe('2030')
+  })
+
+  it('n\'émet rien quand le filtre échéance est absent', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('target_maturity')).toBe(false)
+    expect(sp.has('maturity_year_min')).toBe(false)
+    expect(sp.has('maturity_year_max')).toBe(false)
+  })
+
+  it('round-trip URL → filtres', () => {
+    const sp = buildParams({ target_maturity: true, maturity_year_min: 2028 }, 1, 'data_completeness', 'desc')
+    const f = filtersFromParams(sp)
+    expect(f.target_maturity).toBe(true)
+    expect(f.maturity_year_min).toBe(2028)
+    expect(f.maturity_year_max).toBeUndefined()
+  })
+
+  it('décrit le filtre pour le bandeau de contexte', () => {
+    expect(describeScreenerFilters({ target_maturity: true, maturity_year_min: 2027, maturity_year_max: 2030 }))
+      .toContain('Échéance 2027–2030')
+    expect(describeScreenerFilters({ target_maturity: true })).toContain('Fonds à échéance')
+    expect(describeScreenerFilters({ maturity_year_max: 2029 })).toContain('Échéance ≤ 2029')
+  })
+})
