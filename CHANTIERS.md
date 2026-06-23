@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (10ᵉ passe — `/recul` : rescaling 5 séries multi-échelle + dédoublonnage migrations)
+> Dernier audit : 2026-06-24 (11ᵉ passe — balayage complet des changements d'unité NAV : 67 fonds rescalés, garde 126→59)
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
 **272/272 tests verts** (20 fichiers), **working tree propre**, **CI verte** (dernier run
@@ -69,13 +69,13 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 
 ## 🧹 Dette technique
 
-### 2 séries en détresse réelle restant masquées (légitime)
+### 59 fonds encore masqués par `__insane` (résidu après balayage)
 - **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-06-23
-- **Où** : `investissement_fund_prices` — H2O Multibonds (`FR0013536109`), Transition Evergreen (`FR0000035784`)
-- **Le problème** : **NON corrompues** — ce sont des **déclins réels** (H2O side-pockets ~20→1 ; Transition Evergreen crash cleantech ~4→0,1). La garde `__insane` les masque par leur drawdown réel (dd <−90). Ce n'est pas un bug ; les masquer est défendable (drawdown extrême mais réel).
-- **Comment l'aborder** : rien d'impératif. Option : exception ciblée si on veut afficher leur perf réelle malgré le drawdown (décision produit). Les 5 autres séries multi-échelle du reliquat ont été **réparées par rescaling** le 23/06 (voir « ✅ Réglés »).
-- **Effort estimé** : rapide (décision produit)
+- **Détecté le** : 2026-06-24
+- **Où** : `investissement_funds` (garde `__insane` de la vue `_cgp`)
+- **Le problème** : après le balayage des changements d'unité (67 fonds rescalés, voir « ✅ Réglés »), il reste **59 fonds masqués**. Ce ne sont **pas** des changements d'unité simples : (a) **déclins réels** type H2O Multibonds (`FR0013536109`, side-pockets) / Transition Evergreen (`FR0000035784`, crash cleantech) — drawdown extrême mais **vrai** ; (b) ~5 séries à **plusieurs sauts** (spike + bascule combinés) ; (c) glitchs internes sub-seuil ou vraie volatilité. La garde les masque correctement (aucune donnée fausse affichée).
+- **Comment l'aborder** : cas par cas, pas en masse. Pour (a) = décision produit (afficher la perf réelle malgré le drawdown ?). Pour (b) = inspection + repair/rescale ciblé. Pas de gain UI urgent — le filet `__insane` protège déjà.
+- **Effort estimé** : moyen (granulaire)
 
 > Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont tous traités ou confirmés inertes — voir « ✅ Réglés ».
 
@@ -93,6 +93,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Changements d'unité NAV — balayage systématique (67 fonds)** — *Réglé le 2026-06-24* : extension du rescaling à TOUT l'univers masqué (le passage du 23/06 n'avait fait que 5 ETF). Détection sûre = série avec **exactement un saut brutal** (>×5, physiquement impossible en marché réel → changement d'unité, pas un mouvement), aligné sur le segment récent. Cause principale = événement source **2026-05-19** (bascule en masse vers l'échelle ~dizaines) + bascules isolées. **21 932 points rescalés sur 67 ISIN**, 0 saut restant, garde `__insane` **126 → 59**, tous ré-exposés avec vol/dd réalistes (Carmignac oblig vol 1,4 ; SPDR ACWI vol 15). Backup `investissement_fund_prices_switch_backup_20260624` (RLS) + audit `scripts/db-fixes/rescale-nav-switch-batch-20260624.sql`, recompute `compute-metrics.yml` (run `28060317158`). Reste 59 masqués = déclins réels / multi-sauts / sub-seuil (cf. 🧹 Dette technique). **Leçon** : « résolu » annoncé trop tôt sur un périmètre partiel le 23/06 — la vérif déclenchée par la question « tout est résolu ? » a révélé le résidu.
 
 - **Séries NAV multi-échelle (régime) — rescalées** — *Réglé le 2026-06-23* : reliquat du correctif NAV (`/recul`). Diagnostic des 7 séries restantes : **5 ETF** = deux échelles nettes avec **une bascule contiguë** (la source est passée à l'échelle récente ~dizaines = la vraie ; historique ~milliers ×85-119 erroné) → **rescaling** du segment historique vers l'échelle récente par facteur constant (invariant pour les métriques, corrige aussi l'affichage). **1 266 points sur 5 ISIN** (UBS Select, Invesco Hybrid, Xtrackers ASX, Amundi Prime Japan, First Trust Global) ; 0 saut restant, séries mono-échelle réalistes. Backup `investissement_fund_prices_rescale_backup_20260623` (RLS) + audit `scripts/db-fixes/rescale-nav-multiscale-20260623.sql`, recompute `compute-metrics.yml`. Les **2 dernières** (H2O Multibonds, Transition Evergreen) = détresse RÉELLE (pas corruption) → laissées masquées (légitime, cf. 🧹 Dette technique).
 
