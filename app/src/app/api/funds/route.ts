@@ -41,7 +41,7 @@ const COLS = [
   "track_record_years","kid_url","data_completeness","updated_at",
   "share_class_group_id","insurers","contracts","tickers",
   "benchmark_index","benchmark_variant","benchmark_is_category",
-  "alpha_1y","alpha_3y","alpha_5y"
+  "alpha_1y","alpha_3y","alpha_5y","maturity_year"
 ].join(",");
 
 function p(sp: URLSearchParams, key: string) { return sp.get(key); }
@@ -98,6 +98,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const exactIsin = asExactIsin(search);
   const hasKid  = p(sp, "has_kid") === "true";
   const beatsBenchmark = p(sp, "beats_benchmark") === "true"; // alpha 3 ans > 0
+  // Fonds obligataires datés (à échéance). `target_maturity` isole le sous-univers ;
+  // les bornes de millésime restreignent l'échéance (un range implique fonds daté :
+  // maturity_year est NULL hors univers daté → écarté par gte/lte). Colonnes portées
+  // par la vue _ref uniquement → on force needsRef (cf. plus bas).
+  const targetMaturity = p(sp, "target_maturity") === "true";
+  const matYearMin = int(p(sp, "maturity_year_min"));
+  const matYearMax = int(p(sp, "maturity_year_max"));
   const sortBy  = p(sp, "sort_by") ?? "data_completeness";
   const sortDir = p(sp, "sort_dir") === "asc";
   const page    = Math.max(1, int(p(sp, "page")) ?? 1);
@@ -139,7 +146,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     contracts.length > 0 || regions.length > 0 || sectors.length > 0 ||
     exclSectors.length > 0 || exclRegions.length > 0 || mgmtStyles.length > 0 ||
     currency.length > 0 || !!mgr || gestIn.length > 0 || hasKid ||
-    beatsBenchmark || esgLabels.length > 0;
+    beatsBenchmark || esgLabels.length > 0 ||
+    targetMaturity || matYearMin != null || matYearMax != null;
   const anyPref = prefIncome || prefEnvelopes.length > 0 || prefNovice || prefSmallTicket;
   const hasIntent = anyHardFilter || anyPref;
 
@@ -303,6 +311,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (esgLabels.length && on("labels"))
     q = (q as any).or(esgLabels.map((l) => `labels.cs.["${l}"]`).join(","));
 
+  // Fonds obligataires datés (à échéance). Filtre STRUCTURANT (jamais relâché) : c'est
+  // l'intention de fond, pas un confort. Les colonnes is_target_maturity / maturity_year
+  // ne vivent que sur la vue _ref → needsRef garantit que la source les expose.
+  if (targetMaturity)     q = q.eq("is_target_maturity", true);
+  if (matYearMin != null) q = q.gte("maturity_year", matYearMin);
+  if (matYearMax != null) q = q.lte("maturity_year", matYearMax);
+
     return q;
   };
 
@@ -337,7 +352,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // marché), puis on n'enrichit (assureurs/contrats) que les ISIN de la page (phase 2).
   // Bascule sur la vue _ref en phase 1 seulement si un filtre assureur/contrat l'exige —
   // il réduit l'ensemble, donc pas de timeout. Le chemin texte (RPC) narrow déjà : inchangé.
-  const needsRef = insurers.length > 0 || contracts.length > 0;
+  // Le filtre échéance lit is_target_maturity / maturity_year, portées par _ref seule.
+  // Comme le filtre assureur, il RÉDUIT l'ensemble (≤ ~313 fonds datés) → pas de timeout
+  // malgré la jointure matview de _ref.
+  const needsRef = insurers.length > 0 || contracts.length > 0 ||
+    targetMaturity || matYearMin != null || matYearMax != null;
   const sortSource = needsRef ? VIEW : "investissement_funds_cgp";
 
   // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). La dédup est
@@ -561,6 +580,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     gestionnaire_in: gestIn, has_kid: hasKid || undefined,
     beats_benchmark: beatsBenchmark || undefined,
     labels: esgLabels.length ? esgLabels : undefined,
+    target_maturity: targetMaturity || undefined,
+    maturity_year_min: matYearMin, maturity_year_max: matYearMax,
   });
   if (page === 1 || filters || search) {
     logEvent(req, {

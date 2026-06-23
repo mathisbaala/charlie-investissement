@@ -69,6 +69,11 @@ export type Fund = {
   alpha_3y: number | null;
   alpha_5y: number | null;
 
+  // Fonds obligataire daté (à échéance) : millésime d'échéance dérivé du nom
+  // (migration 20260623120000), NULL hors univers daté. Sert au filtre « fonds à
+  // échéance » et au badge « Échéance YYYY ».
+  maturity_year?: number | null;
+
   // Éligibilités
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
@@ -315,6 +320,9 @@ export type ParsedFilters = {
   has_kid?: boolean;
   beats_benchmark?: boolean;  // « bat son indice » : alpha 3 ans > 0
   labels?: string[];          // labels officiels durabilité (isr/greenfin/finansol)
+  target_maturity?: boolean;  // fonds obligataires datés (à échéance) uniquement
+  maturity_year_min?: number; // borne basse du millésime d'échéance (ex: 2027)
+  maturity_year_max?: number; // borne haute du millésime d'échéance (ex: 2030)
   chips?: string[];
   // Intention de TRI déduite de la formulation (« frais bas », « performant »…).
   // Éphémère comme `chips` : consommé au parse pour choisir sort_by/sort_dir,

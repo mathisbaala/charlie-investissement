@@ -106,6 +106,9 @@ export function buildParams(
   if (f.has_kid)                     sp.set("has_kid",           "true");
   if (f.beats_benchmark)             sp.set("beats_benchmark",   "true");
   if (f.labels?.length)              sp.set("labels",            f.labels.join(","));
+  if (f.target_maturity)             sp.set("target_maturity",   "true");
+  if (f.maturity_year_min != null)   sp.set("maturity_year_min", String(f.maturity_year_min));
+  if (f.maturity_year_max != null)   sp.set("maturity_year_max", String(f.maturity_year_max));
   // Préférences DOUCES (couloir fit, pas des filtres durs) → pref_*.
   if (f.prefs?.income)               sp.set("pref_income",       "true");
   if (f.prefs?.envelopes?.length)    sp.set("pref_envelopes",    f.prefs.envelopes.join(","));
@@ -133,6 +136,7 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
     ["sharpe_3y_min", "sharpe_3y_min"], ["drawdown_max", "drawdown_max"], ["aum_min", "aum_min"],
     ["track_record_min", "track_record_min"], ["morningstar_min", "morningstar_min"],
     ["retrocession_min", "retrocession_min"],
+    ["maturity_year_min", "maturity_year_min"], ["maturity_year_max", "maturity_year_max"],
   ];
   for (const [param, key] of numKeys) {
     const v = num(param);
@@ -141,6 +145,7 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
   if (sp.get("no_entry_fee")    === "true") f.no_entry_fee    = true;
   if (sp.get("has_kid")         === "true") f.has_kid         = true;
   if (sp.get("beats_benchmark") === "true") f.beats_benchmark = true;
+  if (sp.get("target_maturity") === "true") f.target_maturity = true;
 
   const arrKeys: [string, keyof ParsedFilters][] = [
     ["envelopes", "envelopes"], ["universe", "universe"], ["asset_class", "asset_class"],
@@ -200,6 +205,15 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   if (f.ter_max != null)      out.push(`Frais ≤ ${f.ter_max} %`);
   if (f.no_entry_fee)         out.push("Sans frais d'entrée");
   if (f.beats_benchmark)      out.push("Bat son indice");
+  if (f.target_maturity || f.maturity_year_min != null || f.maturity_year_max != null) {
+    const a = f.maturity_year_min, b = f.maturity_year_max;
+    out.push(
+      a != null && b != null ? `Échéance ${a}–${b}`
+      : a != null ? `Échéance ≥ ${a}`
+      : b != null ? `Échéance ≤ ${b}`
+      : "Fonds à échéance",
+    );
+  }
   for (const l of f.labels ?? []) out.push(LABEL_FILTER_LABELS[l] ?? l);
   for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
   for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
