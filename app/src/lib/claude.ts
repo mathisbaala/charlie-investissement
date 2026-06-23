@@ -29,7 +29,7 @@ export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
 const ENUMS = {
   envelopes: ["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"],
-  universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto"],
+  universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto", "fcpr", "fcpi", "fip", "fpci"],
   asset_class: ["action", "obligation", "diversifie", "monetaire", "immobilier", "matieres_premieres", "alternatif", "fonds_euros"],
   allocation_profile: ["prudent", "equilibre", "dynamique", "flexible"],
   region: ["world", "europe", "eurozone", "usa", "france", "emerging", "japan", "asia", "china", "uk", "germany", "switzerland", "india", "brazil"],
@@ -184,6 +184,11 @@ Retourne un objet JSON valide avec ces champs optionnels :
   (PEA=Plan Épargne en Actions, PEA-PME=PEA dédié PME, PER=Plan Épargne Retraite,
    AV-FR=Assurance-Vie France, AV-LUX=Assurance-Vie Luxembourg, CTO=Compte-Titres)
 - universe: tableau de types de produit ex: ["etf","opcvm","scpi","fonds_euros","fps"]
+  Inclut le PRIVATE EQUITY (non coté) : ["fcpr","fcpi","fip","fpci"]. « FCPR » → ["fcpr"],
+  « FCPI » → ["fcpi"], « FIP » → ["fip"], « FPCI » → ["fpci"] ; « private equity » / « non
+  coté » / « capital investissement » / « capital risque » → ["fcpr","fcpi","fip","fpci"].
+  Leur éligibilité assurance-vie est portée par AV Luxembourg → si « en assurance-vie / en AV »
+  accompagne du private equity, ajouter envelopes:["AV-LUX"] (pas AV-FR, non renseigné pour le non coté).
 - asset_class: tableau de classes d'actifs parmi ["action","obligation","diversifie","monetaire","immobilier","matieres_premieres","alternatif","fonds_euros"]
   (NB: c'est la NATURE des actifs sous-jacents — distinct de "universe" qui est l'enveloppe produit.
    Un OPCVM peut être actions OU obligataire ; toujours renseigner asset_class quand la requête précise la classe.)
@@ -317,6 +322,8 @@ Exemples :
 - "ETF actions hors Chine sans énergie" → {"universe":["etf"],"asset_class":["action"],"exclude_regions":["china"],"exclude_sectors":["Énergie"],"chips":["ETF","Actions","Hors Chine","Hors énergie"]}
 - "je travaille avec Suravenir, montre les ETF obligataires" → {"universe":["etf"],"asset_class":["obligation"],"insurers":["Suravenir"],"chips":["ETF","Obligataire","Suravenir"]}
 - "SCPI immobilier de rendement" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
+- "FCPR disponibles en assurance-vie" → {"universe":["fcpr"],"envelopes":["AV-LUX"],"chips":["FCPR","Assurance-vie"]}
+- "fonds de private equity non coté" → {"universe":["fcpr","fcpi","fip","fpci"],"chips":["Private equity","Non coté"]}
 - "fonds monétaire euro" → {"asset_class":["monetaire"],"currency":["EUR"],"chips":["Monétaire","EUR"]}
 - "fonds émergents dynamiques" → {"region":["emerging"],"sri_min":4,"chips":["Émergents","Dynamique"]}
 - "fonds avec DICI disponible" → {"has_kid":true,"chips":["DICI disponible"]}

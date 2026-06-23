@@ -586,7 +586,8 @@ export function FilterPanel({
         {/* Univers */}
         <Section title="Univers (type de produit)">
           <div className="flex gap-2 flex-wrap">
-            {["opcvm", "etf", "scpi", "fps", "fonds_euros"].map((u) => (
+            {["opcvm", "etf", "scpi", "fps", "fonds_euros",
+              "fcpr", "fcpi", "fip", "fpci"].map((u) => (
               <SfdrPill
                 key={u}
                 label={u.toUpperCase()}
@@ -595,6 +596,10 @@ export function FilterPanel({
               />
             ))}
           </div>
+          <p className="text-caption text-muted-2 mt-2 leading-snug">
+            FCPR / FCPI / FIP / FPCI = private equity (non coté), hors navigation par
+            défaut. Éligibilité assurance-vie via l&apos;enveloppe AV Luxembourg.
+          </p>
         </Section>
 
         <Divider />
