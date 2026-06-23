@@ -1,0 +1,43 @@
+-- ============================================================================
+-- Rescaling des séries NAV multi-échelle (régime) — appliqué le 2026-06-23 via MCP
+-- ============================================================================
+-- SUITE de repair-nav-glitches-20260623.sql. Celui-ci traitait les glitchs
+-- ponctuels (1-3 points) par interpolation. Restaient 7 séries « multi-échelle »
+-- (changement de régime persistant) que l'interpolation ne pouvait pas réparer.
+--
+-- DIAGNOSTIC des 7 (distribution par ordre de grandeur sur 5 ans) :
+--   5 ETF = DEUX échelles nettes, UNE bascule contiguë : la source a changé de
+--   convention à une date précise (4 le 2026-05-19, First Trust le 2025-03), en
+--   passant à l'échelle RÉCENTE ~dizaines, qui est la VRAIE (UBS MSCI USA Select
+--   ~30-45 €, Amundi Prime Japan ~25-37 €, Xtrackers ASX ~43-46 €, Invesco Euro
+--   Corp Hybrid ~39 €, First Trust Global ~20-64 €). L'historique ~milliers est
+--   l'ANCIENNE échelle erronée (×~85-119).  → RÉPARABLE par rescaling.
+--   2 séries = détresse RÉELLE, pas corruption : H2O Multibonds (FR0013536109,
+--   side-pockets, déclin ~20→1) et Transition Evergreen (FR0000035784, crash
+--   cleantech ~4→0,1). Écarts ~×3-10, multi-bandes, pas de bascule nette.
+--   → NON touchées (laissées masquées par la garde __insane, légitime).
+--
+-- FIX (5 ETF) : rescaler le segment HISTORIQUE (nav >= 100, ancienne échelle)
+--   vers l'échelle récente réelle, par un FACTEUR CONSTANT = ancre récente /
+--   ancre ancienne au bord de la transition (moyennes ±14 j de part et d'autre,
+--   le mouvement marché sur 2 semaines est négligeable devant le ×85). Un facteur
+--   constant ne change PAS les rendements intra-régime (vol/perf invariantes
+--   d'échelle) : il supprime seulement le saut de frontière qui faisait exploser
+--   vol/drawdown. Corrige AUSSI l'affichage absolu (échelle réelle ~dizaines).
+--   Facteurs : IE00BDGV0308 0.011732 / IE00BKWD3966 0.011549 / IE00BYTH6238
+--   0.008434 / LU0328474803 0.011575 / LU1931974775 0.011654.
+--   Séparation d'échelle nette (ancien min ~1875 vs récent max ~64) → seuil
+--   nav>=100 sans ambiguïté.
+--
+-- RÉSULTAT : 1 266 points rescalés sur 5 ISIN ; 0 saut extrême restant ; séries
+--   mono-échelle réalistes. Recompute via compute-metrics.yml (run 28043597167).
+--   Backup investissement_fund_prices_rescale_backup_20260623 (isin, price_date,
+--   old_nav, source_id ; RLS). Revert : UPDATE … SET nav=old_nav FROM backup.
+--
+-- NOTE : fichier d'AUDIT — déjà appliqué via MCP, non ré-exécutable tel quel.
+-- ============================================================================
+-- Étapes (exécutées via MCP) :
+--   1) Backup des points nav>=100 des 5 ISIN -> _rescale_backup_20260623
+--   2) Facteur/ISIN = avg(nav<100, bord) / avg(nav>=100, bord)
+--   3) UPDATE nav = round(nav*facteur,6) WHERE nav>=100
+--   4) Vérif 0 saut restant + recompute compute-metrics.yml
