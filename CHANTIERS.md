@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (6ᵉ passe)
+> Dernier audit : 2026-06-23 (7ᵉ passe — intégration `/recul` des chantiers alpha + LU)
 
 État global : **projet sain et bien tenu** — `tsc` clean (vérifié), **272/272 tests verts**
 (vérifié), zéro marqueur `TODO/FIXME` réel dans le front, working tree propre, doc à jour
@@ -12,6 +12,12 @@ compo), soit **en suspens par choix** (scrapers bloqués IP), soit de la **dette
 > ✅ **Alpha diversifiés — TERMINÉ** (23/06) : run `28020564756` **success** (23 min,
 > 8 097 alpha écrits, 0 échec). Diversifiés **14 → 2 110** avec alpha ; zéro régression
 > sur les autres classes. Voir « ✅ Réglés ».
+
+> ✅ **Intégration `/recul` (23/06)** : 3 points soldés en aval des chantiers alpha + LU —
+> (1) 25 fonds mal classés sortis de `diversifie` (alpha composite trompeur), (2) dérive
+> des comptes alpha **diagnostiquée bénigne** (snapshot, pas un bug), (3) **garde** des
+> métriques de risque aberrantes (corruption NAV : UniGlobal vol 84,5, S&P 500 dd −99 %).
+> Migrations `20260623150000` + `160000`. Voir « ✅ Réglés ».
 
 ---
 
@@ -74,6 +80,10 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Métriques de risque aberrantes (corruption NAV) — garde d'affichage** — *Réglé le 2026-06-23* : **3ᵉ garde de la vue `_cgp`**, en intégration des chantiers alpha + LU. La garde de fraîcheur (`inv_prices_stale`) ne voit PAS une série fraîche+longue mais à **valeur interne corrompue** (un point NAV à 3 € au lieu de 400 € → 2 rendements quotidiens énormes → vol/drawdown explosent). Exemples exposés : UniGlobal (`vol_3y` 84,5 alors que `vol_1y` 5,7), UBS Core S&P 500 ETF (`max_drawdown_3y` −99 %, impossible). **Fix** = migration `20260623160000` : masque vol/sharpe/drawdown **par fenêtre**, hors crypto/levier — 1y si `vol_1y>60` ; 3y si `vol_3y>60` **OU** `dd_3y<−90` (le drawdown est un signal indépendant : des ETF S&P 500/MSCI ont `vol_3y` 56-59 sous le seuil mais `dd` −99 %). **~99 fonds nettoyés en 1y, ~121 en 3y** ; **112 volatils légitimes préservés** (vol_3y 35-60, dd ≥ −90, pas de sur-masquage). Compose proprement avec `__stale` et l'exception perf externe LU `__ext_fresh` (884 perfs LU intactes, 0 fuite alpha vérifiés). Réversible (vue SQL pure, 0 prix touché). **Suivi non fait** : réparer les ~442 séries corrompues elles-mêmes (distinguer glitch vs split). Cf. mémoire [[insane-risk-metrics-gate]].
+
+- **Diversifiés mal classés (alpha composite trompeur) + dérive alpha = bénigne** — *Réglé le 2026-06-23* : en intégration du chantier alpha diversifiés. **(a)** Le benchmark composite actions/oblig était attribué à TOUT `asset_class_broad='diversifie'`, or **25 fonds mono-classe** y étaient mal rangés → alpha absurde (BNP Insticash *monétaire* vs 50/50 = −10,9 ; iShares MSCI World *ETF actions* 119 Md€ vs 50/50), d'autant plus visible qu'ils sont à très gros encours (tête de liste par AUM). **Fix** = migration `20260623150000` : 16 fonds par signal en base (nom monétaire / `category` Actions / Obligations) + 9 par curation nommée ratifiée (UniGlobal, DWS Akkumula/Top Dividende/Vermögensbildung) → `diversifie` 14 607 → **14 582** ; `asset_class_broad` corrigé, `allocation_profile`+benchmark+alpha **neutralisés** (NULL plutôt que faux, recompute auto au prochain `td-enricher` car `map_index` clé sur `asset_class_broad`). Backup réversible `investissement_funds_classif_backup_20260623`. Piège : `classify-from-name.py` est **fill-only** (ne re-classe jamais un fonds déjà classé) → correction SQL ciblée obligatoire. **(b)** Dérive des comptes alpha vs rapport initial (action 3 919→~3 470…) **diagnostiquée bénigne** : 0 fonds avec benchmark+série fraîche+3 fenêtres alpha vides → simple effet de snapshot `alpha_1y`, pas un bug (gotcha `ft-metrics-wipe` patché, `td-enricher` seul writer). Cf. mémoire [[diversified-misclassification-cleanup]].
 
 - **Couverture prix OPCVM — volet LU** — *Réglé le 2026-06-23* : **diagnostic ≠ fiche du chantier**. Ce n'était PAS un trou à scraper (le refresh EMEA aurait été inutile : les perfs LU sont déjà en base, fraîches <40j, moyenne +14,9 %/1 an). C'était un **faux positif de la garde de fraîcheur** du matin (`inv_prices_stale`) : elle masque toute métrique d'un opcvm/etf/crypto **sans série de prix locale**, or les LU/IE n'en ont jamais eu — leur perf vient d'une **source externe directe** (AMF GECO / catalogue / Morningstar), pas d'un fossile maison. **Fix** = migration `20260623140000` : la vue `_cgp` démasque **uniquement les 3 perfs** (1/3/5 ans) d'un fonds sans série locale, **si** fraîches (`updated_at` <150j) **et** saines (bornes par métrique, écarte les ~5 aberrantes) ; vol/sharpe/drawdown/alpha **restent masqués** (provenance non garantie), et le vrai fossile (série locale **morte** >45j) **reste masqué** (non-régression vérifiée : 1 827 fossiles, 0 perf ré-exposée). Résultat : **734 perfs LU démasquées (488 primaires ≥50M)**, validé end-to-end sur l'API prod (`LU1295551144` : 1y 18,1 / 3y 13,9, vol/sharpe NULL). Provenance non utilisable comme gate (382/498 sans estampille). `tsc` clean, 272/272 tests. Cf. mémoire [[stale-metrics-freshness-gate]].
 

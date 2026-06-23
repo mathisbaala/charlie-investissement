@@ -8,6 +8,20 @@
 
 ---
 
+## 🔄 Journal 23/06 (suite²) — Intégration `/recul` des chantiers alpha + LU
+
+> Prise de hauteur sur les 2 chantiers du jour (alpha diversifiés + démasquage LU),
+> puis intégration active : vérifier qu'ils s'emboîtent, et solder les 3 points de
+> qualité de données qu'ils faisaient remonter. **3 gardes de la vue `_cgp` cohabitent
+> désormais sans conflit** : fraîcheur `__stale` · perf externe LU `__ext_fresh` · risque
+> implausible `__insane`. 884 perfs LU intactes, 0 fuite alpha, 272/272 tests.
+
+- **#1 Diversifiés mal classés — CORRIGÉ** *(migration `20260623150000`)* : le benchmark composite était donné à TOUT `diversifie`, or **25 fonds mono-classe** y étaient mal rangés → alpha trompeur (BNP Insticash *monétaire* −10,9 ; iShares MSCI World *ETF actions* 119 Md€ ; UniGlobal/DWS actions +5,9 à +19,3), surtout visibles car gros encours. 16 corrigés par signal en base (nom monétaire / `category` Actions/Obligations) + 9 par **curation nommée ratifiée**. `diversifie` 14 607→**14 582**, alpha composite neutralisé (recompute auto `td-enricher`). Backup `investissement_funds_classif_backup_20260623`. Piège : `classify-from-name.py` **fill-only** → SQL ciblé obligatoire.
+- **#2 Dérive des comptes alpha — DIAGNOSTIC bénin** : **0** fonds avec benchmark+série fraîche+3 fenêtres alpha vides → simple effet de snapshot (`alpha_1y` à un instant donné), pas un bug. Gotcha `ft-metrics-wipe` patché (`td-enricher` seul writer, efface explicitement). Rien à réparer.
+- **#3 Corruption NAV — GARDE d'affichage** *(migration `20260623160000`)* : la garde de fraîcheur ne voit pas une série fraîche mais à **valeur corrompue** (point NAV à 3 € → vol/drawdown explosent : UniGlobal vol_3y 84,5 ; UBS S&P 500 dd −99 %). La vue `_cgp` masque vol/sharpe/drawdown **par fenêtre** (1y si vol_1y>60 ; 3y si vol_3y>60 OU dd<−90), hors crypto/levier. ~99 fonds en 1y, ~121 en 3y ; 112 volatils légitimes préservés. Réversible (0 prix touché). **Suivi non fait** : réparer les ~442 séries elles-mêmes (glitch vs split). Cf. mémoires `diversified-misclassification-cleanup`, `insane-risk-metrics-gate`.
+
+---
+
 ## 🔄 Journal 23/06 (suite) — Alpha des fonds diversifiés (chantier de fond)
 
 - **Alpha diversifiés — RÉSOLU** *(migration `20260623130000` + commits `5e5e813`/`aed711e`)* : les ~14 600 diversifiés étaient à alpha=0 (14 notés) faute d'indice mono-classe pertinent. Solution sans réécrire le moteur d'alpha : des indices **composites** actions/oblig (`mix_25_75` prudent / `mix_50_50` équilibré-flexible-inconnu / `mix_75_25` dynamique), construits par **mélange quotidien rééquilibré** de `msci_world` + `global_agg` (net EUR) via la fonction SQL `inv_rebuild_composite_indices()` ; `td-enricher.map_index` mappe chaque diversifié sur son composite selon `allocation_profile` (avant le match exact, pour ne pas capter un indice actions de passage ; borne alpha dédiée ±20 %/an). **Résultat : diversifiés 14 → 2 110 avec alpha**, run `td-refresh` success (8 097 alpha total, 0 échec), **zéro régression** (action/oblig/monétaire inchangés), distribution saine (moyenne −3 %/an = sous-perf active vs passif, attendu). Plafond = couverture prix des diversifiés (~2 700 avec série), pas la logique. **Fix robustesse** : écriture incrémentale (flush/500) + timeout CI 60→120 min (le 1er run avait été annulé au timeout en écrivant tout à la fin). Cf. mémoire `diversified-composite-benchmarks`.
@@ -137,6 +151,8 @@
 5. **Rate-limit fail-open** : une panne de comptage laisse passer (on ne casse pas le produit) → le plafond Anthropic reste le filet ultime.
 6. **Morningstar EMEA** : credentials en secrets CI ; 1 worker (blocage IP).
 7. **Vue cgp** : le screener exclut `action`/`crypto`/`fps`/`structuré` (sinon offre sur-annoncée).
+9. **Vue cgp — 3 gardes empilées** (23/06) : `__stale` (fraîcheur) · `__ext_fresh` (perf externe LU démasquée) · `__insane_1y/3y` (vol/sharpe/drawdown physiquement impossibles). Toute reconstruction de la vue doit **préserver les trois** (cf. migrations `120000`/`140000`/`160000`, la dernière est le superset courant). Le front lit la vue, **pas de miroir TS** des gardes.
+10. **`classify-from-name.py` est fill-only** : il ne re-classe JAMAIS un fonds déjà classé → toute correction de classification passe par un SQL ciblé + backup (cf. `classif_backup_20260623`).
 8. **QA-data impossible hors prod** : les secrets Supabase/Anthropic sont marqués **« Sensitive »** sur Vercel → non relisibles (`vercel env pull` rend des valeurs **vides** ; preview de branche = 0 env → **500**). Seul l'env **production** injecte les secrets au runtime → toute QA contre la vraie base se fait **en prod après merge** (rollback instantané = filet). Ne pas tenter de QA une preview/un local avec data réelle, c'est une impasse.
 
 ---
