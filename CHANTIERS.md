@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (3ᵉ passe)
+> Dernier audit : 2026-06-23 (5ᵉ passe)
 
 État global : **projet sain et bien tenu** — `tsc` clean, 272/272 tests verts, zéro
 marqueur `TODO/FIXME` réel dans le front, doc à jour (`SESSION_HANDOFF.md` réconcilié
@@ -32,27 +32,28 @@ est soit **automatisé et tourne seul** (drain compo), soit **en suspens par cho
 - **Comment l'aborder** : **décision ferme = re-seed manuel trimestriel** (secret `AV_PROXY_URL` dormant, non posé volontairement). Réouvrir seulement si un proxy résidentiel est décidé. Vanguard (~29 ETF, GraphQL ouvert) = seul proprement scrapable mais gain marginal (+0,1 pt), jugé non rentable.
 - **Effort estimé** : moyen (si proxy un jour activé)
 
-### Couverture prix OPCVM (~49 % frais)
+### Couverture prix OPCVM (~49 % frais) — cœur récupérable ~1 000
 - **Priorité** : 🟡 Moyenne
 - **Détecté le** : 2026-06-22
-- **Où** : pipelines FT/GECO (`weekly-refresh.yml`)
-- **État vérifié (2026-06-23)** : 20 660 OPCVM, **13 017 avec un prix (63 %)**, **10 099 frais ≤35j (48,9 %)**. **Non corrigeable par code** — plafond de couverture structurel (fonds vivants sans source de prix publique), pas un bug. NE PAS chercher à « clore » : la rotation `weekly-refresh` le grignote en continu.
-- **Le problème** : ~51 % des OPCVM sans série de prix fraîche. **Lacune de couverture** (fonds vivants sans source publique), pas du mort à purger.
-- **Comment l'aborder** : zone des pipelines de rafraîchissement (rotation FT/GECO) — toucher = collision avec l'agent data. Monter la couverture passe par étendre la rotation, pas par du code applicatif.
-- **Effort estimé** : lourd
+- **Où** : pipelines FT/GECO (`weekly-refresh.yml`), `scripts/scrapers/geco-nav.py`, refresh Morningstar EMEA (`emea-refresh.yml`)
+- **État vérifié (2026-06-23, 4ᵉ passe — analyse fine du trou)** : 20 660 OPCVM, 48,9 % frais. Le trou (~10 561) se décompose : **~8 600 = plafond LÉGITIME** (parts secondaires, micro-encours, fonds fermés/morts, faux ISIN OT/SU/SC) → ne pas chasser. **MAIS ~1 000 = RÉCUPÉRABLES** : ~550 FR primaires gros encours dont **549 sont `amf-geco` simplement PÉRIMÉS** (>35j, pas jamais résolus → GECO les atteint, la rotation a pris du retard) + ~510 LU primaires ≥50M (source Morningstar EMEA existante).
+- **Le problème** : ce n'était PAS « non corrigeable » comme écrit avant — un cœur de ~1 000 fonds vivants a une source qui marche, il manque juste un passage de rafraîchissement ciblé. Gain potentiel : +~5 pts de couverture fraîche.
+- **Comment l'aborder** : **fill-only, AUCUN code neuf**. (a) FR : `geco-nav.py --apply` en mode défaut = cible les périmés triés par encours (le cœur des 549). (b) LU : refresh Morningstar EMEA (⚠️ throttle, jamais de runs dos à dos). Le hic = ces enrichers vivent dans `weekly-refresh.yml`/`emea-refresh.yml` (zone agent) ; déclencher = coordonner avec l'agent data, pas un changement de code. Reste structurel : ~8 600 non récupérables.
+- **Effort estimé** : moyen (un run ciblé), pas lourd
 
 ---
 
-## ✨ Features & améliorations
+## 🚧 Chantiers en cours
 
-### Alpha vs indice pour les fonds diversifiés (~14 600)
-- **Priorité** : 🟡 Moyenne
+### Alpha vs indice pour les fonds diversifiés — code livré, recalcul CI lancé
+- **Priorité** : 🟠 Importante
 - **Détecté le** : 2026-06-22
-- **Où** : `scripts/enrichers/` (td-enricher), catalogue d'indices en base, `app/src/lib` (fiche fonds)
-- **État vérifié (2026-06-23)** : **NON fait** — 14/14 607 diversifiés ont un alpha (0,1 %). Confirmé en base. C'est le **seul vrai chantier de fond restant**.
-- **Le problème** : les fonds diversifiés restent à alpha≈0 — ils n'ont pas de benchmark mono-classe (un proxy ETF unique ne convient pas). Les classes mono ont été débloquées le 22/06 (action 41,7 %, oblig 38 %, monétaire 38,9 %, matières premières 21,5 %, alternatif 6,5 %, immo 3,1 %).
-- **Comment l'aborder** : construire des **benchmarks composites** (ex. 60/40, pondérés par `allocation_profile`) puis une règle d'affectation. C'est du **vrai code** (nouvelle logique d'agrégation d'indices), pas une simple ligne de catalogue. Commencer par un POC sur les diversifiés « équilibrés » avec compo connue.
-- **Effort estimé** : lourd
+- **Où** : `supabase/migrations/20260623130000_diversified_composite_benchmarks.sql`, `scripts/enrichers/td-enricher.py`, `.github/workflows/td-refresh.yml`
+- **État (2026-06-23)** : **résolu côté code, recalcul en cours**. Benchmarks **composites** créés (`mix_25_75` prudent / `mix_50_50` équilibré-flexible-inconnu / `mix_75_25` dynamique) = mélange quotidien rééquilibré `msci_world` + `global_agg` (séries vérifiées saines : oblig +7 % < mix 50/50 +33,5 % < actions +64,5 % sur 3 ans). `map_index` mappe les diversifiés sur le composite selon `allocation_profile` (borne alpha ±20 %/an). **Simulation SQL** : 2 098 diversifiés primaires produisent un alpha dans la borne (sur 2 713 ayant une série 3 ans), alpha moyen −3 %/an (sous-perf vs passif = attendu). Passe de **14 → ~2 100+**.
+- **Comment l'aborder** : ✅ migration appliquée en base + composites construits + code commité. **Reste : `td-refresh.yml` (workflow_dispatch) à terminer** pour écrire les alpha. Le plafond (~2 700 sur 14 600) = couverture prix des diversifiés, pas la logique d'alpha. Une fois le run vert → passer en « Réglés ».
+- **Effort estimé** : terminé (reste l'attente du run CI)
+
+## ✨ Features & améliorations
 
 ### Transparence per-fonds du score d'adéquation (« pourquoi ça colle »)
 - **Priorité** : ⚪ Mineure

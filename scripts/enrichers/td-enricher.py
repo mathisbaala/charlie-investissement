@@ -78,6 +78,22 @@ MAX_ALPHA_CATEGORY = 30.0
 # série NAV est corrompue (perfs obligataires impossibles, ex. « green bond » à
 # +78 %/3 ans) → on n'affiche pas d'alpha trompeur.
 MAX_ALPHA_BOND     = 10.0
+# Diversifiés (multi-actifs) vs benchmark COMPOSITE actions/oblig : volatilité
+# intermédiaire entre actions et oblig, et le profil d'allocation du fonds reste
+# approximatif (50/50 par défaut quand inconnu) → borne intermédiaire ±20 %/an,
+# qui laisse passer l'alpha réel mais écarte les artefacts (mauvais profil, NAV
+# corrompue).
+MAX_ALPHA_DIVERSIFIED = 20.0
+
+# Profil d'allocation → indice composite (cf. migration
+# 20260623130000_diversified_composite_benchmarks). flexible/inconnu = 50/50.
+DIVERSIFIED_MIX = {
+    "prudent":   "mix_25_75",
+    "equilibre": "mix_50_50",
+    "dynamique": "mix_75_25",
+    "flexible":  "mix_50_50",
+}
+DIVERSIFIED_MIX_DEFAULT = "mix_50_50"
 
 # Produits NON 1× (levier/inverse) : jamais comparables à un indice simple.
 EXCLUDE_KW = ["2x", "3x", "x2", "x3", "leverag", "levier", "daily lever",
@@ -188,6 +204,21 @@ def map_index(fund: dict, catalog: dict[str, dict],
     if any(k in hay_lev for k in EXCLUDE_KW):
         return None, False
 
+    acb = (fund.get("asset_class_broad") or "").lower()
+    reg = (fund.get("region_normalized") or "").lower()
+
+    # 1b) Diversifiés (multi-actifs) : AUCUN indice mono-classe ne convient (un
+    #     proxy actions OU oblig seul fausse l'alpha). On mappe sur un benchmark
+    #     COMPOSITE actions/oblig selon le profil d'allocation (50/50 par défaut).
+    #     Traité AVANT le match exact, pour qu'un diversifié dont le nom contient
+    #     un mot d'indice (« …Monde », « …Europe ») ne capte pas cet indice action.
+    #     Toujours is_category=True (c'est un proxy de catégorie, jamais une
+    #     réplication).
+    if acb == "diversifie":
+        code = DIVERSIFIED_MIX.get(
+            (fund.get("allocation_profile") or "").lower(), DIVERSIFIED_MIX_DEFAULT)
+        return (code if code in catalog else None), True
+
     # Un « exact » (is_category=False) n'a de sens que pour un TRACKER (ETF /
     # gestion indicielle) : lui seul réplique vraiment l'indice → écart de
     # réplication, borne ±5 %/an. Un fonds ACTIF dont le nom contient un mot-clé
@@ -203,9 +234,6 @@ def map_index(fund: dict, catalog: dict[str, dict],
         for code, meta in catalog.items():
             if any(kw in hay for kw in meta["kw"]):
                 return code, (not is_tracker)
-
-    acb = (fund.get("asset_class_broad") or "").lower()
-    reg = (fund.get("region_normalized") or "").lower()
 
     # 2b) Sous-classement obligataire govt/corp par mot-clé du nom, AVANT la
     #     règle de région (qui ne voit pas la sous-classe). Un fonds euro
@@ -472,6 +500,10 @@ def refresh_indices(apply: bool) -> None:
 
     # 1) Séries d'indices (routées selon la source du catalogue)
     for code, meta in catalog.items():
+        # Les composites n'ont pas de ticker : reconstruits depuis leurs
+        # composantes (étape 3), une fois ces dernières rafraîchies.
+        if meta.get("source") == "composite":
+            continue
         label = f"{code} ({meta['variant']}/{meta.get('source', 'yahoo')})"
         try:
             if meta.get("source") == "msci":
@@ -497,6 +529,17 @@ def refresh_indices(apply: bool) -> None:
                 continue
             _store(code, rows, f"fx {src}→{dst}")
 
+    # 3) Composites (mélanges actions/oblig) : reconstruits depuis leurs
+    #    composantes désormais fraîches, via la fonction SQL dédiée.
+    if apply:
+        try:
+            res = client.rpc("inv_rebuild_composite_indices").execute()
+            print(f"  · composites reconstruits ({res.data} points)")
+        except Exception as e:
+            print(f"  · composites : échec reconstruction — {str(e)[:60]}")
+    else:
+        print("  · composites : reconstruction (dry-run, non exécutée)")
+
 
 # ─── Étape 2 : calcul alpha / benchmark_perf par fonds ──────────────────────────
 
@@ -515,7 +558,8 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     # Univers : fonds PRIMAIRES (un représentant par groupe de parts, comme le
     # screener). benchmark_index lu pour purger une affectation devenue obsolète.
     sel = ("isin, name, category, category_normalized, asset_class_broad, "
-           "region_normalized, management_style, currency, hedged, benchmark_index")
+           "region_normalized, management_style, currency, hedged, benchmark_index, "
+           "allocation_profile")
     funds: list[dict] = []
     if isin_filter:
         funds = client.table("investissement_funds").select(sel) \
@@ -606,10 +650,13 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
         if len(fp) < MIN_POINTS_1Y:
             continue
 
+        acb_f = (fund.get("asset_class_broad") or "").lower()
         if not is_category:
             max_alpha = MAX_ALPHA_EXACT
-        elif (fund.get("asset_class_broad") or "").lower() in ("obligation", "monetaire"):
+        elif acb_f in ("obligation", "monetaire"):
             max_alpha = MAX_ALPHA_BOND
+        elif acb_f == "diversifie":
+            max_alpha = MAX_ALPHA_DIVERSIFIED
         else:
             max_alpha = MAX_ALPHA_CATEGORY
         b1, a1 = metrics_for_window(fp, idx, DATE_1Y, MIN_POINTS_1Y, MIN_SPAN_1Y, False, max_alpha)
