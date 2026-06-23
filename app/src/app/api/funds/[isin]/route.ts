@@ -95,10 +95,13 @@ export async function GET(
       .eq("isin", upper)
       .maybeSingle(),
     // Métriques dérivées du prix, lues depuis la vue gardée (source unique de la
-    // garde de fraîcheur, cf. SQL inv_prices_stale) : quand la série est absente,
-    // périmée ou minuscule, perf/vol/sharpe/drawdown/alpha y sont déjà NULL. La
-    // fiche reprend donc ces valeurs gardées plutôt que les valeurs brutes de la
-    // table (qui peuvent être un fossile calculé sur 2 points de 2021).
+    // garde de fraîcheur, cf. SQL inv_prices_stale) : quand la série est périmée
+    // ou minuscule, perf/vol/sharpe/drawdown/alpha y sont déjà NULL. Exception
+    // (migration 20260623140000) : pour un fonds SANS série locale (LU/IE), les
+    // 3 perfs viennent d'une source externe directe (AMF GECO / catalogue /
+    // Morningstar) et restent affichées si fraîches et saines — seuls vol/sharpe/
+    // drawdown/alpha restent masqués. La fiche reprend ces valeurs gardées plutôt
+    // que les valeurs brutes de la table (qui peuvent être un fossile sur 2 points).
     supabase
       .from("investissement_funds_cgp")
       .select(
