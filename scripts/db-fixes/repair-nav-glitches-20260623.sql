@@ -1,0 +1,67 @@
+-- ============================================================================
+-- Réparation des séries de prix NAV corrompues — appliqué le 2026-06-23 via MCP
+-- ============================================================================
+-- CONTEXTE
+--   La garde d'affichage `__insane` (vue investissement_funds_cgp, migration
+--   20260623160000) MASQUE vol/sharpe/drawdown quand un point NAV corrompu fait
+--   exploser ces métriques. Elle traite le symptôme, pas la cause : les séries
+--   restaient fausses en base. Ce correctif RÉPARE les séries elles-mêmes.
+--
+-- DIAGNOSTIC (15 296 séries, scope opcvm/etf hors crypto/levier)
+--   Trois formes de corruption coexistent :
+--     1. Dip/spike de 1 à 3 points isolés sur une base stable (glitch réversible)
+--        — ex. lot d'ingestion 2024-05-22→24 (NAV ÷~3,7) ; lots 2025-01-06,
+--        2025-10-20 (spikes ×100) ; sentinelles répétées (BNP S&P500 = 9,90 ;
+--        Amundi Smart Overnight = 982,15).  ← RÉPARABLE par interpolation.
+--     2. Séries MULTI-ÉCHELLE / régime (ex. ETF Japon JPY ~2000 vs queue EUR ~37,
+--        séries oscillant ×100).  ← NON réparable à l'aveugle : re-fetch source.
+--     3. Crash persistant réel (H2O Europa).  ← légitime, ne pas toucher.
+--
+-- ALGORITHME (réparation SÛRE de la forme 1 uniquement)
+--   Pour chaque point « suspect » (dévie >40 % de la moyenne des voisins ±1..6) :
+--     • baseline robuste = (médiane des prix sur [d-70,d-10[) et ([d+10,d+70])
+--       — EXCLURE ±10 j neutralise les runs de glitchs adjacents (≤3 points).
+--     • garde ANTI-SPLIT : ne corriger que si lmed/rmed ∈ [0.8,1.25] (ancres
+--       cohérentes = retour au niveau = glitch ; divergentes = split réel/tendance
+--       → on PRÉSERVE, jamais touché).
+--     • garde DÉVIATION : corriger seulement si |old/base| > 1.5 ou < 0.667.
+--     • new_nav = (lmed+rmed)/2.
+--   Gardes anti-multi-échelle (exclusion d'ISIN entiers) :
+--     • exclure crypto|bitcoin|blockchain|btc|ethereum|web3|digital asset (vol réelle)
+--     • exclure les ISIN dont les new_nav couvrent 2 échelles (max/min > 8)
+--     • exclure les ISIN dont un new_nav s'écarte de la MÉDIANE SÉRIE de ×8
+--       (baseline local en désaccord avec la série globale = série bi-modale).
+--   Invariance d'échelle : vol/perf/Sharpe/drawdown se calculent sur des RATIOS,
+--   donc homogénéiser un point aberrant vers le niveau local corrige toujours les
+--   métriques, même si l'échelle dominante d'une série est atypique.
+--
+-- RÉSULTAT
+--   65 points corrigés sur 25 ISIN. 18 séries redeviennent intégralement saines ;
+--   7 (Amundi SRI Climate, Louvois, Invesco Hybrid, Xtrackers ASX, Amundi Prime
+--   Japan, First Trust Global, UBS Select) avaient AUSSI une frontière de régime
+--   multi-échelle : seul leur spike isolé a été retiré, le reste RESTE MASQUÉ par
+--   la garde (re-fetch source requis — hors périmètre de ce correctif).
+--   Recompute des métriques : workflow compute-metrics.yml (l'autorité) déclenché
+--   juste après — PAS de piège ft-metrics-wipe (ne concerne que l'enrichissement
+--   opportuniste, cf. mémoire ft-metrics-wipe-gotcha).
+--
+-- BACKUP / REVERT
+--   Table investissement_fund_prices_glitch_backup_20260623 (isin, price_date,
+--   old_nav, new_nav, source_id, backed_up_at), RLS activée.
+--   Revert : UPDATE investissement_fund_prices p SET nav = b.old_nav
+--            FROM investissement_fund_prices_glitch_backup_20260623 b
+--            WHERE p.isin=b.isin AND p.price_date=b.price_date AND p.nav=b.new_nav;
+--            puis relancer compute-metrics.yml.
+--
+-- NOTE : fichier d'AUDIT — déjà appliqué via MCP, NON ré-exécutable tel quel
+--   (les tables de travail _nav_repair_candidates / _nav_glitch_corrections ont
+--   été supprimées). Conservé pour traçabilité et pour reproduire l'algorithme.
+-- ============================================================================
+
+-- 1) Candidats (amplitude max/min > 2.5 sur 5 ans, scope opcvm/etf hors crypto/levier)
+-- 2) Détection robuste -> table _nav_glitch_corrections (lmed/rmed/old_nav/new_nav)
+-- 3) Gardes : ancres [0.8,1.25] ; exclusion crypto/blockchain ; exclusion bi-modale
+--    (span new>8) ; exclusion désaccord médiane-série (×8)
+-- 4) Backup -> investissement_fund_prices_glitch_backup_20260623
+-- 5) UPDATE investissement_fund_prices SET nav=new_nav WHERE nav=old_nav (idempotent)
+-- (corps SQL complet exécuté pas à pas via MCP le 2026-06-23 — voir journal de session)
