@@ -1,17 +1,23 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-23 (7ᵉ passe — intégration `/recul` des chantiers alpha + LU)
+> Dernier audit : 2026-06-23 (9ᵉ passe — réparation des séries NAV corrompues + recompute GECO soldés)
 
-État global : **projet sain et bien tenu** — `tsc` clean (vérifié), **272/272 tests verts**
-(vérifié), zéro marqueur `TODO/FIXME` réel dans le front, working tree propre, doc à jour
-(`SESSION_HANDOFF.md` retitré « 23 juin »). L'essentiel du backlog est **soldé ou tranché
-par décision**. Ce qui reste : **un seul chantier de fond actif** (recalcul alpha
-diversifiés, run CI **en vol**), le reste est soit **automatisé et tourne seul** (drain
-compo), soit **en suspens par choix** (scrapers bloqués IP), soit de la **dette mineure**.
+État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
+**272/272 tests verts** (20 fichiers), **working tree propre**, **CI verte** (dernier run
+`td-refresh` = success, aucun workflow en échec), zéro marqueur `TODO/FIXME` réel dans le
+front (1 faux positif : `/fonds/XXX` dans un commentaire), zéro test `skip/only`. Le
+backlog de fond est **soldé** : alpha diversifiés **TERMINÉ**, le reste tourne seul (drain
+compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **dette mineure**.
 
 > ✅ **Alpha diversifiés — TERMINÉ** (23/06) : run `28020564756` **success** (23 min,
 > 8 097 alpha écrits, 0 échec). Diversifiés **14 → 2 110** avec alpha ; zéro régression
 > sur les autres classes. Voir « ✅ Réglés ».
+
+> ✅ **Séries NAV corrompues — RÉPARÉES (23/06)** : 65 points sur 25 ISIN corrigés en base
+> (détection robuste + gardes anti-split/anti-multi-échelle), recompute déclenché, garde
+> `__insane` 145 → 131, **18 séries ré-exposées avec métriques saines**. Reliquat = 7 séries
+> multi-échelle/régime (re-fetch source, 🧹 Dette technique). Le **recompute GECO** est soldé
+> par le même run. Voir « ✅ Réglés ».
 
 > ✅ **Intégration `/recul` (23/06)** : 3 points soldés en aval des chantiers alpha + LU —
 > (1) 25 fonds mal classés sortis de `diversifie` (alpha composite trompeur), (2) dérive
@@ -63,8 +69,15 @@ compo), soit **en suspens par choix** (scrapers bloqués IP), soit de la **dette
 
 ## 🧹 Dette technique
 
-### (aucune ouverte) — voir « ✅ Réglés »
-Les trois items mineurs détectés au 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont tous traités ou confirmés inertes. Rien d'actionnable ici.
+### Re-fetch des ~7 séries multi-échelle / régime (reliquat du correctif NAV)
+- **Priorité** : ⚪ Mineure
+- **Détecté le** : 2026-06-23
+- **Où** : `investissement_fund_prices` — Invesco Euro Corp Hybrid (`IE00BKWD3966`), Transition Evergreen (`FR0000035784`), UBS Select Factor Mix (`IE00BDGV0308`), First Trust Global (`IE00BYTH6238`), Amundi Prime Japan (`LU1931974775`), Xtrackers ASX (`LU0328474803`), H2O Multibonds (`FR0013536109`)
+- **Le problème** : ces séries ne sont **pas** de simples glitchs ponctuels mais des **changements d'échelle/régime persistants** (ex. ETF Japon JPY ~2000 vs queue EUR ~37, séries oscillant ×100) ou un **crash réel** (H2O). Le correctif NAV du 23/06 a retiré leur spike isolé mais la frontière de régime subsiste → toujours masquées par la garde `__insane` (correct : pas de fabrication à l'aveugle).
+- **Comment l'aborder** : re-fetch source ciblé (FT/GECO/Morningstar EMEA selon le fonds) pour ré-écrire la série dans une échelle/devise unique ; H2O = vérifier si le drawdown est réel (side-pocket) avant de toucher. Pas de gain UI tant que masquées.
+- **Effort estimé** : moyen
+
+> Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont tous traités ou confirmés inertes — voir « ✅ Réglés ».
 
 ---
 
@@ -80,6 +93,10 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Réparation des séries de prix NAV corrompues** — *Réglé le 2026-06-23* : la garde `__insane` masquait le symptôme ; ce correctif **répare la cause** en base. Détection robuste en SQL (médiane ±70 j excluant ±10 j → neutralise les runs de glitchs ≤3 points ; garde anti-split lmed/rmed ∈ [0.8,1.25] ; 3 gardes anti-multi-échelle : exclusion crypto/blockchain, span new>8, désaccord médiane-série ×8). **65 points corrigés sur 25 ISIN** (lot d'ingestion 2024-05-22/24 ÷3,7 ; sentinelles BNP S&P 500 = 9,90 ×17 et Amundi Smart Overnight = 982,15 ; spikes ×100 sur dates-batch 2025-01-06 / 2025-10-20). Backup `investissement_fund_prices_glitch_backup_20260623` (RLS, revert documenté) + audit `scripts/db-fixes/repair-nav-glitches-20260623.sql`. Recompute via `compute-metrics.yml` (l'autorité, **pas** de piège `ft-metrics-wipe` — celui-ci ne vise que l'enrichissement opportuniste) déclenché immédiatement, run `28036782929` success. **Vérifié bout en bout** : garde `__insane` 145 → 131 ; **18 séries entièrement assainies et ré-exposées** dans la vue `_cgp` avec vol/sharpe/drawdown réalistes (UniGlobal vol_3y 84,5→6,2 ; HSBC Govt 74→2,2 ; UBS Japan 10000→18,3). Reliquat = 7 séries multi-échelle/régime non réparables à l'aveugle (re-fetch, cf. 🧹 Dette technique). Idempotent (`UPDATE … WHERE nav=old_nav`), 0 prix supprimé.
+
+- **Recompute métriques OPCVM FR contre la queue GECO** — *Réglé le 2026-06-23* : fait **maintenant** plutôt qu'attendre le weekly-refresh du 29/06 — le run `compute-metrics.yml` (`28036782929`, success) déclenché pour le correctif NAV a recalculé **tout l'univers**, donc aussi les ~1 086 OPCVM FR rafraîchis par GECO le 23/06. Vérifié : `compute-metrics.py` est l'autorité (purge volontaire), n'écrase pas les perfs externes LU/IE (sans série locale → skip), aucun piège `ft-metrics-wipe`.
 
 - **Métriques de risque aberrantes (corruption NAV) — garde d'affichage** — *Réglé le 2026-06-23* : **3ᵉ garde de la vue `_cgp`**, en intégration des chantiers alpha + LU. La garde de fraîcheur (`inv_prices_stale`) ne voit PAS une série fraîche+longue mais à **valeur interne corrompue** (un point NAV à 3 € au lieu de 400 € → 2 rendements quotidiens énormes → vol/drawdown explosent). Exemples exposés : UniGlobal (`vol_3y` 84,5 alors que `vol_1y` 5,7), UBS Core S&P 500 ETF (`max_drawdown_3y` −99 %, impossible). **Fix** = migration `20260623160000` : masque vol/sharpe/drawdown **par fenêtre**, hors crypto/levier — 1y si `vol_1y>60` ; 3y si `vol_3y>60` **OU** `dd_3y<−90` (le drawdown est un signal indépendant : des ETF S&P 500/MSCI ont `vol_3y` 56-59 sous le seuil mais `dd` −99 %). **~99 fonds nettoyés en 1y, ~121 en 3y** ; **112 volatils légitimes préservés** (vol_3y 35-60, dd ≥ −90, pas de sur-masquage). Compose proprement avec `__stale` et l'exception perf externe LU `__ext_fresh` (884 perfs LU intactes, 0 fuite alpha vérifiés). Réversible (vue SQL pure, 0 prix touché). **Suivi non fait** : réparer les ~442 séries corrompues elles-mêmes (distinguer glitch vs split). Cf. mémoire [[insane-risk-metrics-gate]].
 
