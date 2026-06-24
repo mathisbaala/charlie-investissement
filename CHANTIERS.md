@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-24 (13ᵉ passe — chantier « 59 fonds masqués » traité de bout en bout : cause racine corrigée dans compute-metrics.py + purge + garde crypto-actions + spike réparé + recompute universe-wide success → garde __insane 59 → 10 ; reliquat = 5 détresses réelles + 5 à re-fetch source)
+> Dernier audit : 2026-06-24 (14ᵉ passe — re-vérification indépendante : `tsc` clean, **279/279 tests verts**, working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Chantier 🧹 « re-fetch des 6 dernières séries NAV » réglé de bout en bout** dans la foulée : re-backfill JustETF des 5 ETF + rescale Loomis + recompute → garde `__insane` **10 → 5** (reliquat = 5 détresses réelles légitimes). La catégorie 🧹 Dette technique est désormais **vide**. 13ᵉ passe : chantier « 59 fonds masqués » → garde __insane 59 → 10.)
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
 **279/279 tests verts** (20 fichiers), **working tree propre**, **CI verte** (5 derniers runs
@@ -71,15 +71,8 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 
 ## 🧹 Dette technique
 
-### Re-fetch source de ~6 séries NAV à corruption systématique
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-06-24
-- **Où** : `investissement_fund_prices` — `IE00BX7RQY03`, `LU1291102447`, `LU2596536818`, `LU1681044993`, `IE000WX7BVB0`, `IE000BMDG046`
-- **Le problème** : reliquat des 59 masqués non réparable à l'aveugle. Corruption **systématique** (un point sur deux ×100, valeur-sentinelle `9.553` récurrente sur le BNP Japan, bascules de régime persistantes sur segment entier). La garde `__insane` les masque correctement.
-- **Comment l'aborder** : re-fetch ciblé de la source (FT / GECO / émetteur) pour ces ISIN, puis `compute-metrics`. Pas de gain UI urgent — déjà masqués.
-- **Effort estimé** : moyen
-
-> Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
+### (aucun chantier ouvert)
+Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/06** (re-fetch JustETF + rescale Loomis → garde `__insane` 10 → 5) — voir « ✅ Réglés ». Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
 
 ---
 
@@ -95,6 +88,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Re-fetch des 6 dernières séries NAV corrompues — garde `__insane` 10 → 5** — *Réglé le 2026-06-24* : dernier reliquat des 59 masqués traité de bout en bout. Diagnostic par source : **5 ETF** (`IE000BMDG046`, `IE000WX7BVB0`, `IE00BX7RQY03`, `LU1291102447`, `LU1681044993`) avaient un **historique yahoo-finance systématiquement corrompu** (échelles ×100, sentinelles, bascules de régime — non réparable par rescaling) alors que la queue justetf était propre → **purge totale + re-backfill complet (5 ans) depuis l'API JustETF** (séries vérifiées propres, 0 saut : ranges 4,6 / 26 / 29 / 11–21 / 9–14). **1 OPCVM** (`LU2596536818`, Loomis Sayles Global Allocation, FT seul) avait **un seul changement d'échelle isolé** le 2025-08-18 (segment ancien ÷4,56) — le segment récent étant correct (queue 143,9 ≈ VL FT live 145,88) → **rescaling chirurgical** du segment ancien ×4,562 (lancement avril 2023 ramené à ~99,3 ≈ 100). **Recompute** `compute-metrics.py --isin` (autorité, pas de piège `ft-metrics-wipe`) → métriques saines (vol 2,6–8,3 ; dd −14 à −19 ; perfs réalistes), **6 fonds démasqués** dans la vue `_cgp`. Garde `__insane` **10 → 5** ; vérifié end-to-end (vue expose les valeurs). Les **5 restants** sont des détresses RÉELLES légitimes (H2O Europea/Adagio/Multibonds = side-pockets gelés, Sienna Diversifié −87 %, Transition Evergreen) — masquage correct, **chantier 🧹 désormais vide**. Backup `investissement_fund_prices_refetch_backup_20260624` (RLS, 1942 lignes) + audit `scripts/db-fixes/refetch-corrupt-nav-series-20260624.sql` (revert documenté).
 
 - **~3 300 métriques de risque sur fenêtre invalide — purgées par recompute universe-wide** — *Réglé le 2026-06-24* : run `compute-metrics` (`28063300433`, **success**, ~1h04) exécuté avec le code corrigé → purge des métriques mal étiquetées sur l'univers à prix récents. `vol_3y` invalides **3 320 → 1 086** ; vérifié end-to-end : les ex-garbage (FR0014015LI2 vol_3y 169, etc.) sont à **NULL**, le spike réparé `IE00BD4TY451` recalculé (vol_3y 60→**15,8**, vol_1y 90→**13,4**) et **démasqué** dans la vue. **Aucune régression** : 4 579 perfs externes LU intactes (exception `__ext_fresh`), 7 705 fonds avec alpha inchangé. Reliquat **bénin** = 1 015 fonds **stale** (déjà masqués, invisibles, non recalculés faute de prix récents) + ~71 fonds **immobilier/OPCI à VL mensuelle** (span 3 ans mais < 78 points → faux positifs de la règle « 78 points » calibrée hebdo ; leur vol 1-11 % est **plausible**, pas du garbage). Garde `__insane` **12 → 10** (5 détresses réelles + 5 à re-fetch). Cause racine = [[compute-metrics-stale-window-gotcha]].
 
