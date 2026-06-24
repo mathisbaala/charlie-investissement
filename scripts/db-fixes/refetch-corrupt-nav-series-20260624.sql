@@ -1,0 +1,83 @@
+-- =============================================================================
+-- refetch-corrupt-nav-series-20260624.sql
+-- =============================================================================
+-- Chantier : « Re-fetch source de ~6 séries NAV à corruption systématique »
+-- (reliquat des 59 fonds masqués par la garde __insane — voir CHANTIERS.md).
+--
+-- Les 6 ISIN étaient masqués par la garde __insane de la vue
+-- investissement_funds_cgp (vol_3y > 60 OU dd_3y < -90) à cause de séries de
+-- prix corrompues — PAS de détresse réelle. Diagnostic par source :
+--
+--   ISIN          | source corrompue        | échelle vraie (justetf/FT)
+--   --------------+-------------------------+---------------------------
+--   IE000BMDG046  | yahoo-finance 3,9–520   | ~4,6   (Invesco BulletShares 27)
+--   IE000WX7BVB0  | yahoo-finance 25–2449   | ~26    (JPM Gl Eq Premium Inc)
+--   IE00BX7RQY03  | yahoo-finance 18–2712   | ~29    (UBS MSCI USA Low Vol)
+--   LU1291102447  | yahoo-finance 9,553–19  | ~19-20 (BNP Easy MSCI Japan)
+--   LU1681044993  | yahoo-finance 802–36502 | ~13,6  (Amundi MSCI Switzerland)
+--   LU2596536818  | FT (1 saut d'échelle)   | 96,7–144 (Loomis Gl Allocation)
+--
+-- Backup intégral (RLS) AVANT toute opération :
+--   investissement_fund_prices_refetch_backup_20260624  (1942 lignes, 6 ISIN)
+--
+-- -----------------------------------------------------------------------------
+-- (1) BACKUP — déjà exécuté
+-- -----------------------------------------------------------------------------
+-- CREATE TABLE investissement_fund_prices_refetch_backup_20260624 AS
+--   SELECT * FROM investissement_fund_prices
+--   WHERE isin IN ('IE00BX7RQY03','LU1291102447','LU2596536818',
+--                  'LU1681044993','IE000WX7BVB0','IE000BMDG046');
+-- ALTER TABLE investissement_fund_prices_refetch_backup_20260624
+--   ENABLE ROW LEVEL SECURITY;
+--
+-- -----------------------------------------------------------------------------
+-- (2) 5 ETF : corruption SYSTÉMATIQUE de l'historique yahoo-finance
+--     (1 point/2 ×100, sentinelles, bascules de régime) — NON réparable par
+--     rescaling. La queue justetf (depuis 2026-05-19) était propre.
+--     → purge totale + re-backfill complet (5 ans) depuis l'API JustETF, qui
+--       renvoie une série propre et cohérente (vérifiée : 0 saut après).
+-- -----------------------------------------------------------------------------
+-- DELETE FROM investissement_fund_prices
+--   WHERE isin IN ('IE00BX7RQY03','LU1291102447','LU1681044993',
+--                  'IE000WX7BVB0','IE000BMDG046');
+-- puis, en shell (venv scraper) :
+--   for isin in IE000BMDG046 IE000WX7BVB0 IE00BX7RQY03 LU1291102447 LU1681044993; do
+--     python3 scripts/scrapers/justetf-nav.py --isin "$isin" --apply
+--   done
+-- → 764 / 936 / 1825 / 1825 / 1825 VL propres écrites (source='justetf'),
+--   jusqu'au 2026-06-23, 0 saut résiduel.
+--
+-- -----------------------------------------------------------------------------
+-- (3) LOOMIS (LU2596536818, OPCVM, FT seul) : UN seul changement d'échelle
+--     isolé le 2025-08-18 (segment ancien ÷4,56 par erreur). Le segment récent
+--     est correct (queue 143,93 le 2026-06-16 ≈ VL FT live 145,88). Le segment
+--     ancien lancé à ~21,76 → rescalé ×(127,586920/27,967094)=4,562 → ~99,3
+--     (≈ 100, VL de lancement avril 2023). Rescaling chirurgical du segment
+--     ancien (pattern éprouvé, cf. rescale-nav-switch-batch-20260624.sql).
+-- -----------------------------------------------------------------------------
+UPDATE investissement_fund_prices
+SET nav = round((nav * (127.586920 / 27.967094))::numeric, 6)
+WHERE isin = 'LU2596536818' AND price_date < '2025-08-18';
+-- → 825 points, échelle continue 96,68–143,93, 0 saut.
+--
+-- -----------------------------------------------------------------------------
+-- (4) RECOMPUTE — autorité = compute-metrics.py (pas de piège ft-metrics-wipe)
+-- -----------------------------------------------------------------------------
+-- for isin in IE000BMDG046 IE000WX7BVB0 IE00BX7RQY03 LU1291102447 \
+--             LU1681044993 LU2596536818; do
+--   python3 scripts/enrichers/compute-metrics.py --isin "$isin" --apply
+-- done
+--
+-- -----------------------------------------------------------------------------
+-- RÉSULTAT vérifié bout en bout :
+--   Métriques saines (vol 2,6–8,3 ; dd -14 à -19 ; perf réalistes), les 6 fonds
+--   DÉMASQUÉS dans la vue _cgp. Garde __insane : 10 → 5. Les 5 restants sont
+--   les détresses RÉELLES légitimes (H2O Europea/Adagio/Multibonds side-pockets,
+--   Sienna Diversifié -87 %, Transition Evergreen) — masquage correct.
+--
+-- REVERT (si besoin) :
+--   DELETE FROM investissement_fund_prices WHERE isin IN (... 6 ISIN);
+--   INSERT INTO investissement_fund_prices
+--     SELECT * FROM investissement_fund_prices_refetch_backup_20260624;
+--   puis recompute-metrics sur les 6 ISIN.
+-- =============================================================================
