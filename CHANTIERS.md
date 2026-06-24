@@ -1,6 +1,6 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-06-24 (13ᵉ passe — chantier « 59 fonds masqués » traité : cause racine corrigée dans compute-metrics.py + purge ciblée + garde crypto-actions + spike réparé → garde __insane 59 → 12 ; découverte d'un chantier plus large : ~3 300 métriques de risque sur fenêtre invalide)
+> Dernier audit : 2026-06-24 (13ᵉ passe — chantier « 59 fonds masqués » traité de bout en bout : cause racine corrigée dans compute-metrics.py + purge + garde crypto-actions + spike réparé + recompute universe-wide success → garde __insane 59 → 10 ; reliquat = 5 détresses réelles + 5 à re-fetch source)
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
 **279/279 tests verts** (20 fichiers), **working tree propre**, **CI verte** (5 derniers runs
@@ -71,14 +71,6 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 
 ## 🧹 Dette technique
 
-### ~3 300 métriques de risque « 3 ans » sur fenêtre trop courte (décision produit)
-- **Priorité** : 🟡 Moyenne
-- **Détecté le** : 2026-06-24
-- **Où** : `investissement_funds` (colonnes `volatility_3y`/`sharpe_3y`/`max_drawdown_3y`, idem 1Y) ; logique dans `scripts/enrichers/compute-metrics.py`
-- **Le problème** : découvert en traitant les 59 masqués. **3 344 fonds** exposent une `volatility_3y` (3 071 une `volatility_1y`) calculée sur **moins d'historique que la fenêtre annoncée** (< ~2,75 ans pour le 3Y). Valeurs **périmées** d'un ancien calcul que `compute-metrics` ne réécrit jamais (fenêtre invalide → il ne calculait que la perf). La plupart sont plausibles (<60) donc **visibles** et mal étiquetées (un fonds de 8 mois ne devrait pas afficher de risque « 3 ans »). La **cause racine est corrigée** (le code purge désormais tout le bloc d'une fenêtre invalide), mais l'existant visible n'a **pas** été purgé en masse (changement produit-visible à arbitrer).
-- **Comment l'aborder** : 2 options — (1) laisser le prochain run `compute-metrics` (weekly 29/06, code corrigé) purger ces métriques universe-wide ; (2) afficher les métriques courte-fenêtre sous un autre label (« 1 an » / « depuis création ») plutôt que purger. Décision produit. Backup ciblé déjà posé pour le sous-ensemble traité.
-- **Effort estimé** : rapide (option 1 = ne rien faire) / moyen (option 2 = re-label UI)
-
 ### Re-fetch source de ~6 séries NAV à corruption systématique
 - **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-24
@@ -103,6 +95,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **~3 300 métriques de risque sur fenêtre invalide — purgées par recompute universe-wide** — *Réglé le 2026-06-24* : run `compute-metrics` (`28063300433`, **success**, ~1h04) exécuté avec le code corrigé → purge des métriques mal étiquetées sur l'univers à prix récents. `vol_3y` invalides **3 320 → 1 086** ; vérifié end-to-end : les ex-garbage (FR0014015LI2 vol_3y 169, etc.) sont à **NULL**, le spike réparé `IE00BD4TY451` recalculé (vol_3y 60→**15,8**, vol_1y 90→**13,4**) et **démasqué** dans la vue. **Aucune régression** : 4 579 perfs externes LU intactes (exception `__ext_fresh`), 7 705 fonds avec alpha inchangé. Reliquat **bénin** = 1 015 fonds **stale** (déjà masqués, invisibles, non recalculés faute de prix récents) + ~71 fonds **immobilier/OPCI à VL mensuelle** (span 3 ans mais < 78 points → faux positifs de la règle « 78 points » calibrée hebdo ; leur vol 1-11 % est **plausible**, pas du garbage). Garde `__insane` **12 → 10** (5 détresses réelles + 5 à re-fetch). Cause racine = [[compute-metrics-stale-window-gotcha]].
 
 - **59 fonds masqués par `__insane` — cause racine corrigée + nettoyage (59 → 12)** — *Réglé le 2026-06-24* : l'enquête a révélé que la plupart n'étaient **pas** des corruptions de série mais des **métriques de risque périmées**. Cause racine = bug dans `compute-metrics.py` : quand une fenêtre (1Y/3Y) devient invalide (`perf=None`), la branche `else` ne purgeait QUE la perf et **laissait survivre vol/sharpe/drawdown** d'un calcul antérieur (ex. `FR0014015LI2` vol_3y 169 alors que la série propre donne 1,8). **Fix code** : les deux branches purgent désormais tout le bloc de la fenêtre + 2 tests de non-régression (11 tests verts). **Fix données** : purge ciblée et sauvegardée du sous-ensemble **déjà masqué ET sur fenêtre invalide** (45 fonds — 25 en 3Y, 23 en 1Y ; backup `investissement_funds_riskmetrics_backup_20260624` RLS, script `purge-stale-riskmetrics-invalid-window-20260624.sql`) — **zéro changement visible** (on ne nettoie que du garbage caché). **Garde crypto-actions** : migration `20260624120000` exclut les noms `crypto|bitcoin|blockchain` de la garde (Melanion Bitcoin Equities, VanEck Crypto & Blockchain : vol 61-62 % RÉELLE, séries propres vérifiées → ré-exposés). **Spike ponctuel** : `IE00BD4TY451` (UBS Australia, point 2025-10-20 ×1,97) interpolé (backup `investissement_fund_prices_spike_backup_20260624`). Résultat : garde `__insane` **59 → 12**. Les 12 restants sont **correctement** masqués : 4 détresses réelles (Transition Evergreen, H2O ×3), 1 stale, 6 à re-fetch source (cf. 🧹 Dette technique), 1 spike réparé en attente du recompute. **Découverte connexe** : ~3 300 métriques « 3 ans » sur fenêtre courte (même cause, sous-ensemble visible) → chantier produit séparé. `tsc` clean, 279 tests verts.
 
