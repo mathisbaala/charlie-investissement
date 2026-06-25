@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSelection, SelectedFund } from "@/components/SelectionProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X, Download } from "@/components/ui/icons";
@@ -104,6 +105,15 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
             PDF
           </Btn>
         </a>
+      )}
+      {selected.length >= 2 && (
+        <Link
+          href={`/portefeuille?isins=${selected.map((f) => f.isin).join(",")}`}
+          prefetch={false}
+          className="shrink-0"
+        >
+          <Btn variant="outline" size="sm">Portefeuille</Btn>
+        </Link>
       )}
       <Btn
         variant="primary"
