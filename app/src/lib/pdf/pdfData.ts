@@ -7,9 +7,9 @@
 
 import { supabase } from "@/lib/supabase";
 import { canonicalSector, type ExpoRow } from "@/lib/lookthrough";
-import type { Pt } from "@/lib/pdf/chartMath";
+import type { Pt, Slice } from "@/lib/pdf/chartMath";
 
-export type Slice = { label: string; weight: number };
+export type { Slice };
 export type FundComposition = { geos: Slice[]; sectors: Slice[]; holdings: Slice[] };
 
 /** Date ISO (AAAA-MM-JJ) il y a `years` années, pour borner l'historique. */

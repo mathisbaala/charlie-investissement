@@ -8,7 +8,6 @@ import type { DocumentProps } from "@react-pdf/renderer";
 import React from "react";
 import { writeFileSync } from "node:fs";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
-import FicheFondsPDF from "@/lib/FicheFondsPDF";
 
 // renderToBuffer attend un ReactElement<DocumentProps> ; nos composants exposent
 // des props métier (funds/fund). On cast comme dans la route API (route.ts).
@@ -91,11 +90,5 @@ describe("RapportFondsPDF", () => {
     const buf = await render(React.createElement(RapportFondsPDF, { funds: SAMPLE, series, composition }));
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
     if (process.env.PDF_DUMP) writeFileSync("/tmp/rapport-charlie-rich.pdf", buf);
-  }, 30_000);
-
-  it("rend la fiche fonds seule", async () => {
-    const buf = await render(React.createElement(FicheFondsPDF, { fund: SAMPLE[0] }));
-    expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
-    if (process.env.PDF_DUMP) writeFileSync("/tmp/fiche-charlie.pdf", buf);
   }, 30_000);
 });

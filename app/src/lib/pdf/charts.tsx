@@ -3,6 +3,8 @@ import { Svg, Path, Polyline, Line, Defs, LinearGradient, Stop, Rect } from "@re
 import { C, FONT, perfColor } from "./theme";
 import {
   type Pt,
+  type Slice,
+  rebase100,
   seriesBounds,
   projectSeries,
   polylinePoints,
@@ -11,6 +13,8 @@ import {
   axisDateLabels,
   downsample,
 } from "./chartMath";
+
+export type { Slice };
 
 // Palette de séries (courbes / donut). Accent clay en tête, puis tons terre
 // distincts et lisibles en impression. Étendue/réutilisée par tous les charts.
@@ -40,6 +44,14 @@ const s = StyleSheet.create({
 });
 
 export type Series = { name: string; points: Pt[]; color?: string; perf?: number | null };
+
+/** Série rebasée base 100 (prête pour LineChartPdf) depuis des VL brutes ({t,v}). */
+export function toRebasedSeries(name: string, pts: Pt[], color?: string): Series {
+  const vals = rebase100(pts.map((p) => p.v));
+  const points = pts.map((p, i) => ({ t: p.t, v: vals[i] }));
+  const last = points.length ? points[points.length - 1].v : null;
+  return { name, points, color, perf: last == null ? null : last - 100 };
+}
 
 /**
  * Courbe de performance base 100, mono ou multi-séries, avec aire dégradée sous
@@ -127,8 +139,6 @@ export function LineChartPdf({
     </View>
   );
 }
-
-export type Slice = { label: string; weight: number };
 
 /**
  * Donut de composition + légende. Les poids sont normalisés à 100 % de la part

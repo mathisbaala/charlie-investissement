@@ -20,8 +20,8 @@ import {
   normTer,
   perf,
 } from "./pdf/components";
-import { LineChartPdf, CompositionDonut, CompositionBars, SERIES, type Series } from "./pdf/charts";
-import { rebase100, type Pt } from "./pdf/chartMath";
+import { LineChartPdf, CompositionDonut, CompositionBars, SERIES, toRebasedSeries, type Series } from "./pdf/charts";
+import { type Pt } from "./pdf/chartMath";
 import type { FundComposition } from "./pdf/pdfData";
 
 registerCharlieFonts();
@@ -150,14 +150,6 @@ function mean(xs: number[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-/** Convertit une série de VL brute en série rebasée base 100, prête pour le chart. */
-function toRebased(name: string, pts: Pt[], color?: string): Series {
-  const vals = rebase100(pts.map((p) => p.v));
-  const points = pts.map((p, i) => ({ t: p.t, v: vals[i] }));
-  const last = points.length ? points[points.length - 1].v : null;
-  return { name, points, color, perf: last == null ? null : last - 100 };
-}
-
 function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt[]> }) {
   const single = funds.length === 1;
   const medTer = median(funds.map((f) => normTer(f.ongoing_charges ?? f.ter) as number));
@@ -168,7 +160,7 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
   // Courbe comparative base 100 : une série par fonds disposant d'un historique.
   const chartSeries: Series[] = funds
     .filter((f) => (series[f.isin]?.length ?? 0) >= 2)
-    .map((f, i) => toRebased(String(f.name), series[f.isin], SERIES[i % SERIES.length]));
+    .map((f, i) => toRebasedSeries(String(f.name), series[f.isin], SERIES[i % SERIES.length]));
 
   return (
     <Page size="A4" style={S.page}>
@@ -293,7 +285,7 @@ function FundPage({
   const maxPerf = Math.max(1, Math.abs(fund.performance_1y ?? 0), Math.abs(fund.performance_3y ?? 0), Math.abs(fund.performance_5y ?? 0));
 
   const hasCurve = (series?.length ?? 0) >= 2;
-  const curveSeries: Series[] = hasCurve ? [toRebased(String(fund.name), series!, C.clay)] : [];
+  const curveSeries: Series[] = hasCurve ? [toRebasedSeries(String(fund.name), series!, C.clay)] : [];
   const hasGeo = (comp?.geos?.length ?? 0) > 0;
   const hasSectors = (comp?.sectors?.length ?? 0) > 0;
   const hasHoldings = (comp?.holdings?.length ?? 0) > 0;
