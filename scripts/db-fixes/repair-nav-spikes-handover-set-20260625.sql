@@ -1,0 +1,56 @@
+-- =============================================================================
+-- Réparation des pics NAV single-point dans l'ensemble recalé yahoo->justetf
+-- Date : 2026-06-25  (suit rescale-nav-handover-yahoo-justetf-20260625.sql)
+-- =============================================================================
+--
+-- CONTEXTE
+--   Après le recalage des coutures yahoo->justetf (966 fonds), un balayage du
+--   saut intra-série jour/jour a révélé 26 fonds avec un saut >25 % AILLEURS dans
+--   la série (donc pas causé par le recalage = multiply constant). Triage :
+--     - PICS single-point (glitch) : 18 points / 16 fonds  -> RÉPARÉS ici.
+--     - CRYPTO/BITCOIN légitimes : VanEck Crypto, iShares Blockchain, 21Shares &
+--       WisdomTree Bitcoin -> vrais mouvements, CONSERVÉS (exclus par le nom).
+--     - PALIERS d'échelle ×100/×20 (multi-échelle, pas un pic) : ~4 fonds
+--       (First Trust Global Equity / NextG / DJ Internet, BlueSphere CZK) ->
+--       NON traités (catégorie re-fetch, voir CHANTIERS 🧹). Le détecteur de pics
+--       ne les vise PAS à raison : ils ne reviennent pas (palier permanent).
+--
+-- DÉTECTION (pic = dévie de SES DEUX voisins dans le même sens)
+--   nav/prev > 1.30 ET nav/next > 1.30  (pic haut), OU
+--   nav/prev < 0.77 ET nav/next < 0.77  (pic bas).
+--   Exclut crypto|bitcoin|blockchain|ethereum|leverag|2x|3x| short| bull| bear
+--   (vrais mouvements). Un trend/palier réel ne revient pas -> auto-exclu.
+--   18 points : surtout l'événement d'ingest du 2025-10-20 (cluster +33 %, HSBC/
+--   Amundi Treasury/Xtrackers S&P500...) + des spikes ÷100 isolés (Invesco EM ×3,
+--   First Trust). Exemples : LU2009147757 16,749 -> 12,508 ; IE000U07IGB1
+--   0,059 -> 4,442.
+--
+-- CORRECTION
+--   Remplacement du point par la MÉDIANE GÉOMÉTRIQUE des voisins
+--   sqrt(prev*next) (préserve la log-linéarité d'une série de prix).
+--
+-- BACKUP / REVERT
+--   investissement_fund_prices_spike_backup_20260625 (RLS) : 18 lignes
+--   (isin, price_date, old_nav, source_id, interp_nav).
+--   Revert :
+--     UPDATE investissement_fund_prices p SET nav = b.old_nav
+--     FROM investissement_fund_prices_spike_backup_20260625 b
+--     WHERE b.isin=p.isin AND b.price_date=p.price_date AND b.source_id=p.source_id;
+--
+-- RECOMPUTE
+--   compute-metrics.py --apply (run GitHub Actions 28187942478, relancé après ce
+--   fix pour couvrir recalage + pics).
+--
+-- =============================================================================
+-- Bloc exécuté (déjà appliqué le 2026-06-25) :
+--
+-- create table investissement_fund_prices_spike_backup_20260625 as
+--   <aff = backup handover ; seq = lag/lead par isin, hors crypto/levier ;
+--    points où nav dévie >30% de prev ET next ; interp = sqrt(prev*next)>;
+-- alter table ... enable row level security;
+--
+-- update investissement_fund_prices p
+-- set nav = s.interp_nav
+-- from investissement_fund_prices_spike_backup_20260625 s
+-- where s.isin=p.isin and s.price_date=p.price_date and s.source_id=p.source_id;
+-- =============================================================================
