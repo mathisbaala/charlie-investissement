@@ -1,8 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
 import { pct } from "@/lib/format";
 import type { SelectedFund } from "@/components/SelectionProvider";
+
+// Même palette que le graphe de performance (ComparisonModal) → un fonds garde
+// sa couleur partout dans l'onglet Comparé.
+const FUND_COLORS = ["#9F4325", "#2d7d5a", "#b97c2a", "#3d5a8a"];
 
 type Expo = { label: string; weight: number };
 type Overlap = {
@@ -19,55 +26,43 @@ type Data = {
 };
 
 function short(name: string): string {
-  return name.length > 16 ? name.slice(0, 15) + "…" : name;
+  return name.length > 22 ? name.slice(0, 21) + "…" : name;
 }
 
-// Ombrage léger de la cellule proportionnel au poids (lecture rapide des écarts).
-function cellShade(w: number | null): React.CSSProperties {
-  if (w == null) return {};
-  const a = Math.min(0.5, w / 120);
-  return { background: `oklch(0.62 0.12 40 / ${a})` };
-}
-
-// Matrice fond par fond : lignes = zones / secteurs, colonnes = fonds. Aucune
-// agrégation : chaque fonds garde son exposition propre.
-function Matrix({ title, byFund, funds }: { title: string; byFund: Record<string, Expo[]>; funds: SelectedFund[] }) {
+// Graphe à barres groupées : une ligne par zone/secteur, une barre colorée par
+// fonds (comparaison visuelle directe). Top 8 par poids max sur la sélection.
+function GroupedBars({ title, byFund, funds }: { title: string; byFund: Record<string, Expo[]>; funds: SelectedFund[] }) {
   const labelMax = new Map<string, number>();
   for (const f of funds) for (const e of byFund[f.isin] ?? []) labelMax.set(e.label, Math.max(labelMax.get(e.label) ?? 0, e.weight));
-  const labels = [...labelMax.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([l]) => l);
+  const labels = [...labelMax.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([l]) => l);
   if (!labels.length) return null;
-  const wOf = (isin: string, label: string) => (byFund[isin] ?? []).find((e) => e.label === label)?.weight ?? null;
+
+  const rows = labels.map((label) => {
+    const row: Record<string, number | string> = { label };
+    for (const f of funds) row[f.isin] = byFund[f.isin]?.find((e) => e.label === label)?.weight ?? 0;
+    return row;
+  });
+  const nameByIsin = new Map(funds.map((f) => [f.isin, f.name]));
 
   return (
-    <div className="overflow-x-auto">
-      <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">{title}</p>
-      <table className="w-full text-meta tabular-nums border-collapse">
-        <thead>
-          <tr className="border-b border-line">
-            <th className="text-left py-1.5" />
-            {funds.map((f) => (
-              <th key={f.isin} className="py-1.5 px-2 text-right font-medium text-ink-2 text-caption whitespace-nowrap" title={f.name}>
-                {short(f.name)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {labels.map((label) => (
-            <tr key={label} className="border-b border-line-soft last:border-0">
-              <td className="py-1.5 pr-3 text-ink-2 whitespace-nowrap">{label}</td>
-              {funds.map((f) => {
-                const w = wOf(f.isin, label);
-                return (
-                  <td key={f.isin} className="py-1.5 px-2 text-right rounded-sm" style={cellShade(w)}>
-                    {w == null ? <span className="text-muted-2">—</span> : pct(w)}
-                  </td>
-                );
-              })}
-            </tr>
+    <div>
+      <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-3">{title}</p>
+      <ResponsiveContainer width="100%" height={labels.length * 34 + 44}>
+        <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 20, left: 4, bottom: 0 }} barCategoryGap="22%">
+          <CartesianGrid horizontal={false} stroke="#EDEBE6" />
+          <XAxis type="number" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} />
+          <YAxis type="category" dataKey="label" width={132} tick={{ fontSize: 11, fill: "#6B6A66" }} tickLine={false} axisLine={false} />
+          <Tooltip
+            cursor={{ fill: "oklch(0 0 0 / 0.04)" }}
+            formatter={(v: unknown, n: unknown) => [pct(Number(v)), short(nameByIsin.get(String(n)) ?? String(n))]}
+            contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }}
+          />
+          <Legend formatter={(value: string) => <span style={{ fontSize: 11 }}>{short(nameByIsin.get(value) ?? value)}</span>} />
+          {funds.map((f, i) => (
+            <Bar key={f.isin} dataKey={f.isin} name={f.isin} fill={FUND_COLORS[i % FUND_COLORS.length]} radius={[0, 3, 3, 0]} maxBarSize={13} />
           ))}
-        </tbody>
-      </table>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -102,33 +97,24 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
         <p className="text-meta text-muted-2">Chargement…</p>
       ) : (
         <>
-          {hasGeo && <Matrix title="Zones géographiques" byFund={data!.geoByFund} funds={funds} />}
-          {hasSec && <Matrix title="Secteurs" byFund={data!.sectorsByFund} funds={funds} />}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
+            {hasGeo && <GroupedBars title="Zones géographiques" byFund={data!.geoByFund} funds={funds} />}
+            {hasSec && <GroupedBars title="Secteurs" byFund={data!.sectorsByFund} funds={funds} />}
+          </div>
 
           {hasOverlap && (
             <div>
-              <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">
-                Lignes communes
-              </p>
-              <div className="space-y-1.5">
+              <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">Lignes communes</p>
+              <div className="flex flex-wrap gap-1.5">
                 {data!.overlaps.map((o) => (
-                  <div key={(o.ticker ?? o.name)} className="flex items-center justify-between gap-3 border-b border-line-soft pb-1.5 last:border-0">
-                    <div className="min-w-0">
-                      <span className="text-meta text-ink-2 font-medium">{o.name}</span>
-                      {o.ticker && <span className="text-caption text-muted-2 font-mono ml-2">{o.ticker}</span>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-caption px-2 py-0.5 rounded-full font-medium border bg-warn-soft text-warn border-warn/20">
-                        {o.count} fonds
-                      </span>
-                      <span
-                        className="text-caption text-muted-2"
-                        title={o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n")}
-                      >
-                        jusqu&apos;à {pct(o.max_weight)}
-                      </span>
-                    </div>
-                  </div>
+                  <span
+                    key={(o.ticker ?? o.name)}
+                    className="inline-flex items-center gap-1.5 text-caption border border-line rounded-full px-2.5 py-1 bg-paper-2"
+                    title={o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n")}
+                  >
+                    <span className="text-ink-2 font-medium">{o.name.length > 28 ? o.name.slice(0, 27) + "…" : o.name}</span>
+                    <span className="text-warn font-mono">×{o.count}</span>
+                  </span>
                 ))}
               </div>
             </div>
