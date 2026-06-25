@@ -1,0 +1,51 @@
+-- =============================================================================
+-- Recalage des 4 séries NAV multi-échelle (bulles d'inflation) — ancrage queue
+-- Date : 2026-06-25  (clôt le suivi 🧹 du tri des 26 résiduels)
+-- =============================================================================
+--
+-- FONDS  IE00BD842Y21 (First Trust Global Equity Income),
+--        IE00BWTNM743 (First Trust Indxx NextG),
+--        IE00BT9PVG14 (First Trust DJ International Internet),
+--        IE000YC7FPB6 (BlueSphere World Equity CZK Hedged).
+--
+-- CONSTAT
+--   Après le recalage yahoo->justetf + la réparation des pics, ces 4 gardaient un
+--   saut intra-série >25 % : non un pic isolé mais une BULLE D'INFLATION bornée.
+--     - 3 First Trust : bulle ×100 contiguë 2021-07-12 -> 2022-03-21 (artefact
+--       source yahoo, mêmes dates de bascule pour les 3).
+--     - BlueSphere : début ~185 (base CZK) -> ~9 (EUR) au 2026-05-25 (×~0,048,
+--       cohérent CZK/EUR), dans le segment justetf.
+--   La queue justetf (source 3) = VALEUR DE VÉRITÉ récente (FTGEI ~55, NextG ~49,
+--   DJ Internet ~16, BlueSphere ~9).
+--
+-- CORRECTION (déterministe, sans deviner)
+--   Détection des ruptures d'échelle (dod >1,5x ou <0,67x = artefact ; aucun vrai
+--   mouvement hebdo d'ETF actions n'atteint ça). Puis recalage par ANCRAGE SUR LA
+--   QUEUE : facteur par point = exp( somme(ln des ruptures) - cumul(ln ruptures
+--   jusqu'à la date) ) → la queue justetf reçoit facteur 1 (intacte), chaque segment
+--   amont est multiplié par le produit cumulé des ruptures situées après lui →
+--   série entièrement continue, ancrée sur la vérité. 156 lignes / 4 fonds.
+--
+-- VÉRIFICATION
+--   0 saut >25 % résiduel sur les 4 ; queues justetf inchangées ; plages saines
+--   (FTGEI 24,9-56,3 ; NextG 16,0-52,6 ; DJ Internet 9,5-25,5 ; BlueSphere 8,7-9,2).
+--
+-- BACKUP / REVERT
+--   investissement_fund_prices_multiscale_backup_20260625 (RLS, 926 lignes :
+--   toutes les lignes des 4 fonds, old_nav).
+--   Revert :
+--     UPDATE investissement_fund_prices p SET nav = b.old_nav
+--     FROM investissement_fund_prices_multiscale_backup_20260625 b
+--     WHERE b.isin=p.isin AND b.price_date=p.price_date AND b.source_id=p.source_id;
+--
+-- RECOMPUTE
+--   compute-metrics.py --apply (run GitHub Actions 28188831771, couvre recalage
+--   handover + pics + ces 4 multi-échelle en un seul run).
+--
+-- =============================================================================
+-- Bloc exécuté (déjà appliqué le 2026-06-25) :
+--   backup (toutes lignes des 4 fonds) -> RLS ;
+--   UPDATE nav = round(nav * factor) avec
+--     factor = exp(sum(ln dod sur ruptures) - cum(ln dod sur ruptures <= date))
+--     ruptures = dod>1.5 OR dod<0.67, par fonds, ordonné par price_date.
+-- =============================================================================
