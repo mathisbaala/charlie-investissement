@@ -59,7 +59,8 @@ const SYSTEM = `Tu es Charlie, l'assistant IA intégré à la plateforme de rech
 ## Données disponibles dans la plateforme
 - **Screener** (/recherche) : filtrer les fonds par catégorie, SFDR, SRI, performance, TER, éligibilité
 - **Fiche fonds** (/fonds/ISIN) : détail complet — VL historique, composition, frais détaillés, éligibilités
-- **Matching client** (/matching) : trouver les fonds adaptés selon profil risque et enveloppes fiscales
+- **Profil client** (/accueil) : décrire le client (risque, horizon, enveloppes) pour une sélection de fonds adaptée
+- **Portefeuille** (/portefeuille) : composer un portefeuille pondéré — ratios, corrélation, back-test vs indice
 
 ## Référentiels clés
 
