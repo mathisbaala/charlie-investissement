@@ -29,6 +29,13 @@ function shortName(name: string | undefined, isin: string): string {
   return name.length > 40 ? name.slice(0, 38) + "…" : name;
 }
 
+// En-tête de colonne de la matrice de corrélation : nom court (le nom complet
+// reste au survol). Garde les colonnes lisibles sans recourir à des codes F1/F2.
+function colName(name: string | undefined, isin: string): string {
+  if (!name) return isin;
+  return name.length > 16 ? name.slice(0, 15) + "…" : name;
+}
+
 // Mois en toutes lettres, capitalisé : « 2021-04-19 » → « Avril 2021 ».
 function frMonth(d: string | null | undefined): string {
   if (!d) return "";
@@ -153,7 +160,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const matrix = analysis ? buildCorrelationMatrix(holdings.map((h) => h.isin), analysis.correlation ?? []) : [];
   const mergedCurve = analysis ? mergeCurves(analysis.curve ?? [], bench?.curve) : [];
   const proj = projectEuros(ratios?.total_return, amount);
-  const benchProj = bench ? projectEuros(bench.total_return, amount) : null;
   const ready = !!(ratios && meta && meta.used > 0);
   const period = meta?.start && meta?.end ? `${frMonth(meta.start)} – ${frMonth(meta.end)}` : "";
 
@@ -334,7 +340,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
                 <div className="text-meta tabular-nums text-right">
                   <span className="text-ink font-medium">{EUR.format(proj.final)}</span>
                   <span className={proj.gain >= 0 ? "text-ok ml-1.5" : "text-danger ml-1.5"}>({proj.gain >= 0 ? "+" : ""}{EUR.format(proj.gain)})</span>
-                  {benchProj && <span className="text-muted ml-2">indice {EUR.format(benchProj.final)}</span>}
                 </div>
               </div>
             </Card>
@@ -347,14 +352,14 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
                 <thead>
                   <tr>
                     <th className="p-1.5" />
-                    {holdings.map((h, i) => <th key={h.isin} className="p-1.5 text-muted font-semibold" title={names[h.isin] ?? h.isin}>F{i + 1}</th>)}
+                    {holdings.map((h) => <th key={h.isin} className="p-1.5 text-muted font-medium font-normal text-left whitespace-nowrap" title={names[h.isin] ?? h.isin}>{colName(names[h.isin], h.isin)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {holdings.map((h, ri) => (
                     <tr key={h.isin}>
                       <td className="p-1.5 text-ink-2 whitespace-nowrap pr-3" title={names[h.isin] ?? h.isin}>
-                        <span className="text-muted font-semibold mr-1.5">F{ri + 1}</span>{shortName(names[h.isin], h.isin)}
+                        {shortName(names[h.isin], h.isin)}
                       </td>
                       {matrix[ri]?.map((c, ci) => (
                         <td key={ci} className="p-1.5 text-center rounded w-12" style={corrStyle(c)}>{c == null ? "—" : c.toFixed(2)}</td>
