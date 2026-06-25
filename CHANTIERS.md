@@ -7,8 +7,11 @@
 > `20260625130000` + `150000`), page `/portefeuille`, `tsc` clean, **298 tests verts**, déployé +
 > vérifié live (QA + verification). Fondations data : **fonds euros back-testables** (courbe
 > synthétique annuelle) + **SCPI accumulation démarrée**. **LU tail = WON'T-DO documenté** (voir
-> ⏸). **Référencement assureur (Partie 1) = différé** (chantier données, voir ⏸). Détail dans
-> « ✅ Réglés » + `SESSION_HANDOFF.md` (journal 25/06).
+> ⏸). **Référencement assureur (Partie 1) = différé** (chantier données, voir ⏸). **Itérations
+> UX 25/06** : page Portefeuille refaite (scroll, recalcul auto, KPI, période choisie), onglet
+> **Comparé fond par fond** (plus d'agrégation), **accueil épuré + onglet « Profil client »
+> RETIRÉ** (fusionné dans l'accueil ; `/matching` redirige). Détail dans « ✅ Réglés » +
+> `SESSION_HANDOFF.md` (journal 25/06).
 
 > Dernier audit : 2026-06-24 (14ᵉ passe — re-vérification indépendante : `tsc` clean, **279/279 tests verts**, working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Chantier 🧹 « re-fetch des 6 dernières séries NAV » réglé de bout en bout** dans la foulée : re-backfill JustETF des 5 ETF + rescale Loomis + recompute → garde `__insane` **10 → 5** (reliquat = 5 détresses réelles légitimes). La catégorie 🧹 Dette technique est désormais **vide**. 13ᵉ passe : chantier « 59 fonds masqués » → garde __insane 59 → 10.)
 
@@ -128,6 +131,12 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **UX portefeuille + simplification de la navigation (25/06, post-livraison)** — *Réglé le 2026-06-25* : itérations design suite aux retours.
+  - **Page Portefeuille refaite** : titre externe via `PageShell`/`PageHeader` (corrige aussi le **scroll** — le `<main>` du layout est `overflow-hidden`, chaque page doit fournir son conteneur scrollable) ; **recalcul automatique** (débounce) à chaque changement de poids/fonds/indice/période (fini le bouton « Analyser ») ; **bandeau KPI** coloré (perf ann./totale, vol, Sharpe, perte max) ; éditeur de poids propre (input sans flèches + barre + ISIN seul, vol/perf retirés) ; **sélecteur de période back-test** (1/3/5 ans/Max, dans l'URL) ; **comparaison enrichie** portefeuille vs indice sur 5 ratios (RPC : Sharpe + perte max ajoutés au benchmark, migration `20260625190000`) ; date en français propre, texte décoratif retiré ; entrée « Portefeuille » dans le menu (`Rail`, icône TrendingUp).
+  - **Onglet Comparé fond par fond** : `/api/portfolio/lookthrough` renvoie géo+secteurs PAR FONDS (`geoByFund`/`sectorsByFund`, plus de blend équipondéré) ; `LookThroughView` = matrices (lignes zones/secteurs × colonnes fonds) ; dédup géo par code pays ; texte décoratif retiré.
+  - **Accueil épuré + retrait onglet « Profil client »** : accueil = 2 éléments (recherche langage naturel + formulaire profil via composant `ClientProfileForm` extrait) ; suppression des grilles enveloppe/assureur et des top performers ; `/matching` **redirige** vers `/accueil` (307), liens screener/sitemap/prompt chat mis à jour ; visite guidée : étape « Profil client » → « Portefeuille ». Profil toujours partagé (localStorage).
+  - `tsc` clean, **298 tests verts**, tout déployé + vérifié live (`/qa`, `/verification`, browse).
 
 - **Moteur PORTEFEUILLE — Partie 2 du retour client (LIVRÉ 25/06)** — *Réglé le 2026-06-25* : réponse au besoin CGP « construire des portefeuilles et back-tester, avec sharpe/vol/perf annualisée et SURTOUT corrélation ». **Cœur** = RPC `inv_portfolio_analyze(isins[], poids[], years, rf, benchmark)` (migrations `20260625130000` + `150000`) : courbe composite hebdo **multi-rythme** (LOCF — un fonds euros annuel reste plat entre 31/12, corr ~0 préservée), mélange rééquilibré (réutilise `inv_rebuild_composite_indices`), ratios (perf annualisée/vol/Sharpe/max DD), **matrice de corrélation** (`corr()` Postgres), et **back-test vs benchmark** (courbe de l'indice sur la même grille + sur/sous-perf). **UI** `/portefeuille` (page server + `PortfolioBuilder` client) : éditeur de pondération, courbe base 100 à 2 lignes (portefeuille + indice), cartes ratios, matrice colorée, **sélecteur d'indice** (`BENCHMARK_OPTIONS`, défaut MSCI World), **projection en euros** (`projectEuros`), détail par fonds, **lien partageable** (tout dans l'URL, **sans compte** — cf [[no-accounts-product-direction]]), entrée dans le menu de gauche (`Rail`). Route `/api/portfolio/analyze`. Helpers `lib/portfolio.ts` + 19 tests. **Fonds exclus signalés** (honnêteté). Périmètre = « tout, en dégradé honnête » (crypto/actions ignorés). `tsc` clean, **298 tests verts**, déployé Vercel + **vérifié live** (`/qa` + `/verification` : tous états/interactions OK, 0 erreur console ; 2 fixes QA = pas de tour sur /portefeuille, bloc résultats gardé sur `used>0`). Cf. mémoire [[portfolio-chantier-direction]].
 

@@ -27,6 +27,25 @@ l'effort sur (2), le gros morceau, et livré de bout en bout.
 - **Qualité** : `tsc` clean, **298 tests verts**, `/qa` + `/verification` passés (2 fixes QA :
   tour masqué sur /portefeuille, bloc résultats gardé sur `used>0`).
 
+### Itérations UX + navigation (25/06, après livraison)
+Suite aux retours, plusieurs passes design/UX :
+- **Page Portefeuille refaite** : titre externe (`PageShell`/`PageHeader`) — corrige le **scroll**
+  (le `<main>` du layout est `overflow-hidden` : chaque page fournit son conteneur scrollable) ;
+  **recalcul automatique** (débounce) au moindre changement (poids/fonds/indice/période), plus de
+  bouton « Analyser » ; bandeau **KPI** coloré ; éditeur de poids épuré (input sans flèches + barre,
+  ISIN seul) ; **sélecteur de période** back-test (1/3/5 ans/Max) ; **comparaison enrichie** sur
+  5 ratios (RPC : Sharpe + perte max ajoutés au benchmark, migration `20260625190000`) ; date FR,
+  texte décoratif retiré.
+- **Onglet Comparé fond par fond** : `/api/portfolio/lookthrough` → géo+secteurs PAR FONDS
+  (`geoByFund`/`sectorsByFund`, plus de blend) ; `LookThroughView` en matrices ; dédup géo par code
+  pays ; texte décoratif retiré.
+- **Accueil épuré + onglet « Profil client » RETIRÉ** : accueil = recherche langage naturel +
+  formulaire profil (composant `ClientProfileForm` extrait) ; suppression grilles enveloppe/assureur
+  + top performers ; `/matching` redirige (307) vers `/accueil` ; liens screener/sitemap/prompt chat
+  mis à jour ; visite guidée : « Profil client » → « Portefeuille ». Menu = Accueil / Recherche /
+  Portefeuille / Assurances vie / Documents.
+- 298 tests verts, tsc clean, tout déployé + vérifié live.
+
 ### Tranché — NE PAS revenir dessus
 - **LU sans série (~855) → back-test = WON'T-DO** : FT = impasse (test 0/20), ce sont des
   doublons de parts ; la résolution par part sœur n'est sûre que pour ~51 (hedged/devise
