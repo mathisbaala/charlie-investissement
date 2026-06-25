@@ -1,5 +1,15 @@
 # Chantiers — Charlie Investissement
 
+> 🚀 **25/06 — Moteur PORTEFEUILLE livré (Partie 2, retour client CGP)** : pondération →
+> ratios (perf annualisée/vol/Sharpe/max DD) → **matrice de corrélation** → **back-test vs
+> benchmark** (overlay + sur/sous-perf) → **projection en euros** → **lien partageable** (sans
+> compte) + entrée dans le menu de gauche. RPC `inv_portfolio_analyze` (migrations
+> `20260625130000` + `150000`), page `/portefeuille`, `tsc` clean, **298 tests verts**, déployé +
+> vérifié live (QA + verification). Fondations data : **fonds euros back-testables** (courbe
+> synthétique annuelle) + **SCPI accumulation démarrée**. **LU tail = WON'T-DO documenté** (voir
+> ⏸). **Référencement assureur (Partie 1) = différé** (chantier données, voir ⏸). Détail dans
+> « ✅ Réglés » + `SESSION_HANDOFF.md` (journal 25/06).
+
 > Dernier audit : 2026-06-24 (14ᵉ passe — re-vérification indépendante : `tsc` clean, **279/279 tests verts**, working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Chantier 🧹 « re-fetch des 6 dernières séries NAV » réglé de bout en bout** dans la foulée : re-backfill JustETF des 5 ETF + rescale Loomis + recompute → garde `__insane` **10 → 5** (reliquat = 5 détresses réelles légitimes). La catégorie 🧹 Dette technique est désormais **vide**. 13ᵉ passe : chantier « 59 fonds masqués » → garde __insane 59 → 10.)
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
@@ -55,9 +65,39 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 > données mais d'un faux positif de la garde de fraîcheur. Reste hors périmètre le plancher
 > structurel ~8 600 (parts secondaires, micro-encours, fonds fermés/morts) jamais chassé (légitime).
 
+### 🛑 LU sans série de prix (~855) — back-test : WON'T-DO (investigué 25/06, ne PAS revenir dessus)
+- **Priorité** : ⚪ Mineure — **tranché**
+- **Le problème** : ~855 OPCVM/ETF luxembourgeois ont une perf (source externe Morningstar EMEA) mais **aucune série de prix locale** → non back-testables dans le moteur portefeuille.
+- **Ce qu'on a essayé et pourquoi ça ne marche pas** :
+  1. **Re-fetch FT ciblé** (`ft-enricher --missing-series --lu-only`) : **test 20/20 = 0 série écrite**. FT ne résout pas ces ISIN. **Impasse confirmée — ne pas relancer.**
+  2. Diagnostic : ces 855 sont surtout des **doublons de parts** de fonds qu'on a DÉJÀ avec ~5 ans d'historique (autre part du même fonds).
+  3. **Résolution par part sœur (proxy)** : une part sans série emprunterait la série d'une part sœur du même groupe. Mais sur 855 : seules **355 sont groupées**, **125** ont une sœur même-devise à série, et la **validation perf** (la perf de la sœur doit coller au fonds) ne passe que pour **~51** — **26 % divergent de >5 pts**.
+  4. **Cause des divergences (irrécupérable)** : couverture de change **hedged/unhedged** non modélisée (écarts jusqu'à 60 pts), **colonne `currency` non fiable** (USD étiquetés EUR), classes dist/acc différentes, et **faux positifs de groupage** (fonds différents au nom proche). La validation perf ≤2 pts EST le seul filtre sûr, et il plafonne à ~51.
+- **Décision (25/06)** : **ne PAS exposer de proxy.** Gain max sûr = ~51 fonds sur **~16 000 déjà exploitables** (marginal), avec risque résiduel d'afficher un back-test **faux** ; le message « pas d'historique » actuel est 100 % honnête. Le code `ft-enricher --missing-series` + workflow `backfill-missing-series.yml` restent comme outil général (sans usage LU). Cf. mémoire [[portfolio-chantier-direction]].
+- **Seule réouverture envisageable** : une **vraie source de série NAV LU** (pas identifiée à ce jour ; Morningstar EMEA = perfs ponctuelles, pas de série).
+
+### Référencement assureur (Partie 1 du retour client) — différé, chantier DONNÉES
+- **Priorité** : 🟡 Moyenne — **à reprendre plus tard**
+- **Le problème** : muscler le mapping *support × assureur × contrat* pour qu'il soit le plus **exhaustif et certain** possible (le point vital pour les CGP français).
+- **Cadrage validé (à respecter)** : c'est un chantier **données**, **PAS** un changement de parcours. **Philosophie marketplace** : on ne restreint **jamais** l'univers d'un CGP à ses contrats (montrer tout ce qui existe). On **n'affiche AUCUNE lacune** (pas de badge « vérifié le… », pas d'indicateur de fraîcheur). On garde l'onglet assureurs/contrats + le filtre existants ; on enrichit seulement la donnée derrière. Cf. mémoire [[portfolio-chantier-direction]] + [[insurer-referencing]].
+- **Effort estimé** : moyen-élevé (collecte de données).
+
+### SCPI — matérialiser la série de rendement total (différé ~2-3 ans)
+- **Priorité** : ⚪ Mineure
+- **État** : **accumulation démarrée le 25/06** (table `investissement_scpi_price_history`, 1 point/an, backfill 42 SCPI, enricher `scpi-primaliance` branché). Voir « ✅ Réglés ».
+- **Le problème** : le prix de part SCPI ne bouge qu'~1×/an et il n'y a pas d'archive historique publique → on ne peut que **cumuler vers l'avant**. Une vraie série exploitable (back-test/corrélation) ne sera dispo qu'après **2-3 ans** d'accumulation.
+- **Comment l'aborder** : ne rien faire de plus maintenant. Quand l'historique sera suffisant, matérialiser une série de rendement total (Δprix de part + dividende) dans `investissement_fund_prices` (source dédiée), comme pour les fonds euros. D'ici là, les SCPI s'affichent en portefeuille (poids/exposition) avec « back-test indisponible ».
+
 ---
 
 ## ✨ Features & améliorations
+
+### Ajouter des fonds depuis la page Portefeuille (recherche inline)
+- **Priorité** : 🟡 Moyenne — *« on va y réfléchir » (25/06), à organiser*
+- **Où** : `app/src/components/portfolio/PortfolioBuilder.tsx`
+- **Le problème** : aujourd'hui on compose un portefeuille en partant de la recherche (bouton « Portefeuille » dans la barre de sélection). On ne peut pas **ajouter** un fonds directement depuis la page `/portefeuille` (seulement éditer les poids / retirer).
+- **Comment l'aborder** : champ de recherche inline dans l'éditeur de pondération → ajoute l'ISIN au portefeuille + ré-analyse. Réutiliser l'endpoint de recherche existant. À cadrer avec l'utilisateur (organisation du parcours).
+- **Effort estimé** : moyen
 
 ### Transparence per-fonds du score d'adéquation (« pourquoi ça colle »)
 - **Priorité** : ⚪ Mineure
@@ -88,6 +128,12 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Moteur PORTEFEUILLE — Partie 2 du retour client (LIVRÉ 25/06)** — *Réglé le 2026-06-25* : réponse au besoin CGP « construire des portefeuilles et back-tester, avec sharpe/vol/perf annualisée et SURTOUT corrélation ». **Cœur** = RPC `inv_portfolio_analyze(isins[], poids[], years, rf, benchmark)` (migrations `20260625130000` + `150000`) : courbe composite hebdo **multi-rythme** (LOCF — un fonds euros annuel reste plat entre 31/12, corr ~0 préservée), mélange rééquilibré (réutilise `inv_rebuild_composite_indices`), ratios (perf annualisée/vol/Sharpe/max DD), **matrice de corrélation** (`corr()` Postgres), et **back-test vs benchmark** (courbe de l'indice sur la même grille + sur/sous-perf). **UI** `/portefeuille` (page server + `PortfolioBuilder` client) : éditeur de pondération, courbe base 100 à 2 lignes (portefeuille + indice), cartes ratios, matrice colorée, **sélecteur d'indice** (`BENCHMARK_OPTIONS`, défaut MSCI World), **projection en euros** (`projectEuros`), détail par fonds, **lien partageable** (tout dans l'URL, **sans compte** — cf [[no-accounts-product-direction]]), entrée dans le menu de gauche (`Rail`). Route `/api/portfolio/analyze`. Helpers `lib/portfolio.ts` + 19 tests. **Fonds exclus signalés** (honnêteté). Périmètre = « tout, en dégradé honnête » (crypto/actions ignorés). `tsc` clean, **298 tests verts**, déployé Vercel + **vérifié live** (`/qa` + `/verification` : tous états/interactions OK, 0 erreur console ; 2 fixes QA = pas de tour sur /portefeuille, bloc résultats gardé sur `used>0`). Cf. mémoire [[portfolio-chantier-direction]].
+
+- **Fonds euros back-testables (fondation portefeuille)** — *Réglé le 2026-06-25* : les fonds euros n'avaient aucune série (capital garanti, taux annuel). Table `investissement_fonds_euros_rates` (taux servis GVFM 2017→2025) + **courbe NAV synthétique annuelle** (base 100, composition) dans `investissement_fund_prices` source `synthetic-fonds-euros` (id 7, ajouté à `_SOURCE_ID` dans `db.py`). Migration `20260625120000`. Vérifié : **41 fonds, 298 taux, 339 points**, courbes monotones réalistes (AG2R 100→111). `compute-metrics` ne dérive que opcvm/etf → perf GVFM intacte. Repeuplé par `annual-refresh.yml`.
+
+- **SCPI — accumulation du prix de part démarrée** — *Réglé le 2026-06-25* : table `investissement_scpi_price_history (isin, year)` (le prix de part bouge ~1×/an, pas d'archive publique → on cumule vers l'avant), backfill du snapshot courant (**42 SCPI** avec année exploitable), `scpi-primaliance-enricher` branché (1 point/an). Migration `20260625170000`. Série exploitable dans ~2-3 ans (cf. ⏸ « SCPI matérialiser la série »).
 
 - **Re-fetch des 6 dernières séries NAV corrompues — garde `__insane` 10 → 5** — *Réglé le 2026-06-24* : dernier reliquat des 59 masqués traité de bout en bout. Diagnostic par source : **5 ETF** (`IE000BMDG046`, `IE000WX7BVB0`, `IE00BX7RQY03`, `LU1291102447`, `LU1681044993`) avaient un **historique yahoo-finance systématiquement corrompu** (échelles ×100, sentinelles, bascules de régime — non réparable par rescaling) alors que la queue justetf était propre → **purge totale + re-backfill complet (5 ans) depuis l'API JustETF** (séries vérifiées propres, 0 saut : ranges 4,6 / 26 / 29 / 11–21 / 9–14). **1 OPCVM** (`LU2596536818`, Loomis Sayles Global Allocation, FT seul) avait **un seul changement d'échelle isolé** le 2025-08-18 (segment ancien ÷4,56) — le segment récent étant correct (queue 143,9 ≈ VL FT live 145,88) → **rescaling chirurgical** du segment ancien ×4,562 (lancement avril 2023 ramené à ~99,3 ≈ 100). **Recompute** `compute-metrics.py --isin` (autorité, pas de piège `ft-metrics-wipe`) → métriques saines (vol 2,6–8,3 ; dd −14 à −19 ; perfs réalistes), **6 fonds démasqués** dans la vue `_cgp`. Garde `__insane` **10 → 5** ; vérifié end-to-end (vue expose les valeurs). Les **5 restants** sont des détresses RÉELLES légitimes (H2O Europea/Adagio/Multibonds = side-pockets gelés, Sienna Diversifié −87 %, Transition Evergreen) — masquage correct, **chantier 🧹 désormais vide**. Backup `investissement_fund_prices_refetch_backup_20260624` (RLS, 1942 lignes) + audit `scripts/db-fixes/refetch-corrupt-nav-series-20260624.sql` (revert documenté).
 

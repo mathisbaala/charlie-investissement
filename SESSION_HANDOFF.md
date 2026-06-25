@@ -1,10 +1,45 @@
-# 📋 Session Handoff — 23 juin 2026
+# 📋 Session Handoff — 25 juin 2026
 
 > Base du document : journée dense du **19 juin** (26 commits, sprints DDA), réconciliée
-> le **22 juin** (réglage des chantiers ouverts un par un), puis **auditée et nettoyée
-> le 23 juin** (`/chantier` → voir `CHANTIERS.md` + journal ci-dessous).
+> le **22 juin**, auditée le **23 juin**, puis **gros chantier PORTEFEUILLE le 25 juin**
+> (retour client CGP — Partie 2). Voir journal 25/06 ci-dessous + `CHANTIERS.md`.
 >
 > Doc précédente (19 mai) archivée dans `docs/bilans/`.
+
+---
+
+## 🔄 Journal 25/06 — Moteur PORTEFEUILLE (Partie 2) + fondations data
+
+**Contexte** : retour d'un client CGP en deux points — (1) listes/référencement par assureur,
+(2) **construire des portefeuilles et back-tester** (ratios + **corrélation**). On a concentré
+l'effort sur (2), le gros morceau, et livré de bout en bout.
+
+### Livré et en ligne (vérifié live sur `www.charliewealth.fr/portefeuille`)
+- **Moteur** : RPC `inv_portfolio_analyze` (migrations `20260625130000` cœur + `150000` benchmark).
+  Courbe composite hebdo **multi-rythme** (LOCF), ratios (perf ann./vol/Sharpe/max DD),
+  **matrice de corrélation**, **back-test vs indice** (overlay + sur/sous-perf), **projection €**.
+- **UI** `/portefeuille` : pondération → ratios → corrélation colorée → back-test (sélecteur
+  d'indice, défaut MSCI World) → projection en euros → **lien partageable** (sans compte) +
+  entrée menu de gauche (`Rail`). Route `/api/portfolio/analyze`, helpers `lib/portfolio.ts`.
+- **Fondations data** : **fonds euros back-testables** (table `investissement_fonds_euros_rates`
+  + courbe synthétique annuelle, source `synthetic-fonds-euros`, 41 fonds) ; **SCPI accumulation
+  démarrée** (`investissement_scpi_price_history`, 42 SCPI, 1 pt/an).
+- **Qualité** : `tsc` clean, **298 tests verts**, `/qa` + `/verification` passés (2 fixes QA :
+  tour masqué sur /portefeuille, bloc résultats gardé sur `used>0`).
+
+### Tranché — NE PAS revenir dessus
+- **LU sans série (~855) → back-test = WON'T-DO** : FT = impasse (test 0/20), ce sont des
+  doublons de parts ; la résolution par part sœur n'est sûre que pour ~51 (hedged/devise
+  non fiable/mal groupés → 26 % divergent). Décision : **ne pas exposer de proxy** (risque de
+  back-test faux > gain marginal). Détail complet dans `CHANTIERS.md` § ⏸ « LU sans série ».
+- **SCPI** : seule l'accumulation prospective est possible (pas d'archive publique) → série
+  exploitable dans ~2-3 ans.
+
+### Reste (différé, par choix)
+- **Référencement assureur (Partie 1)** : chantier **données** (exhaustivité support×assureur×
+  contrat), **philosophie marketplace** (ne pas restreindre l'univers, ne jamais afficher de
+  lacune). Pas démarré. Voir `CHANTIERS.md` § ⏸.
+- **Ajouter des fonds depuis la page portefeuille** : à organiser (recherche inline). Voir ✨.
 
 ---
 
