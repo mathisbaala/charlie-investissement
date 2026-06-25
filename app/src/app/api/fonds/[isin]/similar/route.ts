@@ -18,7 +18,7 @@ export async function GET(
 
   if (!ISIN_RE.test(isin)) {
     return NextResponse.json(
-      { error: "ISIN invalide — 12 caractères alphanumériques attendus" },
+      { error: "ISIN invalide : 12 caractères alphanumériques attendus" },
       { status: 400 }
     );
   }

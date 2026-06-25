@@ -30,7 +30,7 @@ export function PrivateEquityCard({ fund }: { fund: FundDetailHF }) {
     <Card className="px-5 py-5 md:px-7 md:py-6 mt-5">
       <div className="flex items-center gap-2 mb-3">
         <h3 className="text-label uppercase tracking-widest text-muted font-semibold">
-          Private equity — non coté
+          Private equity · non coté
         </h3>
         <span className="text-caption px-2 py-0.5 rounded-full font-medium bg-accent-soft text-accent-ink border border-accent/20">
           Illiquide

@@ -92,7 +92,7 @@ export function PerfNetteCard({ fund }: { fund: FundDetailHF }) {
 
       {retro != null && (
         <p className="text-caption text-muted-2 mt-3 leading-snug">
-          Rétrocession CGP : {pct(retro * 100)} — incluse dans les frais courants
+          Rétrocession CGP : {pct(retro * 100)}, incluse dans les frais courants
           du fonds (déjà reflétés par la VL), donc non déduite ici.
         </p>
       )}

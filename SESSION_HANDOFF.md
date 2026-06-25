@@ -61,11 +61,13 @@ Suite aux retours, plusieurs passes design/UX :
 - **SCPI** : seule l'accumulation prospective est possible (pas d'archive publique) → série
   exploitable dans ~2-3 ans.
 
-### Reste (différé, par choix)
-- **Référencement assureur (Partie 1)** : chantier **données** (exhaustivité support×assureur×
-  contrat), **philosophie marketplace** (ne pas restreindre l'univers, ne jamais afficher de
-  lacune). Pas démarré. Voir `CHANTIERS.md` § ⏸.
-- **Ajouter des fonds depuis la page portefeuille** : à organiser (recherche inline). Voir ✨.
+### Livré depuis (mis à jour 25/06)
+- **Référencement assureur (Partie 1)** : ✅ **RÉSOLU le 25/06** (A+B+C livrés). L'offre assureur
+  réelle est désormais visible (référencés exploitables **741 → 6 414** au seuil strict ; ~5 400
+  supports débloqués), invariant **carte == total exact**, doublon AG2R nettoyé, cause racine de la
+  péremption de complétude corrigée + câblée au pipeline. Détail dans `CHANTIERS.md` § ✅ Réglés.
+- **Ajouter des fonds depuis la page portefeuille** : ✅ **LIVRÉ le 25/06** (composant `FundAdder`,
+  recherche inline ISIN/nom dans la base, helper `appendHolding` + 6 tests). Détail § ✅ Réglés.
 
 ---
 

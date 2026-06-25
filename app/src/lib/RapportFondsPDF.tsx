@@ -127,7 +127,7 @@ const S = StyleSheet.create({
 });
 
 const DISCLAIMER =
-  "Aide à la décision pour le CGP/CIF — ne constitue pas un conseil en investissement au sens MiFID II. " +
+  "Aide à la décision pour le CGP/CIF. Ne constitue pas un conseil en investissement au sens MiFID II. " +
   "La responsabilité du conseil reste intégralement avec le CGP/CIF. Les performances passées ne préjugent pas des performances futures.";
 
 function Footer({ page }: { page?: string }) {
@@ -200,7 +200,7 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
           <SectionIntro
             eyebrow="Trajectoire"
             title="Performance comparée, base 100."
-            desc="Évolution rebasée à 100 sur la période disponible — pour lire d'un coup d'œil qui mène et avec quelle régularité."
+            desc="Évolution rebasée à 100 sur la période disponible, pour voir qui mène et avec quelle régularité."
           />
           <LineChartPdf series={chartSeries} width={464} height={150} showArea={false} />
         </View>
@@ -209,7 +209,7 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
       <View style={{ height: 20 }} />
       <SectionIntro
         eyebrow="Synthèse"
-        title="Le comparatif en un coup d'œil."
+        title="Le comparatif des fonds."
         desc="Performances annualisées, frais courants et rétrocession CGP, alignés pour une lecture immédiate."
       />
 
@@ -343,7 +343,7 @@ function FundPage({
         <View style={S.chartBlock}>
           <View style={S.chartHead}>
             <View>
-              <Text style={S.compLabel}>Performance — base 100</Text>
+              <Text style={S.compLabel}>Performance (base 100)</Text>
               <Text style={{ fontFamily: FONT.sans, fontSize: 7.5, color: C.muted }}>Évolution de la valeur liquidative sur la période disponible</Text>
             </View>
             <View style={S.perfChips}>
@@ -459,7 +459,7 @@ function FundPage({
       {hasRetro && (
         <View style={[S.callout, S.callout2]}>
           <View>
-            <Text style={S.calloutLabel}>Rétrocession CGP — {fmt(retroPct)} par an</Text>
+            <Text style={S.calloutLabel}>Rétrocession CGP : {fmt(retroPct)} par an</Text>
             <Text style={S.calloutSub}>Revenu estimé pour un encours de 100 000 € confié</Text>
           </View>
           <Text style={S.calloutValue}>{nfEur(100_000 * fund.retrocession_cgp)}/an</Text>
@@ -481,7 +481,7 @@ export default function RapportFondsPDF({
   composition?: Record<string, FundComposition>;
 }) {
   return (
-    <Document title={`Rapport fonds Charlie — ${dateFr()}`} author="Charlie CGP" subject="Analyse comparative de fonds">
+    <Document title={`Rapport fonds Charlie · ${dateFr()}`} author="Charlie CGP" subject="Analyse comparative de fonds">
       <CoverPage funds={funds} series={series} />
       {funds.map((fund, i) => (
         <FundPage key={fund.isin} fund={fund} index={i} total={funds.length} series={series[fund.isin]} comp={composition[fund.isin]} />

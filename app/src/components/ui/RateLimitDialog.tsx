@@ -47,7 +47,7 @@ export function RateLimitDialog() {
 
         <p className="text-meta text-muted mt-2 leading-relaxed">
           {day
-            ? "Vous avez utilisé vos crédits de découverte. Ils se réinitialisent sous 24 h — revenez demain pour continuer."
+            ? "Vous avez utilisé vos crédits de découverte. Ils se réinitialisent sous 24 h, revenez demain pour continuer."
             : "Vous avez beaucoup exploré. Réessayez dans une heure."}
         </p>
 

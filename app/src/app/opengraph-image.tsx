@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 // Aperçu de lien (LinkedIn, WhatsApp, Slack, X…) aux couleurs Charlie.
 export const alt =
-  "Charlie Investissement — l'intelligence la plus profonde sur chaque fonds";
+  "Charlie Investissement, l'intelligence la plus profonde sur chaque fonds";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

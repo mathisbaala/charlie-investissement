@@ -96,7 +96,7 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
       )}
       <p className="text-caption text-muted-2 mt-2 leading-snug">
         {passive
-          ? <>Écart = performance de l&apos;ETF − performance de l&apos;indice. Estimation indicative, vs l&apos;{variant} converti dans la devise de la part — à confirmer par la donnée officielle de l&apos;émetteur.</>
+          ? <>Écart = performance de l&apos;ETF − performance de l&apos;indice. Estimation indicative, vs l&apos;{variant} converti dans la devise de la part. À confirmer par la donnée officielle de l&apos;émetteur.</>
           : <>Alpha = performance du fonds − performance de l&apos;indice, sur fenêtres alignées. {fund.benchmark_is_category && "Indice de catégorie (proxy), pas l'indice exact du fonds. "}Estimation indicative.</>}
       </p>
     </Card>

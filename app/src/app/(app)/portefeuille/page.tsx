@@ -1,6 +1,6 @@
 import { PortfolioBuilder } from "@/components/portfolio/PortfolioBuilder";
 
-export const metadata = { title: "Portefeuille — Charlie" };
+export const metadata = { title: "Portefeuille · Charlie" };
 
 // Tout l'état du portefeuille vient de l'URL (lien partageable, sans compte).
 export default async function PortefeuillePage({

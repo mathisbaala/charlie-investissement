@@ -109,7 +109,7 @@ const S = StyleSheet.create({
 });
 
 const DISCLAIMER =
-  "Aide à la décision pour le CGP/CIF — back-test indicatif sur données disponibles, hors frais d'enveloppe. " +
+  "Aide à la décision pour le CGP/CIF. Back-test indicatif sur données disponibles, hors frais d'enveloppe. " +
   "Ne constitue pas un conseil en investissement (MiFID II). Les performances passées ne préjugent pas des performances futures.";
 
 function Footer({ page }: { page?: string }) {
@@ -186,7 +186,7 @@ export default function PortefeuillePDF({
   ];
 
   return (
-    <Document title={`Portefeuille Charlie — ${dateFr()}`} author="Charlie CGP" subject="Analyse de portefeuille">
+    <Document title={`Portefeuille Charlie · ${dateFr()}`} author="Charlie CGP" subject="Analyse de portefeuille">
       {/* ── Page 1 : Vue d'ensemble + back-test ── */}
       <Page size="A4" style={S.page}>
         <BrandHeader right={<Eyebrow>{dateFr()}</Eyebrow>} />
@@ -242,7 +242,7 @@ export default function PortefeuillePDF({
           )}
         </View>
 
-        <Footer page="Charlie · Portefeuille — vue d'ensemble" />
+        <Footer page="Charlie · Portefeuille, vue d'ensemble" />
       </Page>
 
       {/* ── Page 2 : Ratios, projection, corrélation, exposition ── */}
@@ -329,7 +329,7 @@ export default function PortefeuillePDF({
           </View>
         )}
 
-        <Footer page="Charlie · Portefeuille — analyse" />
+        <Footer page="Charlie · Portefeuille, analyse" />
       </Page>
 
       {/* ── Page 3 : Détail des fonds ── */}
@@ -378,11 +378,11 @@ export default function PortefeuillePDF({
         {/* Rétrocession agrégée si renseignée */}
         <View style={{ marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
           {holdings.some((h) => (fundsInfo[h.isin]?.retrocession_cgp ?? 0) > 0) && (
-            <Chip tone="gold">Certaines lignes versent une rétrocession CGP — cf. fiches détaillées</Chip>
+            <Chip tone="gold">Certaines lignes versent une rétrocession CGP, cf. fiches détaillées</Chip>
           )}
         </View>
 
-        <Footer page="Charlie · Portefeuille — fonds" />
+        <Footer page="Charlie · Portefeuille, fonds" />
       </Page>
     </Document>
   );
