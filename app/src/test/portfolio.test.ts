@@ -3,6 +3,7 @@ import {
   parsePortfolioParams,
   normalizeWeights,
   serializePortfolioParams,
+  appendHolding,
   buildCorrelationMatrix,
   projectEuros,
   mergeCurves,
@@ -75,6 +76,44 @@ describe('normalizeWeights', () => {
 
   it('gère une liste vide', () => {
     expect(normalizeWeights([])).toEqual([])
+  })
+})
+
+describe('appendHolding', () => {
+  it('liste vide → 1er fonds à 100 %', () => {
+    expect(appendHolding([], 'FR0000000001')).toEqual([{ isin: 'FR0000000001', weight: 100 }])
+  })
+
+  it('poids du nouveau = moyenne des poids positifs existants', () => {
+    const out = appendHolding(
+      [{ isin: 'A', weight: 60 }, { isin: 'B', weight: 40 }],
+      'C',
+    )
+    expect(out).toHaveLength(3)
+    expect(out[2]).toEqual({ isin: 'C', weight: 50 }) // (60+40)/2
+  })
+
+  it('ignore les poids nuls/négatifs dans la moyenne', () => {
+    const out = appendHolding(
+      [{ isin: 'A', weight: 30 }, { isin: 'B', weight: 0 }],
+      'C',
+    )
+    expect(out[2].weight).toBe(30) // moyenne des seuls positifs (30)
+  })
+
+  it('aucun poids positif → nouveau fonds à 100 %', () => {
+    const out = appendHolding([{ isin: 'A', weight: 0 }], 'C')
+    expect(out[1].weight).toBe(100)
+  })
+
+  it('doublon ISIN → liste inchangée (même référence)', () => {
+    const list = [{ isin: 'A', weight: 50 }]
+    expect(appendHolding(list, 'A')).toBe(list)
+  })
+
+  it('portefeuille plein (max atteint) → liste inchangée', () => {
+    const list = [{ isin: 'A', weight: 50 }, { isin: 'B', weight: 50 }]
+    expect(appendHolding(list, 'C', 2)).toBe(list)
   })
 })
 

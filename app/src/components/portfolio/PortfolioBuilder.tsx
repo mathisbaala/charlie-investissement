@@ -9,11 +9,12 @@ import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { PageShell, PageHeader } from "@/components/ui/Page";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
+import { FundAdder } from "@/components/portfolio/FundAdder";
 import { X, Search, Download } from "@/components/ui/icons";
 import { pct } from "@/lib/format";
 import { addSearch } from "@/lib/searches";
 import {
-  parsePortfolioParams, normalizeWeights, serializePortfolioParams,
+  parsePortfolioParams, normalizeWeights, serializePortfolioParams, appendHolding,
   buildCorrelationMatrix, projectEuros, mergeCurves,
   BENCHMARK_OPTIONS, DEFAULT_BENCHMARK,
   type Holding, type PortfolioAnalysis,
@@ -23,6 +24,9 @@ const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR",
 const SESSION_KEY = "charlie_comparison";
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 const PERIODS = [{ y: 1, label: "1 an" }, { y: 3, label: "3 ans" }, { y: 5, label: "5 ans" }, { y: 10, label: "Max" }];
+// Taille maximale d'un portefeuille analysable (la corrélation reste lisible, le
+// back-test composite reste rapide). Au-delà, l'ajout inline est désactivé.
+const MAX_HOLDINGS = 20;
 
 function shortName(name: string | undefined, isin: string): string {
   if (!name) return isin;
@@ -81,6 +85,9 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [holdings, setHoldings] = useState<Holding[]>(() => parsePortfolioParams(initialIsins, initialWeights));
+  // Noms des fonds ajoutés inline, pour affichage immédiat avant que l'analyse
+  // (qui porte `names`) ne revienne. L'analyse reste l'autorité (cf. `names` plus bas).
+  const [localNames, setLocalNames] = useState<Record<string, string>>({});
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [benchmark, setBenchmark] = useState(initialBenchmark || DEFAULT_BENCHMARK);
@@ -133,6 +140,14 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     setHoldings((prev) => prev.map((h) => (h.isin === isin ? { ...h, weight: w } : h)));
   const remove = (isin: string) => setHoldings((prev) => prev.filter((h) => h.isin !== isin));
 
+  // Ajout direct d'un fonds (ISIN/nom déjà connus). Poids = moyenne des poids
+  // actuels (le nouveau fonds pèse comme les autres ; le bouton « Normaliser »
+  // ramène à 100 % si besoin) — jamais 0, sinon il serait ignoré par l'analyse.
+  const addHolding = (isin: string, name: string) => {
+    setLocalNames((n) => ({ ...n, [isin]: name }));
+    setHoldings((prev) => appendHolding(prev, isin, MAX_HOLDINGS));
+  };
+
   // Recherche en langage naturel → renvoie vers le screener, où l'on sélectionne
   // les fonds à ajouter au portefeuille (pas de screener recréé dans la page).
   const handleSearch = () => {
@@ -149,7 +164,10 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     </div>
   );
 
-  const names = analysis?.names ?? {};
+  // L'analyse est l'autorité sur les noms ; `localNames` ne comble que le délai
+  // entre l'ajout inline et le retour de l'analyse (l'analyse, en dernier, gagne).
+  const names = { ...localNames, ...(analysis?.names ?? {}) };
+  const heldIsins = useMemo(() => new Set(holdings.map((h) => h.isin)), [holdings]);
   const ratios = analysis?.ratios;
   const meta = analysis?.meta;
   const bench = analysis?.benchmark ?? null;
@@ -168,9 +186,11 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
       <PageShell>
         <PageHeader title="Portefeuille" />
         {searchBar}
-        <p className="text-meta text-muted mt-4">
-          Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez : il s'ajoute au portefeuille.
+        <p className="text-meta text-muted mt-4 mb-3">
+          Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez — ou ajoutez-le
+          directement ci-dessous si vous connaissez son ISIN ou son nom.
         </p>
+        <FundAdder onAdd={addHolding} existing={heldIsins} />
       </PageShell>
     );
   }
@@ -249,6 +269,10 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
                 </div>
               );
             })}
+          </div>
+
+          <div className="mt-4">
+            <FundAdder onAdd={addHolding} existing={heldIsins} full={holdings.length >= MAX_HOLDINGS} />
           </div>
 
           {meta && (meta.excluded?.length ?? 0) > 0 && (
