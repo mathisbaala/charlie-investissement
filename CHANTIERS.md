@@ -8,9 +8,10 @@
 > vérifié live (QA + verification). Fondations data : **fonds euros back-testables** (courbe
 > synthétique annuelle) + **SCPI accumulation démarrée**. **LU tail = WON'T-DO documenté** (voir
 > ⏸). **Référencement assureur (Partie 1) = différé** (chantier données, voir ⏸). **Itérations
-> UX 25/06** : page Portefeuille refaite (scroll, recalcul auto, KPI, période choisie), onglet
-> **Comparé fond par fond** (plus d'agrégation), **accueil épuré + onglet « Profil client »
-> RETIRÉ** (fusionné dans l'accueil ; `/matching` redirige). Détail dans « ✅ Réglés » +
+> UX 25/06** : page Portefeuille refaite (scroll, recalcul auto, KPI, période choisie, **barre de
+> recherche → screener**), **sélection jusqu'à 10 fonds / comparaison ≤4**, onglet **Comparé en
+> graphes** (barres groupées géo/secteurs), **accueil épuré + onglet « Profil client » RETIRÉ**
+> (fusionné dans l'accueil ; `/matching` redirige). Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
 > Dernier audit : 2026-06-24 (14ᵉ passe — re-vérification indépendante : `tsc` clean, **279/279 tests verts**, working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Chantier 🧹 « re-fetch des 6 dernières séries NAV » réglé de bout en bout** dans la foulée : re-backfill JustETF des 5 ETF + rescale Loomis + recompute → garde `__insane` **10 → 5** (reliquat = 5 détresses réelles légitimes). La catégorie 🧹 Dette technique est désormais **vide**. 13ᵉ passe : chantier « 59 fonds masqués » → garde __insane 59 → 10.)
@@ -131,6 +132,12 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Sélection 10 fonds, comparaison ≤4, barre de recherche portefeuille, Comparé en graphes (25/06)** — *Réglé le 2026-06-25* :
+  - **Barre de recherche langage naturel sous le titre Portefeuille** (état vide ET normal) → renvoie vers `/recherche?q=…` où l'on sélectionne ; pas de screener recréé dans la page.
+  - **Sélection jusqu'à 10 fonds** (`SelectionProvider` : `SELECT_MAX=10`, `COMPARE_MAX=4`). **« Comparer » désactivé au-delà de 4** (libellé « Comparer (max 4) » + tooltip) ; **« Portefeuille » actif pour 2-10**. Vérifié live : 7 fonds → rendu complet (KPI, courbe, **corrélation 7×7**, 0 erreur).
+  - **Onglet Comparé repensé en visuel** : `LookThroughView` passe des matrices denses à des **graphes à barres groupées horizontales** (géo + secteurs, 1 barre colorée/fonds, même palette que la courbe de perf, top 8) ; « Lignes communes » en chips. Fini la « liste de courses ».
+  - `tsc` clean, **298 tests verts**, déployé + vérifié live.
 
 - **UX portefeuille + simplification de la navigation (25/06, post-livraison)** — *Réglé le 2026-06-25* : itérations design suite aux retours.
   - **Page Portefeuille refaite** : titre externe via `PageShell`/`PageHeader` (corrige aussi le **scroll** — le `<main>` du layout est `overflow-hidden`, chaque page doit fournir son conteneur scrollable) ; **recalcul automatique** (débounce) à chaque changement de poids/fonds/indice/période (fini le bouton « Analyser ») ; **bandeau KPI** coloré (perf ann./totale, vol, Sharpe, perte max) ; éditeur de poids propre (input sans flèches + barre + ISIN seul, vol/perf retirés) ; **sélecteur de période back-test** (1/3/5 ans/Max, dans l'URL) ; **comparaison enrichie** portefeuille vs indice sur 5 ratios (RPC : Sharpe + perte max ajoutés au benchmark, migration `20260625190000`) ; date en français propre, texte décoratif retiré ; entrée « Portefeuille » dans le menu (`Rail`, icône TrendingUp).
