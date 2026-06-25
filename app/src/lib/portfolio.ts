@@ -45,6 +45,8 @@ export interface PortfolioBenchmark {
   total_return: number | null;
   annual_return: number | null;
   volatility: number | null;
+  sharpe: number | null;
+  max_drawdown: number | null;
   curve: PortfolioCurvePoint[];
 }
 
