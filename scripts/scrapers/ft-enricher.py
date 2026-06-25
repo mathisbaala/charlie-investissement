@@ -365,6 +365,55 @@ def select_targets(client, limit: int | None, refresh: bool = False,
     return targets
 
 
+def select_missing_series_targets(client, limit: int | None, offset: int = 0,
+                                  lu_only: bool = False):
+    """OPCVM/ETF sans AUCUNE série de prix locale, priorité aux plus gros encours.
+
+    Cible spécifiquement les fonds ABSENTS de la table de couverture
+    (investissement_fund_price_coverage) — indépendamment de perf_3y. C'est le
+    cas des fonds dont la perf vient d'une source externe (Morningstar EMEA,
+    catalogue) mais qui n'ont jamais eu de VL chez nous → non back-testables.
+    Le fill-only standard (select_targets) les ignore car perf_3y est non-NULL.
+
+    Écriture additive (upsert_prices) : ne supprime ni n'écrase aucune série.
+    lu_only : restreint aux ISIN luxembourgeois (rattrapage assurance-vie)."""
+    covered, page, size = set(), 0, 1000
+    while True:
+        rows = (client.table("investissement_fund_price_coverage")
+                .select("isin")
+                .range(page * size, page * size + size - 1).execute().data or [])
+        covered.update((r.get("isin") or "").strip() for r in rows)
+        if len(rows) < size:
+            break
+        page += 1
+
+    targets, page, skipped = [], 0, 0
+    while True:
+        rows = (client.table("investissement_funds")
+                .select("isin,currency,name,aum_eur")
+                .in_("product_type", ["opcvm", "etf"])
+                .order("aum_eur", desc=True, nullsfirst=False)
+                .range(page * size, page * size + size - 1).execute().data or [])
+        for r in rows:
+            isin = (r.get("isin") or "").strip()
+            if not re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}[0-9]", isin):
+                continue
+            if lu_only and not isin.startswith("LU"):
+                continue
+            if isin in covered:
+                continue
+            if skipped < offset:
+                skipped += 1
+                continue
+            targets.append({"isin": isin, "currency": r.get("currency")})
+            if limit and len(targets) >= limit:
+                return targets
+        if len(rows) < size:
+            break
+        page += 1
+    return targets
+
+
 def _breakdown_age(client, isins: list[str]) -> dict:
     """Pour chaque ISIN, la date de MAJ la plus récente parmi ses lignes de
     ventilation (holdings/secteurs/régions). ISIN absent → pas de ventilation.
@@ -601,7 +650,8 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         delay: float, with_holdings: bool = True, refresh: bool = False,
         offset: int = 0, refresh_breakdowns: bool = False,
         max_age_days: int = 90, fill_breakdowns: bool = False,
-        by_referencing: bool = False):
+        by_referencing: bool = False, missing_series: bool = False,
+        lu_only: bool = False):
     # En mode (re)constitution des ventilations, on a forcément besoin de
     # l'onglet holdings (c'est lui qui porte breakdown).
     if refresh_breakdowns or fill_breakdowns:
@@ -610,7 +660,9 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
     print("  FT Enricher — markets.ft.com (Morningstar)")
     print("=" * 64)
     mode = "APPLY" if apply else "DRY-RUN"
-    if fill_breakdowns:
+    if missing_series:
+        mode += " | BACKFILL SÉRIES MANQUANTES" + (" (LU)" if lu_only else "")
+    elif fill_breakdowns:
         mode += " | FILL VENTILATIONS MANQUANTES"
     elif refresh_breakdowns:
         mode += f" | REFRESH VENTILATIONS (périmées > {max_age_days}j)"
@@ -634,6 +686,10 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         else:
             i, c = isin_arg, "EUR"
         targets = [{"isin": i, "currency": c}]
+    elif missing_series:
+        print("  Sélection des fonds sans série de prix…", flush=True)
+        targets = select_missing_series_targets(client, limit, offset=offset,
+                                                lu_only=lu_only)
     elif fill_breakdowns:
         print("  Sélection des fonds sans composition…", flush=True)
         targets = select_missing_breakdown_targets(client, limit, ref_counts)
@@ -754,9 +810,16 @@ if __name__ == "__main__":
     ap.add_argument("--by-referencing", action="store_true",
                     help="Prioriser par nombre d'assureurs référençant le fonds "
                          "(avec --fill-breakdowns ou --refresh-breakdowns).")
+    ap.add_argument("--missing-series", action="store_true",
+                    help="Backfill des fonds OPCVM/ETF SANS série de prix locale "
+                         "(absents de la table de couverture), indépendamment de perf_3y. "
+                         "Rattrapage des fonds à perf externe (Morningstar EMEA) non back-testables.")
+    ap.add_argument("--lu-only", action="store_true",
+                    help="Restreindre aux ISIN luxembourgeois (avec --missing-series).")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
         workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
         refresh=a.refresh, offset=a.offset,
         refresh_breakdowns=a.refresh_breakdowns, max_age_days=a.max_age_days,
-        fill_breakdowns=a.fill_breakdowns, by_referencing=a.by_referencing)
+        fill_breakdowns=a.fill_breakdowns, by_referencing=a.by_referencing,
+        missing_series=a.missing_series, lu_only=a.lu_only)
