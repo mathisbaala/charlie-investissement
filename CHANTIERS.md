@@ -118,7 +118,15 @@ L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voi
 
 ## 🧹 Dette technique
 
-### (aucun chantier ouvert)
+### 26 fonds avec un saut intra-série >25 % (pré-existant, hors relais)
+- **Priorité** : ⚪ Mineure
+- **Détecté le** : 2026-06-25
+- **Où** : `investissement_fund_prices` (sous-ensemble des 966 fonds recalés au relais yahoo→justetf)
+- **Le problème** : après le recalage des coutures, **26 fonds** gardent un saut jour/jour >25 % **ailleurs** dans la série (dans le segment justetf intact, ou dans yahoo d'origine). **Pas causé par le fix** (un multiply constant ne crée pas de saut intra-segment) — ce sont des glitchs/splits/ETF à levier pré-existants. La plupart sont déjà masqués par la garde `__insane` sur la fiche, mais visibles en back-test.
+- **Comment l'aborder** : lister les 26 (jour/jour <0,75 ou >1,33), distinguer split/levier légitime (à garder) de glitch (à réparer comme `repair-nav-glitches`). Petit lot, faible enjeu.
+- **Effort estimé** : rapide
+
+### (le reste de la dette est soldé)
 Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/06** (re-fetch JustETF + rescale Loomis → garde `__insane` 10 → 5) — voir « ✅ Réglés ». Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
 
 ---
@@ -135,6 +143,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Décrochage de courbe back-test — relais NAV yahoo→justetf (25/06)** — *Réglé le 2026-06-25* : un portefeuille chutait artificiellement (p.ex. −13,5 % au 2026-05-21) alors que l'indice restait plat. **Cause racine** : le moteur back-test (`inv_portfolio_analyze`) lit la série de prix **brute** et concatène yahoo-finance (`source_id=2`) puis justetf (`source_id=3`) comme si c'était continu — or yahoo livre la NAV en **base native** (devise/échelle) et justetf en **EUR**, donc le niveau saute du ratio de change/échelle au point de relais. Ampleur ~8-90 % → **sous le seuil ×5** des balayages anti-saut précédents, jamais rattrapée. Le back-test n'est pas couvert par la garde `__insane` (fiche seulement), d'où la visibilité. **Fix** : ratio robuste par fonds (médiane 5 pts justetf / médiane 5 pts yahoo) → rescale des **189 732 lignes yahoo de 966 fonds** vers la base justetf (couture rendue continue, forme intra-segment préservée). Sûreté vérifiée avant : segment pré-relais = 100 % yahoo, 0 chevauchement, justetf en queue. **Vérifié** : couture résiduelle = 1,0 pour les 966 ; API back-test → le −13,5 % disparaît (semaine +1,2 %, plus gros saut 5 ans = +3,8 % réel). Backup `investissement_fund_prices_handover_backup_20260625` (RLS) + audit `scripts/db-fixes/rescale-nav-handover-yahoo-justetf-20260625.sql` (revert documenté). Recompute `compute-metrics.yml` (run `28187433463`). Cf. [[nav-source-handover-basis-gotcha]].
 
 - **Ajout inline de fonds depuis la page Portefeuille (25/06)** — *Réglé le 2026-06-25* : on peut désormais **ajouter un fonds directement** depuis `/portefeuille` quand on le connaît déjà — coller un **ISIN** ou taper un **nom** → recherche **dans la base** (`/api/funds?search=`, qui court-circuite déjà l'ISIN exact et classe les correspondances par nom) → on choisit dans une petite liste déroulante. Composant réutilisable `components/portfolio/FundAdder.tsx` (recherche débouncée 300 ms + `AbortController`, Entrée = 1er résultat, fermeture au clic extérieur, fonds déjà présents marqués « Ajouté »), présent **sous l'éditeur de composition** ET dans **l'état vide**. Helper pur `appendHolding()` dans `lib/portfolio.ts` (poids du nouveau = moyenne des poids positifs existants, jamais 0 ; dédup ISIN ; cap `MAX_HOLDINGS=20`) + **6 tests**. Affichage immédiat du nom via cache `localNames` (l'analyse reste l'autorité). `tsc` clean, **318 tests verts**. *(Note : la barre de recherche langage-naturel sous le titre, qui renvoie au screener, reste en place — les deux parcours coexistent.)*
 
