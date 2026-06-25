@@ -44,9 +44,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select("isin, position_name, ticker, weight").in("isin", isins).limit(4000),
   ]);
 
-  const geoByFund = perFund(((geoRes.data ?? []) as any[]).map((g) => ({
-    isin: g.isin, label: g.country_label || g.country_code, weight: Number(g.weight),
-  })));
+  // Libellé canonique par code pays : un même pays = une seule ligne, quelle que
+  // soit la langue du libellé selon le fonds (« United States » vs « États-Unis »).
+  const geoRows = (geoRes.data ?? []) as any[];
+  const codeLabel = new Map<string, string>();
+  for (const g of geoRows) {
+    const code = ((g.country_code || "").trim() || g.country_label || "").toUpperCase();
+    if (code && !codeLabel.has(code)) codeLabel.set(code, g.country_label || g.country_code);
+  }
+  const geoByFund = perFund(geoRows.map((g) => {
+    const code = ((g.country_code || "").trim() || g.country_label || "").toUpperCase();
+    return { isin: g.isin, label: codeLabel.get(code) || g.country_label || g.country_code, weight: Number(g.weight) };
+  }));
   const sectorsByFund = perFund(((secRes.data ?? []) as any[])
     .map((s) => ({ isin: s.isin, label: canonicalSector(s.sector_name) as string, weight: Number(s.weight) }))
     .filter((s) => s.label !== null));
