@@ -420,4 +420,32 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(body.data).toEqual([]);
     expect(body.total).toBe(0);
   });
+
+  // ── Recalibrage visibilité référencement (chantier Partie 1) ────────────────
+  // Navigation NEUTRE / filtres hors assureur : le plancher de complétude reste
+  // DUR (gte 50). On ne relâche pas l'univers général.
+  it("hors filtre assureur : plancher dur data_completeness >= 50 (gte, pas de or relâché)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?universe=etf"));
+    expect(gteData).toContainEqual(["data_completeness", 50]);
+    expect(orData).not.toContain("data_completeness.gte.50,performance_1y.not.is.null");
+  });
+
+  // Sous filtre ASSUREUR : chaque ligne est déjà référencée → on relâche le SEUL
+  // plancher de complétude (un fonds référencé AYANT une perf devient visible).
+  // Le gate bascule de gte(data_completeness) vers un or(perf présente).
+  it("sous filtre assureur : gate relâché (référencé + perf), plus de gte dur sur la complétude", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?insurer=AXA%20France"));
+    expect(orData).toContain("data_completeness.gte.50,performance_1y.not.is.null");
+    expect(gteData).not.toContainEqual(["data_completeness", 50]);
+  });
+
+  // Idem pour un filtre CONTRAT précis (clé composite Assureur::Contrat).
+  it("sous filtre contrat : gate relâché (référencé + perf)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?contracts=AXA%20France::Contrat%20X"));
+    expect(orData).toContain("data_completeness.gte.50,performance_1y.not.is.null");
+    expect(gteData).not.toContainEqual(["data_completeness", 50]);
+  });
 });

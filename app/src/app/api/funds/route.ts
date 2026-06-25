@@ -339,8 +339,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   //    puis plus gros encours), maintenu par inv_refresh_primary_share_class() en fin de
   //    pipeline. → OFFSET/LIMIT et count: "exact" portent directement sur les fonds uniques,
   //    donc pagination et total exacts, sans dédup applicative ni estimation par ratio.
-  const baseFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED, floor: number = minCompleteness) =>
-    applyFilters(q.gte("data_completeness", floor).eq("is_primary_share_class", true), disabled);
+  // RECALIBRAGE VISIBILITÉ RÉFÉRENCEMENT (chantier Partie 1, marketplace) : sous un
+  // filtre assureur/contrat, CHAQUE ligne renvoyée est déjà référencée (overlaps le
+  // garantit) → on relâche le SEUL plancher de complétude : un fonds référencé AYANT
+  // une performance devient visible même sous le plancher. Débloque l'offre réelle d'un
+  // assureur (ex. AXA 139→820, BNP Cardif 409→3 287 ; ~5 400 supports, tous avec nom +
+  // perf — 0 coquille). La dédup share-class et l'univers curé restent intacts ; hors
+  // filtre assureur/contrat, le plancher dur est INCHANGÉ (navigation neutre stricte).
+  // Invariant carte==total préservé : get_insurers_list / contract_groups_mv relâchés
+  // du MÊME prédicat (migration 20260625210000).
+  const relaxReferenced = insurers.length > 0 || contracts.length > 0;
+  const baseFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED, floor: number = minCompleteness) => {
+    const primary = q.eq("is_primary_share_class", true);
+    const gated = relaxReferenced
+      ? (primary as any).or(`data_completeness.gte.${floor},performance_1y.not.is.null`)
+      : primary.gte("data_completeness", floor);
+    return applyFilters(gated, disabled);
+  };
 
   // Source des données : pour une recherche TEXTE, on lit la RPC classée par
   // pertinence (inv_funds_search) — le tri par `relevance` agit alors sur TOUTES les
@@ -549,9 +564,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { data: fz } = await supabase.rpc("inv_search_funds_fuzzy", { q: search, lim: perPage });
     const isins = ((fz as { isin: string }[] | null) ?? []).map((r) => r.isin);
     if (isins.length) {
-      const { data: frows } = await applyFilters(
-        supabase.from(VIEW).select(COLS).gte("data_completeness", 50).eq("is_primary_share_class", true),
-      ).in("isin", isins);
+      const fuzzyBase = supabase.from(VIEW).select(COLS).eq("is_primary_share_class", true);
+      const fuzzyGated = relaxReferenced
+        ? (fuzzyBase as any).or("data_completeness.gte.50,performance_1y.not.is.null")
+        : fuzzyBase.gte("data_completeness", 50);
+      const { data: frows } = await applyFilters(fuzzyGated).in("isin", isins);
       const rank = new Map(isins.map((id, i) => [id, i] as const));
       const rows = ((frows as unknown as Fund[]) ?? [])
         .sort((a, b) => (rank.get(a.isin) ?? 1e9) - (rank.get(b.isin) ?? 1e9));

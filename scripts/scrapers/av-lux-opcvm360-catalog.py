@@ -81,6 +81,18 @@ KNOWN_CONTRACTS: dict[int, tuple[str, str, str]] = {
     706: ("Suravenir Luxembourg",       "Suravenir Libertés Lux",               "suravenir-lux"),
 }
 
+# Noms d'assureur canoniques : l'API /licontracts renvoie parfois une casse
+# différente du nom autoritaire (ex. « AG2R LA MONDIALE » tout en capitales), ce
+# qui crée un doublon de pill côté UI face aux autres sources. On normalise vers
+# une forme unique. Dict ciblé (PAS de title-case générique : casserait CNP/ACM/
+# MACSF/MAAF qui doivent rester en capitales).
+CANONICAL_COMPANY: dict[str, str] = {
+    "AG2R LA MONDIALE": "AG2R La Mondiale",
+}
+
+def canon_company(name: str) -> str:
+    return CANONICAL_COMPANY.get(name.strip(), name.strip())
+
 RATE_LIMIT = 0.5  # secondes entre requêtes
 
 
@@ -182,7 +194,7 @@ def fetch_licontracts_catalog() -> dict[int, tuple[str, str, str]]:
         cid = it.get("idLiContract")
         if cid is None:
             continue
-        insurer = (it.get("insurerName") or "").strip() or "Assureur inconnu"
+        insurer = canon_company((it.get("insurerName") or "").strip() or "Assureur inconnu")
         name    = (it.get("name") or f"Contrat {cid}").strip()
         catalog[int(cid)] = (insurer, name, f"opcvm360-{cid}")
     return catalog
@@ -219,6 +231,7 @@ def run_contract(contract_id: int, apply: bool, limit: int | None,
         contract_id,
         ("Assureur inconnu", f"Contrat {contract_id}", f"opcvm360-{contract_id}")
     )
+    company = canon_company(company)
 
     iframe_url = f"{IFRAME_BASE}?iframekey={IFRAME_KEY}&licontracts={contract_id}"
     print(f"\n  ── Contract {contract_id} : {company} / {contract_name}")
