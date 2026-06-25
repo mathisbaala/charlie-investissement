@@ -86,16 +86,12 @@ diversifiés **TERMINÉ** ; le reste tourne seul (drain compo auto), est en susp
 - **Décision (25/06)** : **ne PAS exposer de proxy.** Gain max sûr = ~51 fonds sur **~16 000 déjà exploitables** (marginal), avec risque résiduel d'afficher un back-test **faux** ; le message « pas d'historique » actuel est 100 % honnête. Le code `ft-enricher --missing-series` + workflow `backfill-missing-series.yml` restent comme outil général (sans usage LU). Cf. mémoire [[portfolio-chantier-direction]].
 - **Seule réouverture envisageable** : une **vraie source de série NAV LU** (pas identifiée à ce jour ; Morningstar EMEA = perfs ponctuelles, pas de série).
 
-### Référencement assureur (Partie 1 du retour client) — DIAGNOSTIQUÉ 25/06, prémisse corrigée
-- **Priorité** : 🟠 Importante — **agent dédié, audit base fait, en attente d'arbitrage de direction**
-- **Détecté le** : 2026-06-21 — **re-diagnostiqué le 2026-06-25**
-- **Où** : table `investissement_av_lux_eligibility`, matview `investissement_fund_insurers_mv`, gate `BASE_MIN_COMPLETENESS = 50` (`app/src/app/api/funds/route.ts:24`).
-- **Le problème (RÉEL, après audit base 25/06)** : le mapping *support × assureur × contrat* **n'est PAS le trou** — il est riche et frais : **259 680 liens / 11 219 UC / 39 assureurs / 500 contrats, 100 % rafraîchis le 21/06**, couverture large des grands assureurs FR (AXA, BNP Cardif, Generali, CNP, Predica, ACM, Groupama, Abeille, SwissLife, Suravenir, Spirica, mutualistes, bancassurance). **Le vrai goulot = les fonds pointés sont pauvres en données.** Sur 11 215 UC référencées, seules **~1 005** sont primaires + `data_completeness≥50`. **~6 199 fonds référencés primaires ont une perf mais restent CACHÉS** (complétude <50) → invisibles dans le screener et le filtre assureur. Effet concret : AXA France = **139 supports affichés vs 1 690 UC réelles** ; BNP Cardif = **409 vs 5 555**. Le CGP voit ~8 % de l'offre réelle d'un assureur.
-- **Manque pour franchir 50** (scoring `recompute-completeness-v2.sql`, OPCVM/ETF) : TER(14)+SRI(14)+AUM(10-12)+KID(14)+vol(8) — les 6 199 ont surtout perf, il leur manque TER/SRI/AUM/KID.
-- **Défauts de précision repérés (hygiène mapping)** : (a) **doublon AG2R** — `AG2R La Mondiale` (périmé 05-25) + `AG2R LA MONDIALE` (frais, **334/337 ISIN identiques**, même contrat 633, même clé opcvm360) → **2 pills pour le même assureur** dans l'UI (confirmé via `get_insurers_list`) ; (b) **« Assureur inconnu » / Contrat 700** (175 UC, opcvm360, masqué par la MV mais non attribué) ; (c) variantes APICIL à vérifier (`APICIL` / `Apicil / OneLife` / `APICIL Luxembourg` — probablement 3 entités légitimes, ne pas fusionner à l'aveugle).
-- **Cadrage validé (à respecter)** : chantier **données**, **PAS** un changement de parcours. **Marketplace** : ne jamais restreindre l'univers d'un CGP à ses contrats. **Jamais de lacune affichée** (pas de badge « vérifié le… »/fraîcheur). On garde l'onglet assureurs/contrats + le filtre ; on muscle la donnée derrière. Cf. [[portfolio-chantier-direction]] + [[insurer-referencing]] + [[never-expose-data-completeness]].
-- **Comment l'aborder (3 leviers, à arbitrer)** : **(A)** recalibrer la visibilité des fonds référencés (un fonds référencé+perf devient visible sous 50) → débloque ~6 199 supports tout de suite (touche la curation screener, à valider) ; **(B)** enrichir les 6 199 ISIN cachés via les enrichers existants (FT/KID/Morningstar, fill-only, sûr mais lent/throttlé, plafond LU incertain) ; **(C)** hygiène précision rapide (fusion AG2R, attribution Contrat 700). Non exclusifs — C toujours utile, A vs B = le vrai fork.
-- **Effort estimé** : C = rapide ; A = moyen (chirurgical) ; B = lourd (collecte multi-semaines).
+### Référencement assureur (Partie 1 du retour client) — ✅ RÉSOLU 25/06 (A+B+C livrés)
+- **Statut** : **résolu** — voir le détail dans « ✅ Réglés ». L'offre assureur réelle est
+  désormais visible (référencés exploitables **741 → 6 414** au seuil strict ; ~5 400 supports
+  débloqués), invariant **carte == total exact**, doublon AG2R nettoyé, cause racine de la
+  péremption de complétude corrigée + câblée au pipeline. Reste = collecte continue (cadence
+  trimestrielle déjà en place) — pas un chantier ouvert.
 
 ### 🛑 Transparence du score d'adéquation (« pourquoi ça colle ») — WON'T-DO ferme (ne JAMAIS re-proposer)
 - **Priorité** : ⚪ — **tranché définitivement (25/06)**
@@ -143,6 +139,37 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Référencement assureur (Partie 1 du retour CGP) — A+B+C livrés** — *Réglé le 2026-06-25* :
+  **Diagnostic qui corrige la prémisse** : le mapping support×assureur×contrat n'était PAS le
+  trou — il est riche et frais (**259 680 liens / 11 219 UC / 39 assureurs / 500 contrats**,
+  100 % rafraîchis le 21/06). Le vrai goulot = les fonds pointés avaient un `data_completeness`
+  **périmé** (champs présents mais non re-scorés) → sous le plancher screener `>=50` → l'offre
+  réelle d'un assureur était invisible (AXA **139 affichés vs 1 690 UC** ; BNP Cardif 409 vs 5 555,
+  ~8 % visible).
+  - **B (cause racine, le gros levier)** : `compute-metrics` ne recalcule PAS la complétude et
+    `recalc-completeness-v2.py` n'était câblé à **aucun** cron → dérive permanente. **Recompute
+    global** appliqué (idempotent, backup `investissement_funds_completeness_backup_20260625` RLS,
+    revert documenté `scripts/db-fixes/recompute-completeness-referencing-20260625.sql`) → fonds
+    référencés exploitables au seuil strict **741 → 6 414** ; moyenne univers 47 → 70. 228 droppers
+    = tous 0 perf (masquage correct, 0 fonds exploitable perdu). **Câblé** dans weekly + monthly
+    pipelines (après compute-metrics, avant refresh-primary-share-class) → plus de dérive.
+  - **A (recalibrage chirurgical, le filet)** : sous un filtre assureur/contrat, un fonds référencé
+    AYANT une perf devient visible même sous 50 (`route.ts` + migration `20260625210000` :
+    `get_insurers_list` & `contract_groups_mv` relâchés du même prédicat). Capture la traîne
+    perf-only au-delà du recompute. 3 tests de régression. **0 coquille** (tous nom+perf).
+  - **Précision carte == total exact** (migration `20260625220000`) : compteurs assureur ET contrat
+    alignés sur les 8 exclusions du screener par défaut (PE/structurés restent opt-in). Vérifié
+    live : AXA carte **869 == total 869** ; contrat AMADEO 677==677.
+  - **C (hygiène)** : doublon **AG2R** fusionné (`AG2R La Mondiale`/`AG2R LA MONDIALE`, 334/337 ISIN
+    identiques → 1 pill title-case, 337 UC préservées, backup RLS) + normalisation `canon_company`
+    dans `av-lux-opcvm360` (anti-régression). « Assureur inconnu »/Contrat 700 = laissé (l'API
+    opcvm360 ne fournit pas de nom ; déjà exclu de la MV donc invisible). Variantes APICIL =
+    confirmées 3 entités légitimes (non fusionnées).
+  - **Cadrage respecté** : zéro restriction d'univers, zéro lacune affichée, parcours inchangé.
+    `tsc` clean, **321 tests verts**, déployé + **vérifié live** (carte étendue : BNP 3398 /
+    Suravenir 1938 / AXA 869, AG2R pill unique). Cf. [[insurer-referencing]] +
+    [[completeness-recompute-pipeline]] + [[portfolio-chantier-direction]].
 
 - **Décrochage de courbe back-test — relais NAV yahoo→justetf (25/06)** — *Réglé le 2026-06-25* : un portefeuille chutait artificiellement (p.ex. −13,5 % au 2026-05-21) alors que l'indice restait plat. **Cause racine** : le moteur back-test (`inv_portfolio_analyze`) lit la série de prix **brute** et concatène yahoo-finance (`source_id=2`) puis justetf (`source_id=3`) comme si c'était continu — or yahoo livre la NAV en **base native** (devise/échelle) et justetf en **EUR**, donc le niveau saute du ratio de change/échelle au point de relais. Ampleur ~8-90 % → **sous le seuil ×5** des balayages anti-saut précédents, jamais rattrapée. Le back-test n'est pas couvert par la garde `__insane` (fiche seulement), d'où la visibilité. **Fix** : ratio robuste par fonds (médiane 5 pts justetf / médiane 5 pts yahoo) → rescale des **189 732 lignes yahoo de 966 fonds** vers la base justetf (couture rendue continue, forme intra-segment préservée). Sûreté vérifiée avant : segment pré-relais = 100 % yahoo, 0 chevauchement, justetf en queue. **Vérifié** : couture résiduelle = 1,0 pour les 966 ; API back-test → le −13,5 % disparaît (semaine +1,2 %, plus gros saut 5 ans = +3,8 % réel). Backup `investissement_fund_prices_handover_backup_20260625` (RLS) + audit `scripts/db-fixes/rescale-nav-handover-yahoo-justetf-20260625.sql` (revert documenté). Recompute `compute-metrics.yml` (run `28187433463`). Cf. [[nav-source-handover-basis-gotcha]].
 
