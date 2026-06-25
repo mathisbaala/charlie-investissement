@@ -1,0 +1,82 @@
+-- =============================================================================
+-- Recalage des séries NAV au relais de source yahoo-finance (2) -> justetf (3)
+-- Date : 2026-06-25
+-- =============================================================================
+--
+-- SYMPTÔME
+--   Décrochage artificiel des courbes de back-test (moteur inv_portfolio_analyze) :
+--   un portefeuille chutait p.ex. -13,5 % en une semaine au 2026-05-21 alors que
+--   l'indice de référence restait plat. Visible parce que le back-test lit la série
+--   de prix BRUTE (pas de garde __insane, qui ne couvre que la fiche).
+--
+-- CAUSE RACINE
+--   Le pipeline concatène la série yahoo-finance (source_id=2) puis justetf
+--   (source_id=3) comme si elle était continue. Or les deux sources ne sont PAS
+--   sur la même base : yahoo livre la NAV en devise/échelle native, justetf la
+--   livre convertie en EUR (et à l'échelle « unités »). Au point de relais, le
+--   niveau saute donc du ratio de base (USD->EUR ~0,856 ; CHF->EUR ~1,08 ; et des
+--   cas d'échelle ×~91 où yahoo était gonflé). L'événement de bascule en masse du
+--   2026-05-19 a exposé ça, mais les dates de relais s'étalent de 2021 à 2026.
+--   Ampleur ~8-90 % : SOUS le seuil ×5 des balayages précédents -> jamais rattrapé.
+--
+-- DÉTECTION (sûreté vérifiée AVANT correction sur l'ensemble retenu)
+--   - 2230 fonds ont un relais yahoo->justetf ; 966 retenus (saut robuste >8 %).
+--   - Segment pré-relais = 100 % yahoo (0 source FT/geco mêlée), 0 chevauchement
+--     justetf, 0 reprise yahoo après, justetf en queue -> couture unique et propre.
+--   - 1 fonds exclu (source non-justetf après le relais) -> revue manuelle.
+--
+-- CORRECTION
+--   Ratio ROBUSTE par fonds = médiane(5 premiers justetf) / médiane(5 derniers yahoo)
+--   (neutralise un éventuel point-glitch à la frontière). On rescale TOUTES les
+--   lignes yahoo (source_id=2) du fonds par ce ratio -> la série devient continue
+--   dans la base justetf (EUR, source en cours). Multiply constant => la forme
+--   intra-segment est préservée, aucun nouveau saut introduit.
+--   189 732 lignes / 966 fonds. Ratios : min 0,011 / médiane 0,856 / max 1,179.
+--
+-- VÉRIFICATION
+--   - Couture résiduelle = exactement 1,0 pour les 966 (seams fermées).
+--   - Témoins : IE00B4L5Y983 140,79->120,19 (yahoo recalé à 120,19) ; L&G AI ETF
+--     IE00BK5BCD43 2680->29,53 ; LU2037749152 17,50->14,98. Continus.
+--   - API back-test : le -13,5 % au 2026-05-21 disparaît (semaine +1,2 %), plus gros
+--     saut hebdo de la courbe 5 ans = +3,8 % (mouvement réel).
+--   - 26 fonds gardent un saut intra-série >25 % PRÉ-EXISTANT (dans justetf intact
+--     ou yahoo d'origine), non causé par ce fix -> suivi séparé.
+--
+-- BACKUP / REVERT
+--   Table investissement_fund_prices_handover_backup_20260625 (RLS) : 189 732 lignes
+--   yahoo d'origine (old_nav) + ratio appliqué.
+--   Revert :
+--     UPDATE investissement_fund_prices p
+--     SET nav = b.old_nav
+--     FROM investissement_fund_prices_handover_backup_20260625 b
+--     WHERE b.isin = p.isin AND b.price_date = p.price_date AND p.source_id = 2;
+--   Puis re-déclencher compute-metrics.yml (--apply).
+--
+-- RECOMPUTE
+--   compute-metrics.py --apply (run GitHub Actions 28187433463) -> dérive vol/sharpe/
+--   drawdown/perf sur la série assainie. compute-metrics = autorité (PAS le piège
+--   ft-metrics-wipe, qui ne vise que l'enrichissement opportuniste).
+--
+-- =============================================================================
+-- Bloc effectivement exécuté (pour mémoire ; déjà appliqué le 2026-06-25) :
+--
+-- 1) Table de ratios robustes (helper, droppée après) :
+--    create table _handover_ratios_20260625 as
+--      <yahoo last5 median, justetf first5 median, ratio hors [0.92,1.08], justetf-tail>
+--
+-- 2) Backup :
+--    create table investissement_fund_prices_handover_backup_20260625 as
+--    select p.isin, p.price_date, p.nav as old_nav, p.currency, p.source_id, r.ratio
+--    from investissement_fund_prices p
+--    join _handover_ratios_20260625 r on r.isin = p.isin
+--    where p.source_id = 2;
+--    alter table investissement_fund_prices_handover_backup_20260625 enable row level security;
+--
+-- 3) Rescale :
+--    update investissement_fund_prices p
+--    set nav = round((p.nav * r.ratio)::numeric, 6)
+--    from _handover_ratios_20260625 r
+--    where r.isin = p.isin and p.source_id = 2;
+--
+-- 4) drop table _handover_ratios_20260625;
+-- =============================================================================
