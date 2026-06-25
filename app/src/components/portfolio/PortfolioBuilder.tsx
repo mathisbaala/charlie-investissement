@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
+import { PageShell, PageHeader } from "@/components/ui/Page";
 import { Copy, Check, X } from "@/components/ui/icons";
 import { pct } from "@/lib/format";
 import {
@@ -18,15 +19,23 @@ import {
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const SESSION_KEY = "charlie_comparison";
-// Input numérique sans flèches (spinners).
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+const PERIODS = [{ y: 1, label: "1 an" }, { y: 3, label: "3 ans" }, { y: 5, label: "5 ans" }, { y: 10, label: "Max" }];
 
 function shortName(name: string | undefined, isin: string): string {
   if (!name) return isin;
   return name.length > 40 ? name.slice(0, 38) + "…" : name;
 }
 
-// Couleur de cellule de corrélation : vert (décorrélant) → neutre → clay (concentré).
+// Mois en toutes lettres, capitalisé : « 2021-04-19 » → « Avril 2021 ».
+function frMonth(d: string | null | undefined): string {
+  if (!d) return "";
+  const x = new Date(d);
+  if (isNaN(x.getTime())) return "";
+  const s = x.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function corrStyle(c: number | null): React.CSSProperties {
   if (c == null) return { background: "transparent", color: "#B9B7B2" };
   const x = Math.max(-1, Math.min(1, c));
@@ -56,17 +65,22 @@ interface Props {
   initialIsins: string;
   initialWeights: string;
   initialBenchmark: string;
+  initialYears: string;
 }
 
-export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmark }: Props) {
+export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmark, initialYears }: Props) {
   const [holdings, setHoldings] = useState<Holding[]>(() => parsePortfolioParams(initialIsins, initialWeights));
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [benchmark, setBenchmark] = useState(initialBenchmark || DEFAULT_BENCHMARK);
+  const [years, setYears] = useState(() => {
+    const y = Number(initialYears);
+    return [1, 3, 5, 10].includes(y) ? y : 5;
+  });
+
   const [amount, setAmount] = useState(10000);
 
-  // Repli : si l'URL est vide, reprendre la sélection du screener (équipondérée).
   useEffect(() => {
     if (holdings.length > 0) return;
     try {
@@ -81,9 +95,9 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     } catch { /* sessionStorage indispo */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const analyze = useCallback(async (list: Holding[], bench: string) => {
+  const analyze = useCallback(async (list: Holding[], bench: string, yrs: number) => {
     const { isins, weights } = serializePortfolioParams(normalizeWeights(list));
-    const qs = `isins=${isins}&weights=${weights}&benchmark=${bench}`;
+    const qs = `isins=${isins}&weights=${weights}&benchmark=${bench}&years=${yrs}`;
     window.history.replaceState(null, "", `/portefeuille?${qs}`);
     setLoading(true);
     try {
@@ -96,13 +110,13 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     }
   }, []);
 
-  // Recalcul AUTOMATIQUE (débounce) à chaque changement de poids, de fonds ou d'indice.
+  // Recalcul AUTOMATIQUE (débounce) à chaque changement de poids / fonds / indice / période.
   const serial = useMemo(() => serializePortfolioParams(normalizeWeights(holdings)), [holdings]);
   useEffect(() => {
     if (holdings.length === 0) return;
-    const t = setTimeout(() => analyze(holdings, benchmark), 450);
+    const t = setTimeout(() => analyze(holdings, benchmark, years), 400);
     return () => clearTimeout(t);
-  }, [serial.isins, serial.weights, benchmark]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [serial.isins, serial.weights, benchmark, years]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sum = useMemo(() => holdings.reduce((a, h) => a + (h.weight > 0 ? h.weight : 0), 0), [holdings]);
   const setWeight = (isin: string, w: number) =>
@@ -120,52 +134,45 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const mergedCurve = analysis ? mergeCurves(analysis.curve ?? [], bench?.curve) : [];
   const proj = projectEuros(ratios?.total_return, amount);
   const benchProj = bench ? projectEuros(bench.total_return, amount) : null;
-  const fundStat = (isin: string) => (analysis?.funds ?? []).find((f) => f.isin === isin);
   const ready = !!(ratios && meta && meta.used > 0);
+  const period = meta?.start && meta?.end ? `${frMonth(meta.start)} – ${frMonth(meta.end)}` : "";
 
   if (holdings.length === 0) {
     return (
-      <div className="max-w-[760px] mx-auto px-6 py-20 text-center">
-        <h1 className="text-display text-ink" style={{ fontFamily: "var(--font-serif)" }}>Portefeuille</h1>
-        <p className="text-body text-ink-2 mt-3">
-          Sélectionnez des fonds depuis la recherche pour composer un portefeuille pondéré :
-          performance, risque, corrélation et back-test.
-        </p>
-        <Link href="/recherche" className="inline-block mt-6"><Btn variant="primary">Sélectionner des fonds</Btn></Link>
-      </div>
+      <PageShell>
+        <PageHeader title="Portefeuille" />
+        <Card className="px-6 py-16 text-center">
+          <p className="text-body text-ink-2">
+            Sélectionnez des fonds depuis la recherche pour composer un portefeuille pondéré :
+            performance, risque, corrélation et back-test.
+          </p>
+          <Link href="/recherche" className="inline-block mt-6"><Btn variant="primary">Sélectionner des fonds</Btn></Link>
+        </Card>
+      </PageShell>
     );
   }
 
   return (
-    <div className="max-w-[1140px] mx-auto px-4 sm:px-6 py-6 md:py-8 space-y-5">
-
-      {/* En-tête */}
-      <Card className="px-5 py-5 md:px-7 md:py-6">
-        <div className="flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-display leading-[1.15] text-ink" style={{ fontFamily: "var(--font-serif)" }}>Portefeuille</h1>
-            {meta && (
-              <p className="text-meta text-muted mt-1">
-                {meta.used} fonds{meta.start ? ` · ${meta.start} → ${meta.end} · ${meta.n_weeks} sem.` : ""}
-              </p>
-            )}
-          </div>
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="Portefeuille"
+        action={
           <Btn variant="outline" size="sm" onClick={copyLink}>
             {copied ? <><Check size={13} /> Lien copié</> : <><Copy size={13} /> Copier le lien</>}
           </Btn>
-        </div>
+        }
+      />
 
-        {/* Bandeau KPI */}
-        {ready && (
-          <div className="grid grid-cols-2 md:flex md:gap-3 gap-2.5 mt-5">
-            <Kpi label="Perf. annualisée" value={fmtPct(ratios!.annual_return, true)} tone={signTone(ratios!.annual_return)} />
-            <Kpi label="Perf. totale" value={fmtPct(ratios!.total_return, true)} tone={signTone(ratios!.total_return)} />
-            <Kpi label="Volatilité" value={fmtPct(ratios!.volatility)} />
-            <Kpi label="Sharpe" value={ratios!.sharpe == null ? "—" : ratios!.sharpe.toFixed(2)} tone={signTone(ratios!.sharpe)} />
-            <Kpi label="Perte max." value={fmtPct(ratios!.max_drawdown)} tone="bad" />
-          </div>
-        )}
-      </Card>
+      {/* Bandeau KPI */}
+      {ready && (
+        <div className="grid grid-cols-2 md:flex md:gap-3 gap-2.5">
+          <Kpi label="Perf. annualisée" value={fmtPct(ratios!.annual_return, true)} tone={signTone(ratios!.annual_return)} />
+          <Kpi label="Perf. totale" value={fmtPct(ratios!.total_return, true)} tone={signTone(ratios!.total_return)} />
+          <Kpi label="Volatilité" value={fmtPct(ratios!.volatility)} />
+          <Kpi label="Sharpe" value={ratios!.sharpe == null ? "—" : ratios!.sharpe.toFixed(2)} tone={signTone(ratios!.sharpe)} />
+          <Kpi label="Perte max." value={fmtPct(ratios!.max_drawdown)} tone="bad" />
+        </div>
+      )}
 
       {meta && meta.used === 0 && !loading && (
         <Card className="px-6 py-6 text-meta text-ink-2">
@@ -176,9 +183,9 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
         <Card className="px-6 py-6 text-meta text-danger">Analyse indisponible pour ce portefeuille.</Card>
       )}
 
-      <div className="grid lg:grid-cols-[420px_1fr] gap-5">
+      <div className="grid lg:grid-cols-[400px_1fr] gap-5">
 
-        {/* Pondération + détail par fonds */}
+        {/* Composition */}
         <Card className="px-5 py-5 h-fit">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-serif)" }}>Composition</h2>
@@ -192,7 +199,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
 
           <div className="space-y-3.5">
             {holdings.map((h) => {
-              const st = fundStat(h.isin);
               const wPct = sum > 0 ? (Math.max(0, h.weight) / sum) * 100 : 0;
               return (
                 <div key={h.isin}>
@@ -208,16 +214,10 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
                       <X size={13} />
                     </button>
                   </div>
-                  {/* barre de poids */}
                   <div className="h-1.5 bg-line-soft rounded-full mt-1.5 overflow-hidden">
                     <div className="h-full bg-accent rounded-full" style={{ width: `${wPct}%` }} />
                   </div>
-                  {/* stats du fonds */}
-                  <div className="flex items-center gap-4 mt-1 text-caption text-muted tabular-nums">
-                    <span>{h.isin}</span>
-                    {st && <span>vol {fmtPct(st.volatility)}</span>}
-                    {st && <span>perf {fmtPct(st.total_return, true)}</span>}
-                  </div>
+                  <p className="text-caption text-muted-2 mt-1 font-mono">{h.isin}</p>
                 </div>
               );
             })}
@@ -233,16 +233,31 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
         {/* Back-test */}
         <div className="space-y-5 min-w-0">
           <Card className="px-5 py-5">
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
               <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-serif)" }}>Back-test</h2>
-              <select
-                value={benchmark}
-                onChange={(e) => setBenchmark(e.target.value)}
-                className="text-meta border border-line rounded-md px-2 py-1 bg-paper focus:outline-none focus:border-accent"
-              >
-                {BENCHMARK_OPTIONS.map((b) => <option key={b.code} value={b.code}>{b.label}</option>)}
-              </select>
+              <div className="flex items-center gap-2">
+                {/* Sélecteur de période */}
+                <div className="flex rounded-md border border-line overflow-hidden">
+                  {PERIODS.map((p) => (
+                    <button
+                      key={p.y}
+                      onClick={() => setYears(p.y)}
+                      className={`text-caption px-2.5 py-1 transition-colors ${years === p.y ? "bg-brown text-paper" : "text-muted hover:bg-accent-soft"}`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  value={benchmark}
+                  onChange={(e) => setBenchmark(e.target.value)}
+                  className="text-meta border border-line rounded-md px-2 py-1 bg-paper focus:outline-none focus:border-accent"
+                >
+                  {BENCHMARK_OPTIONS.map((b) => <option key={b.code} value={b.code}>{b.label}</option>)}
+                </select>
+              </div>
             </div>
+            {period && <p className="text-caption text-muted mb-3">{period}</p>}
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={mergedCurve} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
@@ -261,7 +276,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
             </ResponsiveContainer>
           </Card>
 
-          {/* Comparaison + projection */}
           {ready && bench && (
             <Card className="px-5 py-5">
               <table className="w-full text-meta tabular-nums">
@@ -300,13 +314,12 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
                 <div className="text-meta tabular-nums text-right">
                   <span className="text-ink font-medium">{EUR.format(proj.final)}</span>
                   <span className={proj.gain >= 0 ? "text-ok ml-1.5" : "text-danger ml-1.5"}>({proj.gain >= 0 ? "+" : ""}{EUR.format(proj.gain)})</span>
-                  {benchProj && <span className="text-muted ml-2">· indice {EUR.format(benchProj.final)}</span>}
+                  {benchProj && <span className="text-muted ml-2">indice {EUR.format(benchProj.final)}</span>}
                 </div>
               </div>
             </Card>
           )}
 
-          {/* Corrélation */}
           {ready && holdings.length >= 2 && (
             <Card className="px-5 py-5 overflow-x-auto">
               <h2 className="text-subhead text-ink mb-3" style={{ fontFamily: "var(--font-serif)" }}>Corrélation</h2>
@@ -334,6 +347,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

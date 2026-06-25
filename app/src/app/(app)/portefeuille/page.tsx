@@ -6,7 +6,7 @@ export const metadata = { title: "Portefeuille — Charlie" };
 export default async function PortefeuillePage({
   searchParams,
 }: {
-  searchParams: Promise<{ isins?: string; weights?: string; benchmark?: string }>;
+  searchParams: Promise<{ isins?: string; weights?: string; benchmark?: string; years?: string }>;
 }) {
   const sp = await searchParams;
   return (
@@ -14,6 +14,7 @@ export default async function PortefeuillePage({
       initialIsins={sp.isins ?? ""}
       initialWeights={sp.weights ?? ""}
       initialBenchmark={sp.benchmark ?? ""}
+      initialYears={sp.years ?? ""}
     />
   );
 }
