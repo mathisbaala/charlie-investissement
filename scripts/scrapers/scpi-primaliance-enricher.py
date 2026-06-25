@@ -520,6 +520,22 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
                 except Exception as e:
                     print(f"        ✗ scpi_metrics {isin} : {e}")
 
+                # Accumulation : 1 point par an dans l'historique (prix de part bouge
+                # ~1×/an). on_conflict (isin, year) → met à jour l'année courante,
+                # accumule au fil des années. Base d'une future série SCPI.
+                if match.get("prix_part") is not None:
+                    try:
+                        client.table("investissement_scpi_price_history").upsert({
+                            "isin": isin,
+                            "year": datetime.now(timezone.utc).year,
+                            "price_per_share": match.get("prix_part"),
+                            "dvm": metrics.get("dvm"),
+                            "source": "primaliance",
+                            "updated_at": now,
+                        }, on_conflict="isin,year").execute()
+                    except Exception as e:
+                        print(f"        ✗ scpi_price_history {isin} : {e}")
+
         if not update:
             continue
 
