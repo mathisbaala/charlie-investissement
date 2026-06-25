@@ -63,8 +63,8 @@ export interface PortfolioAnalysis {
 
 /** Indices de référence proposés pour le back-test (codes investissement_index_catalog). */
 export const BENCHMARK_OPTIONS: { code: string; label: string }[] = [
-  { code: "msci_world", label: "MSCI World — actions monde" },
-  { code: "sp500", label: "S&P 500 — actions US" },
+  { code: "msci_world", label: "MSCI World · actions monde" },
+  { code: "sp500", label: "S&P 500 · actions US" },
   { code: "cac40_gr", label: "CAC 40 (dividendes réinvestis)" },
   { code: "eurostoxx50", label: "Euro Stoxx 50" },
   { code: "mix_75_25", label: "Diversifié dynamique (75/25)" },

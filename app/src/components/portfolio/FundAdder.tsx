@@ -98,7 +98,7 @@ export function FundAdder({ onAdd, existing, full }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => hits.length && setOpen(true)}
           onKeyDown={onKey}
-          placeholder={full ? "Portefeuille au complet" : "Ajouter un fonds — ISIN ou nom"}
+          placeholder={full ? "Portefeuille au complet" : "Ajouter un fonds : ISIN ou nom"}
           className="flex-1 min-w-0 bg-transparent text-meta text-ink placeholder:text-muted focus:outline-none disabled:cursor-not-allowed"
         />
         <Search size={13} className="text-muted-2 shrink-0" />

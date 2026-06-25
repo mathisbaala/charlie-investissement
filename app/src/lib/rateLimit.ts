@@ -85,8 +85,8 @@ export async function aiRateLimit(req: NextRequest, cost = 1): Promise<NextRespo
         error: "rate_limited",
         scope: r.scope,
         message: perHour
-          ? "Vous avez atteint votre quota de découverte pour cette heure. Réessayez d'ici une heure — ou contactez-nous pour un accès complet."
-          : "Vous avez atteint votre quota de découverte du jour. Revenez demain — ou contactez-nous pour débloquer un accès complet à Charlie.",
+          ? "Vous avez atteint votre quota de découverte pour cette heure. Réessayez d'ici une heure, ou contactez-nous pour un accès complet."
+          : "Vous avez atteint votre quota de découverte du jour. Revenez demain, ou contactez-nous pour débloquer un accès complet à Charlie.",
       },
       { status: 429, headers: { "Retry-After": perHour ? "3600" : "86400" } },
     );

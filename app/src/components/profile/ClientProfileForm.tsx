@@ -249,11 +249,11 @@ export function ClientProfileForm() {
       if (extracted) {
         setProfile((p) => ({ ...p, ...extracted }));
       } else {
-        setImportError("Lecture impossible — renseignez les champs manuellement.");
+        setImportError("Lecture impossible, renseignez les champs manuellement.");
         setImportSource(null);
       }
     } catch {
-      setImportError("Lecture impossible — renseignez les champs manuellement.");
+      setImportError("Lecture impossible, renseignez les champs manuellement.");
       setImportSource(null);
     } finally {
       setImporting(false);
@@ -321,7 +321,7 @@ export function ClientProfileForm() {
         {importSource && !importing && (
           <div className="mt-3 inline-flex items-center gap-1.5 text-caption text-ok bg-ok-soft border border-ok/20 rounded-full px-2.5 py-1">
             <Check size={11} />
-            <span>{importSource.length > 40 ? importSource.slice(0, 40) + "…" : importSource} — champs pré-remplis</span>
+            <span>{importSource.length > 40 ? importSource.slice(0, 40) + "…" : importSource} · champs pré-remplis</span>
             <button type="button" onClick={() => setImportSource(null)} className="hover:text-ok/70">
               <X size={10} />
             </button>
@@ -448,7 +448,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Zones géographiques" hint="Indicatif — affine les recherches en langage naturel.">
+          <FieldGroup label="Zones géographiques" hint="Indicatif, affine les recherches en langage naturel.">
             <ChipRow>
               {GEO_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.geographies.includes(value)}
@@ -484,7 +484,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Exclusions sectorielles" hint="Indicatif — affine les recherches en langage naturel.">
+          <FieldGroup label="Exclusions sectorielles" hint="Indicatif, affine les recherches en langage naturel.">
             <ChipRow>
               {EXCLUSION_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.exclusions.includes(value)}

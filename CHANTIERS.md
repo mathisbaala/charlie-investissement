@@ -11,10 +11,12 @@
 > UX 25/06** : page Portefeuille refaite (scroll, recalcul auto, KPI, période choisie, **barre de
 > recherche → screener**), **sélection jusqu'à 10 fonds / comparaison ≤4**, onglet **Comparé en
 > graphes** (barres groupées géo/secteurs), **accueil épuré + onglet « Profil client » RETIRÉ**
-> (fusionné dans l'accueil ; `/matching` redirige). Détail dans « ✅ Réglés » +
+> (fusionné dans l'accueil ; `/matching` redirige). **Référencement assureur (Partie 1) = RÉSOLU
+> 25/06** (A+B+C livrés, offre réelle débloquée — voir « ✅ Réglés », non plus « différé »).
+> **Ajout inline de fonds depuis le portefeuille = LIVRÉ 25/06**. Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-25 (15ᵉ passe — re-vérification indépendante : `tsc` clean, **312/312 tests verts** (23 fichiers), working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Nouveau livré 25/06, désormais consigné** : PDF factsheets visuels (courbes/composition) + PDF portefeuille complet (routes `/api/rapport/pdf` + `/api/portfolio/pdf`, socle partagé `lib/pdf/`), retrait du bandeau « Données partielles », **retrait de code mort** (`FicheFondsPDF`, `blendExposure`). 14ᵉ passe : « re-fetch des 6 dernières séries NAV » → garde `__insane` 10 → 5, catégorie 🧹 vidée.)
+> Dernier audit : 2026-06-25 (16ᵉ passe — re-vérification indépendante : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = success, rafraîchissement annuel = success, **un recompute métriques en cours** = run `28188831771`, suite des fix NAV multi-échelle du jour ; 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (3 faux positifs : `/fonds/XXX` en commentaire, `CRYPTO_XXX` en usage, `TODO` sur heuristique connue), 0 test `skip/only`, 0 `console.log`. **Seule nouveauté détectée** : 22 branches locales mergées qui traînent → item d'hygiène git ajouté en 🧹. 15ᵉ passe : PDF factsheets visuels + PDF portefeuille complet + retrait code mort (`FicheFondsPDF`, `blendExposure`).)
 
 > 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
 > Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
@@ -22,14 +24,17 @@
 > Décisions actées : **transparence du score d'adéquation = won't-do ferme** (⏸️, ne plus
 > re-proposer) ; **référencement assureur = pris par un autre agent** (⏸️).
 
-État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
-**318/318 tests verts** (23 fichiers), **working tree propre**, **CI verte** (drain compo auto +
-rafraîchissement annuel = success, aucun workflow en échec), zéro marqueur `TODO/FIXME` réel dans
-le front (1 faux positif : `/fonds/XXX` dans un commentaire) ni dans les scripts (1 faux positif :
-`TODO` sur une heuristique connue), zéro test `skip/only`. Le
-backlog de fond est **soldé** : moteur portefeuille **livré**, PDF factsheets **livré**, alpha
-diversifiés **TERMINÉ** ; le reste tourne seul (drain compo auto), est en suspens par choix
-(scrapers bloqués IP, LU won't-do, référencement assureur différé), ou est de la **feature à cadrer**.
+État global : **projet sain et bien tenu** — re-vérifié indépendamment à cette 16ᵉ passe : `tsc`
+clean, **321/321 tests verts** (23 fichiers), **working tree propre**, **CI saine** (drain compo
+auto + rafraîchissement annuel = success ; un recompute métriques **en cours** = run `28188831771`,
+finalisation des fix NAV multi-échelle du jour ; aucun workflow en échec), zéro marqueur
+`TODO/FIXME` réel dans le front (1 faux positif : `/fonds/XXX` dans un commentaire) ni dans les
+scripts (2 faux positifs : `CRYPTO_XXX` en chaîne d'usage, `TODO` sur une heuristique connue), zéro
+test `skip/only`, zéro `console.log`. Le backlog de fond est **soldé** : moteur portefeuille
+**livré**, PDF factsheets **livré**, alpha diversifiés **TERMINÉ**, référencement assureur (Partie 1)
+**RÉSOLU le 25/06** ; le reste tourne seul (drain compo auto), est en suspens par choix (scrapers
+bloqués IP, LU won't-do, SCPI accumulation ~2-3 ans), ou est de la **feature à cadrer**. **Seul
+chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 > ✅ **Alpha diversifiés — TERMINÉ** (23/06) : run `28020564756` **success** (23 min,
 > 8 097 alpha écrits, 0 échec). Diversifiés **14 → 2 110** avec alpha ; zéro régression
@@ -115,6 +120,9 @@ L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voi
 ## 🧹 Dette technique
 
 ### (aucun chantier ouvert)
+L'élagage des 22 branches locales mergées est **fait le 25/06** (voir « ✅ Réglés »).
+
+### (reliquat NAV — réglé)
 Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/06** (re-fetch JustETF + rescale Loomis → garde `__insane` 10 → 5) — voir « ✅ Réglés ». Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
 
 ---
@@ -131,6 +139,10 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Hygiène git — 22 branches locales mergées élaguées** — *Réglé le 2026-06-25* : les 22 branches des chantiers livrés du 25/06 (`chantier/*`, `chore/*`, `ux/*`), toutes mergées dans `main`, supprimées en local via `git branch -d` (refuse toute branche non mergée = filet). Reste `main` seule. Les quelques remotes (`origin/chantier/pdf-factsheet-portefeuille`, `chore/*`) peuvent être nettoyés au besoin avec `git push origin --delete`.
+
+- **Badges « aussi Capi/PER » retirés de l'onglet Assurances vie** — *Réglé le 2026-06-25* : sur demande, suppression des petites pastilles « aussi {enveloppe} » affichées à côté de chaque contrat (`app/(app)/assureurs/page.tsx`) — calcul `others`, rendu des badges, constante `TYPE_SHORT` et import `otherEnvelopes` retirés (fonction `otherEnvelopes` conservée dans la lib, encore testée). Pastille de statut ouvert/fermé + label « fermé » conservés. `tsc` clean, 321 tests verts.
 
 - **Référencement assureur (Partie 1 du retour CGP) — A+B+C livrés** — *Réglé le 2026-06-25* :
   **Diagnostic qui corrige la prémisse** : le mapping support×assureur×contrat n'était PAS le

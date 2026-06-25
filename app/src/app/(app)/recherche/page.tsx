@@ -278,7 +278,7 @@ function RechercheInner() {
     }
     const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
     const fullQuery = profileCtx
-      ? `${raw} — contexte client: ${profileCtx}`
+      ? `${raw} (contexte client : ${profileCtx})`
       : raw;
 
     const parsed = await parseQuery(fullQuery);
@@ -463,7 +463,7 @@ function RechercheInner() {
             <p className="text-label text-accent-ink min-w-0 truncate">
               <span className="font-semibold">{referencingLabel}</span>
               {!parsing && !loading && (
-                <span className="text-accent-ink/70"> — {total.toLocaleString("fr-FR")} fonds</span>
+                <span className="text-accent-ink/70"> · {total.toLocaleString("fr-FR")} fonds</span>
               )}
             </p>
             <button
@@ -477,7 +477,7 @@ function RechercheInner() {
         <ParsedFilterChips filters={filters} onRemoveChip={handleRemoveChip} />
         {nlpFailed && query.trim() && (
           <p className="text-label text-muted px-1">
-            Filtres intelligents indisponibles — recherche par nom. Utilisez les{" "}
+            Filtres intelligents indisponibles, recherche par nom. Utilisez les{" "}
             <button onClick={() => setShowFilters(true)} className="underline hover:text-ink-2 transition-colors">
               filtres manuels
             </button>{" "}
@@ -486,13 +486,13 @@ function RechercheInner() {
         )}
         {fuzzy && query.trim() && (
           <p className="text-label text-muted px-1">
-            Aucune correspondance exacte pour «&nbsp;{query.trim()}&nbsp;» — voici les fonds
+            Aucune correspondance exacte pour «&nbsp;{query.trim()}&nbsp;» : voici les fonds
             aux noms les plus proches.
           </p>
         )}
         {relaxed.length > 0 && (
           <p className="text-label text-muted px-1">
-            Aucun fonds ne correspondait à tous les critères — assoupli&nbsp;:{" "}
+            Aucun fonds ne correspondait à tous les critères. Critères assouplis&nbsp;:{" "}
             {relaxed.join(", ")}.
           </p>
         )}

@@ -187,7 +187,7 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
         <PageHeader title="Portefeuille" />
         {searchBar}
         <p className="text-meta text-muted mt-4 mb-3">
-          Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez — ou ajoutez-le
+          Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez, ou ajoutez-le
           directement ci-dessous si vous connaissez son ISIN ou son nom.
         </p>
         <FundAdder onAdd={addHolding} existing={heldIsins} />

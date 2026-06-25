@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { PageShell, PageHeader } from "@/components/ui/Page";
 import {
   type ContractType, type Envelope,
-  visibleContracts, isInsurerVisible, otherEnvelopes,
+  visibleContracts, isInsurerVisible,
 } from "@/lib/insurer-envelope";
 
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
@@ -38,10 +38,6 @@ const ENVELOPES: { key: Envelope; label: string; short: string }[] = [
 ];
 const ENV_LABEL: Record<Envelope, string> = {
   av: "assurance vie", capi: "capitalisation", per: "PER", pea: "PEA",
-};
-// Libellé court d'un type pour le marqueur « aussi X » (multi-enveloppe).
-const TYPE_SHORT: Record<ContractType, string> = {
-  av: "AV", capi: "Capi", per: "PER", pea: "PEA", pep: "PEP",
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
@@ -113,14 +109,11 @@ function InsurerCard(
           </div>
           <ul className="min-h-0 flex-1 overflow-y-auto scrollbar-thin -mr-2 pr-2">
             {visible.map((c) => {
-              // PEP exclu du marqueur « aussi X » (cohérent avec son exclusion
-              // des onglets d'enveloppe primaires).
-              const others = otherEnvelopes(c, env).filter((t) => t !== "pep" && t in TYPE_SHORT);
               const variants = c.variants ?? [];
               const title = [
                 variants.length ? `Mêmes supports que : ${variants.map((v) => v.contract).join(" · ")}` : "",
                 c.closed ? "Contrat fermé à la commercialisation" : "",
-              ].filter(Boolean).join(" — ") || undefined;
+              ].filter(Boolean).join(" · ") || undefined;
               return (
                 <li key={c.key}>
                   <Link
@@ -138,11 +131,6 @@ function InsurerCard(
                         }`}
                       />
                       <span className="text-body text-ink-2 font-medium truncate">{c.contract}</span>
-                      {others.map((t) => (
-                        <span key={t} className="text-caption font-semibold text-muted bg-paper-2 rounded px-1.5 py-0.5 shrink-0">
-                          aussi {TYPE_SHORT[t]}
-                        </span>
-                      ))}
                       {c.closed && <span className="text-meta text-muted-2 italic shrink-0">fermé</span>}
                     </span>
                     <span className="text-body text-muted tabular-nums text-right">
