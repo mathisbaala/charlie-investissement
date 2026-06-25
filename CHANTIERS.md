@@ -14,16 +14,22 @@
 > (fusionné dans l'accueil ; `/matching` redirige). Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-24 (14ᵉ passe — re-vérification indépendante : `tsc` clean, **279/279 tests verts**, working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Chantier 🧹 « re-fetch des 6 dernières séries NAV » réglé de bout en bout** dans la foulée : re-backfill JustETF des 5 ETF + rescale Loomis + recompute → garde `__insane` **10 → 5** (reliquat = 5 détresses réelles légitimes). La catégorie 🧹 Dette technique est désormais **vide**. 13ᵉ passe : chantier « 59 fonds masqués » → garde __insane 59 → 10.)
+> Dernier audit : 2026-06-25 (15ᵉ passe — re-vérification indépendante : `tsc` clean, **312/312 tests verts** (23 fichiers), working tree propre, CI verte, 0 marqueur `TODO/FIXME` réel, 0 test `skip/only`. **Nouveau livré 25/06, désormais consigné** : PDF factsheets visuels (courbes/composition) + PDF portefeuille complet (routes `/api/rapport/pdf` + `/api/portfolio/pdf`, socle partagé `lib/pdf/`), retrait du bandeau « Données partielles », **retrait de code mort** (`FicheFondsPDF`, `blendExposure`). 14ᵉ passe : « re-fetch des 6 dernières séries NAV » → garde `__insane` 10 → 5, catégorie 🧹 vidée.)
+
+> 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
+> Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
+> `FundAdder`, helper pur `appendHolding` + 6 tests → **318 tests verts**. Voir « ✅ Réglés ».
+> Décisions actées : **transparence du score d'adéquation = won't-do ferme** (⏸️, ne plus
+> re-proposer) ; **référencement assureur = pris par un autre agent** (⏸️).
 
 État global : **projet sain et bien tenu** — re-vérifié à cette passe : `tsc` clean,
-**279/279 tests verts** (20 fichiers), **working tree propre**, **CI verte** (5 derniers runs
-`compute-metrics`/`td-refresh`/drain/classif = success, aucun workflow en échec), zéro marqueur
-`TODO/FIXME` réel dans le front (1 faux positif : `/fonds/XXX` dans un commentaire) ni dans les
-scripts (2 faux positifs : `XXX` dans une chaîne d'usage, `TODO` sur une heuristique connue),
-zéro test `skip/only`. Le
-backlog de fond est **soldé** : alpha diversifiés **TERMINÉ**, le reste tourne seul (drain
-compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **dette mineure**.
+**318/318 tests verts** (23 fichiers), **working tree propre**, **CI verte** (drain compo auto +
+rafraîchissement annuel = success, aucun workflow en échec), zéro marqueur `TODO/FIXME` réel dans
+le front (1 faux positif : `/fonds/XXX` dans un commentaire) ni dans les scripts (1 faux positif :
+`TODO` sur une heuristique connue), zéro test `skip/only`. Le
+backlog de fond est **soldé** : moteur portefeuille **livré**, PDF factsheets **livré**, alpha
+diversifiés **TERMINÉ** ; le reste tourne seul (drain compo auto), est en suspens par choix
+(scrapers bloqués IP, LU won't-do, référencement assureur différé), ou est de la **feature à cadrer**.
 
 > ✅ **Alpha diversifiés — TERMINÉ** (23/06) : run `28020564756` **success** (23 min,
 > 8 097 alpha écrits, 0 échec). Diversifiés **14 → 2 110** avec alpha ; zéro régression
@@ -80,11 +86,20 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 - **Décision (25/06)** : **ne PAS exposer de proxy.** Gain max sûr = ~51 fonds sur **~16 000 déjà exploitables** (marginal), avec risque résiduel d'afficher un back-test **faux** ; le message « pas d'historique » actuel est 100 % honnête. Le code `ft-enricher --missing-series` + workflow `backfill-missing-series.yml` restent comme outil général (sans usage LU). Cf. mémoire [[portfolio-chantier-direction]].
 - **Seule réouverture envisageable** : une **vraie source de série NAV LU** (pas identifiée à ce jour ; Morningstar EMEA = perfs ponctuelles, pas de série).
 
-### Référencement assureur (Partie 1 du retour client) — différé, chantier DONNÉES
-- **Priorité** : 🟡 Moyenne — **à reprendre plus tard**
-- **Le problème** : muscler le mapping *support × assureur × contrat* pour qu'il soit le plus **exhaustif et certain** possible (le point vital pour les CGP français).
-- **Cadrage validé (à respecter)** : c'est un chantier **données**, **PAS** un changement de parcours. **Philosophie marketplace** : on ne restreint **jamais** l'univers d'un CGP à ses contrats (montrer tout ce qui existe). On **n'affiche AUCUNE lacune** (pas de badge « vérifié le… », pas d'indicateur de fraîcheur). On garde l'onglet assureurs/contrats + le filtre existants ; on enrichit seulement la donnée derrière. Cf. mémoire [[portfolio-chantier-direction]] + [[insurer-referencing]].
-- **Effort estimé** : moyen-élevé (collecte de données).
+### Référencement assureur (Partie 1 du retour client) — DIAGNOSTIQUÉ 25/06, prémisse corrigée
+- **Priorité** : 🟠 Importante — **agent dédié, audit base fait, en attente d'arbitrage de direction**
+- **Détecté le** : 2026-06-21 — **re-diagnostiqué le 2026-06-25**
+- **Où** : table `investissement_av_lux_eligibility`, matview `investissement_fund_insurers_mv`, gate `BASE_MIN_COMPLETENESS = 50` (`app/src/app/api/funds/route.ts:24`).
+- **Le problème (RÉEL, après audit base 25/06)** : le mapping *support × assureur × contrat* **n'est PAS le trou** — il est riche et frais : **259 680 liens / 11 219 UC / 39 assureurs / 500 contrats, 100 % rafraîchis le 21/06**, couverture large des grands assureurs FR (AXA, BNP Cardif, Generali, CNP, Predica, ACM, Groupama, Abeille, SwissLife, Suravenir, Spirica, mutualistes, bancassurance). **Le vrai goulot = les fonds pointés sont pauvres en données.** Sur 11 215 UC référencées, seules **~1 005** sont primaires + `data_completeness≥50`. **~6 199 fonds référencés primaires ont une perf mais restent CACHÉS** (complétude <50) → invisibles dans le screener et le filtre assureur. Effet concret : AXA France = **139 supports affichés vs 1 690 UC réelles** ; BNP Cardif = **409 vs 5 555**. Le CGP voit ~8 % de l'offre réelle d'un assureur.
+- **Manque pour franchir 50** (scoring `recompute-completeness-v2.sql`, OPCVM/ETF) : TER(14)+SRI(14)+AUM(10-12)+KID(14)+vol(8) — les 6 199 ont surtout perf, il leur manque TER/SRI/AUM/KID.
+- **Défauts de précision repérés (hygiène mapping)** : (a) **doublon AG2R** — `AG2R La Mondiale` (périmé 05-25) + `AG2R LA MONDIALE` (frais, **334/337 ISIN identiques**, même contrat 633, même clé opcvm360) → **2 pills pour le même assureur** dans l'UI (confirmé via `get_insurers_list`) ; (b) **« Assureur inconnu » / Contrat 700** (175 UC, opcvm360, masqué par la MV mais non attribué) ; (c) variantes APICIL à vérifier (`APICIL` / `Apicil / OneLife` / `APICIL Luxembourg` — probablement 3 entités légitimes, ne pas fusionner à l'aveugle).
+- **Cadrage validé (à respecter)** : chantier **données**, **PAS** un changement de parcours. **Marketplace** : ne jamais restreindre l'univers d'un CGP à ses contrats. **Jamais de lacune affichée** (pas de badge « vérifié le… »/fraîcheur). On garde l'onglet assureurs/contrats + le filtre ; on muscle la donnée derrière. Cf. [[portfolio-chantier-direction]] + [[insurer-referencing]] + [[never-expose-data-completeness]].
+- **Comment l'aborder (3 leviers, à arbitrer)** : **(A)** recalibrer la visibilité des fonds référencés (un fonds référencé+perf devient visible sous 50) → débloque ~6 199 supports tout de suite (touche la curation screener, à valider) ; **(B)** enrichir les 6 199 ISIN cachés via les enrichers existants (FT/KID/Morningstar, fill-only, sûr mais lent/throttlé, plafond LU incertain) ; **(C)** hygiène précision rapide (fusion AG2R, attribution Contrat 700). Non exclusifs — C toujours utile, A vs B = le vrai fork.
+- **Effort estimé** : C = rapide ; A = moyen (chirurgical) ; B = lourd (collecte multi-semaines).
+
+### 🛑 Transparence du score d'adéquation (« pourquoi ça colle ») — WON'T-DO ferme (ne JAMAIS re-proposer)
+- **Priorité** : ⚪ — **tranché définitivement (25/06)**
+- **Décision** : **non, il n'y aura pas de transparence de score d'adéquation.** Ce n'est pas dans les objectifs produit. À ne plus jamais lister ni re-proposer dans les audits, même si `fitScore.ts` calcule des sous-scores exploitables. Cf. mémoire [[fit-score-transparency-wontdo]].
 
 ### SCPI — matérialiser la série de rendement total (différé ~2-3 ans)
 - **Priorité** : ⚪ Mineure
@@ -96,20 +111,8 @@ compo auto), est en suspens par choix (scrapers bloqués IP), ou est de la **det
 
 ## ✨ Features & améliorations
 
-### Ajouter des fonds depuis la page Portefeuille (recherche inline)
-- **Priorité** : 🟡 Moyenne — *« on va y réfléchir » (25/06), à organiser*
-- **Où** : `app/src/components/portfolio/PortfolioBuilder.tsx`
-- **Le problème** : aujourd'hui on compose un portefeuille en partant de la recherche (bouton « Portefeuille » dans la barre de sélection). On ne peut pas **ajouter** un fonds directement depuis la page `/portefeuille` (seulement éditer les poids / retirer).
-- **Comment l'aborder** : champ de recherche inline dans l'éditeur de pondération → ajoute l'ISIN au portefeuille + ré-analyse. Réutiliser l'endpoint de recherche existant. À cadrer avec l'utilisateur (organisation du parcours).
-- **Effort estimé** : moyen
-
-### Transparence per-fonds du score d'adéquation (« pourquoi ça colle »)
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-06-22
-- **Où** : `app/src/lib/fitScore.ts` + UI résultats recherche
-- **Le problème** : le couloir intention/profil classe par fit composite, mais l'utilisateur ne voit pas *pourquoi* un fonds est bien classé. Explicitement non retenu au sprint 22/06.
-- **Comment l'aborder** : exposer une ventilation lisible des composantes du fit (complétude / qualité / adéquation / prefs) sous forme de chips ou tooltip. `fitScore.ts` calcule déjà les sous-scores → surtout du front.
-- **Effort estimé** : moyen
+### (aucun chantier ouvert)
+L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voir « ✅ Réglés »). La transparence du score d'adéquation est un **won't-do ferme** (voir ⏸️).
 
 ---
 
@@ -132,6 +135,15 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Ajout inline de fonds depuis la page Portefeuille (25/06)** — *Réglé le 2026-06-25* : on peut désormais **ajouter un fonds directement** depuis `/portefeuille` quand on le connaît déjà — coller un **ISIN** ou taper un **nom** → recherche **dans la base** (`/api/funds?search=`, qui court-circuite déjà l'ISIN exact et classe les correspondances par nom) → on choisit dans une petite liste déroulante. Composant réutilisable `components/portfolio/FundAdder.tsx` (recherche débouncée 300 ms + `AbortController`, Entrée = 1er résultat, fermeture au clic extérieur, fonds déjà présents marqués « Ajouté »), présent **sous l'éditeur de composition** ET dans **l'état vide**. Helper pur `appendHolding()` dans `lib/portfolio.ts` (poids du nouveau = moyenne des poids positifs existants, jamais 0 ; dédup ISIN ; cap `MAX_HOLDINGS=20`) + **6 tests**. Affichage immédiat du nom via cache `localNames` (l'analyse reste l'autorité). `tsc` clean, **318 tests verts**. *(Note : la barre de recherche langage-naturel sous le titre, qui renvoie au screener, reste en place — les deux parcours coexistent.)*
+
+- **PDF factsheets visuels + PDF portefeuille complet + retrait code mort (25/06)** — *Réglé le 2026-06-25* :
+  - **Factsheets fonds enrichis** (`/api/rapport/pdf`) : la fiche fonds PDF passe d'un rendu texte à un rendu **visuel** — courbe de performance + composition (géo/secteurs) générées par le socle partagé `lib/pdf/` (`chartMath.ts`, `charts.tsx`, `pdfData.ts`, `components.tsx`, `theme.ts`).
+  - **PDF portefeuille complet** (`/api/portfolio/pdf`, `lib/PortefeuillePDF.tsx`) : export du moteur portefeuille (courbe back-test, ratios, composition) en PDF partageable.
+  - **Bandeau « Données partielles — complétude X% » retiré** de la fiche fonds (cohérent avec [[never-expose-data-completeness]]).
+  - **Retrait de code mort** : `FicheFondsPDF` (remplacé par le socle factorisé) + `blendExposure` (look-through, plus utilisé depuis le passage au comparé fond-par-fond).
+  - **Tests** dédiés `portefeuillePdf.test.ts` + `rapportPdf.test.ts` ; `tsc` clean, **312 tests verts**. Gotcha jsdom respecté (PDF testé en env node, cf. [[pdf-design-system]]).
 
 - **Sélection 10 fonds, comparaison ≤4, barre de recherche portefeuille, Comparé en graphes (25/06)** — *Réglé le 2026-06-25* :
   - **Barre de recherche langage naturel sous le titre Portefeuille** (état vide ET normal) → renvoie vers `/recherche?q=…` où l'on sélectionne ; pas de screener recréé dans la page.
