@@ -44,6 +44,13 @@ Suite aux retours, plusieurs passes design/UX :
   + top performers ; `/matching` redirige (307) vers `/accueil` ; liens screener/sitemap/prompt chat
   mis à jour ; visite guidée : « Profil client » → « Portefeuille ». Menu = Accueil / Recherche /
   Portefeuille / Assurances vie / Documents.
+- **Barre de recherche** (langage naturel) sous le titre Portefeuille → renvoie au screener
+  `/recherche?q=…` (pas de screener recréé dans la page) ; sert d'amorce + d'ajout de fonds.
+- **Sélection jusqu'à 10 fonds** (`SELECT_MAX=10`) ; **comparaison limitée à 4** (`COMPARE_MAX=4`,
+  bouton « Comparer (max 4) » désactivé au-delà) ; **Portefeuille actif pour 2-10** (vérifié à 7 :
+  KPI + courbe + corrélation 7×7).
+- **Onglet Comparé en graphes** : géo + secteurs en barres groupées horizontales (1 barre/fonds),
+  lignes communes en chips — fini la matrice « liste de courses ».
 - 298 tests verts, tsc clean, tout déployé + vérifié live.
 
 ### Tranché — NE PAS revenir dessus
