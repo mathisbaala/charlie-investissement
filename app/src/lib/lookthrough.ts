@@ -89,6 +89,42 @@ export function blendExposure(rows: ExpoRow[], limit = 12): Expo[] {
     .slice(0, limit);
 }
 
+/**
+ * Exposition agrégée PONDÉRÉE par les poids du portefeuille (pas équipondérée) :
+ * contribution d'une ligne = poids du fonds × poids interne de la ligne. On
+ * normalise sur les seuls fonds qui PORTENT la ventilation (somme de leurs poids),
+ * afin que le total reste ~100 % sans révéler les fonds sans donnée. `fundWeights`
+ * est en fraction de portefeuille (0-1) ; `weight` des lignes en fraction (0-1).
+ * Sortie en % (0-100), triée décroissante, top `limit`.
+ */
+export function weightedExposure(
+  rows: ExpoRow[],
+  fundWeights: Record<string, number>,
+  limit = 10,
+): Expo[] {
+  const contributors = new Set(rows.filter((r) => r.label && Number.isFinite(r.weight)).map((r) => r.isin));
+  let wsum = 0;
+  for (const isin of contributors) wsum += fundWeights[isin] ?? 0;
+  if (wsum <= 0) return [];
+  const acc = new Map<string, number>();
+  const labelVotes = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    if (!r.label || !Number.isFinite(r.weight)) continue;
+    const fw = fundWeights[r.isin] ?? 0;
+    if (fw <= 0) continue;
+    const key = r.key || r.label;
+    acc.set(key, (acc.get(key) ?? 0) + fw * r.weight);
+    const votes = labelVotes.get(key) ?? new Map<string, number>();
+    votes.set(r.label, (votes.get(r.label) ?? 0) + 1);
+    labelVotes.set(key, votes);
+  }
+  return Array.from(acc.entries())
+    .map(([key, sum]) => ({ label: pickLabel(labelVotes.get(key)!), weight: Math.round((sum / wsum) * 1000) / 10 }))
+    .filter((x) => x.weight > 0)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, limit);
+}
+
 export type HoldingRow = { isin: string; position_name: string | null; ticker: string | null; weight: number | null };
 export type Overlap = {
   name: string; ticker: string | null; count: number;

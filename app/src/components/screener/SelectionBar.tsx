@@ -96,16 +96,13 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
         <span className="hidden sm:inline-flex"><Download size={13} /></span>
         CSV
       </Btn>
-      {selected.length >= 2 && (
-        // <a> et non <Link> : route API de téléchargement, pas une page. Un <Link>
-        // déclenche le prefetch RSC de Next (/api/rapport/pdf?_rsc=…) → 400 en console.
-        <a href={pdfHref} target="_blank" rel="noopener" className="shrink-0">
-          <Btn variant="outline" size="sm">
-            <span className="hidden sm:inline-flex"><Download size={13} /></span>
-            PDF
-          </Btn>
-        </a>
-      )}
+      {/* PDF dès 1 fonds : fiche de fonds (1) ou rapport comparatif (≥2). */}
+      <a href={pdfHref} target="_blank" rel="noopener" className="shrink-0">
+        <Btn variant="outline" size="sm">
+          <span className="hidden sm:inline-flex"><Download size={13} /></span>
+          PDF
+        </Btn>
+      </a>
       {selected.length >= 2 && (
         <Link
           href={`/portefeuille?isins=${selected.map((f) => f.isin).join(",")}`}

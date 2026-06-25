@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { blendExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
+import { blendExposure, weightedExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
 
 describe('blendExposure', () => {
   it('équipondère sur les fonds contributeurs (somme ~100 %)', () => {
@@ -129,5 +129,35 @@ describe('findOverlaps', () => {
     ])
     expect(out.length).toBe(1)
     expect(out[0].count).toBe(2)
+  })
+})
+
+describe('weightedExposure', () => {
+  it('pondère par les poids du portefeuille (contribution = poids fonds × poids ligne)', () => {
+    // A pèse 75 % (100 % USA), B pèse 25 % (100 % Europe) → USA 75, Europe 25.
+    const rows = [
+      { isin: 'A', label: 'USA', weight: 1.0 },
+      { isin: 'B', label: 'Europe', weight: 1.0 },
+    ]
+    const out = weightedExposure(rows, { A: 0.75, B: 0.25 })
+    expect(out).toEqual([{ label: 'USA', weight: 75 }, { label: 'Europe', weight: 25 }])
+  })
+  it('normalise sur les seuls fonds porteurs de la ventilation', () => {
+    // A (60 %) porte la donnée, B (40 %) non → on renormalise sur A → 100 %.
+    const out = weightedExposure([{ isin: 'A', label: 'USA', weight: 1.0 }], { A: 0.6, B: 0.4 })
+    expect(out).toEqual([{ label: 'USA', weight: 100 }])
+  })
+  it('fusionne par clé (un même pays sous deux libellés)', () => {
+    const rows = [
+      { isin: 'A', key: 'DE', label: 'Germany', weight: 1.0 },
+      { isin: 'B', key: 'DE', label: 'Allemagne', weight: 1.0 },
+    ]
+    const out = weightedExposure(rows, { A: 0.5, B: 0.5 })
+    expect(out.length).toBe(1)
+    expect(out[0].weight).toBe(100)
+  })
+  it('renvoie [] si aucun fonds porteur n\'a de poids', () => {
+    expect(weightedExposure([{ isin: 'A', label: 'USA', weight: 1 }], { B: 1 })).toEqual([])
+    expect(weightedExposure([], {})).toEqual([])
   })
 })

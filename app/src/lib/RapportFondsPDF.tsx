@@ -20,6 +20,9 @@ import {
   normTer,
   perf,
 } from "./pdf/components";
+import { LineChartPdf, CompositionDonut, CompositionBars, SERIES, type Series } from "./pdf/charts";
+import { rebase100, type Pt } from "./pdf/chartMath";
+import type { FundComposition } from "./pdf/pdfData";
 
 registerCharlieFonts();
 
@@ -68,32 +71,42 @@ const S = StyleSheet.create({
   fundTitle: { fontFamily: FONT.serif, fontSize: 25, color: C.ink, lineHeight: 1.05, marginTop: 2 },
   fundMeta: { fontFamily: FONT.sans, fontSize: 9, color: C.ink2, marginTop: 5 },
   fundMetaIsin: { fontFamily: FONT.mono, fontSize: 9, color: C.clay },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 12, marginBottom: 14 },
-  heroRow: { flexDirection: "row", gap: 12, marginBottom: 18 },
-  twoCol: { flexDirection: "row", gap: 26 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 9, marginBottom: 9 },
+  heroRow: { flexDirection: "row", gap: 12, marginBottom: 10 },
+  twoCol: { flexDirection: "row", gap: 22 },
   col: { flex: 1 },
-  card: { backgroundColor: C.paper, borderWidth: 0.75, borderColor: C.line, borderRadius: 8, padding: 13, marginTop: 13 },
+  card: { backgroundColor: C.paper, borderWidth: 0.75, borderColor: C.line, borderRadius: 8, padding: 11, marginTop: 10 },
   cardLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7, letterSpacing: 1.1, textTransform: "uppercase", color: C.muted, marginBottom: 8 },
-  ratingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 0.75, borderTopColor: C.lineSoft },
+  ratingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 9, borderTopWidth: 0.75, borderTopColor: C.lineSoft },
+  // Chart block
+  chartBlock: { backgroundColor: C.paper, borderWidth: 0.75, borderColor: C.line, borderRadius: 9, padding: 10, marginBottom: 9 },
+  chartHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 9 },
+  perfChips: { flexDirection: "row", gap: 6 },
+  perfChip: { alignItems: "center", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, backgroundColor: C.paper2 },
+  perfChipLbl: { fontFamily: FONT.sans, fontSize: 6.5, color: C.muted, letterSpacing: 0.4 },
+  perfChipVal: { fontFamily: FONT.mono, fontWeight: 500, fontSize: 9, marginTop: 1 },
+  // Holdings strip
+  holdStrip: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 5 },
+  holdChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.paper2, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
+  holdName: { fontFamily: FONT.sans, fontSize: 7.5, color: C.ink2 },
+  holdW: { fontFamily: FONT.mono, fontSize: 7.5, color: C.muted },
   // Callout rétro
   callout: {
     backgroundColor: C.claySoft,
     borderTopWidth: 2,
     borderTopColor: C.clay,
     borderRadius: 7,
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 14,
-    marginTop: 16,
+    marginTop: 13,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   calloutLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 9.5, color: C.clayInk },
   calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#86422A", marginTop: 3 },
-  calloutValue: { fontFamily: FONT.serif, fontSize: 22, color: C.clay },
-  // Warning
-  warn: { backgroundColor: C.goldSoft, borderLeftWidth: 2.5, borderLeftColor: C.gold, borderRadius: 3, paddingVertical: 7, paddingHorizontal: 10, marginBottom: 13 },
-  warnText: { fontFamily: FONT.sans, fontSize: 8, color: "#6F5417" },
+  calloutValue: { fontFamily: FONT.serif, fontSize: 19, color: C.clay },
+  callout2: { marginTop: 6, paddingVertical: 7 },
   // Footer
   footer: {
     position: "absolute",
@@ -110,6 +123,7 @@ const S = StyleSheet.create({
   },
   disclaimer: { fontFamily: FONT.sans, fontSize: 6.8, color: C.muted, lineHeight: 1.4, flex: 1 },
   footerBrand: { fontFamily: FONT.serif, fontSize: 9, color: C.ink2 },
+  compLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7, letterSpacing: 1.1, textTransform: "uppercase", color: C.muted, marginBottom: 7 },
 });
 
 const DISCLAIMER =
@@ -136,12 +150,25 @@ function mean(xs: number[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-function CoverPage({ funds }: { funds: Fund[] }) {
+/** Convertit une série de VL brute en série rebasée base 100, prête pour le chart. */
+function toRebased(name: string, pts: Pt[], color?: string): Series {
+  const vals = rebase100(pts.map((p) => p.v));
+  const points = pts.map((p, i) => ({ t: p.t, v: vals[i] }));
+  const last = points.length ? points[points.length - 1].v : null;
+  return { name, points, color, perf: last == null ? null : last - 100 };
+}
+
+function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt[]> }) {
   const single = funds.length === 1;
   const medTer = median(funds.map((f) => normTer(f.ongoing_charges ?? f.ter) as number));
   const avgPerf = mean(funds.map((f) => f.performance_1y as number));
   const avgRetro = mean(funds.map((f) => (f.retrocession_cgp != null ? f.retrocession_cgp * 100 : (null as unknown as number))));
   const maxPerf = Math.max(1, ...funds.map((f) => Math.abs(f.performance_1y ?? 0)));
+
+  // Courbe comparative base 100 : une série par fonds disposant d'un historique.
+  const chartSeries: Series[] = funds
+    .filter((f) => (series[f.isin]?.length ?? 0) >= 2)
+    .map((f, i) => toRebased(String(f.name), series[f.isin], SERIES[i % SERIES.length]));
 
   return (
     <Page size="A4" style={S.page}>
@@ -175,7 +202,19 @@ function CoverPage({ funds }: { funds: Fund[] }) {
         ]}
       />
 
-      <View style={{ height: 22 }} />
+      {/* Courbe comparative (visuel central) — uniquement multi-fonds avec historique. */}
+      {chartSeries.length > 1 && (
+        <View style={[S.chartBlock, { marginTop: 18, marginBottom: 0 }]}>
+          <SectionIntro
+            eyebrow="Trajectoire"
+            title="Performance comparée, base 100."
+            desc="Évolution rebasée à 100 sur la période disponible — pour lire d'un coup d'œil qui mène et avec quelle régularité."
+          />
+          <LineChartPdf series={chartSeries} width={464} height={150} showArea={false} />
+        </View>
+      )}
+
+      <View style={{ height: 20 }} />
       <SectionIntro
         eyebrow="Synthèse"
         title="Le comparatif en un coup d'œil."
@@ -221,7 +260,28 @@ function CoverPage({ funds }: { funds: Fund[] }) {
   );
 }
 
-function FundPage({ fund, index, total }: { fund: Fund; index: number; total: number }) {
+function PerfChip({ label, value }: { label: string; value: number | null | undefined }) {
+  return (
+    <View style={S.perfChip}>
+      <Text style={S.perfChipLbl}>{label}</Text>
+      <Text style={[S.perfChipVal, { color: perfColor(value) }]}>{perf(value)}</Text>
+    </View>
+  );
+}
+
+function FundPage({
+  fund,
+  index,
+  total,
+  series,
+  comp,
+}: {
+  fund: Fund;
+  index: number;
+  total: number;
+  series?: Pt[];
+  comp?: FundComposition;
+}) {
   const trackRecord = fund.inception_date
     ? Math.floor((Date.now() - new Date(fund.inception_date).getTime()) / (1000 * 60 * 60 * 24 * 365))
     : null;
@@ -231,6 +291,13 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
   const hasRetro = fund.retrocession_cgp > 0;
   const sri = fund.sri ?? fund.risk_score;
   const maxPerf = Math.max(1, Math.abs(fund.performance_1y ?? 0), Math.abs(fund.performance_3y ?? 0), Math.abs(fund.performance_5y ?? 0));
+
+  const hasCurve = (series?.length ?? 0) >= 2;
+  const curveSeries: Series[] = hasCurve ? [toRebased(String(fund.name), series!, C.clay)] : [];
+  const hasGeo = (comp?.geos?.length ?? 0) > 0;
+  const hasSectors = (comp?.sectors?.length ?? 0) > 0;
+  const hasHoldings = (comp?.holdings?.length ?? 0) > 0;
+  const hasComposition = hasGeo || hasSectors;
 
   return (
     <Page size="A4" style={S.page}>
@@ -265,7 +332,7 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
           value={perf(fund.performance_1y)}
           sub="annualisée"
           tone={fund.performance_1y != null && fund.performance_1y < 0 ? "neg" : "pos"}
-          style={{ flex: 1.4 }}
+          style={{ flex: 1.4, paddingVertical: 11 }}
         />
         <View style={{ flex: 2.6 }}>
           <MetricGrid
@@ -279,45 +346,74 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
         </View>
       </View>
 
-      <View style={S.twoCol}>
-        <View style={S.col}>
-          <SectionIntro eyebrow="Performance" title="La trajectoire." />
+      {/* Courbe de performance (visuel) — sinon repli sur des barres de perf. */}
+      {hasCurve ? (
+        <View style={S.chartBlock}>
+          <View style={S.chartHead}>
+            <View>
+              <Text style={S.compLabel}>Performance — base 100</Text>
+              <Text style={{ fontFamily: FONT.sans, fontSize: 7.5, color: C.muted }}>Évolution de la valeur liquidative sur la période disponible</Text>
+            </View>
+            <View style={S.perfChips}>
+              <PerfChip label="1 AN" value={fund.performance_1y} />
+              <PerfChip label="3 ANS" value={fund.performance_3y} />
+              <PerfChip label="5 ANS" value={fund.performance_5y} />
+            </View>
+          </View>
+          <LineChartPdf series={curveSeries} width={464} height={62} />
+        </View>
+      ) : (
+        <View style={S.chartBlock}>
+          <Text style={S.compLabel}>Performance annualisée</Text>
           <PerfBarRow label="1 an" value={fund.performance_1y} max={maxPerf} />
           <PerfBarRow label="3 ans" value={fund.performance_3y} max={maxPerf} />
           <PerfBarRow label="5 ans" value={fund.performance_5y} max={maxPerf} />
+        </View>
+      )}
+
+      <View style={S.twoCol}>
+        {/* Colonne gauche : composition (si dispo) sinon risque détaillé */}
+        <View style={S.col}>
+          {hasComposition ? (
+            <>
+              {hasGeo && (
+                <View>
+                  <Text style={S.compLabel}>Répartition géographique</Text>
+                  <CompositionDonut slices={comp!.geos} size={72} topN={4} />
+                </View>
+              )}
+              {hasSectors && (
+                <View style={{ marginTop: hasGeo ? 10 : 0 }}>
+                  <Text style={S.compLabel}>Secteurs</Text>
+                  <CompositionBars slices={comp!.sectors} topN={4} />
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              <SectionIntro eyebrow="Risque" title="La volatilité." />
+              <PerfBarRow label="1 an" value={fund.performance_1y} max={maxPerf} />
+              <PerfBarRow label="3 ans" value={fund.performance_3y} max={maxPerf} />
+              <PerfBarRow label="5 ans" value={fund.performance_5y} max={maxPerf} />
+            </>
+          )}
           <Row label="Volatilité 1 an" value={fmt(fund.volatility_1y)} />
           <Row label="Ratio de Sharpe 1 an" value={fmt(fund.sharpe_1y, "", 2)} />
-
-          {fund.benchmark_index && (fund.alpha_3y != null || fund.alpha_1y != null) && (
-            <View style={S.card}>
-              <Text style={S.cardLabel}>
-                {fund.benchmark_is_category ? "Alpha vs indice de catégorie" : "Performance vs indice"}
-              </Text>
-              <Row label={`Indice`} value={String(fund.benchmark_index)} />
-              <Row label="Alpha 1 an" value={fund.alpha_1y != null ? perf(fund.alpha_1y) : "—"} />
-              <Row label="Alpha 3 ans (annualisé)" value={fund.alpha_3y != null ? perf(fund.alpha_3y) : "—"} />
-            </View>
-          )}
-
-          <View style={S.card}>
-            <Text style={S.cardLabel}>Indicateur de risque (SRI)</Text>
-            <SriMeter value={sri} />
-          </View>
+          {fund.max_drawdown_3y != null && <Row label="Perte max. 3 ans" value={fmt(fund.max_drawdown_3y)} tone="perf" />}
         </View>
 
+        {/* Colonne droite : frais & structure */}
         <View style={S.col}>
           <SectionIntro eyebrow="Frais & structure" title="Le coût réel." />
           <Row label="Frais courants (TER)" value={fmt(ter)} />
           <Row label="Frais d'entrée max" value={fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "—"} />
           <Row label="Commission de sortie max" value={fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "—"} />
-          {/* Perf nette pour le client : perf VL (déjà nette du fonds) moins les
-              frais de gestion du contrat AV (hypothèse standard). Pas de double
-              comptage du TER/rétro. */}
+          {/* Perf nette client : VL (déjà nette du fonds) moins frais de gestion du
+              contrat AV (hypothèse standard). Pas de double comptage du TER/rétro. */}
           <Row
             label="Perf. nette 3 ans (AV, est.)"
             value={fund.performance_3y != null ? perf(perfNetteClient(fund.performance_3y, CONTRACT_FEE_DEFAULTS["AV-FR"])) : "—"}
           />
-          {/* Durabilité (DDA) : affichées seulement si publiées par la SGP. */}
           {fund.sustainable_investment_pct != null && (
             <Row label="Investissement durable" value={fmt(fund.sustainable_investment_pct)} />
           )}
@@ -334,11 +430,42 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
               <RatingDots value={fund.morningstar_rating} />
             </View>
           ) : null}
+
+          <View style={{ marginTop: 11 }}>
+            <Text style={S.cardLabel}>Indicateur de risque (SRI)</Text>
+            <SriMeter value={sri} />
+          </View>
+
+          {fund.benchmark_index && (fund.alpha_3y != null || fund.alpha_1y != null) && (
+            <View style={S.card}>
+              <Text style={S.cardLabel}>
+                {fund.benchmark_is_category ? "Alpha vs indice de catégorie" : "Performance vs indice"}
+              </Text>
+              <Row label="Indice" value={String(fund.benchmark_index).slice(0, 28)} />
+              <Row label="Alpha 1 an" value={fund.alpha_1y != null ? perf(fund.alpha_1y) : "—"} tone={fund.alpha_1y} />
+              <Row label="Alpha 3 ans (ann.)" value={fund.alpha_3y != null ? perf(fund.alpha_3y) : "—"} tone={fund.alpha_3y} />
+            </View>
+          )}
         </View>
       </View>
 
+      {/* Principales positions (transparence) */}
+      {hasHoldings && (
+        <View style={{ marginTop: 6 }}>
+          <Text style={S.compLabel}>Principales positions</Text>
+          <View style={S.holdStrip}>
+            {comp!.holdings.slice(0, 6).map((h, i) => (
+              <View key={i} style={S.holdChip}>
+                <Text style={S.holdName}>{h.label.length > 24 ? h.label.slice(0, 23) + "…" : h.label}</Text>
+                <Text style={S.holdW}>{(h.weight <= 1 ? h.weight * 100 : h.weight).toFixed(1)}%</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       {hasRetro && (
-        <View style={S.callout}>
+        <View style={[S.callout, S.callout2]}>
           <View>
             <Text style={S.calloutLabel}>Rétrocession CGP — {fmt(retroPct)} par an</Text>
             <Text style={S.calloutSub}>Revenu estimé pour un encours de 100 000 € confié</Text>
@@ -352,12 +479,20 @@ function FundPage({ fund, index, total }: { fund: Fund; index: number; total: nu
   );
 }
 
-export default function RapportFondsPDF({ funds }: { funds: Fund[] }) {
+export default function RapportFondsPDF({
+  funds,
+  series = {},
+  composition = {},
+}: {
+  funds: Fund[];
+  series?: Record<string, Pt[]>;
+  composition?: Record<string, FundComposition>;
+}) {
   return (
     <Document title={`Rapport fonds Charlie — ${dateFr()}`} author="Charlie CGP" subject="Analyse comparative de fonds">
-      <CoverPage funds={funds} />
+      <CoverPage funds={funds} series={series} />
       {funds.map((fund, i) => (
-        <FundPage key={fund.isin} fund={fund} index={i} total={funds.length} />
+        <FundPage key={fund.isin} fund={fund} index={i} total={funds.length} series={series[fund.isin]} comp={composition[fund.isin]} />
       ))}
     </Document>
   );

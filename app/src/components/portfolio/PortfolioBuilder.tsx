@@ -9,7 +9,7 @@ import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { PageShell, PageHeader } from "@/components/ui/Page";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
-import { Copy, Check, X, Search } from "@/components/ui/icons";
+import { X, Search, Download } from "@/components/ui/icons";
 import { pct } from "@/lib/format";
 import { addSearch } from "@/lib/searches";
 import {
@@ -83,7 +83,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const [holdings, setHoldings] = useState<Holding[]>(() => parsePortfolioParams(initialIsins, initialWeights));
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [benchmark, setBenchmark] = useState(initialBenchmark || DEFAULT_BENCHMARK);
   const [years, setYears] = useState(() => {
     const y = Number(initialYears);
@@ -133,9 +132,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const setWeight = (isin: string, w: number) =>
     setHoldings((prev) => prev.map((h) => (h.isin === isin ? { ...h, weight: w } : h)));
   const remove = (isin: string) => setHoldings((prev) => prev.filter((h) => h.isin !== isin));
-  const copyLink = () => navigator.clipboard?.writeText(window.location.href).then(() => {
-    setCopied(true); setTimeout(() => setCopied(false), 1800);
-  });
 
   // Recherche en langage naturel → renvoie vers le screener, où l'on sélectionne
   // les fonds à ajouter au portefeuille (pas de screener recréé dans la page).
@@ -162,6 +158,10 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   const proj = projectEuros(ratios?.total_return, amount);
   const ready = !!(ratios && meta && meta.used > 0);
   const period = meta?.start && meta?.end ? `${frMonth(meta.start)} – ${frMonth(meta.end)}` : "";
+  // Téléchargement du PDF complet du portefeuille : reflète l'état courant (mêmes
+  // params que le lien synchronisé). <a> et non <Link> : route API, pas une page
+  // (un <Link> déclencherait le prefetch RSC → 400).
+  const pdfHref = `/api/portfolio/pdf?isins=${serial.isins}&weights=${serial.weights}&benchmark=${benchmark}&years=${years}`;
 
   if (holdings.length === 0) {
     return (
@@ -180,9 +180,11 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
       <PageHeader
         title="Portefeuille"
         action={
-          <Btn variant="outline" size="sm" onClick={copyLink}>
-            {copied ? <><Check size={13} /> Lien copié</> : <><Copy size={13} /> Copier le lien</>}
-          </Btn>
+          <a href={pdfHref} target="_blank" rel="noopener">
+            <Btn variant="outline" size="sm">
+              <Download size={13} /> Télécharger le PDF
+            </Btn>
+          </a>
         }
       />
 

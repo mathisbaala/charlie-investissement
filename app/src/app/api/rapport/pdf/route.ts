@@ -4,6 +4,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
 import { annualizeForType, annualizeCumul } from "@/lib/format";
+import { fetchNavSeries, fetchCompositionByFund } from "@/lib/pdf/pdfData";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -38,8 +39,16 @@ export async function GET(req: NextRequest) {
       benchmark_perf_5y: annualizeCumul(f!.benchmark_perf_5y, 5),
     }));
 
+  // Données « riches » du factsheet : historique de VL (courbes base 100) et
+  // composition par fonds (géo / secteurs / lignes). Tolérant aux trous.
+  const orderedIsins = ordered.map((f) => f!.isin as string);
+  const [series, composition] = await Promise.all([
+    fetchNavSeries(orderedIsins, 5),
+    fetchCompositionByFund(orderedIsins),
+  ]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(RapportFondsPDF as any, { funds: ordered });
+  const element = React.createElement(RapportFondsPDF as any, { funds: ordered, series, composition });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 

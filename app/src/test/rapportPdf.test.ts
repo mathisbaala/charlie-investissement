@@ -75,6 +75,24 @@ describe("RapportFondsPDF", () => {
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
   }, 30_000);
 
+  it("rend un PDF enrichi avec courbes + composition (factsheet)", async () => {
+    // Série de VL synthétique (base ~100) + composition géo/secteurs/lignes.
+    const t0 = new Date("2021-01-01").getTime();
+    const week = 7 * 24 * 3600 * 1000;
+    const pts = Array.from({ length: 80 }, (_, i) => ({ t: t0 + i * week, v: 100 + i * 0.4 + (i % 5) }));
+    const series = { FR0010315770: pts };
+    const composition = {
+      FR0010315770: {
+        geos: [{ label: "États-Unis", weight: 0.62 }, { label: "France", weight: 0.18 }, { label: "Japon", weight: 0.2 }],
+        sectors: [{ label: "Technologie", weight: 0.4 }, { label: "Santé", weight: 0.3 }, { label: "Industrie", weight: 0.3 }],
+        holdings: [{ label: "Apple", weight: 0.06 }, { label: "Microsoft", weight: 0.05 }],
+      },
+    };
+    const buf = await render(React.createElement(RapportFondsPDF, { funds: SAMPLE, series, composition }));
+    expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
+    if (process.env.PDF_DUMP) writeFileSync("/tmp/rapport-charlie-rich.pdf", buf);
+  }, 30_000);
+
   it("rend la fiche fonds seule", async () => {
     const buf = await render(React.createElement(FicheFondsPDF, { fund: SAMPLE[0] }));
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
