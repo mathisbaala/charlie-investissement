@@ -538,7 +538,7 @@ function RechercheInner() {
                   onChange={(e) => handleSortByChange(e.target.value)}
                   className="appearance-none pl-3 pr-7 py-1.5 rounded-lg text-label font-medium border border-line bg-paper text-ink-2 cursor-pointer focus:outline-none transition-colors hover:bg-paper-2"
                 >
-                  <option value="data_completeness">Complétude</option>
+                  <option value="data_completeness">Pertinence</option>
                   <option value="performance_3y">Perf 3A</option>
                   <option value="performance_1y">Perf 1A</option>
                   <option value="performance_5y">Perf 5A</option>
