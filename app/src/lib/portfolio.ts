@@ -39,15 +39,42 @@ export interface PortfolioMeta {
   rf_pct: number;
 }
 
+export interface PortfolioBenchmark {
+  code: string;
+  label: string;
+  total_return: number | null;
+  annual_return: number | null;
+  volatility: number | null;
+  curve: PortfolioCurvePoint[];
+}
+
 export interface PortfolioAnalysis {
   meta: PortfolioMeta;
   ratios: PortfolioRatios;
   curve: PortfolioCurvePoint[];
   funds: PortfolioFundStat[];
   correlation: PortfolioCorrelation[];
+  benchmark?: PortfolioBenchmark | null;
   names?: Record<string, string>;
   error?: string;
 }
+
+/** Indices de référence proposés pour le back-test (codes investissement_index_catalog). */
+export const BENCHMARK_OPTIONS: { code: string; label: string }[] = [
+  { code: "msci_world", label: "MSCI World — actions monde" },
+  { code: "sp500", label: "S&P 500 — actions US" },
+  { code: "cac40_gr", label: "CAC 40 (dividendes réinvestis)" },
+  { code: "eurostoxx50", label: "Euro Stoxx 50" },
+  { code: "mix_75_25", label: "Diversifié dynamique (75/25)" },
+  { code: "mix_50_50", label: "Diversifié équilibré (50/50)" },
+  { code: "mix_25_75", label: "Diversifié prudent (25/75)" },
+  { code: "global_agg", label: "Obligations monde" },
+  { code: "eur_mmf", label: "Monétaire € (€STR)" },
+];
+
+export const DEFAULT_BENCHMARK = "msci_world";
+// Code benchmark valide (lettres/chiffres/underscore) — garde-fou côté API.
+export const BENCHMARK_CODE_RE = /^[a-z0-9_]{2,40}$/;
 
 /** Une ligne de portefeuille : un fonds et son poids en POURCENTAGE (0-100). */
 export interface Holding {
@@ -124,6 +151,36 @@ export function serializePortfolioParams(holdings: Holding[]): {
     isins: holdings.map((h) => h.isin).join(","),
     weights: holdings.map((h) => String(Math.round(h.weight))).join(","),
   };
+}
+
+/**
+ * Projection en euros : valeur finale et gain pour un montant initial investi,
+ * à partir de la performance totale sur la période (fraction, ex. 0.1775).
+ */
+export function projectEuros(
+  totalReturn: number | null | undefined,
+  amount: number,
+): { final: number; gain: number } {
+  const r = totalReturn ?? 0;
+  const final = amount * (1 + r);
+  return { final, gain: final - amount };
+}
+
+/**
+ * Fusionne la courbe du portefeuille et celle du benchmark (mêmes dates : grille
+ * commune) en un jeu unique [{d, p, b}] pour un graphe à deux lignes.
+ */
+export function mergeCurves(
+  portfolio: PortfolioCurvePoint[],
+  benchmark: PortfolioCurvePoint[] | undefined | null,
+): { d: string; p: number | null; b: number | null }[] {
+  const bMap = new Map<string, number>();
+  for (const pt of benchmark ?? []) bMap.set(pt.d, pt.v);
+  return portfolio.map((pt) => ({
+    d: pt.d,
+    p: pt.v,
+    b: bMap.has(pt.d) ? bMap.get(pt.d)! : null,
+  }));
 }
 
 /**

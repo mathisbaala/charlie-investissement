@@ -4,6 +4,8 @@ import {
   normalizeWeights,
   serializePortfolioParams,
   buildCorrelationMatrix,
+  projectEuros,
+  mergeCurves,
 } from '../lib/portfolio'
 
 describe('parsePortfolioParams', () => {
@@ -103,5 +105,35 @@ describe('buildCorrelationMatrix', () => {
     expect(m[0][2]).toBeNull() // A-C absent
     expect(m[1][0]).toBe(0.5) // B-A symétrique
     expect(m[2][2]).toBe(1) // diagonale
+  })
+})
+
+describe('projectEuros', () => {
+  it('projette valeur finale + gain', () => {
+    expect(projectEuros(0.1775, 10000)).toEqual({ final: 11775, gain: 1775 })
+  })
+  it('gère une perf nulle/absente', () => {
+    expect(projectEuros(null, 10000)).toEqual({ final: 10000, gain: 0 })
+  })
+  it('gère une perf négative', () => {
+    expect(projectEuros(-0.2, 10000)).toEqual({ final: 8000, gain: -2000 })
+  })
+})
+
+describe('mergeCurves', () => {
+  it('fusionne portefeuille + benchmark par date', () => {
+    const p = [{ d: '2021-01-01', v: 100 }, { d: '2021-01-08', v: 102 }]
+    const b = [{ d: '2021-01-01', v: 100 }, { d: '2021-01-08', v: 105 }]
+    expect(mergeCurves(p, b)).toEqual([
+      { d: '2021-01-01', p: 100, b: 100 },
+      { d: '2021-01-08', p: 102, b: 105 },
+    ])
+  })
+  it('met b=null si benchmark absent ou date manquante', () => {
+    const p = [{ d: '2021-01-01', v: 100 }]
+    expect(mergeCurves(p, null)).toEqual([{ d: '2021-01-01', p: 100, b: null }])
+    expect(mergeCurves(p, [{ d: '2099-01-01', v: 100 }])).toEqual([
+      { d: '2021-01-01', p: 100, b: null },
+    ])
   })
 })

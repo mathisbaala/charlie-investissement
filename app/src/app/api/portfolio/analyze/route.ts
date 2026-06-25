@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { PORTFOLIO_ISIN_RE, type PortfolioAnalysis } from "@/lib/portfolio";
+import { PORTFOLIO_ISIN_RE, BENCHMARK_CODE_RE, type PortfolioAnalysis } from "@/lib/portfolio";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +35,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const years = Math.min(Math.max(Number(p.get("years")) || 5, 1), 10);
 
+  const benchRaw = (p.get("benchmark") ?? "").trim().toLowerCase();
+  const benchmark = BENCHMARK_CODE_RE.test(benchRaw) ? benchRaw : null;
+
   const [{ data, error }, namesRes] = await Promise.all([
     supabase.rpc("inv_portfolio_analyze", {
       p_isins: unique,
       p_weights: weights,
       p_years: years,
+      p_benchmark: benchmark,
     }),
     supabase.from("investissement_funds").select("isin, name").in("isin", unique),
   ]);

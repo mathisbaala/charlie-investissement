@@ -3,15 +3,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { Btn } from "@/components/ui/Btn";
 import { Copy, Minus, Check, ArrowLeft } from "@/components/ui/icons";
 import { pct } from "@/lib/format";
 import {
   parsePortfolioParams, normalizeWeights, serializePortfolioParams,
-  buildCorrelationMatrix, type Holding, type PortfolioAnalysis,
+  buildCorrelationMatrix, projectEuros, mergeCurves,
+  BENCHMARK_OPTIONS, DEFAULT_BENCHMARK,
+  type Holding, type PortfolioAnalysis,
 } from "@/lib/portfolio";
+
+const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
 const SESSION_KEY = "charlie_comparison";
 
@@ -50,15 +54,18 @@ function RatioCard({ label, value, hint }: { label: string; value: string; hint?
 interface Props {
   initialIsins: string;
   initialWeights: string;
+  initialBenchmark: string;
 }
 
-export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
+export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmark }: Props) {
   const [holdings, setHoldings] = useState<Holding[]>(() =>
     parsePortfolioParams(initialIsins, initialWeights),
   );
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [benchmark, setBenchmark] = useState(initialBenchmark || DEFAULT_BENCHMARK);
+  const [amount, setAmount] = useState(10000);
 
   // Repli : si l'URL est vide, reprendre la sélection du screener (équipondérée).
   useEffect(() => {
@@ -75,14 +82,15 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
     } catch { /* sessionStorage indispo */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const analyze = useCallback(async (list: Holding[]) => {
+  const analyze = useCallback(async (list: Holding[], bench: string) => {
     const norm = normalizeWeights(list);
     const { isins, weights } = serializePortfolioParams(norm);
+    const qs = `isins=${isins}&weights=${weights}&benchmark=${bench}`;
     // Met à jour l'URL → le lien partageable reflète le portefeuille courant.
-    window.history.replaceState(null, "", `/portefeuille?isins=${isins}&weights=${weights}`);
+    window.history.replaceState(null, "", `/portefeuille?${qs}`);
     setLoading(true);
     try {
-      const res = await fetch(`/api/portfolio/analyze?isins=${isins}&weights=${weights}`);
+      const res = await fetch(`/api/portfolio/analyze?${qs}`);
       setAnalysis(await res.json());
     } catch {
       setAnalysis({ error: "network" } as PortfolioAnalysis);
@@ -93,8 +101,14 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
 
   // Analyse initiale (URL ou repli sélection).
   useEffect(() => {
-    if (holdings.length > 0 && analysis === null && !loading) analyze(holdings);
+    if (holdings.length > 0 && analysis === null && !loading) analyze(holdings, benchmark);
   }, [holdings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Changement de benchmark → ré-analyse immédiate (sans recliquer « Analyser »).
+  const onBenchmarkChange = (code: string) => {
+    setBenchmark(code);
+    if (holdings.length > 0) analyze(holdings, code);
+  };
 
   const sum = useMemo(
     () => holdings.reduce((a, h) => a + (h.weight > 0 ? h.weight : 0), 0),
@@ -138,6 +152,14 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
   const matrix = analysis
     ? buildCorrelationMatrix(holdings.map((h) => h.isin), analysis.correlation ?? [])
     : [];
+  const bench = analysis?.benchmark ?? null;
+  const mergedCurve = analysis ? mergeCurves(analysis.curve ?? [], bench?.curve) : [];
+  const proj = projectEuros(ratios?.total_return, amount);
+  const benchProj = bench ? projectEuros(bench.total_return, amount) : null;
+  const outperf =
+    ratios?.annual_return != null && bench?.annual_return != null
+      ? ratios.annual_return - bench.annual_return
+      : null;
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8">
@@ -189,7 +211,7 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
             </Btn>
           </div>
 
-          <Btn variant="primary" className="w-full mt-3" onClick={() => analyze(holdings)} disabled={loading}>
+          <Btn variant="primary" className="w-full mt-3" onClick={() => analyze(holdings, benchmark)} disabled={loading}>
             {loading ? "Analyse…" : "Analyser le portefeuille"}
           </Btn>
 
@@ -227,28 +249,93 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
                 <RatioCard label="Perf. totale" value={pct((ratios.total_return ?? 0) * 100, true)} />
               </div>
 
-              {/* Courbe composite */}
+              {/* Back-test : courbe portefeuille vs benchmark */}
               <div className="bg-paper border border-line rounded-xl p-4">
-                <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold mb-1">
-                  Performance du portefeuille · base 100
-                </p>
+                <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
+                  <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
+                    Back-test · base 100
+                  </p>
+                  <label className="text-caption text-muted flex items-center gap-1.5">
+                    Comparer à
+                    <select
+                      value={benchmark}
+                      onChange={(e) => onBenchmarkChange(e.target.value)}
+                      className="text-meta border border-line rounded-md px-2 py-1 bg-paper focus:outline-none focus:border-accent"
+                    >
+                      {BENCHMARK_OPTIONS.map((b) => (
+                        <option key={b.code} value={b.code}>{b.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <p className="text-caption text-muted mb-3">
                   {meta.start} → {meta.end} · {meta.n_weeks} semaines · rééquilibré
                 </p>
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={analysis.curve} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <LineChart data={mergedCurve} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
                     <XAxis dataKey="d" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
                       tickFormatter={(v: string) => { const d = new Date(v); return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`; }}
                       interval="preserveStartEnd" minTickGap={60} />
                     <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={42} />
                     <Tooltip
-                      formatter={(v: unknown) => [typeof v === "number" ? v.toFixed(1) : "—", "Niveau"]}
+                      formatter={(v: unknown, n: unknown) => [typeof v === "number" ? v.toFixed(1) : "—", n === "p" ? "Portefeuille" : (bench?.label ?? "Indice")]}
                       labelFormatter={(l: unknown) => { const d = new Date(String(l)); return isNaN(d.getTime()) ? String(l) : d.toLocaleDateString("fr-FR"); }}
                       contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
-                    <Line type="monotone" dataKey="v" stroke="#B0613F" strokeWidth={2} dot={false} />
+                    <Legend formatter={(value: string) => <span style={{ fontSize: 11 }}>{value === "p" ? "Portefeuille" : (bench?.label ?? "Indice")}</span>} />
+                    <Line type="monotone" dataKey="p" stroke="#B0613F" strokeWidth={2} dot={false} />
+                    {bench && <Line type="monotone" dataKey="b" stroke="#8A8780" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls />}
                   </LineChart>
                 </ResponsiveContainer>
+
+                {/* Comparaison + projection en euros */}
+                <div className="grid sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-dashed border-line-soft">
+                  <div>
+                    <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold mb-2">Comparaison (annualisé)</p>
+                    <div className="flex items-center justify-between text-meta py-0.5">
+                      <span className="text-ink-2">Portefeuille</span>
+                      <span className="text-ink font-medium">{pct((ratios?.annual_return ?? 0) * 100, true)}/an</span>
+                    </div>
+                    {bench && (
+                      <div className="flex items-center justify-between text-meta py-0.5">
+                        <span className="text-ink-2">{bench.label}</span>
+                        <span className="text-ink font-medium">{pct((bench.annual_return ?? 0) * 100, true)}/an</span>
+                      </div>
+                    )}
+                    {outperf != null && (
+                      <div className="flex items-center justify-between text-meta py-0.5 mt-1 pt-1 border-t border-line-soft">
+                        <span className="text-muted">Sur/sous-performance</span>
+                        <span className={outperf >= 0 ? "text-clay font-semibold" : "text-ink-2 font-semibold"}>
+                          {pct(outperf * 100, true)}/an
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-caption uppercase tracking-[0.08em] text-muted font-semibold mb-2 flex items-center gap-2">
+                      Projection
+                      <input
+                        type="number" min={0} step={1000} value={amount}
+                        onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
+                        className="w-24 text-right text-meta border border-line rounded-md px-2 py-0.5 bg-paper focus:outline-none focus:border-accent normal-case tracking-normal"
+                      />
+                      € investis
+                    </label>
+                    <div className="flex items-center justify-between text-meta py-0.5">
+                      <span className="text-ink-2">Portefeuille</span>
+                      <span className="text-ink font-medium">
+                        {EUR.format(proj.final)} <span className={proj.gain >= 0 ? "text-clay" : "text-muted"}>({proj.gain >= 0 ? "+" : ""}{EUR.format(proj.gain)})</span>
+                      </span>
+                    </div>
+                    {benchProj && (
+                      <div className="flex items-center justify-between text-meta py-0.5">
+                        <span className="text-ink-2">{bench?.label}</span>
+                        <span className="text-ink-2">{EUR.format(benchProj.final)}</span>
+                      </div>
+                    )}
+                    <p className="text-caption text-muted mt-1.5">Performance passée, sans garantie sur l'avenir.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Matrice de corrélation */}

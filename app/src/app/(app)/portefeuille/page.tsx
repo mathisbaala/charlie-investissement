@@ -6,13 +6,14 @@ export const metadata = { title: "Portefeuille — Charlie" };
 export default async function PortefeuillePage({
   searchParams,
 }: {
-  searchParams: Promise<{ isins?: string; weights?: string }>;
+  searchParams: Promise<{ isins?: string; weights?: string; benchmark?: string }>;
 }) {
   const sp = await searchParams;
   return (
     <PortfolioBuilder
       initialIsins={sp.isins ?? ""}
       initialWeights={sp.weights ?? ""}
+      initialBenchmark={sp.benchmark ?? ""}
     />
   );
 }
