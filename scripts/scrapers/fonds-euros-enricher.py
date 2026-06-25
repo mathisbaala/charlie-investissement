@@ -34,7 +34,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, log_run, compute_completeness  # noqa: E402
+from db import get_client, log_run, compute_completeness, upsert_prices  # noqa: E402
 
 GVFM_URL = "https://www.goodvalueformoney.eu/documentation/tableau-de-suivi-du-rendement-des-fonds-en-euros"
 HEADERS = {
@@ -233,6 +233,42 @@ def compute_perfs(taux: dict[str, float]) -> tuple[float | None, float | None, f
     return p1y, p3y, p5y
 
 
+def build_synthetic_series(taux: dict[str, float]) -> list[dict]:
+    """Courbe NAV synthétique annuelle (base 100) par composition des taux servis.
+
+    Un « taux servi en YYYY » est le rendement crédité SUR l'année YYYY → on le
+    porte au 31/12/YYYY. Point de base = 31/12 de l'année précédant le 1er taux
+    connu. Fréquence ANNUELLE (rythme réel du produit, pas de fausse précision).
+    Ex. taux {2018:2.0, 2019:1.8} → [2017-12-31:100, 2018-12-31:102, 2019-12-31:103.836].
+    """
+    if not taux:
+        return []
+    years = sorted(int(y) for y in taux.keys())
+    nav = 100.0
+    pts = [{"date": f"{years[0] - 1}-12-31", "nav": round(nav, 6)}]
+    for y in years:
+        nav *= (1 + taux[str(y)] / 100.0)
+        pts.append({"date": f"{y}-12-31", "nav": round(nav, 6)})
+    return pts
+
+
+def persist_rates_and_series(client, isin: str, taux: dict[str, float], now: str) -> tuple[int, int]:
+    """Écrit l'historique des taux (table dédiée) + la courbe NAV synthétique
+    (investissement_fund_prices, source 'synthetic-fonds-euros'). Idempotent
+    (upsert). Retourne (nb_taux, nb_points_serie)."""
+    if not taux:
+        return 0, 0
+    rate_rows = [
+        {"isin": isin, "year": int(y), "rate_pct": v, "source": "gvfm", "updated_at": now}
+        for y, v in taux.items()
+    ]
+    client.table("investissement_fonds_euros_rates") \
+        .upsert(rate_rows, on_conflict="isin,year").execute()
+    pts = build_synthetic_series(taux)
+    upsert_prices(isin, pts, source="synthetic-fonds-euros")
+    return len(rate_rows), len(pts)
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def run(apply: bool, refresh: bool = False):
@@ -280,6 +316,7 @@ def run(apply: bool, refresh: bool = False):
     now = datetime.now(timezone.utc).isoformat()
     matched = updated = no_mapping = no_match = 0
     skipped_existing = 0
+    rates_total = series_pts_total = 0
 
     def _take(field: str, val, fund) -> bool:
         """Décide si on écrit `val` dans `field` : refresh → toujours (si val
@@ -316,6 +353,16 @@ def run(apply: bool, refresh: bool = False):
 
         matched += 1
         p1y, p3y, p5y = compute_perfs(gvfm_rec["taux"])
+
+        # Historique des taux + courbe NAV synthétique (indépendant du fill-only
+        # des perfs : idempotent, pour le moteur portefeuille + transparence).
+        if apply:
+            try:
+                nr, ns = persist_rates_and_series(client, isin, gvfm_rec["taux"], now)
+                rates_total += nr
+                series_pts_total += ns
+            except Exception as e:
+                print(f"    ✗ persist taux/série {isin} : {e}")
 
         update: dict = {}
         for field, val in (("performance_1y", p1y), ("performance_3y", p3y),
@@ -355,6 +402,8 @@ def run(apply: bool, refresh: bool = False):
     print(f"  Mapping mais pas trouvé   : {no_match}")
     print(f"  Matchés et données OK     : {matched}")
     print(f"  → fonds mis à jour        : {updated}")
+    print(f"  Taux annuels persistés    : {rates_total}")
+    print(f"  Points de série synthét.  : {series_pts_total}")
     if not refresh:
         print(f"  Déjà rempli (skip)        : {skipped_existing}")
     print()
