@@ -58,8 +58,6 @@ const S = StyleSheet.create({
   calloutLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 9.5, color: C.clayInk },
   calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#86422A", marginTop: 3 },
   calloutValue: { fontFamily: FONT.serif, fontSize: 22, color: C.clay },
-  warn: { backgroundColor: C.goldSoft, borderLeftWidth: 2.5, borderLeftColor: C.gold, borderRadius: 3, paddingVertical: 7, paddingHorizontal: 10, marginTop: 12 },
-  warnText: { fontFamily: FONT.sans, fontSize: 8, color: "#6F5417" },
   footer: {
     position: "absolute",
     bottom: 26,
@@ -166,12 +164,6 @@ export default function FicheFondsPDF({ fund }: { fund: Fund }) {
               <Text style={S.calloutSub}>Revenu estimé pour un encours de 100 000 € confié</Text>
             </View>
             <Text style={S.calloutValue}>{nfEur(100_000 * fund.retrocession_cgp)}/an</Text>
-          </View>
-        )}
-
-        {fund.data_completeness < 80 && (
-          <View style={S.warn}>
-            <Text style={S.warnText}>Données partielles — complétude {fund.data_completeness}%. Certains champs peuvent manquer.</Text>
           </View>
         )}
 
