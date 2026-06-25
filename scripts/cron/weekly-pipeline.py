@@ -107,6 +107,14 @@ def weekly_steps():
         # l'alpha de chaque fonds (sans --refresh-indices : les séries d'indices
         # sont rafraîchies mensuellement). APRÈS compute-metrics (en dépend).
         ("enrichers/td-enricher.py", []),
+        # Recalcul data_completeness APRÈS les enrichers (ft/geco/compute-metrics
+        # remplissent ter/perf/vol/aum/kid). compute-metrics ne touche PAS la
+        # complétude → sans cette étape le score se périme (fonds enrichis mais
+        # toujours scorés bas → cachés du screener malgré des données présentes).
+        # AVANT refresh-primary-share-class (qui privilégie les parts éligibles
+        # ≥50) et l'insurer-mv. Réplique recompute-completeness-v2.sql. (--apply
+        # ajouté par run_script.)
+        ("migrations/recalc-completeness-v2.py", ["--per-type"]),
         # Encours rafraîchis ci-dessus → recalcule le représentant share-class
         # (is_primary_share_class) qui porte la dédup de /api/funds.
         ("enrichers/refresh-primary-share-class.py", []),

@@ -1,0 +1,36 @@
+-- recompute-completeness-referencing-20260625.sql
+-- Chantier Référencement assureur (Partie 1) — volet B.
+--
+-- CONSTAT : ~5 670 fonds primaires opcvm/etf (dont l'essentiel des fonds RÉFÉRENCÉS
+-- en assurance-vie, enrichis par le scraper opcvm360 : perf/sri/rating) avaient un
+-- `data_completeness` PÉRIMÉ — score bas alors que les champs (TER/SRI/perf/AUM/KID)
+-- sont présents en base. Cause racine : `compute-metrics` ne recalcule PAS la
+-- complétude, et `recalc-completeness-v2.py` n'était câblé à AUCUN cron → dérive
+-- permanente. Effet : ces fonds restaient sous le plancher screener `>=50` → invisibles
+-- côté CGP malgré une offre réelle (référencés visibles au seuil strict : 741 → 6 414).
+--
+-- FIX :
+--   1. (Données) Recompute global de data_completeness = recompute-completeness-v2.sql
+--      (formule par product_type, idempotente). Appliqué le 2026-06-25 via le MCP
+--      Supabase. Moyenne univers 47 → 70 ; fonds >=50 ~22k → 27 911.
+--   2. (Durable) `recalc-completeness-v2.py --per-type` câblé dans weekly-pipeline.py
+--      ET monthly-pipeline.py, APRÈS compute-metrics et AVANT refresh-primary-share-class
+--      (la sélection du représentant privilégie les parts éligibles ≥50). Plus de dérive.
+--
+-- INNOCUITÉ : les 228 « droppers » (passent sous 50) ont TOUS 0 perf (176 opcvm +
+-- 43 fonds_euros aux perfs nullées le 22/06 + 9 etf) → masquage correct, aucun fonds
+-- exploitable perdu. 1 seul référencé parmi eux (sans perf → non montré par le
+-- recalibrage A non plus).
+--
+-- BACKUP (réversible) : investissement_funds_completeness_backup_20260625 (RLS),
+-- 36 294 lignes (isin, data_completeness AVANT recompute).
+--
+-- REVERT :
+--   UPDATE investissement_funds f
+--   SET data_completeness = b.data_completeness
+--   FROM investissement_funds_completeness_backup_20260625 b
+--   WHERE f.isin = b.isin AND f.data_completeness IS DISTINCT FROM b.data_completeness;
+--   -- puis : SELECT inv_refresh_fund_insurers_mv();
+--
+-- La formule appliquée est celle de scripts/migrations/recompute-completeness-v2.sql
+-- (miroir exact de recalc-completeness-v2.py --per-type). Voir ce fichier pour le SQL.

@@ -114,6 +114,11 @@ MONTHLY_STEPS = [
     ("scrapers/populate-holdings-morningstar.py",
      ["--limit", str(MS_HOLDINGS_BUCKET), "--offset", "0", "--include-unrated"]),
     ("enrichers/compute-metrics.py", []),
+    # Recalcul data_completeness APRÈS compute-metrics (vol/perf fraîches) et AVANT
+    # refresh-primary-share-class (qui privilégie les parts éligibles ≥50). Sans
+    # ça le score se périme (fonds enrichis mais scorés bas → cachés). Réplique
+    # recompute-completeness-v2.sql. (--apply ajouté par run_script.)
+    ("migrations/recalc-completeness-v2.py", ["--per-type"]),
     # NB : le refresh EMEA des perfs OPCVM étrangers a été SORTI dans son propre
     # workflow mensuel (emea-refresh.yml) — l'inclure ici poussait le pipeline
     # au-dessus du plafond de 6 h des runners GitHub (timeout → dernières étapes
