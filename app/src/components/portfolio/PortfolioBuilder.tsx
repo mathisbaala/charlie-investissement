@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { Btn } from "@/components/ui/Btn";
 import { Card } from "@/components/ui/Card";
 import { PageShell, PageHeader } from "@/components/ui/Page";
-import { Copy, Check, X } from "@/components/ui/icons";
+import { TypingPrompt } from "@/components/screener/TypingPrompt";
+import { Copy, Check, X, Search } from "@/components/ui/icons";
 import { pct } from "@/lib/format";
+import { addSearch } from "@/lib/searches";
 import {
   parsePortfolioParams, normalizeWeights, serializePortfolioParams,
   buildCorrelationMatrix, projectEuros, mergeCurves,
@@ -69,6 +71,8 @@ interface Props {
 }
 
 export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmark, initialYears }: Props) {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
   const [holdings, setHoldings] = useState<Holding[]>(() => parsePortfolioParams(initialIsins, initialWeights));
   const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,6 +130,22 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     setCopied(true); setTimeout(() => setCopied(false), 1800);
   });
 
+  // Recherche en langage naturel → renvoie vers le screener, où l'on sélectionne
+  // les fonds à ajouter au portefeuille (pas de screener recréé dans la page).
+  const handleSearch = () => {
+    const q = query.trim();
+    if (!q) { router.push("/recherche"); return; }
+    addSearch({ query: q, chips: [], count: 0 });
+    router.push("/recherche?q=" + encodeURIComponent(q));
+  };
+  const searchBar = (
+    <div className="bg-paper rounded-xl border border-line shadow-sm px-5 py-3 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
+      <Search size={16} className="text-muted shrink-0" />
+      <TypingPrompt value={query} onChange={setQuery} onSubmit={handleSearch} className="flex-1" />
+      <Btn variant="primary" size="sm" onClick={handleSearch}>Rechercher</Btn>
+    </div>
+  );
+
   const names = analysis?.names ?? {};
   const ratios = analysis?.ratios;
   const meta = analysis?.meta;
@@ -141,13 +161,10 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
     return (
       <PageShell>
         <PageHeader title="Portefeuille" />
-        <Card className="px-6 py-16 text-center">
-          <p className="text-body text-ink-2">
-            Sélectionnez des fonds depuis la recherche pour composer un portefeuille pondéré :
-            performance, risque, corrélation et back-test.
-          </p>
-          <Link href="/recherche" className="inline-block mt-6"><Btn variant="primary">Sélectionner des fonds</Btn></Link>
-        </Card>
+        {searchBar}
+        <p className="text-meta text-muted mt-4">
+          Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez : il s'ajoute au portefeuille.
+        </p>
       </PageShell>
     );
   }
@@ -162,6 +179,9 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
           </Btn>
         }
       />
+
+      {/* Recherche pour ajouter des fonds (→ screener) */}
+      {searchBar}
 
       {/* Bandeau KPI */}
       {ready && (
