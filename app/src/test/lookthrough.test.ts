@@ -1,63 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { blendExposure, weightedExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
-
-describe('blendExposure', () => {
-  it('équipondère sur les fonds contributeurs (somme ~100 %)', () => {
-    // 2 fonds : A 60/40 USA/Europe, B 100 USA → blended USA = (0.6+1)/2=80, Europe = 0.4/2=20
-    const rows = [
-      { isin: 'A', label: 'USA', weight: 0.6 },
-      { isin: 'A', label: 'Europe', weight: 0.4 },
-      { isin: 'B', label: 'USA', weight: 1.0 },
-    ]
-    const out = blendExposure(rows)
-    expect(out).toEqual([{ label: 'USA', weight: 80 }, { label: 'Europe', weight: 20 }])
-  })
-  it('ne compte QUE les fonds présents (un fonds sans données ne dilue pas)', () => {
-    // seul A contribue → normalisé sur 1 fonds → 100 %
-    const out = blendExposure([{ isin: 'A', label: 'USA', weight: 1.0 }])
-    expect(out).toEqual([{ label: 'USA', weight: 100 }])
-  })
-  it('renvoie [] sans données', () => expect(blendExposure([])).toEqual([]))
-  it('ignore poids null/NaN et labels vides', () => {
-    const out = blendExposure([
-      { isin: 'A', label: 'USA', weight: 1.0 },
-      { isin: 'A', label: '', weight: 0.5 },
-      { isin: 'A', label: 'X', weight: NaN },
-    ])
-    expect(out).toEqual([{ label: 'USA', weight: 100 }])
-  })
-  it('fusionne les libellés d\'une même clé (Germany/Allemagne → un seul pays)', () => {
-    // A en anglais (DE), B en français (DE) : sans clé ils feraient 2 lignes.
-    const out = blendExposure([
-      { isin: 'A', label: 'Germany', key: 'DE', weight: 0.5 },
-      { isin: 'A', label: 'France', key: 'FR', weight: 0.5 },
-      { isin: 'B', label: 'Allemagne', key: 'DE', weight: 1.0 },
-    ])
-    // DE = (0.5+1)/2 = 75 ; libellé canonique = le plus fréquent (1 vs 1 → alpha → Allemagne)
-    expect(out).toEqual([{ label: 'Allemagne', weight: 75 }, { label: 'France', weight: 25 }])
-  })
-  it('libellé canonique = le plus fréquent dans le panier', () => {
-    const out = blendExposure([
-      { isin: 'A', label: 'Germany', key: 'DE', weight: 0.4 },
-      { isin: 'B', label: 'Germany', key: 'DE', weight: 0.4 },
-      { isin: 'C', label: 'Allemagne', key: 'DE', weight: 0.4 },
-    ])
-    expect(out).toEqual([{ label: 'Germany', weight: 40 }])
-  })
-  it('sans clé, agrège par label (rétrocompatible)', () => {
-    const out = blendExposure([
-      { isin: 'A', label: 'USA', weight: 0.6 },
-      { isin: 'B', label: 'USA', weight: 1.0 },
-    ])
-    expect(out).toEqual([{ label: 'USA', weight: 80 }])
-  })
-  it('tri décroissant + cap au top N', () => {
-    const rows = Array.from({ length: 15 }, (_, i) => ({ isin: 'A', label: `P${i}`, weight: (i + 1) / 100 }))
-    const out = blendExposure(rows, 12)
-    expect(out.length).toBe(12)
-    expect(out[0].label).toBe('P14')
-  })
-})
+import { weightedExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
 
 describe('canonicalSector', () => {
   it('rabat les 3 taxonomies du même secteur sur un libellé FR', () => {
@@ -80,13 +22,13 @@ describe('canonicalSector', () => {
     expect(canonicalSector('Aerospace & Defense')).toBe('Aerospace & Defense')
     expect(canonicalSector('Treasury')).toBe('Treasury')
   })
-  it('fait fusionner les variantes dans blendExposure (un seul secteur)', () => {
+  it('fait fusionner les variantes dans l\'exposition agrégée (un seul secteur)', () => {
     // 2 fonds : A « Technology » 100 %, B « Technologie » 100 % → 1 ligne à 100
     const rows = [
       { isin: 'A', label: canonicalSector('Technology')!, weight: 1.0 },
       { isin: 'B', label: canonicalSector('Technologie')!, weight: 1.0 },
     ]
-    expect(blendExposure(rows)).toEqual([{ label: 'Technologie', weight: 100 }])
+    expect(weightedExposure(rows, { A: 0.5, B: 0.5 })).toEqual([{ label: 'Technologie', weight: 100 }])
   })
 })
 
