@@ -63,33 +63,6 @@ export function canonicalSector(name: string | null): string | null {
 }
 
 /**
- * Exposition agrégée ÉQUIPONDÉRÉE sur les fonds qui portent la ventilation :
- * blended[label] = moyenne du poids sur ces fonds. La somme reste ~100 % (on
- * normalise sur les fonds contributeurs, sans révéler ceux qui n'ont pas la
- * donnée). Sortie triée décroissante, top `limit`.
- */
-export function blendExposure(rows: ExpoRow[], limit = 12): Expo[] {
-  const contributors = new Set(rows.map((r) => r.isin));
-  const n = contributors.size;
-  if (n === 0) return [];
-  const acc = new Map<string, number>();              // clé → somme des poids
-  const labelVotes = new Map<string, Map<string, number>>(); // clé → (libellé → occurrences)
-  for (const r of rows) {
-    if (r.weight == null || Number.isNaN(r.weight) || !r.label) continue;
-    const key = r.key || r.label;
-    acc.set(key, (acc.get(key) ?? 0) + r.weight);
-    const votes = labelVotes.get(key) ?? new Map<string, number>();
-    votes.set(r.label, (votes.get(r.label) ?? 0) + 1);
-    labelVotes.set(key, votes);
-  }
-  return Array.from(acc.entries())
-    .map(([key, sum]) => ({ label: pickLabel(labelVotes.get(key)!), weight: Math.round((sum / n) * 1000) / 10 }))
-    .filter((x) => x.weight > 0)
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, limit);
-}
-
-/**
  * Exposition agrégée PONDÉRÉE par les poids du portefeuille (pas équipondérée) :
  * contribution d'une ligne = poids du fonds × poids interne de la ligne. On
  * normalise sur les seuls fonds qui PORTENT la ventilation (somme de leurs poids),
