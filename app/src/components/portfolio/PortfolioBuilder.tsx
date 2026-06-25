@@ -209,7 +209,15 @@ export function PortfolioBuilder({ initialIsins, initialWeights }: Props) {
             </div>
           )}
 
-          {ratios && meta && (
+          {meta && meta.used === 0 && !loading && (
+            <div className="bg-paper border border-line rounded-xl p-6 text-meta text-ink-2">
+              Aucun des fonds sélectionnés n'a d'historique de prix : back-test et
+              corrélation indisponibles. Ajoutez des fonds cotés (OPCVM, ETF, fonds euros)
+              pour analyser le portefeuille.
+            </div>
+          )}
+
+          {ratios && meta && meta.used > 0 && (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <RatioCard label="Perf. annualisée" value={pct((ratios.annual_return ?? 0) * 100, true)} />

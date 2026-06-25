@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   X, ArrowLeft, ArrowRight, Check,
   LayoutGrid, Search, SlidersHorizontal, Shield, FileText, Logo,
@@ -25,13 +26,17 @@ function StepIcon({ stepKey, size = 20 }: { stepKey: TourStep["key"]; size?: num
 export function WelcomeTour() {
   const [open, setOpen] = useState(false);
   const [i, setI] = useState(0);
+  const pathname = usePathname();
 
   // Ouverture différée d'un cran pour laisser l'app peindre derrière le voile.
+  // Pas d'onboarding « Accueil » quand on atterrit directement sur le
+  // portefeuille (typiquement via un lien partagé) : le tour n'y a pas de sens.
   useEffect(() => {
     if (isTourDone()) return;
+    if (pathname?.startsWith("/portefeuille")) return;
     const t = setTimeout(() => setOpen(true), 450);
     return () => clearTimeout(t);
-  }, []);
+  }, [pathname]);
 
   function finish() {
     markTourDone();
