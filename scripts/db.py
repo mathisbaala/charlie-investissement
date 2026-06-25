@@ -456,6 +456,7 @@ _SOURCE_ID = {
     "amf-geco":        4,
     "coingecko-daily": 5,
     "yahoo-crypto":    6,
+    "synthetic-fonds-euros": 7,  # courbe NAV annuelle composée des taux servis (GVFM)
 }
 
 
