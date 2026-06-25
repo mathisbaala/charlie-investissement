@@ -43,6 +43,11 @@ interface SelectionContextValue {
 const SelectionContext = createContext<SelectionContextValue | null>(null);
 const SESSION_KEY = "charlie_comparison";
 
+// Sélection : jusqu'à 10 fonds (pour le portefeuille). La COMPARAISON, elle, est
+// limitée à 4 (au-delà, l'onglet Comparé devient illisible — voir SelectionBar).
+export const SELECT_MAX = 10;
+export const COMPARE_MAX = 4;
+
 export function SelectionProvider({ children }: { children: React.ReactNode }) {
   const [selected, setSelected] = useState<SelectedFund[]>([]);
 
@@ -63,10 +68,10 @@ export function SelectionProvider({ children }: { children: React.ReactNode }) {
       let next: SelectedFund[];
       if (exists) {
         next = prev.filter((f) => f.isin !== fund.isin);
-      } else if (prev.length < 4) {
+      } else if (prev.length < SELECT_MAX) {
         next = [...prev, fund];
       } else {
-        next = prev; // max 4
+        next = prev; // max SELECT_MAX (portefeuille) ; comparaison limitée à COMPARE_MAX
       }
       persist(next);
       return next;

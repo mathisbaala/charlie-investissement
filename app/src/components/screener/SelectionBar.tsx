@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSelection, SelectedFund } from "@/components/SelectionProvider";
+import { useSelection, SelectedFund, COMPARE_MAX } from "@/components/SelectionProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X, Download } from "@/components/ui/icons";
 
@@ -118,11 +118,12 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
       <Btn
         variant="primary"
         size="sm"
-        disabled={selected.length < 2}
+        disabled={selected.length < 2 || selected.length > COMPARE_MAX}
         onClick={onCompare}
+        title={selected.length > COMPARE_MAX ? `Comparaison limitée à ${COMPARE_MAX} fonds` : undefined}
         className="shrink-0"
       >
-        Comparer
+        {selected.length > COMPARE_MAX ? `Comparer (max ${COMPARE_MAX})` : "Comparer"}
       </Btn>
     </div>
   );
