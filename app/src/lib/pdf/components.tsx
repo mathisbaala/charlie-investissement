@@ -23,8 +23,14 @@ export function perf(n: number | null | undefined): string {
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
+// fr-FR insère une espace fine insécable (U+202F) comme séparateur de milliers :
+// ce glyphe est absent d'Instrument Serif → « 14 200 € » s'afficherait « 14□00 € ».
+// On le remplace (ainsi que l'espace insécable) par une espace normale, présente
+// dans toutes nos polices.
 export const nfEur = (v: number) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 })
+    .format(v)
+    .replace(/[\u202f\u00a0]/g, " ");
 
 export const dateFr = (d?: string | number | Date) =>
   new Date(d ?? Date.now()).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
