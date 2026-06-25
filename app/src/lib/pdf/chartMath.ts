@@ -8,6 +8,8 @@
 export type Pt = { t: number; v: number };
 export type XY = { x: number; y: number };
 export type Bounds = { minT: number; maxT: number; minV: number; maxV: number };
+/** Tranche de composition (libellé + poids) — partagée donut/barres/données. */
+export type Slice = { label: string; weight: number };
 
 /**
  * Rebase une série de valeurs sur base 100 (première valeur strictement positive).

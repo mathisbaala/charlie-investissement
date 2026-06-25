@@ -12,8 +12,8 @@ import {
   fmt,
   nfEur,
 } from "./pdf/components";
-import { LineChartPdf, CompositionDonut, CompositionBars, corrColor, SERIES, type Series } from "./pdf/charts";
-import { rebase100, type Pt } from "./pdf/chartMath";
+import { LineChartPdf, CompositionDonut, CompositionBars, corrColor, toRebasedSeries, type Series } from "./pdf/charts";
+import { type Pt } from "./pdf/chartMath";
 import {
   buildCorrelationMatrix,
   projectEuros,
@@ -147,13 +147,6 @@ function curveToPts(curve: { d: string; v: number }[] | undefined | null): Pt[] 
     .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v));
 }
 
-function toRebased(name: string, pts: Pt[], color: string): Series {
-  const vals = rebase100(pts.map((p) => p.v));
-  const points = pts.map((p, i) => ({ t: p.t, v: vals[i] }));
-  const last = points.length ? points[points.length - 1].v : null;
-  return { name, points, color, perf: last == null ? null : last - 100 };
-}
-
 export default function PortefeuillePDF({
   analysis,
   holdings,
@@ -170,8 +163,8 @@ export default function PortefeuillePDF({
   const pPts = curveToPts(analysis.curve);
   const bPts = curveToPts(benchmark?.curve);
   const chartSeries: Series[] = [];
-  if (pPts.length >= 2) chartSeries.push(toRebased("Portefeuille", pPts, C.clay));
-  if (bPts.length >= 2) chartSeries.push(toRebased(benchmarkLabel, bPts, "#8A8780"));
+  if (pPts.length >= 2) chartSeries.push(toRebasedSeries("Portefeuille", pPts, C.clay));
+  if (bPts.length >= 2) chartSeries.push(toRebasedSeries(benchmarkLabel, bPts, "#8A8780"));
 
   // Composition (poids) — slices triées par poids décroissant.
   const compSlices = holdings
