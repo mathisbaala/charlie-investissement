@@ -12,25 +12,62 @@ type Overlap = {
   funds: { isin: string; weight: number }[];
   max_weight: number;
 };
-type Data = { geo: Expo[]; sectors: Expo[]; overlaps: Overlap[] };
+type Data = {
+  geoByFund: Record<string, Expo[]>;
+  sectorsByFund: Record<string, Expo[]>;
+  overlaps: Overlap[];
+};
 
-function Bars({ title, rows }: { title: string; rows: Expo[] }) {
-  if (!rows.length) return null;
-  const max = Math.max(...rows.map((r) => r.weight), 1);
+function short(name: string): string {
+  return name.length > 16 ? name.slice(0, 15) + "…" : name;
+}
+
+// Ombrage léger de la cellule proportionnel au poids (lecture rapide des écarts).
+function cellShade(w: number | null): React.CSSProperties {
+  if (w == null) return {};
+  const a = Math.min(0.5, w / 120);
+  return { background: `oklch(0.62 0.12 40 / ${a})` };
+}
+
+// Matrice fond par fond : lignes = zones / secteurs, colonnes = fonds. Aucune
+// agrégation : chaque fonds garde son exposition propre.
+function Matrix({ title, byFund, funds }: { title: string; byFund: Record<string, Expo[]>; funds: SelectedFund[] }) {
+  const labelMax = new Map<string, number>();
+  for (const f of funds) for (const e of byFund[f.isin] ?? []) labelMax.set(e.label, Math.max(labelMax.get(e.label) ?? 0, e.weight));
+  const labels = [...labelMax.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([l]) => l);
+  if (!labels.length) return null;
+  const wOf = (isin: string, label: string) => (byFund[isin] ?? []).find((e) => e.label === label)?.weight ?? null;
+
   return (
-    <div>
+    <div className="overflow-x-auto">
       <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">{title}</p>
-      <div className="space-y-1.5">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-3" role="img" aria-label={`${r.label} : ${pct(r.weight)}`}>
-            <span className="text-meta text-ink-2 w-40 shrink-0 truncate" aria-hidden="true">{r.label}</span>
-            <div className="flex-1 h-2 bg-paper-2 rounded-full overflow-hidden" aria-hidden="true">
-              <div className="h-full bg-accent/70 rounded-full" style={{ width: `${(r.weight / max) * 100}%` }} />
-            </div>
-            <span className="text-meta font-mono text-ink-2 w-14 text-right shrink-0" aria-hidden="true">{pct(r.weight)}</span>
-          </div>
-        ))}
-      </div>
+      <table className="w-full text-meta tabular-nums border-collapse">
+        <thead>
+          <tr className="border-b border-line">
+            <th className="text-left py-1.5" />
+            {funds.map((f) => (
+              <th key={f.isin} className="py-1.5 px-2 text-right font-medium text-ink-2 text-caption whitespace-nowrap" title={f.name}>
+                {short(f.name)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {labels.map((label) => (
+            <tr key={label} className="border-b border-line-soft last:border-0">
+              <td className="py-1.5 pr-3 text-ink-2 whitespace-nowrap">{label}</td>
+              {funds.map((f) => {
+                const w = wOf(f.isin, label);
+                return (
+                  <td key={f.isin} className="py-1.5 px-2 text-right rounded-sm" style={cellShade(w)}>
+                    {w == null ? <span className="text-muted-2">—</span> : pct(w)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -40,10 +77,6 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Clé stable : `funds` est un nouveau tableau à chaque render du parent ; on
-  // dépend de la liste d'ISIN (string) pour ne re-fetcher QUE sur changement réel
-  // de sélection. La garde `ignore` jette une réponse périmée si la sélection a
-  // changé entre-temps (évite d'écraser le bon résultat par un ancien).
   const isinsKey = funds.map((f) => f.isin).join(",");
 
   useEffect(() => {
@@ -51,56 +84,31 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
     setLoading(true);
     setError(false);
     fetch(`/api/portfolio/lookthrough?isins=${isinsKey}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.json();
-      })
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((d) => { if (!ignore) setData(d); })
       .catch(() => { if (!ignore) { setData(null); setError(true); } })
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
   }, [isinsKey]);
 
-  // TER moyen équipondéré (depuis la sélection, déjà en %).
-  const terVals = funds.map((f) => f.ongoing_charges).filter((v): v is number => v != null);
-  const blendedTer = terVals.length ? terVals.reduce((a, b) => a + b, 0) / terVals.length : null;
-
   const nameByIsin = new Map(funds.map((f) => [f.isin, f.name]));
-
-  const hasExpo = data && (data.geo.length > 0 || data.sectors.length > 0);
+  const hasGeo = data && funds.some((f) => (data.geoByFund[f.isin] ?? []).length > 0);
+  const hasSec = data && funds.some((f) => (data.sectorsByFund[f.isin] ?? []).length > 0);
   const hasOverlap = data && data.overlaps.length > 0;
 
   return (
     <div className="px-6 py-5 space-y-7">
-      <p className="text-label text-ink-2 leading-snug">
-        Vue <span className="font-semibold">look-through</span> : exposition agrégée des fonds
-        sélectionnés (équipondérés) et lignes communes à plusieurs fonds (double-emploi).
-      </p>
-
-      {blendedTer != null && (
-        <div className="flex items-baseline gap-2">
-          <span className="text-meta text-muted">Frais courants moyens (équipondérés)</span>
-          <span className="text-title font-mono text-ink" style={{ fontFamily: "var(--font-serif)" }}>
-            {pct(blendedTer)}
-          </span>
-        </div>
-      )}
-
       {loading ? (
-        <p className="text-meta text-muted-2 italic">Calcul de l&apos;exposition agrégée…</p>
+        <p className="text-meta text-muted-2">Chargement…</p>
       ) : (
         <>
-          {hasExpo && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-              <Bars title="Zones géographiques (agrégé)" rows={data!.geo} />
-              <Bars title="Secteurs (agrégé)" rows={data!.sectors} />
-            </div>
-          )}
+          {hasGeo && <Matrix title="Zones géographiques" byFund={data!.geoByFund} funds={funds} />}
+          {hasSec && <Matrix title="Secteurs" byFund={data!.sectorsByFund} funds={funds} />}
 
           {hasOverlap && (
             <div>
               <p className="text-caption uppercase tracking-[0.1em] text-muted font-semibold mb-2.5">
-                Lignes communes · double-emploi
+                Lignes communes
               </p>
               <div className="space-y-1.5">
                 {data!.overlaps.map((o) => (
@@ -113,30 +121,22 @@ export function LookThroughView({ funds }: { funds: SelectedFund[] }) {
                       <span className="text-caption px-2 py-0.5 rounded-full font-medium border bg-warn-soft text-warn border-warn/20">
                         {o.count} fonds
                       </span>
-                      {(() => {
-                        const detail = o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n");
-                        return (
-                          <span className="text-caption text-muted-2" title={detail} aria-label={`jusqu'à ${pct(o.max_weight)} — ${detail.replace(/\n/g, ", ")}`}>
-                            jusqu&apos;à {pct(o.max_weight)}
-                          </span>
-                        );
-                      })()}
+                      <span
+                        className="text-caption text-muted-2"
+                        title={o.funds.map((x) => `${nameByIsin.get(x.isin) ?? x.isin} : ${pct(x.weight)}`).join("\n")}
+                      >
+                        jusqu&apos;à {pct(o.max_weight)}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="text-caption text-muted-2 mt-2 leading-snug">
-                Une même valeur détenue par plusieurs fonds concentre le risque : à vérifier
-                avant d&apos;additionner les lignes d&apos;une allocation.
-              </p>
             </div>
           )}
 
-          {!hasExpo && !hasOverlap && (
-            <p className="text-meta text-muted-2 italic leading-snug">
-              {error
-                ? "Impossible de charger l'exposition agrégée pour le moment. Réessayez."
-                : "Exposition agrégée indisponible pour cette sélection."}
+          {!hasGeo && !hasSec && !hasOverlap && (
+            <p className="text-meta text-muted-2">
+              {error ? "Données indisponibles pour le moment." : "Pas de composition disponible pour ces fonds."}
             </p>
           )}
         </>
