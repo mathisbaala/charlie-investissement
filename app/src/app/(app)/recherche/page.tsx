@@ -418,7 +418,7 @@ function RechercheInner() {
             {profileActive && (
               <button
                 type="button"
-                onClick={() => router.push("/matching")}
+                onClick={() => router.push("/accueil")}
                 title="Modifier le profil client"
                 className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-label font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
               >
@@ -587,7 +587,7 @@ function RechercheInner() {
                       <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
                         Réinitialiser les filtres
                       </button>
-                      <button onClick={() => router.push("/matching")} className="text-meta text-muted hover:text-accent-ink hover:underline">
+                      <button onClick={() => router.push("/accueil")} className="text-meta text-muted hover:text-accent-ink hover:underline">
                         Ou partir d&apos;un profil client →
                       </button>
                     </div>

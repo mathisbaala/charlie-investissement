@@ -6,7 +6,7 @@ describe("tour content", () => {
     expect(TOUR_STEPS.map((s) => s.key)).toEqual([
       "accueil",
       "recherche",
-      "matching",
+      "portefeuille",
       "assureurs",
       "documents",
       "chat",

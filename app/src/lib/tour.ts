@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "matching" | "assureurs" | "documents" | "chat";
+  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "documents" | "chat";
   title: string;
   body: string;
 };
@@ -15,7 +15,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "accueil",
     title: "Accueil",
-    body: "Le point de départ. Tapez une recherche en langage naturel ou parcourez les fonds par enveloppe et par assureur.",
+    body: "Le point de départ. Décrivez un fonds en langage naturel, ou renseignez le profil de votre client pour une sélection adaptée.",
   },
   {
     key: "recherche",
@@ -23,9 +23,9 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Décrivez le fonds recherché en une phrase. Les filtres affinent la liste par risque, frais, performance et enveloppe.",
   },
   {
-    key: "matching",
-    title: "Profil client",
-    body: "Renseignez la situation du client. Charlie pré-filtre la recherche sur les fonds qui lui correspondent.",
+    key: "portefeuille",
+    title: "Portefeuille",
+    body: "Composez un portefeuille pondéré : performance, volatilité, Sharpe, corrélation entre fonds et back-test vs un indice.",
   },
   {
     key: "assureurs",
