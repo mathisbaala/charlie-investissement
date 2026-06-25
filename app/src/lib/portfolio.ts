@@ -142,6 +142,23 @@ export function normalizeWeights(holdings: Holding[]): Holding[] {
 }
 
 /**
+ * Ajoute un fonds (ISIN déjà connu) à un portefeuille, pour l'ajout inline.
+ * - Doublon (ISIN déjà présent) ou portefeuille plein (`max`) → renvoie la liste
+ *   inchangée (référence identique : pas de re-render inutile).
+ * - Poids du nouveau fonds = moyenne des poids positifs existants (il pèse comme
+ *   les autres ; on ne force pas la renormalisation des poids choisis par l'user).
+ *   Liste vide → 100 %. Jamais 0 (un poids nul serait ignoré par l'analyse).
+ */
+export function appendHolding(holdings: Holding[], isin: string, max = 20): Holding[] {
+  if (holdings.length >= max || holdings.some((h) => h.isin === isin)) return holdings;
+  const positive = holdings.filter((h) => h.weight > 0);
+  const weight = holdings.length
+    ? (positive.length ? positive.reduce((a, h) => a + h.weight, 0) / positive.length : 100)
+    : 100;
+  return [...holdings, { isin, weight }];
+}
+
+/**
  * Sérialise un portefeuille en paramètres d'URL pour le lien partageable.
  * Poids arrondis à l'entier (suffisant, l'analyse renormalise de toute façon).
  */
