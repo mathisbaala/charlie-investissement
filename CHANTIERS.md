@@ -16,7 +16,7 @@
 > **Ajout inline de fonds depuis le portefeuille = LIVRÉ 25/06**. Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-25 (16ᵉ passe — re-vérification indépendante : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = success, rafraîchissement annuel = success, **un recompute métriques en cours** = run `28188831771`, suite des fix NAV multi-échelle du jour ; 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (3 faux positifs : `/fonds/XXX` en commentaire, `CRYPTO_XXX` en usage, `TODO` sur heuristique connue), 0 test `skip/only`, 0 `console.log`. **Seule nouveauté détectée** : 22 branches locales mergées qui traînent → item d'hygiène git ajouté en 🧹. 15ᵉ passe : PDF factsheets visuels + PDF portefeuille complet + retrait code mort (`FicheFondsPDF`, `blendExposure`).)
+> Dernier audit : 2026-06-27 (17ᵉ passe — re-vérification indépendante, **état inchangé depuis le 25/06** (aucun commit les 26-27/06) : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = **success** les 26 + 27/06, recompute `28188831771` = **success**, 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (2 faux positifs : `/fonds/XXX` en commentaire, `TODO` sur heuristique PER connue), 0 test `skip/only`, 0 `console.log`. **Seule évolution** : les 3 dernières **branches remote** mergées (`chantier/pdf-factsheet-portefeuille`, `chore/pdf-integration-cleanup`, `chore/remove-dead-blendexposure`) ont été **supprimées le 27/06** (il ne reste que `main`, local et remote) ; et la note ⏸️ « scrapers IP » est **clarifiée** (le refresh AV est déjà automatique trimestriel, seul un proxy manque pour ~6 sites bloqués — cadence à ne pas augmenter). 16ᵉ passe : `tsc`/321 tests/CI re-vérifiés, recompute `28188831771` confirmé success.)
 
 > 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
 > Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
@@ -73,10 +73,12 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ### Scrapers bloqués par IP datacenter (AV bancassureurs + ETF Invesco/UBS)
 - **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-21
-- **Où** : `.github/workflows/av-refresh.yml`, scrapers Abeille/MAAF/MMA/GMF ; côté ETF, Invesco (~111) + UBS (HTTP 403, WAF)
-- **Le problème** : ces sources renvoient 403/406 depuis les runners CI (IP datacenter). Mur WAF identique partout.
-- **Comment l'aborder** : **décision ferme = re-seed manuel trimestriel** (secret `AV_PROXY_URL` dormant, non posé volontairement). Réouvrir seulement si un proxy résidentiel est décidé. Vanguard (~29 ETF, GraphQL ouvert) = seul proprement scrapable mais gain marginal (+0,1 pt), jugé non rentable.
-- **Effort estimé** : moyen (si proxy un jour activé)
+- **Où** : scrapers Abeille/MAAF/MMA/GMF (et possiblement LMEP) ; côté ETF, Invesco (~111) + UBS (HTTP 403, WAF)
+- **⚠️ À ne pas confondre — le refresh AV est DÉJÀ automatique** : `av-refresh.yml` (cron `0 5 12 1,4,7,10`) **+** `av-refresh-browser.yml` (cron `0 6 12 1,4,7,10`) tournent **automatiquement chaque trimestre** (12 jan/avr/juil/oct). La **grande majorité** des catalogues assureurs se rafraîchit donc **seule, sans intervention**. Le « manuel » ne concerne QUE la poignée de sources ci-dessous qui échouent dans ce run auto à cause du blocage IP (alerte issue émise).
+- **Le problème** : ces ~6 sources renvoient 403/406 depuis les runners CI (IP datacenter). Mur WAF identique partout — le variant navigateur (Playwright) ne le contourne pas non plus (IP datacenter quand même).
+- **Cadence — déjà optimale, ne PAS augmenter** : la donnée scrapée (liste des UC référencées par assureur/contrat) ne bouge que **quelques fois par an** → trimestriel est bien calibré (voire généreux). Passer à mensuel ne rapporterait **aucune donnée neuve** et **augmenterait le risque de blocage IP** + la charge CI. Le levier utile = la **couverture** (proxy), pas la **fréquence**.
+- **Comment débloquer les ~6 sources restantes** : le branchement proxy est **déjà codé et dormant** — il suffit de poser le secret `AV_PROXY_URL` (proxy résidentiel, ~10-50 €/mois, format `http://user:pass@host:port`) pour qu'elles passent **automatiquement avec le reste du run trimestriel**. Décision actuelle = **non posé** (gain marginal jugé non rentable) ; **purement une question de budget**, le travail technique est fait. À défaut, re-run manuel ponctuel depuis une IP résidentielle. Vanguard (~29 ETF, GraphQL ouvert) = seul proprement scrapable sans proxy mais gain marginal (+0,1 pt).
+- **Effort estimé** : rapide (poser un secret) si un proxy est budgété ; sinon statu quo (déjà géré pour le reste)
 
 > Le volet LU est **résolu le 23/06** (voir « ✅ Réglés ») — il ne s'agissait pas d'un trou de
 > données mais d'un faux positif de la garde de fraîcheur. Reste hors périmètre le plancher
@@ -121,8 +123,8 @@ L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voi
 
 ## 🧹 Dette technique
 
-### (aucun chantier ouvert)
-L'élagage des 22 branches locales mergées est **fait le 25/06** (voir « ✅ Réglés »).
+### (élagage branches — réglé)
+L'élagage des 22 branches **locales** mergées est **fait le 25/06**, et les **3 branches remote** restantes sont **supprimées le 27/06** (voir « ✅ Réglés »). Il ne reste que `main`.
 
 ### (reliquat NAV — réglé)
 Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/06** (re-fetch JustETF + rescale Loomis → garde `__insane` 10 → 5) — voir « ✅ Réglés ». Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
@@ -141,6 +143,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Hygiène git — 3 branches remote mergées supprimées** — *Réglé le 2026-06-27* : les 3 branches distantes restantes (`chantier/pdf-factsheet-portefeuille`, `chore/pdf-integration-cleanup`, `chore/remove-dead-blendexposure`), vérifiées mergées dans `origin/main`, supprimées via `git push origin --delete` + `git remote prune origin`. Il ne reste plus que `main` (local et remote).
 
 - **Hygiène git — 22 branches locales mergées élaguées** — *Réglé le 2026-06-25* : les 22 branches des chantiers livrés du 25/06 (`chantier/*`, `chore/*`, `ux/*`), toutes mergées dans `main`, supprimées en local via `git branch -d` (refuse toute branche non mergée = filet). Reste `main` seule. Les quelques remotes (`origin/chantier/pdf-factsheet-portefeuille`, `chore/*`) peuvent être nettoyés au besoin avec `git push origin --delete`.
 
