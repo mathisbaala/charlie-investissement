@@ -427,11 +427,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // − dépassement doux + préférences profil). La pagination profonde au-delà du
     // vivier retombe sur le chemin DB classique (tri completeness).
     if (reRank && offset < CANDIDATE_CAP) {
+      // Sélection du vivier phase-1 : on prend les CANDIDATE_CAP fonds les plus complets,
+      // DÉPARTAGÉS par l'encours (aum_eur desc) — sans ce tiebreak, à complétude égale (la
+      // plupart des fonds curés sont à 100) l'ordre retombe sur l'ordre physique ISIN
+      // (alphabétique → biais géographique : les ISIN AT… de tête monopolisaient le vivier
+      // et les flagships FR/LU n'étaient jamais scorés). Le re-score fit TS reste l'autorité
+      // finale ; ce tri ne fait que garantir un vivier représentatif et déterministe.
       const { data: poolRows, error: poolErr, count: poolCount, status: poolStatus } =
         await baseFilters(
           supabase.from(sortSource).select("isin", { count: "exact" }), disabled, floor,
         )
           .order("data_completeness", { ascending: false, nullsFirst: false })
+          .order("aum_eur", { ascending: false, nullsFirst: false })
           .range(0, CANDIDATE_CAP - 1);
       if (poolErr) {
         if (poolStatus === 416 || poolErr.code === "PGRST103")
@@ -453,8 +460,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Recherche texte : la PERTINENCE prime toujours, le tri choisi/intention n'est que
     // tie-break secondaire. Sinon, choisir un tri non-défaut (ex. TER) ferait remonter un
     // match faible (relevance=1) devant le nom exact (relevance=3) — perte de pertinence.
+    // À pertinence ÉGALE, on départage par l'ENCOURS (aum_eur desc) AVANT le tri par
+    // défaut/intention — aligné sur le chat (chatTools.ts) : entre plusieurs « MSCI World »
+    // également pertinents, le flagship (gros encours) prime sur une coquille / une variante
+    // de niche. Quand un tri explicite non-défaut est choisi (clic colonne), il reste
+    // prioritaire sur l'AUM (cf. tri appliqué juste après).
     if (useRanked) {
       pageQuery = pageQuery.order("relevance", { ascending: false, nullsFirst: false });
+      if (safeSort === "data_completeness") {
+        pageQuery = pageQuery.order("aum_eur", { ascending: false, nullsFirst: false });
+      }
     }
     const { data: pageData, error, count, status } = await pageQuery
       .order(safeSort, { ascending: sortDir, nullsFirst: false })
