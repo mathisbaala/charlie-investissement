@@ -104,7 +104,6 @@ export default function DocumentsPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Documents"
         action={
           fiche && (
             <button

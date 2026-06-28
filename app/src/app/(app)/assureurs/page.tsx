@@ -6,7 +6,7 @@ import { Search, ChevronRight, Shield } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { PageShell, PageHeader } from "@/components/ui/Page";
+import { PageShell } from "@/components/ui/Page";
 import {
   type ContractType, type Envelope,
   visibleContracts, isInsurerVisible,
@@ -275,8 +275,6 @@ export default function AssureursPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Assurances vie" />
-
       {/* Axe primaire : enveloppe */}
       <EnvelopeTabs active={env} onChange={setEnv} />
 
