@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 // Aperçu de lien (LinkedIn, WhatsApp, Slack, X…) aux couleurs Charlie.
@@ -38,8 +40,20 @@ async function loadFonts() {
   }
 }
 
+// Logo officiel Charlie (le « C ») embarqué en data URI : lecture disque au
+// rendu (route Node), pas de dépendance réseau. En cas d'échec, on retombe
+// sur la pastille clay historique.
+async function loadLogo(): Promise<string | null> {
+  try {
+    const png = await readFile(join(process.cwd(), "public", "charlie-logo.png"));
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function Image() {
-  const fonts = await loadFonts();
+  const [fonts, logo] = await Promise.all([loadFonts(), loadLogo()]);
 
   return new ImageResponse(
     (
@@ -85,21 +99,32 @@ export default async function Image() {
         />
 
         {/* Marque */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: CLAY,
-              display: "flex",
-            }}
-          />
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logo}
+              alt="Charlie"
+              width={64}
+              height={64}
+              style={{ width: 64, height: 64, objectFit: "contain" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: CLAY,
+                display: "flex",
+              }}
+            />
+          )}
           <div
             style={{
               display: "flex",
               fontFamily: "Instrument Serif",
-              fontSize: 44,
+              fontSize: 52,
               color: INK,
               letterSpacing: -0.5,
             }}
