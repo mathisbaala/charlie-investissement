@@ -25,14 +25,12 @@ export function PageShell({
  * place du wordmark) et n'est plus rendu dans le contenu — la page ne porte que
  * son contenu. On conserve ici l'éventuel `backlink` (lien retour discret) et
  * `action` (bouton aligné à droite). Si ni l'un ni l'autre, rien n'est rendu.
- * La prop `title` reste acceptée (compat appels) mais n'est plus affichée.
  */
 export function PageHeader({
   action,
   backlink,
   className = "",
 }: {
-  title?: React.ReactNode;
   action?: React.ReactNode;
   backlink?: React.ReactNode;
   className?: string;

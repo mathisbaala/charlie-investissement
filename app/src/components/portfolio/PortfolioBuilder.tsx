@@ -184,7 +184,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   if (holdings.length === 0) {
     return (
       <PageShell>
-        <PageHeader title="Portefeuille" />
         {searchBar}
         <p className="text-meta text-muted mt-4 mb-3">
           Cherchez un fonds, sélectionnez-le dans la recherche, puis revenez, ou ajoutez-le
@@ -198,7 +197,6 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
   return (
     <PageShell className="space-y-5">
       <PageHeader
-        title="Portefeuille"
         action={
           <a href={pdfHref} target="_blank" rel="noopener">
             <Btn variant="outline" size="sm">
