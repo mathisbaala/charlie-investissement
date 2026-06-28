@@ -28,12 +28,8 @@ export default function AccueilPage() {
     <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
       <div className="max-w-[1040px] mx-auto">
 
-        <h1 className="text-display-md text-ink italic" style={{ fontFamily: "var(--font-serif)" }}>
-          Charlie.
-        </h1>
-
-        {/* 1 — Recherche en langage naturel */}
-        <div className="mt-5 bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
+        {/* 1 — Recherche en langage naturel (le titre « Charlie » vit dans la Topbar) */}
+        <div className="bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
           <Search size={16} className="text-muted shrink-0" />
           <TypingPrompt value={query} onChange={setQuery} onSubmit={handleSearch} className="flex-1" />
           <Btn variant="primary" size="sm" onClick={handleSearch}>

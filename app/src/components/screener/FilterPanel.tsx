@@ -12,7 +12,6 @@ interface FilterPanelProps {
   onApply: () => void;
   onReset: () => void;
   onClose: () => void;
-  resultCount?: number;
 }
 
 function Divider() {
@@ -155,7 +154,7 @@ function toggleArr<T>(arr: T[] | undefined, val: T): T[] {
 const MATURITY_YEARS = Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2024 + i);
 
 export function FilterPanel({
-  filters, onChange, onApply, onReset, onClose, resultCount,
+  filters, onChange, onApply, onReset, onClose,
 }: FilterPanelProps) {
   const f = filters;
 
@@ -185,6 +184,14 @@ export function FilterPanel({
   const [expandedInsurer, setExpandedInsurer] = useState<string | null>(null);
   const [showAllContracts, setShowAllContracts] = useState<Record<string, boolean>>({});
   const CONTRACTS_PREVIEW = 10;
+
+  // Recherche texte pour filtrer la longue liste d'assureurs (évite de scroller).
+  const [insurerQuery, setInsurerQuery] = useState("");
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const filteredInsurers = insurerQuery.trim()
+    ? insurerOptions.filter((o) => normalize(o.company).includes(normalize(insurerQuery)))
+    : insurerOptions;
 
   return (
     <div className="c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto md:w-[300px] md:rounded-xl">
@@ -388,8 +395,20 @@ export function FilterPanel({
         {insurerOptions.length > 0 && (
           <>
             <Section title="Référencé chez (assureur / contrat)">
+              {insurerOptions.length > 8 && (
+                <input
+                  type="text"
+                  value={insurerQuery}
+                  onChange={(e) => setInsurerQuery(e.target.value)}
+                  placeholder="Rechercher un assureur…"
+                  className="w-full border border-line rounded-lg px-3 py-2 mb-2.5 text-meta text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
+                />
+              )}
               <div className="space-y-1.5">
-                {insurerOptions.map(({ company, funds }) => {
+                {filteredInsurers.length === 0 && (
+                  <p className="text-meta text-muted py-1">Aucun assureur ne correspond.</p>
+                )}
+                {filteredInsurers.map(({ company, funds }) => {
                   const contracts = contractOptions.filter((c) => c.company === company);
                   const expanded = expandedInsurer === company;
                   const selContracts = (f.contracts ?? []).filter((k) => k.startsWith(`${company}::`));
@@ -763,7 +782,7 @@ export function FilterPanel({
           Réinitialiser
         </Btn>
         <Btn variant="primary" size="sm" onClick={onApply} className="flex-1">
-          Appliquer{resultCount != null ? ` · ${resultCount.toLocaleString("fr-FR")}` : ""}
+          Appliquer
         </Btn>
       </div>
     </div>
