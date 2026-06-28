@@ -15,6 +15,22 @@ function breadcrumb(pathname: string): { label: string; href: string }[] {
   return [];
 }
 
+// Le titre de chaque onglet vit dans la Topbar (à la place du wordmark), plus
+// dans le contenu de la page. Accueil et fiche fonds gardent le wordmark « Charlie ».
+const TAB_TITLES: { prefix: string; title: string }[] = [
+  { prefix: "/recherche", title: "Recherche" },
+  { prefix: "/portefeuille", title: "Portefeuille" },
+  { prefix: "/assureurs", title: "Assurances vie" },
+  { prefix: "/documents", title: "Documents" },
+];
+
+function pageTitle(pathname: string): string {
+  const hit = TAB_TITLES.find(
+    (t) => pathname === t.prefix || pathname.startsWith(t.prefix + "/"),
+  );
+  return hit ? hit.title : "Charlie";
+}
+
 interface TopbarProps {
   onChatToggle: () => void;
   chatOpen: boolean;
@@ -23,21 +39,32 @@ interface TopbarProps {
 export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
   const pathname = usePathname();
   const crumbs = breadcrumb(pathname);
+  const title = pageTitle(pathname);
+  const isBrand = title === "Charlie";
 
   return (
     <header
       className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center gap-4 px-5 border-b border-line bg-paper"
       style={{ marginLeft: "60px" }}
     >
-      {/* Brand — no logo mark here, just wordmark */}
-      <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
-        <span
-          className="text-ink text-title leading-none"
-          style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+      {/* Titre de page (à la place du wordmark). Accueil/fiche = brand cliquable. */}
+      {isBrand ? (
+        <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
+          <span
+            className="text-ink text-title leading-none"
+            style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+          >
+            Charlie
+          </span>
+        </Link>
+      ) : (
+        <h1
+          className="text-ink text-title leading-none italic shrink-0"
+          style={{ fontFamily: "var(--font-serif)" }}
         >
-          Charlie
-        </span>
-      </Link>
+          {title}
+        </h1>
+      )}
 
       {/* Breadcrumb */}
       {crumbs.length > 0 && (

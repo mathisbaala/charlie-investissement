@@ -21,33 +21,27 @@ export function PageShell({
 }
 
 /**
- * En-tête de page standard — même titre que l'accueil : serif italique 32px
- * (text-display-md), posé sur le fond, bloc mb-8. `action` se place à droite
- * (bouton), `backlink` au-dessus (lien retour discret).
+ * En-tête de page standard. Le TITRE de page vit désormais dans la Topbar (à la
+ * place du wordmark) et n'est plus rendu dans le contenu — la page ne porte que
+ * son contenu. On conserve ici l'éventuel `backlink` (lien retour discret) et
+ * `action` (bouton aligné à droite). Si ni l'un ni l'autre, rien n'est rendu.
+ * La prop `title` reste acceptée (compat appels) mais n'est plus affichée.
  */
 export function PageHeader({
-  title,
   action,
   backlink,
   className = "",
 }: {
-  title: React.ReactNode;
+  title?: React.ReactNode;
   action?: React.ReactNode;
   backlink?: React.ReactNode;
   className?: string;
 }) {
+  if (!action && !backlink) return null;
   return (
-    <div className={`mb-8 ${className}`}>
+    <div className={`mb-6 ${className}`}>
       {backlink && <div className="mb-2">{backlink}</div>}
-      <div className="flex items-start justify-between gap-4">
-        <h1
-          className="text-display-md text-ink italic"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          {title}
-        </h1>
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
+      {action && <div className="flex justify-end">{action}</div>}
     </div>
   );
 }

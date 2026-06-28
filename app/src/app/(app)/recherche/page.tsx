@@ -499,7 +499,7 @@ function RechercheInner() {
       </div>
 
       {/* ── Main area ── */}
-      <div className="flex-1 overflow-hidden flex gap-3 px-3 pb-3 min-h-0">
+      <div className="flex-1 overflow-hidden flex gap-3 px-3 pt-3 pb-3 min-h-0">
 
         {showFilters && (
           <FilterPanel
@@ -508,7 +508,6 @@ function RechercheInner() {
             onApply={handleFiltersApply}
             onReset={handleFiltersReset}
             onClose={() => setShowFilters(false)}
-            resultCount={total}
           />
         )}
 
