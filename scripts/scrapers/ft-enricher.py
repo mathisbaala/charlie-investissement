@@ -23,6 +23,17 @@ VENTILATIONS périmées (holdings/secteurs/régions) : sélection par péremptio
 données (jamais d'écrasement par du vide). Câblé dans monthly-pipeline (rotation
 trimestrielle), miroir de la rotation des cours côté hebdo.
 
+Deux modes de PEUPLEMENT initial des ventilations (fill-only strict, aucun
+écrasement) :
+  --fill-breakdowns : cible les fonds SANS holdings (couverture look-through).
+  --missing-geo     : cible les fonds SANS ventilation géographique (gros gap
+                      ~5,5k OPCVM) ; comble aussi secteurs/holdings au passage
+                      (même page FT). À combiner avec --by-referencing pour
+                      prioriser les fonds réellement distribués en AV (les
+                      monétaires/obligataires en tête d'encours n'ont pas de géo).
+GARDE QUALITÉ : un tableau régions/secteurs à poids TOUS NULS (cas monétaire FT)
+est rejeté — on n'écrit jamais une ventilation qui somme à ~0 (faux look-through).
+
 Usage :
     python3 scripts/scrapers/ft-enricher.py --dry-run --limit 10
     python3 scripts/scrapers/ft-enricher.py --apply --limit 500
@@ -169,6 +180,10 @@ SECTOR_SET = {
     "consumer defensive", "consumer cyclical", "basic materials",
     "utilities", "industrials", "real estate", "communication services",
 }
+# Super-régions Morningstar : la table « World Regions » est hiérarchique
+# (super-régions + pays enfants, empilés → somme ~200 %). On ne retient que ces
+# 3 buckets parents, qui somment à ~100 % et donnent une ventilation continentale.
+REGION_PARENTS = {"americas", "greater asia", "greater europe"}
 TICKER_RE = re.compile(r"\b([A-Z0-9]{1,6}(?:\.[A-Z])?:[A-Z]{2,4})\b")
 PCT_RE = re.compile(r"(-?\d+(?:\.\d+)?)\s*%")
 
@@ -201,7 +216,7 @@ def _frac(s: str):
 
 def parse_holdings_page(html: str) -> dict:
     """Extrait holdings (top 10), secteurs et régions de l'onglet holdings."""
-    holdings, sectors, geos = [], [], []
+    holdings, sectors, geos, geo_tables = [], [], [], []
     for rows in _table_rows(html):
         flat = " ".join(c for row in rows for c in row).lower()
         is_asset = "% short" in flat or "% long" in flat or "net assets" in flat
@@ -239,12 +254,31 @@ def parse_holdings_page(html: str) -> dict:
                     w = _frac(row[1])
                     if w is not None and 0 <= w <= 1:
                         cand.append({"country_label": row[0][:80], "weight": w})
-            # heuristique : une vraie table régions a >=2 lignes géographiques
+            # heuristique : une vraie table régions a >=2 lignes géographiques.
+            # On COLLECTE chaque table candidate séparément (sans concaténer) :
+            # la page FT sert souvent DEUX ventilations géo (régions ET pays) qui,
+            # additionnées, sommaient à ~200 % → c'était le bug des poids >150 %.
             if len(cand) >= 2:
-                geos.extend(cand)
-    # dédoublonnage par clé de PK
-    geos = list({g["country_label"]: g for g in geos}.values())
+                # Table hiérarchique Morningstar : ne garder que les super-régions
+                # (somme ~100 %) ; à défaut (autre layout) garder les feuilles, la
+                # garde de plausibilité post-boucle validera la somme.
+                parents = [c for c in cand if c["country_label"].lower() in REGION_PARENTS]
+                chosen = parents if parents else cand
+                geo_tables.append(list({c["country_label"]: c for c in chosen}.values()))
+    # Géo : retenir LA meilleure table candidate (poids sommant au plus près de
+    # 100 %) plutôt que de fusionner toutes les tables géo de la page. On rejette
+    # si aucune n'est plausible (somme hors [85 %, 115 %]) — mieux vaut pas de
+    # ventilation qu'une fausse (cf. garde-fou MMF : somme ~0 → rejetée aussi).
+    if geo_tables:
+        best = min(geo_tables, key=lambda t: (abs(sum(g["weight"] for g in t) - 1.0), -len(t)))
+        if 0.85 <= sum(g["weight"] for g in best) <= 1.15:
+            geos = best
+    # Secteurs : dédoublonnage + même garde de plausibilité (somme ~0 = faux
+    # look-through ; somme >150 % = double comptage → rejet).
     sectors = list({s["sector_name"]: s for s in sectors}.values())
+    sect_tot = sum(s["weight"] for s in sectors)
+    if sect_tot < 0.01 or sect_tot > 1.5:
+        sectors = []
     return {"holdings": holdings, "sectors": sectors, "geos": geos}
 
 
@@ -510,12 +544,19 @@ def referenced_counts(client) -> dict:
 
 
 def select_missing_breakdown_targets(client, limit: int | None,
-                                     ref_counts: dict | None = None):
-    """Fonds SANS aucune ligne de holdings, à enrichir pour faire GRIMPER la
-    couverture look-through (≈ 3 % des fonds primaires aujourd'hui).
+                                     ref_counts: dict | None = None,
+                                     table: str = "investissement_fund_holdings",
+                                     label: str = "composition"):
+    """Fonds SANS aucune ligne dans la table de ventilation `table` (holdings par
+    défaut, ou geos avec --missing-geo), à enrichir pour faire GRIMPER la
+    couverture look-through / la richesse des fiches.
 
     Complète le gap-fill standard, qui ne re-sélectionne PAS un fonds déjà
-    complet en perf/frais : sa composition manquante n'y serait jamais comblée.
+    complet en perf/frais : sa ventilation manquante n'y serait jamais comblée.
+
+    La page FT holdings renvoie holdings+secteurs+régions ensemble ; le filtrage
+    par geos (table=investissement_fund_geos) cible donc précisément le gros gap
+    géographique, tout en comblant secteurs/holdings au passage (fill-only).
 
     Tri par référencement assureur décroissant si ref_counts fourni (les fonds
     distribués en AV d'abord), sinon par encours décroissant."""
@@ -537,20 +578,20 @@ def select_missing_breakdown_targets(client, limit: int | None,
     if ref_counts:
         # tri stable : référencement décroissant, encours préservé en départage
         pool.sort(key=lambda t: ref_counts.get(t["isin"], 0), reverse=True)
-    # On filtre les ISIN sans holdings en respectant l'ordre de priorité.
+    # On filtre les ISIN sans ligne dans `table` en respectant l'ordre de priorité.
     out = []
     for i in range(0, len(pool), 300):
         chunk = pool[i:i + 300]
-        existing = _existing_isins(client, "investissement_fund_holdings",
+        existing = _existing_isins(client, table,
                                    [t["isin"] for t in chunk])
         for t in chunk:
             if t["isin"] not in existing:
                 out.append(t)
                 if limit and len(out) >= limit:
-                    print(f"    {len(out)} fonds sans composition retenus "
+                    print(f"    {len(out)} fonds sans {label} retenus "
                           f"(priorisés {'par référencement' if ref_counts else 'par encours'})")
                     return out
-    print(f"    {len(out)} fonds sans composition retenus "
+    print(f"    {len(out)} fonds sans {label} retenus "
           f"(priorisés {'par référencement' if ref_counts else 'par encours'})")
     return out
 
@@ -558,16 +599,30 @@ def select_missing_breakdown_targets(client, limit: int | None,
 # ─── Run ─────────────────────────────────────────────────────────────────────
 
 def _existing_isins(client, table: str, isins: list[str]) -> set:
-    """ISINs ayant déjà au moins une ligne dans une table de breakdown."""
+    """ISINs ayant déjà au moins une ligne dans une table de breakdown.
+
+    PIÈGE PostgREST (cap 1000 lignes) : une table de ventilation a PLUSIEURS
+    lignes par ISIN (≈4 régions / ~10 holdings). Un chunk de 300 ISIN peut donc
+    renvoyer >1000 lignes et se faire tronquer silencieusement → des ISIN déjà
+    ventilés passaient pour « manquants » et étaient re-sélectionnés/scannés.
+    On pagine donc DANS chaque chunk jusqu'à épuisement (size=1000)."""
     out = set()
     for i in range(0, len(isins), 300):
         chunk = isins[i:i + 300]
-        try:
-            r = client.table(table).select("isin").in_("isin", chunk).execute()
-            for row in (r.data or []):
+        page, size = 0, 1000
+        while True:
+            try:
+                r = (client.table(table).select("isin").in_("isin", chunk)
+                     .range(page * size, page * size + size - 1).execute())
+            except Exception as e:
+                print(f"  ✗ lecture {table} : {e}")
+                break
+            rows = r.data or []
+            for row in rows:
                 out.add(row["isin"])
-        except Exception as e:
-            print(f"  ✗ lecture {table} : {e}")
+            if len(rows) < size:
+                break
+            page += 1
     return out
 
 
@@ -651,10 +706,10 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         offset: int = 0, refresh_breakdowns: bool = False,
         max_age_days: int = 90, fill_breakdowns: bool = False,
         by_referencing: bool = False, missing_series: bool = False,
-        lu_only: bool = False):
+        lu_only: bool = False, missing_geo: bool = False):
     # En mode (re)constitution des ventilations, on a forcément besoin de
     # l'onglet holdings (c'est lui qui porte breakdown).
-    if refresh_breakdowns or fill_breakdowns:
+    if refresh_breakdowns or fill_breakdowns or missing_geo:
         with_holdings = True
     print("=" * 64)
     print("  FT Enricher — markets.ft.com (Morningstar)")
@@ -662,6 +717,8 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
     mode = "APPLY" if apply else "DRY-RUN"
     if missing_series:
         mode += " | BACKFILL SÉRIES MANQUANTES" + (" (LU)" if lu_only else "")
+    elif missing_geo:
+        mode += " | FILL VENTILATIONS GÉO MANQUANTES"
     elif fill_breakdowns:
         mode += " | FILL VENTILATIONS MANQUANTES"
     elif refresh_breakdowns:
@@ -675,7 +732,7 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
     started = datetime.now(timezone.utc)
 
     ref_counts = None
-    if by_referencing and (fill_breakdowns or refresh_breakdowns):
+    if by_referencing and (fill_breakdowns or refresh_breakdowns or missing_geo):
         print("  Lecture du référencement assureur…", flush=True)
         ref_counts = referenced_counts(client)
         print(f"  {len(ref_counts)} fonds référencés par ≥1 assureur")
@@ -690,6 +747,11 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         print("  Sélection des fonds sans série de prix…", flush=True)
         targets = select_missing_series_targets(client, limit, offset=offset,
                                                 lu_only=lu_only)
+    elif missing_geo:
+        print("  Sélection des fonds sans ventilation géographique…", flush=True)
+        targets = select_missing_breakdown_targets(
+            client, limit, ref_counts,
+            table="investissement_fund_geos", label="ventilation géo")
     elif fill_breakdowns:
         print("  Sélection des fonds sans composition…", flush=True)
         targets = select_missing_breakdown_targets(client, limit, ref_counts)
@@ -816,10 +878,17 @@ if __name__ == "__main__":
                          "Rattrapage des fonds à perf externe (Morningstar EMEA) non back-testables.")
     ap.add_argument("--lu-only", action="store_true",
                     help="Restreindre aux ISIN luxembourgeois (avec --missing-series).")
+    ap.add_argument("--missing-geo", action="store_true",
+                    help="Combler les VENTILATIONS GÉOGRAPHIQUES MANQUANTES : fonds sans "
+                         "aucune ligne dans investissement_fund_geos (fill-only). Comble "
+                         "aussi secteurs/holdings au passage (même page FT). Cible le gros "
+                         "gap géo (~5,5k OPCVM), là où --fill-breakdowns (filtre holdings) "
+                         "gaspille des requêtes sur des fonds obligataires sans holdings.")
     a = ap.parse_args()
     run(apply=a.apply, limit=a.limit, isin_arg=a.isin,
         workers=a.workers, delay=a.delay, with_holdings=not a.no_holdings,
         refresh=a.refresh, offset=a.offset,
         refresh_breakdowns=a.refresh_breakdowns, max_age_days=a.max_age_days,
         fill_breakdowns=a.fill_breakdowns, by_referencing=a.by_referencing,
-        missing_series=a.missing_series, lu_only=a.lu_only)
+        missing_series=a.missing_series, lu_only=a.lu_only,
+        missing_geo=a.missing_geo)
