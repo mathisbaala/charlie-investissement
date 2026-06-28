@@ -92,7 +92,7 @@ export default function LandingPage() {
           href="/accueil"
           className="text-label text-muted hover:text-ink transition-colors"
         >
-          Déjà CGP ? →
+          Accéder à l&apos;outil →
         </a>
       </div>
 
