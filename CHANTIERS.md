@@ -16,7 +16,7 @@
 > **Ajout inline de fonds depuis le portefeuille = LIVRÉ 25/06**. Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-27 (17ᵉ passe — re-vérification indépendante, **état inchangé depuis le 25/06** (aucun commit les 26-27/06) : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = **success** les 26 + 27/06, recompute `28188831771` = **success**, 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (2 faux positifs : `/fonds/XXX` en commentaire, `TODO` sur heuristique PER connue), 0 test `skip/only`, 0 `console.log`. **Seule évolution** : les 3 dernières **branches remote** mergées (`chantier/pdf-factsheet-portefeuille`, `chore/pdf-integration-cleanup`, `chore/remove-dead-blendexposure`) ont été **supprimées le 27/06** (il ne reste que `main`, local et remote) ; et la note ⏸️ « scrapers IP » est **clarifiée** (le refresh AV est déjà automatique trimestriel, seul un proxy manque pour ~6 sites bloqués — cadence à ne pas augmenter). 16ᵉ passe : `tsc`/321 tests/CI re-vérifiés, recompute `28188831771` confirmé success.)
+> Dernier audit : 2026-06-28 (18ᵉ passe — re-vérification indépendante, **état sain inchangé** : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = **success** les 26 + 27 + **28/06** (`28313621292`), recompute `28188831771` = **success**, 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (2 faux positifs : `/fonds/XXX` en commentaire, `TODO` sur heuristique PER connue), 0 test `skip/only`, 0 `console.log`. **Seule évolution depuis le 27/06** : une **passe de polish UX « contenu d'abord »** (commit `8e0d256`, 28/06) — titres de page remontés dans la Topbar, accueil sans hero, recherche d'assureurs dans le FilterPanel, espacements (voir « ✅ Réglés »). Aucun nouveau chantier, aucune régression. **17ᵉ passe (27/06)** : 3 branches remote mergées supprimées (reste `main` seule) + clarif note ⏸️ scrapers IP.)
 
 > 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
 > Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
@@ -143,6 +143,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Passe de polish UX « contenu d'abord »** — *Réglé le 2026-06-28* : vague de finitions (commit `8e0d256`). **Topbar** affiche le nom de l'onglet courant (Recherche / Assurances vie / Portefeuille / Documents) à la place du wordmark — accueil et fiche fonds gardent « Charlie » (brand + fil d'Ariane inchangés). **PageHeader** ne rend plus le titre dans le contenu (déplacé en Topbar), conserve action + backlink. **Accueil** : hero « Charlie. » retiré → démarre directement sur la barre de recherche. **FilterPanel** : champ de recherche texte pour filtrer la liste d'assureurs (>8 options), compteur retiré du bouton « Appliquer ». **Recherche** : `pt-3` pour décoller les panneaux de la barre du haut. `tsc` clean, **321 tests verts**, vérifié en navigateur (7 routes 200, 0 erreur console).
 
 - **Hygiène git — 3 branches remote mergées supprimées** — *Réglé le 2026-06-27* : les 3 branches distantes restantes (`chantier/pdf-factsheet-portefeuille`, `chore/pdf-integration-cleanup`, `chore/remove-dead-blendexposure`), vérifiées mergées dans `origin/main`, supprimées via `git push origin --delete` + `git remote prune origin`. Il ne reste plus que `main` (local et remote).
 
