@@ -14,38 +14,38 @@ export type TourStep = {
 export const TOUR_STEPS: TourStep[] = [
   {
     key: "accueil",
-    title: "Accueil",
-    body: "Le point de départ. Décrivez un fonds en langage naturel, ou renseignez le profil de votre client pour une sélection adaptée.",
+    title: "Partez du besoin",
+    body: "Décrivez un fonds en langage naturel, ou renseignez le profil client. Charlie propose une sélection adaptée.",
   },
   {
     key: "recherche",
     title: "Recherche",
-    body: "Décrivez le fonds recherché en une phrase. Les filtres affinent la liste par risque, frais, performance et enveloppe.",
+    body: "Une phrase suffit. Affinez ensuite par risque, frais, performance et enveloppe.",
   },
   {
     key: "portefeuille",
     title: "Portefeuille",
-    body: "Composez un portefeuille pondéré : performance, volatilité, Sharpe, corrélation entre fonds et back-test vs un indice.",
+    body: "Pondérez plusieurs fonds : performance, volatilité, Sharpe, corrélation et back-test face à un indice.",
   },
   {
     key: "assureurs",
     title: "Assurances vie",
-    body: "Parcourez les contrats et leurs unités de compte référencées, assureur par assureur.",
+    body: "Les contrats et leurs unités de compte référencées, assureur par assureur.",
   },
   {
     key: "documents",
     title: "Documents",
-    body: "Déposez un DICI ou un KID. Charlie en extrait les frais, le niveau de risque et les scénarios.",
+    body: "Déposez un DICI ou un KID : Charlie en extrait frais, risque et scénarios.",
   },
   {
     key: "chat",
     title: "Demander à Charlie",
-    body: "Une question à tout moment ? Ouvrez Charlie en haut à droite pour interroger les données.",
+    body: "Une question ? Ouvrez Charlie en haut à droite, à tout moment.",
   },
 ];
 
 // Versionné : bump le suffixe pour réafficher la visite après une refonte.
-const KEY = "charlie_tour_v1_done";
+const KEY = "charlie_tour_v2_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;
