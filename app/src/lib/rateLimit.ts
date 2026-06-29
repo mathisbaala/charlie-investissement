@@ -18,6 +18,15 @@ const DAY_LIMIT  = Number(process.env.AI_DAY_LIMIT ?? 25);
 // recherche, 2000 = large marge pour un usage démo, mur net en cas d'abus.
 const GLOBAL_DAY_LIMIT = Number(process.env.AI_GLOBAL_DAY_LIMIT ?? 2000);
 
+// ── Garde-fou anti-scraping des endpoints de DONNÉES (screener/fiche/VL) ──────
+// Distinct du quota IA : ici on protège la BASE (aspiration en masse), pas un
+// coût d'API. Plafonds par IP, fenêtre MINUTE (anti-burst) + HEURE (soutenu),
+// volontairement GÉNÉREUX — un humain qui navigue (quelques requêtes par vue de
+// page) reste très loin sous le seuil ; un crawler qui énumère des centaines de
+// pages/fiches mord. Réglables par env (sans toucher au code).
+const DATA_MIN_LIMIT  = Number(process.env.DATA_MIN_LIMIT  ?? 100);
+const DATA_HOUR_LIMIT = Number(process.env.DATA_HOUR_LIMIT ?? 1800);
+
 // Coût relatif par type d'appel (l'extraction DICI en vision coûte bien plus
 // cher qu'une simple interprétation de requête).
 export const AI_COST = {
@@ -27,7 +36,7 @@ export const AI_COST = {
   dici: 3,          // extraction d'un DICI (vision + gros prompt)
 } as const;
 
-function clientIp(req: NextRequest): string {
+export function clientIp(req: NextRequest): string {
   // IMPORTANT : ne PAS faire confiance au premier maillon de x-forwarded-for —
   // un client peut envoyer son propre en-tête XFF, et Vercel le préserve (en
   // préfixant la vraie IP) ; prendre split(",")[0] laisserait n'importe qui
@@ -89,6 +98,38 @@ export async function aiRateLimit(req: NextRequest, cost = 1): Promise<NextRespo
           : "Vous avez atteint votre quota de découverte du jour. Revenez demain, ou contactez-nous pour débloquer un accès complet à Charlie.",
       },
       { status: 429, headers: { "Retry-After": perHour ? "3600" : "86400" } },
+    );
+  } catch {
+    return null; // fail-open
+  }
+}
+
+/**
+ * Garde-fou anti-scraping pour les endpoints de DONNÉES. Renvoie une réponse 429
+ * si l'IP dépasse le plafond minute OU heure, sinon `null` (l'appelant continue).
+ * Fail-open : toute erreur de comptage laisse passer — on ne casse jamais le
+ * produit pour un souci de rate-limit. Sémantique « bloqué » STRICTE : on ne
+ * refuse que sur `allowed === false` explicite (un retour inattendu = on laisse
+ * passer), pour ne jamais transformer un aléa en faux 429.
+ */
+export async function dataRateLimit(req: NextRequest, cost = 1): Promise<NextResponse | null> {
+  try {
+    const ip = clientIp(req);
+    const { data, error } = await supabase.rpc("inv_data_rate_limit", {
+      p_ip: ip, p_min_limit: DATA_MIN_LIMIT, p_hour_limit: DATA_HOUR_LIMIT, p_cost: cost,
+    });
+    if (error || !data) return null;
+    const r = data as { allowed: boolean; scope: "ok" | "minute" | "hour" };
+    if (r.allowed !== false) return null;
+
+    const perMinute = r.scope === "minute";
+    return NextResponse.json(
+      {
+        error: "rate_limited",
+        scope: r.scope,
+        message: "Trop de requêtes. Patientez un instant avant de réessayer.",
+      },
+      { status: 429, headers: { "Retry-After": perMinute ? "60" : "3600" } },
     );
   } catch {
     return null; // fail-open
