@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct, annualizeForType, annualizeCumul } from "@/lib/format";
 import { logEvent } from "@/lib/analytics";
-import { dataRateLimit } from "@/lib/rateLimit";
+import { botGuard, dataRateLimit } from "@/lib/rateLimit";
 import type { FundDetailHF, FundHoldingHF, FundBreakdownHF, NavPointHF } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +13,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ isin: string }> }
 ): Promise<NextResponse> {
+  const bot = botGuard(req);
+  if (bot) return bot;
   const limited = await dataRateLimit(req);
   if (limited) return limited;
 

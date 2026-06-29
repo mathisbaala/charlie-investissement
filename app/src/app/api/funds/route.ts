@@ -5,7 +5,7 @@ import { asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import { relaxationOrder, relaxLabel } from "@/lib/screenerParams";
 import { rankByFit, SOFT_TOLERANCE, type FitContext } from "@/lib/fitScore";
-import { dataRateLimit } from "@/lib/rateLimit";
+import { botGuard, dataRateLimit } from "@/lib/rateLimit";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +67,8 @@ function dedup(funds: Fund[]): Fund[] {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const bot = botGuard(req);
+  if (bot) return bot;
   const limited = await dataRateLimit(req);
   if (limited) return limited;
 

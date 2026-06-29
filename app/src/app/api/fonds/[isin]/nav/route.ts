@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { dataRateLimit } from "@/lib/rateLimit";
+import { botGuard, dataRateLimit } from "@/lib/rateLimit";
 import type { NavPoint, NavResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ isin: string }> }
 ): Promise<NextResponse> {
+  const bot = botGuard(req);
+  if (bot) return bot;
   const limited = await dataRateLimit(req);
   if (limited) return limited;
 
