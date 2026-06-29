@@ -78,6 +78,13 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
+// Le rate-limit anti-scraping est testé en isolation (dataRateLimit.test.ts).
+// Ici on le neutralise (toujours « autorisé ») pour ne pas polluer le mock
+// supabase ni les assertions sur rpcCalls de ce fichier.
+vi.mock("@/lib/rateLimit", () => ({
+  dataRateLimit: () => Promise.resolve(null),
+}));
+
 import { GET } from "@/app/api/funds/route";
 import { NextRequest } from "next/server";
 
@@ -100,6 +107,34 @@ describe("GET /api/funds — robustesse pagination", () => {
     rpcCalls = [];
   });
 
+  // Garde anti-scraping : la pagination PROFONDE (énumération de l'univers) est
+  // court-circuitée — page vide cohérente SANS interroger la base (lastRange reste
+  // null). page=200, per_page=50 → offset 9950 ≥ MAX_OFFSET (5000) → bloqué.
+  it("plafond de pagination : page profonde → page vide sans requête DB", async () => {
+    dataResult = {
+      data: [{ isin: "FR0000000001", aum_eur: 1000, share_class_group_id: "g1", ter: 0.01, ongoing_charges: 0.012 }],
+      error: null,
+      count: 9999,
+    };
+
+    const res = await GET(req("?page=200&per_page=50"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(0);
+    expect(body.total_pages).toBe(0);
+    expect(body.page).toBe(200);
+    // Court-circuit AVANT toute requête de données : aucun .range() émis.
+    expect(lastRange).toBeNull();
+  });
+
+  // Une page normale (offset sous le plafond) n'est PAS affectée par la garde.
+  it("plafond de pagination : page normale interroge bien la base", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?page=2&per_page=50"));
+    expect(lastRange).toEqual({ from: 50, to: 99 });
+  });
+
   // Régression : un crawler paginant au-delà des résultats (?page=500) provoquait
   // un 416 PostgREST (PGRST103) → 500. On doit renvoyer une page vide cohérente.
   it("renvoie 200 + page vide quand l'offset dépasse les lignes (416 PGRST103)", async () => {
@@ -110,12 +145,12 @@ describe("GET /api/funds — robustesse pagination", () => {
     };
     countResult = { data: null, error: null, count: 137 };
 
-    const res = await GET(req("?page=500&per_page=50"));
+    const res = await GET(req("?page=50&per_page=50"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual([]);
     expect(body.total).toBe(137);
-    expect(body.page).toBe(500);
+    expect(body.page).toBe(50);
     expect(body.total_pages).toBe(Math.ceil(137 / 50));
   });
 
@@ -133,7 +168,7 @@ describe("GET /api/funds — robustesse pagination", () => {
     };
     countResult = { data: null, error: null, count: 137 };
 
-    const res = await GET(req("?page=500&per_page=50"));
+    const res = await GET(req("?page=50&per_page=50"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toEqual([]);
@@ -227,7 +262,7 @@ describe("GET /api/funds — robustesse pagination", () => {
     };
     countResult = { data: null, error: null, count: 137 };
 
-    const res = await GET(req("?page=500&per_page=50"));
+    const res = await GET(req("?page=50&per_page=50"));
     expect(res.status).toBe(200);
     expect(eqHead).toContainEqual(["is_primary_share_class", true]);
   });

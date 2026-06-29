@@ -5,9 +5,16 @@ import { asExactIsin } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import { relaxationOrder, relaxLabel } from "@/lib/screenerParams";
 import { rankByFit, SOFT_TOLERANCE, type FitContext } from "@/lib/fitScore";
+import { dataRateLimit } from "@/lib/rateLimit";
 import type { Fund, ScreenerResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// Plafond de pagination PROFONDE (anti-scraping). Le screener est en next/prev
+// only (per_page=50) : aucun parcours humain n'atteint des offsets profonds — un
+// offset au-delà de ce plafond trahit une énumération automatisée de l'univers.
+// Au-delà : page vide cohérente, sans interroger la base. Réglable par env.
+const MAX_OFFSET = Number(process.env.DATA_MAX_OFFSET ?? 5000);
 
 // Set vide partagé : jeu de filtres relâchés par défaut (cas nominal, aucun relâchement).
 const EMPTY_DISABLED: Set<string> = new Set();
@@ -60,6 +67,9 @@ function dedup(funds: Fund[]): Fund[] {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const limited = await dataRateLimit(req);
+  if (limited) return limited;
+
   const sp = req.nextUrl.searchParams;
 
   const sfdr    = arr(p(sp, "sfdr")).map(Number).filter(n => !isNaN(n));
@@ -388,6 +398,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Pagination exacte : page P = fonds uniques [(P-1)·perPage, P·perPage). La dédup est
   // portée par is_primary_share_class (cf. baseFilters), donc 1 page = perPage lignes.
   const offset = (page - 1) * perPage;
+
+  // Garde anti-scraping : pagination profonde (énumération de l'univers). Hors de
+  // portée d'un parcours humain (next/prev) → page vide cohérente sans toucher la
+  // base. Placé APRÈS le raccourci ISIN exact (toujours autorisé) et le relâchement/
+  // fuzzy (page 1 uniquement) → aucun chemin légitime n'est affecté.
+  if (offset >= MAX_OFFSET) {
+    const resp: ScreenerResponse = { data: [], total: 0, page, per_page: perPage, total_pages: 0 };
+    return NextResponse.json(resp);
+  }
 
   // Frontière API : frais fraction (DB) → % (contrat Fund, cf. types.ts). `relevance`
   // (chemin RPC classé) est un score interne de tri : non exposé dans la réponse publique.
