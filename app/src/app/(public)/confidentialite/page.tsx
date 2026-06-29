@@ -208,7 +208,7 @@ export default function ConfidentialitePage() {
               service ;
             </li>
             <li>
-              <strong>Vercel</strong> : hébergement de l&apos;application et
+              <strong>Vercel</strong>{" "}: hébergement de l&apos;application et
               mesure d&apos;audience.
             </li>
           </ul>
