@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
+import { PrivacyNote } from "@/components/ui/PrivacyNote";
 import { Upload, Loader2, X, ArrowRight, Check } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { parseProfileFromFile } from "@/lib/profileImport";
@@ -328,6 +329,10 @@ export function ClientProfileForm() {
           </div>
         )}
         {importError && <p className="mt-3 text-caption text-danger">{importError}</p>}
+        <PrivacyNote
+          className="mt-3"
+          text="Le document client est analysé pour pré-remplir le profil puis écarté ; le profil reste dans votre navigateur, jamais sur nos serveurs."
+        />
       </Card>
 
       {/* ── Formulaire ──

@@ -86,6 +86,14 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
 
       <div className="flex-1" />
 
+      {/* Lien légal discret — toujours accessible */}
+      <Link
+        href="/confidentialite"
+        className="text-meta text-muted hover:text-ink-2 transition-colors shrink-0"
+      >
+        Confidentialité
+      </Link>
+
       {/* Chat trigger — logo mark */}
       <button
         onClick={onChatToggle}
