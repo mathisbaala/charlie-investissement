@@ -76,14 +76,22 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 - **Comment l'aborder** : **ne rien faire** — le cron quotidien (02:00 UTC, anti-throttle) draine ~24 % du pool non-tenté en fond sur ~15 jours puis se tarit (recyclage TTL 30j). Surveillance passive : alerte issue si échec. Ne pas lancer de runs dos à dos (throttle Morningstar).
 - **Effort estimé** : rapide (surveillance only)
 
-### Drain durabilité MiFID (annexe SFDR) — câblé le 29/06, en cours
-- **Priorité** : 🟡 Moyenne
+### Drain durabilité MiFID (annexe SFDR) — câblé 29/06, AU PLAFOND (correction d'estimation)
+- **Priorité** : ⚪ Mineure (révisée à la baisse)
 - **Détecté le** : 2026-06-29
 - **Où** : `scripts/enrichers/sfdr-annex-enricher.py` + `.github/workflows/sfdr-refresh.yml` (hebdo) + `scripts/cron/monthly-pipeline.py`
-- **Le problème** : les 3 colonnes durabilité MiFID (taxonomie verte / investissement durable / PAI) étaient quasi-vides car le **KID est un cul-de-sac** — les données vivent dans l'**annexe précontractuelle SFDR** (`documenttype=398`). L'enricher annexe **existait** (livré 28/06) mais n'avait tourné que sur **831 fonds (9 %)** des **9 137 Art.8/9** et **n'était câblé à aucun cron**.
-- **Ce qui est fait (29/06)** : enricher annexe **câblé** en CI — drain **hebdo** (mardi 04:00 UTC, lots de 3000, fill-only, reprend les non-examinés) + ajouté au **pipeline mensuel**. Le drain tourne désormais seul ; déclenchable à la main (`gh workflow run "Durabilité SFDR (DDA)"`).
-- **Comment l'aborder** : **surveillance passive** — le pool ~6 650 restants se draine sur ~3 semaines (alerte issue si échec). Quand `sustainability_source` couvre l'univers Art.8/9, basculer en « ✅ Réglés ». Cf. mémoire [[sustainability-dda]].
+- **🔴 CORRECTION (surveillance /recul 29/06)** : l'estimation initiale « ~6 650 fonds à drainer sur 3 semaines » était **fausse**. L'enricher n'adresse que les `kid_url` **Morningstar avec `documenttype=299`** (swap →398) = **831 fonds**, et ils sont **TOUS déjà traités** (186 remplis MiFID, ~640 sans annexe publiée = plafond structurel). Les ~8 300 autres Art.8/9 ont un `kid_url` d'une autre forme, **non adressable** par cet enricher. → **pas de backlog**, couverture MiFID plafonnée à ~186. J'avais confondu « a un kid_url » (7 481) avec « a le kid_url adressable » (831).
+- **Ce qui est fait (29/06)** : enricher annexe **câblé** (hebdo + mensuel + manuel). Défaut d'intégration corrigé (commit `e3b91a8`) : étape annexe **en premier**, étapes **bornées** sur cadence planifiée (l'étape KID sans limite monopolisait le run → timeout). Le câblage sert désormais de **filet** (rattrape les nouveaux fonds adressables) + **draine le backlog KID** par lots.
+- **Comment l'aborder** : **surveillance passive**, rien de plus à attendre côté MiFID (plafond atteint). Aller au-delà de ~186 = **autre source** (sites émetteurs / registre AMF SFDR) = chantier données séparé, aujourd'hui won't-do (amfinesoft testé KO). Cf. [[sustainability-dda]].
 - **Effort estimé** : rapide (surveillance only)
+
+### ⚠️ Drain composition look-through — échec intermittent (statement timeout)
+- **Priorité** : 🟡 Moyenne (santé système, hors vague 29/06)
+- **Détecté le** : 2026-06-29
+- **Où** : `holdings-drain-auto.yml`, étape « Dériver allocation_profile depuis la composition »
+- **Le problème** : le run planifié du 29/06 (`28353947778`) a tourné 2h04 puis **échoué** sur `postgrest APIError 57014 : canceling statement due to statement timeout` (vs ~1h11 en succès les jours précédents). Requête de dérivation trop lourde sous charge → annulée par Postgres. **Alerte ouverte issue #7**. Non lié aux migrations sécu du jour (drain en service_role). Intermittent (succès les 26/27/28).
+- **Comment l'aborder** : surveiller le prochain run quotidien (auto-retry 02:00 UTC) ; si l'échec persiste, augmenter le `statement_timeout` de l'étape ou paginer/alléger la requête `allocation_profile`. Refermer l'issue #7 après 1 run vert.
+- **Effort estimé** : moyen (si récurrent)
 
 ---
 
