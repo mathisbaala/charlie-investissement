@@ -1,10 +1,38 @@
-# 📋 Session Handoff — 25 juin 2026
+# 📋 Session Handoff — 29 juin 2026
 
 > Base du document : journée dense du **19 juin** (26 commits, sprints DDA), réconciliée
-> le **22 juin**, auditée le **23 juin**, puis **gros chantier PORTEFEUILLE le 25 juin**
-> (retour client CGP — Partie 2). Voir journal 25/06 ci-dessous + `CHANTIERS.md`.
+> le **22 juin**, auditée le **23 juin**, **gros chantier PORTEFEUILLE le 25 juin**
+> (retour client CGP — Partie 2), **sprint complétude + sécurité/conformité 28-29 juin**.
+> Voir journal 28-29/06 ci-dessous, puis journal 25/06, + `CHANTIERS.md`.
 >
 > Doc précédente (19 mai) archivée dans `docs/bilans/`.
+
+---
+
+## 🔄 Journal 28-29/06 — Complétude, sécurité & conformité
+
+**Sprint complétude (28/06)** : TER **+533** (`kid-ter-fill.py`), MiFID **+186** (`sfdr-annex-enricher.py`,
+premiers indicateurs durabilité depuis l'annexe précontractuelle SFDR), **géo OPCVM FR réparée**
+(fix parser super-régions `ft-enricher` + nouvel enricher `quantalys-geo-enricher.py` ; aberrantes
+1680 → 0, propres → 6378), AUM +72. Fixes UX : pertinence recherche (dé-biais vivier fit + tiebreak
+AUM), logo OG dans l'aperçu de lien, visite guidée v2. Polish UX « contenu d'abord » (titres en
+Topbar, accueil sans hero).
+
+**Sécurité & conformité (29/06)** :
+- **Rate-limit + plafond de pagination anti-scraping** sur `/api/funds`, `/api/funds/[isin]`,
+  `/api/fonds/[isin]/nav` (migration `20260629120000`, +13 tests → 334 verts).
+- **Politique de confidentialité RGPD** (`/confidentialite`) + `PrivacyNote` près des uploads.
+- **Legacy anon key Supabase neutralisée** (migration `20260629140000`) : `REVOKE anon` sur les
+  44 tables encore ouvertes (→ 0) + coupure du re-grant (default privileges `postgres`). App en
+  `service_role` only (vérifié), 0 ERROR advisor. La anon key devient inoffensive même si laissée
+  active côté dashboard. Reliquat = fonctions d'extension `pg_trgm`/`unaccent` (sans surface data).
+- **Drain MiFID câblé en CI** : l'enricher annexe (`documenttype=398`) existait mais n'avait tourné
+  que sur 9 % des Art.8/9 et dans aucun cron → drain **hebdo** (`sfdr-refresh.yml`, mardi, lots 3000)
+  + ajouté au `monthly-pipeline.py`. Le pool restant (~6 650) se draine seul sur ~3 semaines.
+- **Hygiène git** : 4 branches locales mergées du sprint 28/06 élaguées (reste `main`).
+
+**État** : `tsc` clean, **334/334 tests verts**, working tree propre, CI saine. Détail + suivi dans
+`CHANTIERS.md` (19ᵉ passe).
 
 ---
 

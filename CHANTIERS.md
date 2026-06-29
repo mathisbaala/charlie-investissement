@@ -16,7 +16,7 @@
 > **Ajout inline de fonds depuis le portefeuille = LIVRÉ 25/06**. Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-28 (18ᵉ passe — re-vérification indépendante, **état sain inchangé** : `tsc` clean, **321/321 tests verts** (23 fichiers), working tree propre, CI saine (drain compo auto = **success** les 26 + 27 + **28/06** (`28313621292`), recompute `28188831771` = **success**, 0 workflow en échec), 0 marqueur `TODO/FIXME` réel (2 faux positifs : `/fonds/XXX` en commentaire, `TODO` sur heuristique PER connue), 0 test `skip/only`, 0 `console.log`. **Seule évolution depuis le 27/06** : une **passe de polish UX « contenu d'abord »** (commit `8e0d256`, 28/06) — titres de page remontés dans la Topbar, accueil sans hero, recherche d'assureurs dans le FilterPanel, espacements (voir « ✅ Réglés »). Aucun nouveau chantier, aucune régression. **17ᵉ passe (27/06)** : 3 branches remote mergées supprimées (reste `main` seule) + clarif note ⏸️ scrapers IP.)
+> Dernier audit : 2026-06-29 (19ᵉ passe — **état sain, deux livraisons neuves le 29/06** : `tsc` clean, **334/334 tests verts** (24 fichiers, +13 depuis le 28/06 = couverture rate-limit), working tree propre, CI saine (drain compo auto `28353947778` **in_progress** = nominal ~1h45 ; tous les runs récents en **success**, 0 échec), 0 marqueur `TODO/FIXME` réel (mêmes faux positifs connus), 0 test `skip/only`, 0 `console.log`. **Livré depuis le 28/06 12h38** : (1) **rate-limit + plafond de pagination anti-scraping** sur les endpoints data (`/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`) + migration `20260629120000` ; (2) **politique de confidentialité RGPD** (`/confidentialite`) + `PrivacyNote` près des uploads ; (3) **sprint complétude 28/06** (kid-ter-fill, sfdr-annex, quantalys-geo, fix parser géo FT) ; (4) fixes UX (pertinence recherche, OG logo, visite guidée v2). Tout dans « ✅ Réglés ». **Actions traitées dans cette passe** : (a) **4 branches locales mergées élaguées** ; (b) **legacy anon key Supabase neutralisée** (migration `20260629140000` : REVOKE anon 44 tables → 0 + coupure du re-grant ; vérifié service_role intact, 0 ERROR advisor) ; (c) **drain MiFID câblé en CI** (l'enricher annexe `documenttype=398` existait mais n'avait tourné que sur 9 % des Art.8/9 et n'était dans aucun cron → drain hebdo + mensuel branché). **18ᵉ passe (28/06)** : polish UX « contenu d'abord » (commit `8e0d256`).)
 
 > 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
 > Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
@@ -24,7 +24,15 @@
 > Décisions actées : **transparence du score d'adéquation = won't-do ferme** (⏸️, ne plus
 > re-proposer) ; **référencement assureur = pris par un autre agent** (⏸️).
 
-État global : **projet sain et bien tenu** — re-vérifié indépendamment à cette 16ᵉ passe : `tsc`
+État global (19ᵉ passe, 29/06) : **projet sain et bien tenu** — `tsc` clean, **334/334 tests
+verts** (24 fichiers), **working tree propre**, **CI saine** (drain compo auto en cours = nominal).
+Backlog de fond toujours **soldé** ; deux livraisons de sécurité/conformité le 29/06 (rate-limit
+anti-scraping + RGPD + neutralisation anon + drain MiFID câblé). **Chantiers ouverts résiduels** :
+2 en cours auto (drain compo + drain MiFID), 4 en suspens (won't-do/différés). Les 3 actions
+signalées en début de passe (branches, anon key, MiFID) sont **traitées**. Le paragraphe ci-dessous
+est l'historique de la 16ᵉ passe (conservé).
+
+État global (16ᵉ passe) : **projet sain et bien tenu** — re-vérifié indépendamment : `tsc`
 clean, **321/321 tests verts** (23 fichiers), **working tree propre**, **CI saine** (drain compo
 auto + rafraîchissement annuel = success ; recompute métriques **= success** (run `28188831771`,
 métriques des ~990 fonds réparés validées saines : Xtrackers S&P 500 vol3y 27→12, iShares World 12,4,
@@ -64,6 +72,15 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 - **Où** : `.github/workflows/holdings-drain-auto.yml` + `scripts/enrichers/` (Morningstar EMEA)
 - **Le problème** : la couverture compo (géo OU secteur) est à ~28,8 % (ETF 52,6 %, OPCVM 26,6 %). Le plafond est piloté par l'OPCVM (~15 000 fonds jamais tentés). La surface ETF codable est **épuisée** (verdict 22/06).
 - **Comment l'aborder** : **ne rien faire** — le cron quotidien (02:00 UTC, anti-throttle) draine ~24 % du pool non-tenté en fond sur ~15 jours puis se tarit (recyclage TTL 30j). Surveillance passive : alerte issue si échec. Ne pas lancer de runs dos à dos (throttle Morningstar).
+- **Effort estimé** : rapide (surveillance only)
+
+### Drain durabilité MiFID (annexe SFDR) — câblé le 29/06, en cours
+- **Priorité** : 🟡 Moyenne
+- **Détecté le** : 2026-06-29
+- **Où** : `scripts/enrichers/sfdr-annex-enricher.py` + `.github/workflows/sfdr-refresh.yml` (hebdo) + `scripts/cron/monthly-pipeline.py`
+- **Le problème** : les 3 colonnes durabilité MiFID (taxonomie verte / investissement durable / PAI) étaient quasi-vides car le **KID est un cul-de-sac** — les données vivent dans l'**annexe précontractuelle SFDR** (`documenttype=398`). L'enricher annexe **existait** (livré 28/06) mais n'avait tourné que sur **831 fonds (9 %)** des **9 137 Art.8/9** et **n'était câblé à aucun cron**.
+- **Ce qui est fait (29/06)** : enricher annexe **câblé** en CI — drain **hebdo** (mardi 04:00 UTC, lots de 3000, fill-only, reprend les non-examinés) + ajouté au **pipeline mensuel**. Le drain tourne désormais seul ; déclenchable à la main (`gh workflow run "Durabilité SFDR (DDA)"`).
+- **Comment l'aborder** : **surveillance passive** — le pool ~6 650 restants se draine sur ~3 semaines (alerte issue si échec). Quand `sustainability_source` couvre l'univers Art.8/9, basculer en « ✅ Réglés ». Cf. mémoire [[sustainability-dda]].
 - **Effort estimé** : rapide (surveillance only)
 
 ---
@@ -123,8 +140,8 @@ L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voi
 
 ## 🧹 Dette technique
 
-### (élagage branches — réglé)
-L'élagage des 22 branches **locales** mergées est **fait le 25/06**, et les **3 branches remote** restantes sont **supprimées le 27/06** (voir « ✅ Réglés »). Il ne reste que `main`.
+### (élagage branches — réglé le 29/06)
+Les 4 branches locales mergées du sprint 28/06 sont **supprimées le 29/06** (voir « ✅ Réglés »). Il ne reste que `main` (local et remote). *Historique* : 22 branches locales élaguées le 25/06, 3 remote le 27/06.
 
 ### (reliquat NAV — réglé)
 Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/06** (re-fetch JustETF + rescale Loomis → garde `__insane` 10 → 5) — voir « ✅ Réglés ». Les détresses RÉELLES restantes (Transition Evergreen `FR0000035784`, H2O Multibonds/Adagio/Europea, Sienna Diversifié) sont **légitimement** masquées (drawdown vrai) — pas un chantier. Les trois items mineurs du 23/06 (finder TER « temporaire », branche morte, placeholder AUM) sont traités ou confirmés inertes — voir « ✅ Réglés ».
@@ -143,6 +160,24 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Legacy anon key Supabase neutralisée — REVOKE anon + coupure du re-grant** — *Réglé le 2026-06-29* : la 3ᵉ vague (28/06) avait révoqué anon sur les vues/fonctions screener mais **44 tables `investissement_*` + des séquences restaient ouvertes à anon** (RLS bloquait l'accès, mais 2e couche manquante) et le **re-grant automatique** (default privileges du rôle `postgres`) re-donnait anon à chaque nouvel objet. **Sûreté vérifiée avant action** : le seul client Supabase de l'app (`app/src/lib/supabase.ts`) utilise `SUPABASE_SERVICE_ROLE_KEY`, **zéro** référence anon/`NEXT_PUBLIC_SUPABASE` côté front, produit sans comptes → aucun usage légitime de la anon key. **Migration `20260629140000`** : `REVOKE ALL ON ALL TABLES/SEQUENCES IN SCHEMA public FROM anon` + `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … REVOKE … FROM anon` (+ best-effort `supabase_admin`). **Vérifié** : tables anon **44 → 0**, service_role intact (60 tables), default ACL postgres coupé. Les 35 routines restantes = **internes d'extension `pg_trgm`/`unaccent`** (similarity, gtrgm_*, unaccent) — aucune surface de données, laissées (les révoquer casserait le tri fuzzy de service_role). `get_advisors` sécu = **0 ERROR** (reste INFO/WARN by-design). **La legacy anon key est désormais inoffensive** même si elle reste active côté dashboard — le toggle dashboard devient optionnel (ceinture+bretelles). Cf. [[supabase-security-hardening]].
+
+- **Drain durabilité MiFID (annexe SFDR `documenttype=398`) — câblé en CI** — *Réglé le 2026-06-29* : les 3 colonnes MiFID (taxonomie / investissement durable / PAI) étaient quasi-vides (KID = cul-de-sac). L'enricher annexe `sfdr-annex-enricher.py` **existait** mais n'avait tourné que sur **831/9 137 fonds Art.8/9 (9 %)** et **n'était câblé à aucun cron** (le pipeline mensuel ne lançait que l'ancien enricher KID). **Câblé** : drain **hebdo** dans `sfdr-refresh.yml` (mardi 04:00 UTC, lots de 3000, fill-only, reprend les non-examinés) **+** ajouté au `monthly-pipeline.py` après l'enricher KID. `py_compile` + YAML OK. Le drain du pool restant (~6 650) tourne désormais seul sur ~3 semaines → suivi en « 🚧 Chantiers en cours » jusqu'à épuisement. Cf. [[sustainability-dda]] + [[completeness-sprint-20260628]].
+
+- **Hygiène git — 4 branches locales mergées élaguées** — *Réglé le 2026-06-29* : les 4 branches du sprint 28/06 (`feat/completeness-enrichers-mifid-ter`, `feat/quantalys-geo-enricher`, `fix/ft-geo-parser-superregions`, `fix/search-relevance-pool-aum`), vérifiées mergées dans `main`, supprimées via `git branch -d`. Reste `main` seule (local + remote).
+
+- **Rate-limit + plafond de pagination anti-scraping sur les endpoints data** — *Réglé le 2026-06-29* : durcissement applicatif contre l'aspiration de la base via l'API publique. `lib/rateLimit.ts` étendu (quota par IP) appliqué à `/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav` + **plafond de pagination** (cap du nombre de pages/lignes servies en une rafale). Migration `20260629120000_data_rate_limit.sql`. **13 nouveaux tests** (`dataRateLimit.test.ts` + extension `fundsRoute.test.ts`) → **334 tests verts**. Complète la 3ᵉ vague de durcissement Supabase (REVOKE anon) côté applicatif. Cf. [[ai-rate-limit]] + [[supabase-security-hardening]].
+
+- **Politique de confidentialité RGPD + notes près des uploads** — *Réglé le 2026-06-29* : page publique `/confidentialite` (300 lignes, éditeur = CHARLIE SAS, sous-traitants Vercel/Supabase/Anthropic) ajoutée au sitemap + liens landing/Topbar ; composant `PrivacyNote` placé sous les zones d'upload (documents, profil client) pour informer du traitement des fichiers déposés. Conformité RGPD du parcours d'upload DICI. Cf. [[privacy-rgpd-legal-entity]]. (3 commits de suivi = corrections d'espaces JSX/typographie.)
+
+- **Sprint complétude 28/06 (TER + MiFID + géo réparée + AUM)** — *Réglé le 2026-06-28* : 4 enrichers/fixes pour combler les trous de données. **TER +533** via `kid-ter-fill.py` (TER extrait du KID). **MiFID +186** via `sfdr-annex-enricher.py` (premiers indicateurs durabilité depuis l'annexe SFDR — reste partiel, voir ⏸️ « colonnes MiFID quasi-vides »). **Géo OPCVM FR RÉPARÉE** : fix du parser super-régions de `ft-enricher` (commit `c4e25ae`) + mode `--missing-geo` + pagination `_existing_isins`, **et** nouvel enricher `quantalys-geo-enricher.py` (ventilation géo OPCVM FR via Quantalys) ; correction SQL des ventilations aberrantes (1680 → 0, propres → 6378). **AUM +72** (maigre). Enrichers manuels (one-shot), pas câblés en CI. Cf. [[completeness-sprint-20260628]] + [[ft-enricher]].
+
+- **Pertinence recherche — dé-biaiser le vivier fit + tiebreak AUM** — *Réglé le 2026-06-28* : le couloir intention/profil (fit) biaisait le vivier ; correction + ajout d'un **tiebreak par AUM** sur la recherche texte (à fit égal, le plus gros encours remonte). Commit `2c25cb4`. Cf. [[search-relevance-ranking]] + [[fit-score-ranking-20260622]].
+
+- **Logo Charlie dans l'aperçu de lien (OG)** — *Réglé le 2026-06-28* : image Open Graph avec le wordmark Charlie → aperçu propre au partage LinkedIn/WhatsApp/X. Commit `1e542d0`. Cf. [[public-domain]].
+
+- **Visite guidée onboarding v2** — *Réglé le 2026-06-28* : resserrement de la visite guidée + réaffichage (`charlie_tour_v1` → v2). Commit `33cdabb`. Cf. [[onboarding-tour]].
 
 - **Passe de polish UX « contenu d'abord »** — *Réglé le 2026-06-28* : vague de finitions (commit `8e0d256`). **Topbar** affiche le nom de l'onglet courant (Recherche / Assurances vie / Portefeuille / Documents) à la place du wordmark — accueil et fiche fonds gardent « Charlie » (brand + fil d'Ariane inchangés). **PageHeader** ne rend plus le titre dans le contenu (déplacé en Topbar), conserve action + backlink. **Accueil** : hero « Charlie. » retiré → démarre directement sur la barre de recherche. **FilterPanel** : champ de recherche texte pour filtrer la liste d'assureurs (>8 options), compteur retiré du bouton « Appliquer ». **Recherche** : `pt-3` pour décoller les panneaux de la barre du haut. `tsc` clean, **321 tests verts**, vérifié en navigateur (7 routes 200, 0 erreur console).
 
