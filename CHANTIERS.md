@@ -18,6 +18,8 @@
 
 > Dernier audit : 2026-06-29 (19ᵉ passe — **état sain, deux livraisons neuves le 29/06** : `tsc` clean, **334/334 tests verts** (24 fichiers, +13 depuis le 28/06 = couverture rate-limit), working tree propre, CI saine (drain compo auto `28353947778` **in_progress** = nominal ~1h45 ; tous les runs récents en **success**, 0 échec), 0 marqueur `TODO/FIXME` réel (mêmes faux positifs connus), 0 test `skip/only`, 0 `console.log`. **Livré depuis le 28/06 12h38** : (1) **rate-limit + plafond de pagination anti-scraping** sur les endpoints data (`/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`) + migration `20260629120000` ; (2) **politique de confidentialité RGPD** (`/confidentialite`) + `PrivacyNote` près des uploads ; (3) **sprint complétude 28/06** (kid-ter-fill, sfdr-annex, quantalys-geo, fix parser géo FT) ; (4) fixes UX (pertinence recherche, OG logo, visite guidée v2). Tout dans « ✅ Réglés ». **Actions traitées dans cette passe** : (a) **4 branches locales mergées élaguées** ; (b) **legacy anon key Supabase neutralisée** (migration `20260629140000` : REVOKE anon 44 tables → 0 + coupure du re-grant ; vérifié service_role intact, 0 ERROR advisor) ; (c) **drain MiFID câblé en CI** (l'enricher annexe `documenttype=398` existait mais n'avait tourné que sur 9 % des Art.8/9 et n'était dans aucun cron → drain hebdo + mensuel branché). **18ᵉ passe (28/06)** : polish UX « contenu d'abord » (commit `8e0d256`).)
 
+> ✅ **Vérification non-régression (29/06, après les migrations sécu)** — demandée explicitement par Mathis (« vérifie que tu n'as rien cassé »). **App live OK** : toutes les pages (`/recherche` `/assureurs` `/portefeuille` `/documents` `/accueil` `/confidentialite` = 200 ; `/` = 307 nominal) + tous les endpoints data (avec UA navigateur = 200 ; UA scraper = 403 attendu). **Base OK** : anon = **0** table `investissement_*`/`screener_*`, **3** tables d'apps sœurs restaurées, service_role intact (49 tables inv + RPC assureurs exécutable), RLS `investissement_funds` toujours activée. `tsc` clean, **345/345 tests**. **Une seule chose avait été cassée** (accès anon des 3 tables sœurs par un REVOKE trop large ce matin) → **détectée et réparée** le jour même (migration `20260629150000`). Aucun autre branchement touché.
+
 > 🆕 **Livré dans la foulée du 15ᵉ audit (25/06)** : **ajout inline de fonds depuis la page
 > Portefeuille** (coller un ISIN / taper un nom → recherche dans la base → ajout direct). Composant
 > `FundAdder`, helper pur `appendHolding` + 6 tests → **318 tests verts**. Voir « ✅ Réglés ».
@@ -87,13 +89,17 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## ⏸️ En suspens / mis de côté (décisions prises — ne pas re-proposer sans signal)
 
-### P2 anti-scraping — Vercel WAF / Bot Management (guide livré, action console Mathis)
-- **Priorité** : 🟡 Moyenne — **prêt à exécuter**
+### P2 anti-scraping — Vercel WAF / Bot Management (guide prêt — PLUS TARD, pas urgent)
+- **Priorité** : 🟡 Moyenne — **différé (décision Mathis 29/06 : « pas urgent, on s'en occupe plus tard »)**
 - **Détecté le** : 2026-06-28 (repris 29/06)
 - **Où** : console Vercel (Firewall) ; guide `docs/anti-scraping-p2-vercel-waf.md`
-- **Le problème** : les couches applicatives (rate-limit + cap pagination + filtre anti-bot UA + verrou anon base) arrêtent le scraping paresseux/soutenu mais pas le scraping **déterminé** (UA usurpé, IP tournantes, headless). Le cran au-dessus = WAF infra.
-- **Comment l'aborder** : suivre le guide `docs/anti-scraping-p2-vercel-waf.md` — Attack Challenge Mode (bouton panic), règles WAF sur `/api/funds`/`/api/fonds` (rate-limit edge + deny UA outils), **toujours poser en mode `Log` 24-48 h avant `Deny`**. Action **console** (pas de code) → c'est Mathis qui clique ; je ne peux pas piloter le WAF.
+- **Le problème** : les couches applicatives (rate-limit + cap pagination + filtre anti-bot UA + verrou anon base) arrêtent le scraping paresseux/soutenu mais pas le scraping **déterminé** (UA usurpé, IP tournantes, headless). Le cran au-dessus = WAF infra. **Non bloquant** : les couches en place couvrent l'essentiel aujourd'hui.
+- **Comment l'aborder, le jour venu** : suivre le guide `docs/anti-scraping-p2-vercel-waf.md` — Attack Challenge Mode (bouton panic), règles WAF sur `/api/funds`/`/api/fonds` (rate-limit edge + deny UA outils), **toujours poser en mode `Log` 24-48 h avant `Deny`**. Action **console** (pas de code) → c'est Mathis qui clique ; je ne peux pas piloter le WAF.
 - **Effort estimé** : moyen (15-20 min console + 48 h d'observation)
+
+### Toggle legacy anon key Supabase — LAISSÉ ACTIF (décision Mathis 29/06, ne pas y toucher)
+- **Priorité** : ⚪ — **tranché : on ne touche pas**
+- **Décision** : Mathis ne prend aucun risque tant qu'il n'est pas sûr que les apps sœurs (waitlist/dossier/screener) tournent sur la publishable key → **la legacy anon key reste active**. C'est **sans danger** : la vraie protection est le `REVOKE` au niveau base (anon n'accède à aucune donnée `investissement_*`), indépendant des clés. Ne re-proposer le toggle que si Mathis confirme un jour la clé utilisée par les apps sœurs.
 
 ### Scrapers bloqués par IP datacenter (AV bancassureurs + ETF Invesco/UBS)
 - **Priorité** : ⚪ Mineure
