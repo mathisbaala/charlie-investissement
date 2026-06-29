@@ -16,7 +16,7 @@
 > **Ajout inline de fonds depuis le portefeuille = LIVRÉ 25/06**. Détail dans « ✅ Réglés » +
 > `SESSION_HANDOFF.md` (journal 25/06).
 
-> Dernier audit : 2026-06-29 (19ᵉ passe — **état sain, deux livraisons neuves le 29/06** : `tsc` clean, **334/334 tests verts** (24 fichiers, +13 depuis le 28/06 = couverture rate-limit), working tree propre, CI saine (drain compo auto `28353947778` **in_progress** = nominal ~1h45 ; tous les runs récents en **success**, 0 échec), 0 marqueur `TODO/FIXME` réel (mêmes faux positifs connus), 0 test `skip/only`, 0 `console.log`. **Livré depuis le 28/06 12h38** : (1) **rate-limit + plafond de pagination anti-scraping** sur les endpoints data (`/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`) + migration `20260629120000` ; (2) **politique de confidentialité RGPD** (`/confidentialite`) + `PrivacyNote` près des uploads ; (3) **sprint complétude 28/06** (kid-ter-fill, sfdr-annex, quantalys-geo, fix parser géo FT) ; (4) fixes UX (pertinence recherche, OG logo, visite guidée v2). Tout dans « ✅ Réglés ». **Actions traitées dans cette passe** : (a) **4 branches locales mergées élaguées** ; (b) **legacy anon key Supabase neutralisée** (migration `20260629140000` : REVOKE anon 44 tables → 0 + coupure du re-grant ; vérifié service_role intact, 0 ERROR advisor) ; (c) **drain MiFID câblé en CI** (l'enricher annexe `documenttype=398` existait mais n'avait tourné que sur 9 % des Art.8/9 et n'était dans aucun cron → drain hebdo + mensuel branché). **18ᵉ passe (28/06)** : polish UX « contenu d'abord » (commit `8e0d256`).)
+> Dernier audit : 2026-06-29 (20ᵉ passe — re-vérification de fin de journée, rien de neuf depuis la 19ᵉ : `tsc` clean, **345/345 tests verts** (25 fichiers), working tree propre, **une seule branche `main`**. **MAJ CI** : le run drain compo `28353947778` est **terminé en ÉCHEC** (statement timeout 08:54 — diagnostiqué *contention de verrous* avec les migrations sécu du jour, one-off attendu, cf. « 🚧 Chantiers en cours ») ; **issue #7 toujours OUVERTE**, à refermer après le run auto vert de demain 02:00 UTC. Tous les autres runs récents = success (mensuel 09:21 ✓, Morningstar EMEA 11:10 ✓). 0 marqueur `TODO/FIXME` réel (mêmes faux positifs connus), 0 test `skip/only`, 0 `console.log`. **Livré depuis le 28/06 12h38** : (1) **rate-limit + plafond de pagination anti-scraping** sur les endpoints data (`/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`) + migration `20260629120000` ; (2) **politique de confidentialité RGPD** (`/confidentialite`) + `PrivacyNote` près des uploads ; (3) **sprint complétude 28/06** (kid-ter-fill, sfdr-annex, quantalys-geo, fix parser géo FT) ; (4) fixes UX (pertinence recherche, OG logo, visite guidée v2). Tout dans « ✅ Réglés ». **Actions traitées dans cette passe** : (a) **4 branches locales mergées élaguées** ; (b) **legacy anon key Supabase neutralisée** (migration `20260629140000` : REVOKE anon 44 tables → 0 + coupure du re-grant ; vérifié service_role intact, 0 ERROR advisor) ; (c) **drain MiFID câblé en CI** (l'enricher annexe `documenttype=398` existait mais n'avait tourné que sur 9 % des Art.8/9 et n'était dans aucun cron → drain hebdo + mensuel branché). **18ᵉ passe (28/06)** : polish UX « contenu d'abord » (commit `8e0d256`).)
 
 > ✅ **Vérification non-régression (29/06, après les migrations sécu)** — demandée explicitement par Mathis (« vérifie que tu n'as rien cassé »). **App live OK** : toutes les pages (`/recherche` `/assureurs` `/portefeuille` `/documents` `/accueil` `/confidentialite` = 200 ; `/` = 307 nominal) + tous les endpoints data (avec UA navigateur = 200 ; UA scraper = 403 attendu). **Base OK** : anon = **0** table `investissement_*`/`screener_*`, **3** tables d'apps sœurs restaurées, service_role intact (49 tables inv + RPC assureurs exécutable), RLS `investissement_funds` toujours activée. `tsc` clean, **345/345 tests**. **Une seule chose avait été cassée** (accès anon des 3 tables sœurs par un REVOKE trop large ce matin) → **détectée et réparée** le jour même (migration `20260629150000`). Aucun autre branchement touché.
 
@@ -26,13 +26,16 @@
 > Décisions actées : **transparence du score d'adéquation = won't-do ferme** (⏸️, ne plus
 > re-proposer) ; **référencement assureur = pris par un autre agent** (⏸️).
 
-État global (19ᵉ passe, 29/06) : **projet sain et bien tenu** — `tsc` clean, **334/334 tests
-verts** (24 fichiers), **working tree propre**, **CI saine** (drain compo auto en cours = nominal).
-Backlog de fond toujours **soldé** ; deux livraisons de sécurité/conformité le 29/06 (rate-limit
-anti-scraping + RGPD + neutralisation anon + drain MiFID câblé). **Chantiers ouverts résiduels** :
-2 en cours auto (drain compo + drain MiFID), 4 en suspens (won't-do/différés). Les 3 actions
-signalées en début de passe (branches, anon key, MiFID) sont **traitées**. Le paragraphe ci-dessous
-est l'historique de la 16ᵉ passe (conservé).
+État global (20ᵉ passe, 29/06 fin de journée) : **projet sain et bien tenu** — `tsc` clean,
+**345/345 tests verts** (25 fichiers), **working tree propre**, **une seule branche `main`**.
+Backlog de fond toujours **soldé** ; les livraisons de sécurité/conformité du 29/06 (rate-limit
+anti-scraping + filtre anti-bot + RGPD + neutralisation anon + drain MiFID câblé) sont actées.
+**Seul point de surveillance actif** : le drain compo auto a **échoué une fois ce matin**
+(contention de verrous avec les migrations sécu du jour = collatéral one-off, pas un défaut du
+pipeline) → issue #7 ouverte, **à refermer après le run vert de demain**. **Chantiers ouverts
+résiduels** : 2 en cours auto (drain compo + drain MiFID = surveillance passive), 4 en suspens
+(won't-do/différés, dont P2 WAF différé par décision Mathis). Le paragraphe ci-dessous est
+l'historique de la 16ᵉ passe (conservé).
 
 État global (16ᵉ passe) : **projet sain et bien tenu** — re-vérifié indépendamment : `tsc`
 clean, **321/321 tests verts** (23 fichiers), **working tree propre**, **CI saine** (drain compo
@@ -97,13 +100,8 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## ⏸️ En suspens / mis de côté (décisions prises — ne pas re-proposer sans signal)
 
-### P2 anti-scraping — Vercel WAF / Bot Management (guide prêt — PLUS TARD, pas urgent)
-- **Priorité** : 🟡 Moyenne — **différé (décision Mathis 29/06 : « pas urgent, on s'en occupe plus tard »)**
-- **Détecté le** : 2026-06-28 (repris 29/06)
-- **Où** : console Vercel (Firewall) ; guide `docs/anti-scraping-p2-vercel-waf.md`
-- **Le problème** : les couches applicatives (rate-limit + cap pagination + filtre anti-bot UA + verrou anon base) arrêtent le scraping paresseux/soutenu mais pas le scraping **déterminé** (UA usurpé, IP tournantes, headless). Le cran au-dessus = WAF infra. **Non bloquant** : les couches en place couvrent l'essentiel aujourd'hui.
-- **Comment l'aborder, le jour venu** : suivre le guide `docs/anti-scraping-p2-vercel-waf.md` — Attack Challenge Mode (bouton panic), règles WAF sur `/api/funds`/`/api/fonds` (rate-limit edge + deny UA outils), **toujours poser en mode `Log` 24-48 h avant `Deny`**. Action **console** (pas de code) → c'est Mathis qui clique ; je ne peux pas piloter le WAF.
-- **Effort estimé** : moyen (15-20 min console + 48 h d'observation)
+### P2 anti-scraping — Vercel WAF — ✅ POSÉ & VALIDÉ 29/06 (voir « ✅ Réglés »)
+- **Statut** : **réglé** — les 2 règles WAF sont posées et **actives** dans la console Vercel (Firewall → Custom Rules), validées en direct sur la prod. Reste comme **frein d'urgence optionnel** = Attack Challenge Mode (à n'allumer qu'en cas d'attaque active). Détail dans « ✅ Réglés ».
 
 ### Toggle legacy anon key Supabase — LAISSÉ ACTIF (décision Mathis 29/06, ne pas y toucher)
 - **Priorité** : ⚪ — **tranché : on ne touche pas**
@@ -182,6 +180,8 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **P2 anti-scraping — Vercel WAF posé & validé en prod** — *Réglé le 2026-06-29* : la couche **infra** (au-dessus des couches applicatives) est en place. Mathis a créé **2 règles WAF** dans Vercel → Firewall → Custom Rules (« changes apply without redeployment »), guidé pas à pas : **Règle A** (rate-limit edge) — `path starts with /api/funds OR /api/fonds` → Fixed Window 120 req / 60 s par IP → **429** ; **Règle B** (« Block scraping tools on /api/ ») — `path starts with /api/` AND `User-Agent matches` la regex outils → **Deny** (403). **Gotcha regex résolu** : le moteur RE2 du WAF Vercel **rejette le flag en ligne `(?i)`** (cadre rouge) → remplacé par des classes de caractères sur les initiales : `([Pp]ython-requests|[Cc]url|[Ss]crapy|[Ww]get|[Gg]o-http-client|[Hh]ttpx|okhttp)` (insensibilité à la casse sans flag). **Validé en direct sur `www.charliewealth.fr/api/funds`** : UA Chrome → **200** (vrai trafic passe, 0 faux positif), `python-requests` → **403**, `Scrapy` (S majuscule) → **403** (confirme l'insensibilité à la casse). `Deny` direct jugé sûr ici car le `botGuard` applicatif bloque déjà ces UA en prod + produit web-only (pas d'app mobile/okhttp légitime). Ne cible que `/api/*` → SEO/aperçus de liens intacts. Frein d'urgence **Attack Challenge Mode** laissé OFF (à n'activer qu'en attaque active). Suivi conseillé : Firewall → Observability sous 1-2 j. Guide complet `docs/anti-scraping-p2-vercel-waf.md`. Cf. [[ai-rate-limit]] + [[supabase-security-hardening]].
 
 - **Filtre anti-bot applicatif (couche 2 anti-scraping)** — *Réglé le 2026-06-29* : `botGuard()` dans `lib/rateLimit.ts` refuse (403) les User-Agents non-navigateurs (python-requests, curl, scrapy, go-http-client, httpx, okhttp… + UA absent) **en amont** du rate-limit, sur `/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`. Scopé aux endpoints data → **zéro impact SEO / aperçu de lien** (les crawlers Google/LinkedIn visent le HTML). Désactivable par env `BOT_FILTER_ENABLED=0`, signatures additionnelles via `BOT_UA_EXTRA` (ex. `headlesschrome`). Fail-open. Arrête le scraping paresseux ; les UA usurpés tombent sur le rate-limit (défense en profondeur). `tsc` clean, **345 tests** (+11 `botGuard.test.ts`). Reste = couche infra **P2 Vercel WAF** (guide `docs/anti-scraping-p2-vercel-waf.md`, action console Mathis — voir ⏸️). Cf. [[ai-rate-limit]].
 
