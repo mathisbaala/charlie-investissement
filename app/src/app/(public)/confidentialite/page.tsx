@@ -88,9 +88,9 @@ export default function ConfidentialitePage() {
 
         <Section title="2. Principe directeur : minimisation des données">
           <p>
-            Charlie s&apos;utilise <strong>sans création de compte</strong> :
-            aucun identifiant, mot de passe ou profil utilisateur n&apos;est requis
-            ni stocké. Nous appliquons le principe de minimisation : nous ne
+            Charlie s&apos;utilise <strong>sans création de compte</strong>{" "}
+            : aucun identifiant, mot de passe ou profil utilisateur n&apos;est
+            requis ni stocké. Nous appliquons le principe de minimisation : nous ne
             collectons que ce qui est strictement nécessaire au fonctionnement de
             l&apos;outil.
           </p>
@@ -116,7 +116,7 @@ export default function ConfidentialitePage() {
             contenu du document.
           </p>
           <p>
-            <strong>Votre responsabilité.</strong> Vous restez responsable des
+            <strong>Votre responsabilité.</strong>{" "}Vous restez responsable des
             données de vos propres clients que vous déposez dans l&apos;outil.
             Assurez-vous de disposer du droit de les traiter et déposez de
             préférence des documents expurgés des données non nécessaires à
@@ -140,7 +140,7 @@ export default function ConfidentialitePage() {
             Les messages que vous adressez à l&apos;assistant sont transmis à
             notre prestataire d&apos;intelligence artificielle pour générer une
             réponse. <strong>Le contenu des conversations n&apos;est pas
-            conservé</strong> ; seul un compteur technique (nombre d&apos;échanges)
+            conservé</strong>{" "}; seul un compteur technique (nombre d&apos;échanges)
             peut être enregistré pour le suivi d&apos;usage et la limitation
             anti-abus.
           </p>
@@ -177,12 +177,12 @@ export default function ConfidentialitePage() {
           <p>Les traitements ci-dessus reposent sur :</p>
           <ul className="list-disc pl-5 space-y-1.5">
             <li>
-              l&apos;<strong>intérêt légitime</strong> à fournir un outil
+              l&apos;<strong>intérêt légitime</strong>{" "}à fournir un outil
               d&apos;aide à la décision performant et à en assurer la sécurité
               (analyse des documents, limitation anti-abus) ;
             </li>
             <li>
-              notre <strong>intérêt légitime</strong> à mesurer et améliorer
+              notre <strong>intérêt légitime</strong>{" "}à mesurer et améliorer
               l&apos;usage du service (statistiques pseudonymisées) ;
             </li>
             <li>
