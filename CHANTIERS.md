@@ -85,13 +85,13 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 - **Comment l'aborder** : **surveillance passive**, rien de plus à attendre côté MiFID (plafond atteint). Aller au-delà de ~186 = **autre source** (sites émetteurs / registre AMF SFDR) = chantier données séparé, aujourd'hui won't-do (amfinesoft testé KO). Cf. [[sustainability-dda]].
 - **Effort estimé** : rapide (surveillance only)
 
-### ⚠️ Drain composition look-through — échec intermittent (statement timeout)
-- **Priorité** : 🟡 Moyenne (santé système, hors vague 29/06)
+### Drain composition look-through — échec 29/06 diagnostiqué = contention de verrous (one-off probable)
+- **Priorité** : 🟡 Moyenne — **sous surveillance** (refermer issue #7 après 1 run vert)
 - **Détecté le** : 2026-06-29
-- **Où** : `holdings-drain-auto.yml`, étape « Dériver allocation_profile depuis la composition »
-- **Le problème** : le run planifié du 29/06 (`28353947778`) a tourné 2h04 puis **échoué** sur `postgrest APIError 57014 : canceling statement due to statement timeout` (vs ~1h11 en succès les jours précédents). Requête de dérivation trop lourde sous charge → annulée par Postgres. **Alerte ouverte issue #7**. Non lié aux migrations sécu du jour (drain en service_role). Intermittent (succès les 26/27/28).
-- **Comment l'aborder** : surveiller le prochain run quotidien (auto-retry 02:00 UTC) ; si l'échec persiste, augmenter le `statement_timeout` de l'étape ou paginer/alléger la requête `allocation_profile`. Refermer l'issue #7 après 1 run vert.
-- **Effort estimé** : moyen (si récurrent)
+- **Où** : `holdings-drain-auto.yml`, étape « Dériver allocation_profile » → RPC `inv_fill_allocation_profile_from_composition()`
+- **Le problème** : run `28353947778` échoué sur `57014 statement timeout` à 08:54. **Diagnostic (surveillance 29/06)** : ce n'est PAS une lenteur de requête — l'agrégation mesurée = **1,9 s** (`EXPLAIN ANALYZE`, ~330k holdings, seq scan), le RPC réexécuté à la main = **OK, 4 lignes remplies** (résidu du run échoué rattrapé). Cause la plus probable = **contention de verrous** : les migrations sécu du jour (`REVOKE ALL ON ALL TABLES`, 08:48-09:00) prenaient un ACCESS EXCLUSIVE bref sur `investissement_funds`/`_holdings` pile pendant l'UPDATE du drain → l'UPDATE a attendu et dépassé le `statement_timeout` du client postgrest. → **collatéral des migrations, pas un défaut du pipeline ; one-off attendu** (succès 26/27/28, migrations terminées).
+- **Comment l'aborder** : **surveiller le run de demain** (auto 02:00 UTC) — il devrait repasser vert. Si récidive (≠ migration concurrente) : alléger/paginer la requête ou monter le `statement_timeout` de l'étape. **Refermer l'issue #7 après 1 run vert.**
+- **Effort estimé** : rapide (surveillance) ; moyen seulement si récidive
 
 ---
 
