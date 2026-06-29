@@ -27,6 +27,50 @@ const GLOBAL_DAY_LIMIT = Number(process.env.AI_GLOBAL_DAY_LIMIT ?? 2000);
 const DATA_MIN_LIMIT  = Number(process.env.DATA_MIN_LIMIT  ?? 100);
 const DATA_HOUR_LIMIT = Number(process.env.DATA_HOUR_LIMIT ?? 1800);
 
+// ── Filtre anti-bot (User-Agent) des endpoints de DONNÉES ────────────────────
+// Première barrière, en amont du rate-limit : un navigateur réel envoie TOUJOURS
+// un User-Agent « Mozilla/… ». Ces signatures trahissent un client non-navigateur
+// (bibliothèque de scripting / CLI) = scraping paresseux → 403 immédiat, sans
+// requête DB. Scopé aux endpoints de DONNÉES uniquement : les crawlers qu'on VEUT
+// (Googlebot, preview LinkedIn/WhatsApp/X) visent le HTML des pages, jamais
+// /api/funds → zéro impact SEO ni aperçu de lien. Un scraper qui USURPE un UA de
+// navigateur passe ici mais tombe sur le rate-limit → défense en profondeur, pas
+// balle d'argent. Désactivable via env (BOT_FILTER_ENABLED=0) ; signatures
+// additionnelles via env (BOT_UA_EXTRA, ex. "headlesschrome,bot").
+const BOT_UA_PATTERNS = [
+  "python-requests", "python-urllib", "aiohttp", "httpx", "scrapy", "curl/",
+  "wget/", "go-http-client", "okhttp", "java/", "jakarta", "libwww-perl",
+  "node-fetch", "axios/", "got (", "postmanruntime", "insomnia", "httpie",
+  "mechanize", "colly", "guzzle", "scraper", "crawler", "spider", "phantomjs",
+];
+
+export function isBotUserAgent(ua: string): boolean {
+  const v = ua.trim().toLowerCase();
+  if (v === "") return true; // UA absent = jamais un navigateur normal
+  const extra = (process.env.BOT_UA_EXTRA ?? "")
+    .toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+  return [...BOT_UA_PATTERNS, ...extra].some((p) => v.includes(p));
+}
+
+/**
+ * Refuse (403) un appel aux endpoints de DONNÉES dont le User-Agent trahit un
+ * client non-navigateur. Synchrone, sans DB. Renvoie `null` si l'appel est
+ * légitime (ou si le filtre est désactivé par env). Fail-open sur erreur.
+ */
+export function botGuard(req: NextRequest): NextResponse | null {
+  try {
+    const flag = (process.env.BOT_FILTER_ENABLED ?? "1").toLowerCase();
+    if (flag === "0" || flag === "false") return null;
+    if (!isBotUserAgent(req.headers.get("user-agent") ?? "")) return null;
+    return NextResponse.json(
+      { error: "forbidden", message: "Accès automatisé non autorisé." },
+      { status: 403 },
+    );
+  } catch {
+    return null; // fail-open : ne jamais casser le produit pour le filtre
+  }
+}
+
 // Coût relatif par type d'appel (l'extraction DICI en vision coûte bien plus
 // cher qu'une simple interprétation de requête).
 export const AI_COST = {

@@ -78,18 +78,22 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-// Le rate-limit anti-scraping est testé en isolation (dataRateLimit.test.ts).
-// Ici on le neutralise (toujours « autorisé ») pour ne pas polluer le mock
-// supabase ni les assertions sur rpcCalls de ce fichier.
+// Le rate-limit anti-scraping et le filtre anti-bot sont testés en isolation
+// (dataRateLimit.test.ts / botGuard.test.ts). Ici on les neutralise (toujours
+// « autorisé ») pour ne pas polluer le mock supabase ni les assertions rpcCalls.
 vi.mock("@/lib/rateLimit", () => ({
   dataRateLimit: () => Promise.resolve(null),
+  botGuard: () => null,
 }));
 
 import { GET } from "@/app/api/funds/route";
 import { NextRequest } from "next/server";
 
 function req(qs: string) {
-  return new NextRequest(`https://test.local/api/funds${qs}`);
+  // UA de navigateur : un client réel en envoie toujours un (sinon botGuard 403).
+  return new NextRequest(`https://test.local/api/funds${qs}`, {
+    headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/124.0 Safari/537.36" },
+  });
 }
 
 describe("GET /api/funds — robustesse pagination", () => {
