@@ -1,13 +1,22 @@
 name: Durabilité SFDR (DDA)
 
 # Extrait les données de durabilité DDA (taxonomie, investissement durable, PAI)
-# des DICI/KID, en fill-only. Best-effort (beaucoup de KID renvoient à une annexe
-# SFDR séparée). Déclenchable à la main ; aussi inclus dans le sweep mensuel.
+# en fill-only, depuis DEUX sources :
+#   1. sfdr-enricher.py       — le KID (best-effort ; beaucoup de KID renvoient à
+#                               une annexe SFDR séparée → cul-de-sac partiel).
+#   2. sfdr-annex-enricher.py — l'ANNEXE précontractuelle SFDR (documenttype=398),
+#                               là où vivent réellement les 3 indicateurs MiFID.
+# Drain hebdo de l'annexe sur l'univers Art.8/9 (~9 100 fonds), par lots cappés,
+# jusqu'à épuisement (le script ne reprend que les fonds pas encore examinés).
 on:
+  schedule:
+    # Hebdo, mardi 04:00 UTC. Pas de piège dom/dow ici : seul le jour-de-semaine
+    # est restreint (jour-du-mois = *), donc ce cron ne se déclenche QUE le mardi.
+    - cron: "0 4 * * 2"
   workflow_dispatch:
     inputs:
       limit:
-        description: "Nombre max de fonds à traiter (vide = tous les KID non examinés)"
+        description: "Nombre max de fonds à traiter par enricher (vide = tous)"
         required: false
         default: ""
 
@@ -19,6 +28,9 @@ jobs:
   sfdr:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -33,10 +45,41 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
-      - name: SFDR enricher (fill-only)
+      - name: SFDR enricher — KID (fill-only)
         run: |
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
           else
             python3 scripts/enrichers/sfdr-enricher.py --apply
+          fi
+
+      - name: SFDR-annex enricher — annexe précontractuelle MiFID (fill-only)
+        run: |
+          # Manuel : respecte le limit saisi (vide = tous). Planifié : lot de 3000
+          # pour rester dans le budget temps ; le reliquat est repris au run suivant.
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit ${{ github.event.inputs.limit }}
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit 3000
+          else
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply
+          fi
+
+      # Alerte persistante si une étape ci-dessus a échoué (réutilise une issue
+      # ouverte plutôt que d'en spammer). GITHUB_TOKEN intégré, aucun secret externe.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-sfdr]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n' \
+              "Le rafraîchissement durabilité SFDR a échoué." \
+              "Run : $RUN_URL" \
+              | gh issue create --title "$MARKER Durabilité SFDR en échec" --body-file -
           fi

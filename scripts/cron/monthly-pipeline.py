@@ -136,6 +136,13 @@ MONTHLY_STEPS = [
     # durable / PAI des DICI/KID quand publiés. Sourcing « en fond » : enrichit au
     # fil des mois, non destructif. Ne traite que les KID pas encore examinés.
     ("enrichers/sfdr-enricher.py", []),
+    # Durabilité MiFID/DDA depuis l'ANNEXE précontractuelle SFDR (documenttype=398),
+    # là où le KID est un cul-de-sac (taxonomie / investissement durable / PAI).
+    # Fill-only, ne touche jamais sfdr_article, marque chaque fonds traité
+    # (sustainability_source = 'sfdr-annex'*) → drain incrémental au fil des mois
+    # sur l'univers Art.8/9 (~9 100 fonds). Cap par run pour rester dans le budget
+    # temps du pipeline ; le reliquat est repris au run suivant.
+    ("enrichers/sfdr-annex-enricher.py", ["--apply", "--limit", "3000"]),
     # is_primary_share_class / data_completeness ayant pu changer, on repropage
     # le référencement assureur sur la primaire (sinon screener AV périmé).
     ("enrichers/refresh-insurer-mv.py", []),
