@@ -45,24 +45,31 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r scripts/requirements.txt
 
-      - name: SFDR enricher — KID (fill-only)
-        run: |
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
-          else
-            python3 scripts/enrichers/sfdr-enricher.py --apply
-          fi
-
+      # Étape CIBLÉE en premier (indicateurs MiFID) : elle doit toujours passer,
+      # même si l'étape KID ci-dessous est longue. Bornée sur cadence planifiée.
       - name: SFDR-annex enricher — annexe précontractuelle MiFID (fill-only)
         run: |
-          # Manuel : respecte le limit saisi (vide = tous). Planifié : lot de 3000
-          # pour rester dans le budget temps ; le reliquat est repris au run suivant.
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit ${{ github.event.inputs.limit }}
           elif [ "${{ github.event_name }}" = "schedule" ]; then
             python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit 3000
           else
             python3 scripts/enrichers/sfdr-annex-enricher.py --apply
+          fi
+
+      # Étape KID best-effort (sfdr_article fill-only ; cul-de-sac pour les 3 % MiFID).
+      # BORNÉE sur cadence planifiée : sans limite, son gros backlog monopolise le
+      # run (>120 min) et provoque un timeout + fausse alerte, en privant l'étape
+      # annexe ci-dessus. Le reliquat est repris au run suivant (déjà aussi dans
+      # monthly-pipeline). Manuel sans limite = drain complet volontaire.
+      - name: SFDR enricher — KID (fill-only, borné)
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 scripts/enrichers/sfdr-enricher.py --apply --limit 4000
+          else
+            python3 scripts/enrichers/sfdr-enricher.py --apply
           fi
 
       # Alerte persistante si une étape ci-dessus a échoué (réutilise une issue
