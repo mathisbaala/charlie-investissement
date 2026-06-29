@@ -87,6 +87,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## ⏸️ En suspens / mis de côté (décisions prises — ne pas re-proposer sans signal)
 
+### P2 anti-scraping — Vercel WAF / Bot Management (guide livré, action console Mathis)
+- **Priorité** : 🟡 Moyenne — **prêt à exécuter**
+- **Détecté le** : 2026-06-28 (repris 29/06)
+- **Où** : console Vercel (Firewall) ; guide `docs/anti-scraping-p2-vercel-waf.md`
+- **Le problème** : les couches applicatives (rate-limit + cap pagination + filtre anti-bot UA + verrou anon base) arrêtent le scraping paresseux/soutenu mais pas le scraping **déterminé** (UA usurpé, IP tournantes, headless). Le cran au-dessus = WAF infra.
+- **Comment l'aborder** : suivre le guide `docs/anti-scraping-p2-vercel-waf.md` — Attack Challenge Mode (bouton panic), règles WAF sur `/api/funds`/`/api/fonds` (rate-limit edge + deny UA outils), **toujours poser en mode `Log` 24-48 h avant `Deny`**. Action **console** (pas de code) → c'est Mathis qui clique ; je ne peux pas piloter le WAF.
+- **Effort estimé** : moyen (15-20 min console + 48 h d'observation)
+
 ### Scrapers bloqués par IP datacenter (AV bancassureurs + ETF Invesco/UBS)
 - **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-21
@@ -160,6 +168,10 @@ fichier est désormais titré « Session Handoff — 23 juin 2026 » et son jour
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Filtre anti-bot applicatif (couche 2 anti-scraping)** — *Réglé le 2026-06-29* : `botGuard()` dans `lib/rateLimit.ts` refuse (403) les User-Agents non-navigateurs (python-requests, curl, scrapy, go-http-client, httpx, okhttp… + UA absent) **en amont** du rate-limit, sur `/api/funds`, `/api/funds/[isin]`, `/api/fonds/[isin]/nav`. Scopé aux endpoints data → **zéro impact SEO / aperçu de lien** (les crawlers Google/LinkedIn visent le HTML). Désactivable par env `BOT_FILTER_ENABLED=0`, signatures additionnelles via `BOT_UA_EXTRA` (ex. `headlesschrome`). Fail-open. Arrête le scraping paresseux ; les UA usurpés tombent sur le rate-limit (défense en profondeur). `tsc` clean, **345 tests** (+11 `botGuard.test.ts`). Reste = couche infra **P2 Vercel WAF** (guide `docs/anti-scraping-p2-vercel-waf.md`, action console Mathis — voir ⏸️). Cf. [[ai-rate-limit]].
+
+- **Correctif portée REVOKE anon (régression auto-réparée)** — *Réglé le 2026-06-29* : le `REVOKE ALL ON ALL TABLES FROM anon` de la migration `20260629140000` était trop large et avait retiré l'accès anon à **3 tables d'apps sœurs Charlie** (`charlie_dossier`, `waitlist`, `waitlist_survey_responses`, policies anon légitimes). Détecté en re-vérifiant les policies, corrigé par migration `20260629150000` (GRANT DML conforme aux policies, sans TRUNCATE ; séquence re-grantée). Vérifié : les 3 tables refonctionnent, `investissement_*` + `screener_*` (deny-all) restent verrouillées → anti-scraping intact. Leçon retenue en mémoire : portée d'un REVOKE anon = `investissement_*` uniquement.
 
 - **Legacy anon key Supabase neutralisée — REVOKE anon + coupure du re-grant** — *Réglé le 2026-06-29* : la 3ᵉ vague (28/06) avait révoqué anon sur les vues/fonctions screener mais **44 tables `investissement_*` + des séquences restaient ouvertes à anon** (RLS bloquait l'accès, mais 2e couche manquante) et le **re-grant automatique** (default privileges du rôle `postgres`) re-donnait anon à chaque nouvel objet. **Sûreté vérifiée avant action** : le seul client Supabase de l'app (`app/src/lib/supabase.ts`) utilise `SUPABASE_SERVICE_ROLE_KEY`, **zéro** référence anon/`NEXT_PUBLIC_SUPABASE` côté front, produit sans comptes → aucun usage légitime de la anon key. **Migration `20260629140000`** : `REVOKE ALL ON ALL TABLES/SEQUENCES IN SCHEMA public FROM anon` + `ALTER DEFAULT PRIVILEGES FOR ROLE postgres … REVOKE … FROM anon` (+ best-effort `supabase_admin`). **Vérifié** : tables anon **44 → 0**, service_role intact (60 tables), default ACL postgres coupé. Les 35 routines restantes = **internes d'extension `pg_trgm`/`unaccent`** (similarity, gtrgm_*, unaccent) — aucune surface de données, laissées (les révoquer casserait le tri fuzzy de service_role). `get_advisors` sécu = **0 ERROR** (reste INFO/WARN by-design). **La legacy anon key est désormais inoffensive** même si elle reste active côté dashboard — le toggle dashboard devient optionnel (ceinture+bretelles). Cf. [[supabase-security-hardening]].
 
