@@ -6,6 +6,7 @@ import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { ArrowRight, Upload, Loader2 } from "@/components/ui/icons";
 import { Sparkle } from "@/components/ui/icons";
 import { parseProfileFromFile } from "@/lib/profileImport";
+import { PrivacyNote } from "@/components/ui/PrivacyNote";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import {
   EMPTY_PROFILE,
@@ -172,7 +173,22 @@ export default function LandingPage() {
           onChange={handleFileChange}
           className="hidden"
         />
+
+        <PrivacyNote
+          className="mt-4 justify-center"
+          text="Le profil déposé est analysé puis écarté. Aucun fichier conservé."
+        />
       </div>
+
+      {/* Footer légal */}
+      <footer className="absolute bottom-5 inset-x-0 flex justify-center">
+        <a
+          href="/confidentialite"
+          className="text-label text-muted-2 hover:text-ink transition-colors"
+        >
+          Politique de confidentialité
+        </a>
+      </footer>
 
     </div>
   );

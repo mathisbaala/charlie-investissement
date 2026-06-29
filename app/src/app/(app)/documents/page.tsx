@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Upload, X } from "@/components/ui/icons";
 import { PageShell, PageHeader } from "@/components/ui/Page";
+import { PrivacyNote } from "@/components/ui/PrivacyNote";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { DiciReport, type DiciFiche } from "./DiciReport";
 
@@ -152,6 +153,13 @@ export default function DocumentsPage() {
                 onChange={handleFileInput}
               />
             </div>
+          )}
+
+          {!fiche && !loading && (
+            <PrivacyNote
+              className="mt-3"
+              text="Le document est analysé puis écarté. Aucun fichier n'est conservé sur nos serveurs."
+            />
           )}
 
           {/* Loading */}
