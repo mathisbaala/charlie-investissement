@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
-import { PrivacyNote } from "@/components/ui/PrivacyNote";
 import { Upload, Loader2, X, ArrowRight, Check } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { parseProfileFromFile } from "@/lib/profileImport";
@@ -329,10 +328,6 @@ export function ClientProfileForm() {
           </div>
         )}
         {importError && <p className="mt-3 text-caption text-danger">{importError}</p>}
-        <PrivacyNote
-          className="mt-3"
-          text="Le document client est analysé pour pré-remplir le profil puis écarté ; le profil reste dans votre navigateur, jamais sur nos serveurs."
-        />
       </Card>
 
       {/* ── Formulaire ──
@@ -425,7 +420,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Réaction à une forte baisse" hint="Indice comportemental de tolérance au risque.">
+          <FieldGroup label="Réaction à une forte baisse">
             <ChipRow>
               {REACTION_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.reaction_baisse === value}
@@ -433,7 +428,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Tolérance aux pertes" hint="Plafonne la perte maximale tolérée sur 3 ans (drawdown).">
+          <FieldGroup label="Tolérance aux pertes">
             <ChipRow>
               {PERTE_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.perte_max === value}
@@ -453,7 +448,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Zones géographiques" hint="Indicatif, affine les recherches en langage naturel.">
+          <FieldGroup label="Zones géographiques">
             <ChipRow>
               {GEO_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.geographies.includes(value)}
@@ -489,7 +484,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Exclusions sectorielles" hint="Indicatif, affine les recherches en langage naturel.">
+          <FieldGroup label="Exclusions sectorielles">
             <ChipRow>
               {EXCLUSION_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.exclusions.includes(value)}
@@ -497,7 +492,7 @@ export function ClientProfileForm() {
               ))}
             </ChipRow>
           </FieldGroup>
-          <FieldGroup label="Frais courants maximum" hint="Plafonne le TER (frais de gestion annuels).">
+          <FieldGroup label="Frais courants maximum">
             <ChipRow>
               {TER_OPTIONS.map(({ value, label }) => (
                 <Chip key={value} label={label} active={profile.max_ter === value}

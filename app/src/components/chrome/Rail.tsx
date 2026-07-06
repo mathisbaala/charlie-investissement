@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Logo, Search, FileText, LayoutGrid, Shield, TrendingUp } from "@/components/ui/icons";
+import { Logo, FileText, LayoutGrid, Shield, TrendingUp } from "@/components/ui/icons";
 
+// La recherche n'a pas d'onglet dédié : on l'atteint uniquement en lançant une
+// requête (ou un profil client) depuis l'accueil. Cela allège le rail.
 const NAV = [
   { href: "/accueil",     icon: LayoutGrid, label: "Accueil" },
-  { href: "/recherche",   icon: Search,     label: "Recherche" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
   { href: "/assureurs",   icon: Shield,     label: "Assurances vie" },
   { href: "/documents",   icon: FileText,   label: "Documents" },

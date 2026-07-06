@@ -44,19 +44,12 @@ export function PerfNetteCard({ fund }: { fund: FundDetailHF }) {
   }
 
   const fee = CONTRACT_FEE_DEFAULTS[env] ?? 0;
-  const retro = fund.retrocession_cgp; // fraction en base (0.005 = 0,5 %)
 
   return (
     <Card className="px-6 py-5">
-      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-2">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Performance nette pour le client
       </h3>
-
-      <p className="text-label text-ink-2 leading-snug mb-4">
-        La performance affichée est déjà nette des frais du fonds (la VL les
-        intègre). On déduit ici les <span className="font-semibold">frais de gestion du contrat</span>{" "}
-        selon l&apos;enveloppe, pour estimer ce que perçoit réellement le client.
-      </p>
 
       <div className="flex items-center gap-2 mb-4">
         <label htmlFor="env-select" className="text-label text-muted">Enveloppe</label>
@@ -89,17 +82,6 @@ export function PerfNetteCard({ fund }: { fund: FundDetailHF }) {
           <NetRow label="5 ans (annualisé)" gross={fund.performance_5y} fee={fee} />
         </tbody>
       </table>
-
-      {retro != null && (
-        <p className="text-caption text-muted-2 mt-3 leading-snug">
-          Rétrocession CGP : {pct(retro * 100)}, incluse dans les frais courants
-          du fonds (déjà reflétés par la VL), donc non déduite ici.
-        </p>
-      )}
-      <p className="text-caption text-muted-2 mt-2 leading-snug">
-        Frais de gestion du contrat indicatifs ({pct(fee)}/an pour {CONTRACT_FEE_LABELS[env]}).
-        Le taux réel dépend du contrat retenu.
-      </p>
     </Card>
   );
 }
