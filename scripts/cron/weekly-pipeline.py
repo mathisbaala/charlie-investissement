@@ -103,6 +103,13 @@ def weekly_steps():
         # conservées. Écrit en update ciblé sur les lignes CRYPTO_* (non destructif).
         ("scrapers/coingecko-crypto.py", ["--no-history"]),
         ("enrichers/compute-metrics.py", []),
+        # Cycle de vie des fonds « semés » (data_source *-seed, ajoutés par les
+        # scrapers d'éligibilité PDF) : les enrichers de rotation ci-dessus ne les
+        # atteignent jamais (tri par encours, seed = aum NULL). Cette étape les
+        # enrichit en CIBLÉ (GECO/FT) puis PURGE ceux qui restent sans VL au-delà
+        # du délai de grâce (non-enrichissables = poids mort invisible). Politique
+        # « ne garder que l'enrichissable » (06/07). AVANT recalc-completeness/MV.
+        ("enrichers/prune-unenriched-seeds.py", []),
         # Benchmark + alpha vs indice : perfs fraîches ci-dessus → on recalcule
         # l'alpha de chaque fonds (sans --refresh-indices : les séries d'indices
         # sont rafraîchies mensuellement). APRÈS compute-metrics (en dépend).
