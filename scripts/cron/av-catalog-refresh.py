@@ -40,6 +40,7 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-allianz-catalog.py", []),
     ("scrapers/av-fr-axa-catalog.py", []),
     ("scrapers/av-fr-cardif-catalog.py", []),
+    ("scrapers/av-fr-generali-catalog.py", []),     # Generali Vie FR (Himalia + e-Xaélidia, annexes PDF ~2,3k liens)
     ("scrapers/av-fr-mutualistes-catalog.py", []),  # OK (vérifié 22/06 : 8 PDF live, ~280 ISIN en base)
     ("scrapers/av-fr-oradea-catalog.py", []),
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
