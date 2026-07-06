@@ -4,7 +4,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { asExactIsin } from "@/lib/search";
+import { asExactIsin, expandSearchAliases } from "@/lib/search";
 
 const VIEW = "investissement_funds_cgp_ref";
 
@@ -82,7 +82,9 @@ function toChatFund(r: Row): ChatFund {
  * renvoie directement le fonds visé (sans garde-fou d'univers).
  */
 export async function searchFundsForChat(query: string, limit = 8): Promise<ChatFund[]> {
-  const q = (query ?? "").trim();
+  // Même normalisation d'alias d'indices que le screener (« sp500 » → « s&p 500 »),
+  // pour que chat et recherche s'accordent sur la même requête.
+  const q = expandSearchAliases((query ?? "").trim());
   if (!q) return [];
   const lim = Math.max(1, Math.min(limit, 12));
 
