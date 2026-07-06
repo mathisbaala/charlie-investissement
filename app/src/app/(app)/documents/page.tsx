@@ -120,7 +120,6 @@ export default function DocumentsPage() {
         }
       />
 
-
           {/* Drop zone — always shown, collapsed after upload */}
           {!fiche && !loading && (
             <div
