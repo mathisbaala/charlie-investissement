@@ -217,6 +217,9 @@ export function ClientProfileForm() {
   // bloc « Distribution » : le CGP coche les assureurs dont il dispose.
   const [insurerOptions, setInsurerOptions] = useState<{ company: string; funds: number }[]>([]);
   const [insurerQuery, setInsurerQuery]     = useState("");
+  // "loading" tant que le fetch tourne, "error" si le réseau/RPC échoue, "ready"
+  // sinon. Distinct pour ne pas laisser « Chargement… » à l'écran indéfiniment.
+  const [insurerStatus, setInsurerStatus]   = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     if (initialized) return;
@@ -227,9 +230,9 @@ export function ClientProfileForm() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/screener/insurers")
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((j) => { if (!cancelled) setInsurerOptions(j.data ?? []); })
-      .catch(() => {});
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
+      .then((j) => { if (!cancelled) { setInsurerOptions(j.data ?? []); setInsurerStatus("ready"); } })
+      .catch(() => { if (!cancelled) setInsurerStatus("error"); });
     return () => { cancelled = true; };
   }, []);
 
@@ -544,14 +547,17 @@ export function ClientProfileForm() {
               {insurerOptions.length > 8 && (
                 <input
                   type="text"
+                  aria-label="Filtrer un assureur"
                   value={insurerQuery}
                   onChange={(e) => setInsurerQuery(e.target.value)}
                   placeholder="Filtrer un assureur…"
                   className={`${inputCls} mb-3`}
                 />
               )}
-              {insurerOptions.length === 0 ? (
+              {insurerStatus === "loading" ? (
                 <p className="text-caption text-muted-2">Chargement des assureurs…</p>
+              ) : insurerStatus === "error" ? (
+                <p className="text-caption text-warn">Impossible de charger les assureurs. Réessayez plus tard.</p>
               ) : (
                 <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto scrollbar-thin -mr-2 pr-2">
                   {filteredInsurers.map(({ company }) => (
