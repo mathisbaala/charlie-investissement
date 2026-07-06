@@ -112,11 +112,17 @@ function overshootPenalty(f: Fund, c: FitContext): number {
 // contente pas de passer les filtres mais les satisfait CONFORTABLEMENT.
 function matchScore(f: Fund, c: FitContext): number {
   let s = 0.5;
-  // Marge de risque : sous le plafond SRI = confort (sans valoriser un fonds
-  // anormalement défensif au point d'être hors-sujet).
+  // Marge de risque : un cran sous le plafond SRI = confort. Mais on ne valorise
+  // PAS un fonds anormalement défensif : 2+ crans sous le plafond (ex. un monétaire
+  // SRI 1 sous un plafond « risque faible » SRI 3) est souvent hors-sujet — de la
+  // trésorerie là où l'intention est du diversifié prudent. D'où une CLOCHE : confort
+  // maximal à ~1 cran de marge, qui redécroît quand le fonds devient trop défensif.
   if (c.sriMax != null && f.risk_score != null) {
     const head = c.sriMax - f.risk_score; // ≥ 0 (le hard filter a déjà écarté les > plafond)
-    if (head >= 0) s += 0.08 * clamp01(head / 2); // confort plafonné à ~2 crans
+    const comfort = head <= 0 ? 0
+      : head <= 1 ? head                       // 0 → 1 sur le premier cran
+      : Math.max(0, 1 - (head - 1) * 0.5);     // 2 crans → 0.5, 3+ crans → 0
+    s += 0.08 * comfort;
   }
   // Labels durabilité EN SURPLUS : un fonds portant plus de labels demandés que le
   // minimum (au moins un) est plus aligné avec une intention DDA forte.

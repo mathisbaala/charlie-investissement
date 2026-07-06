@@ -61,6 +61,12 @@ REGION_PATTERNS: list[tuple[str, str]] = [
 
 _COMPILED = [(re.compile(p, re.I | re.UNICODE), region) for p, region in REGION_PATTERNS]
 
+# Classes d'actifs SANS géographie réelle : la trésorerie (monétaire, fonds euros)
+# n'a aucune exposition géographique. Un nom « GLOBAL LIQUIDITY » / « MONEY MARKET »
+# / « La Mondiale » matcherait sinon global/mondial → 'world' et polluerait les
+# recherches géographiques avec du cash.
+NON_GEO_ASSET_CLASSES = {"monetaire", "fonds_euros"}
+
 
 def infer_region(name: str | None, category: str | None, category_normalized: str | None) -> str | None:
     """Tente d'inférer la région depuis name → category → category_normalized."""
@@ -102,7 +108,7 @@ def run(apply: bool) -> None:
     while True:
         batch = (
             client.table("investissement_funds")
-            .select("isin,name,category,category_normalized")
+            .select("isin,name,category,category_normalized,asset_class_broad,product_type")
             .is_("region_normalized", "null")
             .range(offset, offset + 999)
             .execute()
@@ -121,6 +127,11 @@ def run(apply: bool) -> None:
     no_match = 0
 
     for f in all_funds:
+        # Garde-fou trésorerie : pas de géographie pour le cash / fonds euros.
+        if (f.get("asset_class_broad") or "") in NON_GEO_ASSET_CLASSES \
+           or (f.get("product_type") or "") in NON_GEO_ASSET_CLASSES:
+            no_match += 1
+            continue
         region = infer_region(
             f.get("name"),
             f.get("category"),

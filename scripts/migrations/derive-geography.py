@@ -65,10 +65,19 @@ _NAME_COMPILED = [(re.compile(p, re.I), geo) for p, geo in NAME_MAP]
 # Product types pour lesquels la géographie a du sens
 GEO_TYPES = {"opcvm", "etf", "action", "obligation"}
 
+# Classes d'actifs SANS géographie réelle : la trésorerie (monétaire, fonds euros)
+# n'a aucune exposition géographique. Sans ce garde-fou, un nom comme « GLOBAL
+# LIQUIDITY », « MONEY MARKET » ou « La Mondiale » matche global/mondial → 'world'
+# et pollue les recherches « Monde »/« Europe » avec du cash (cf. Lyxor Euro
+# Overnight remonté n°1 sur « fond monde peu risqué »).
+NON_GEO_ASSET_CLASSES = {"monetaire", "fonds_euros"}
+
 
 def infer_geography(fund: dict) -> str | None:
     ptype = fund.get("product_type", "")
     if ptype not in GEO_TYPES:
+        return None
+    if (fund.get("asset_class_broad") or "") in NON_GEO_ASSET_CLASSES:
         return None
 
     cat  = fund.get("category") or ""
@@ -105,7 +114,7 @@ def run(apply: bool) -> None:
     offset = 0
     while True:
         batch = client.table("investissement_funds") \
-            .select("isin,name,product_type,category,region_normalized") \
+            .select("isin,name,product_type,category,asset_class_broad,region_normalized") \
             .in_("product_type", list(GEO_TYPES)) \
             .is_("region_normalized", "null") \
             .range(offset, offset + 999) \
