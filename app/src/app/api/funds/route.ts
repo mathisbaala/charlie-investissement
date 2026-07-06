@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { feeFracToPct } from "@/lib/format";
-import { asExactIsin } from "@/lib/search";
+import { asExactIsin, expandSearchAliases } from "@/lib/search";
 import { logEvent, activeFilters } from "@/lib/analytics";
 import { relaxationOrder, relaxLabel } from "@/lib/screenerParams";
 import { rankByFit, SOFT_TOLERANCE, type FitContext } from "@/lib/fitScore";
@@ -106,7 +106,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const esgLabels    = arr(p(sp, "labels"));  // labels officiels durabilité (isr/greenfin/finansol)
   const mgr     = p(sp, "manager_search")?.trim() ?? "";
   const gestIn  = arr(p(sp, "gestionnaire_in"));
-  const search  = p(sp, "search")?.trim() ?? "";
+  // Alias d'indices « collés » (« sp500 » → « s&p 500 ») réécrits avant la RPC :
+  // sinon 0 résultat (sous-chaîne cassée par le « & »/l'espace). Cf. expandSearchAliases.
+  const search  = expandSearchAliases(p(sp, "search")?.trim() ?? "");
   const exactIsin = asExactIsin(search);
   const hasKid  = p(sp, "has_kid") === "true";
   const beatsBenchmark = p(sp, "beats_benchmark") === "true"; // alpha 3 ans > 0
