@@ -250,20 +250,20 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - chips: tableau de labels lisibles courts en français pour afficher dans l'UI (ex: ["ETF monde", "PEA éligible", "Article 8"])
 
 Règles de mapping :
-- "monde" / "mondial" / "international" / "global" / "world" / "MSCI World" / "ACWI" → region:["world"]
-- "Europe" / "européen" / "STOXX" → region:["europe"]
-- "zone euro" / "eurozone" → region:["eurozone"]
-- "USA" / "américain" / "US" / "États-Unis" / "S&P 500" / "Nasdaq" → region:["usa"]
-- "France" / "français" / "CAC 40" → region:["france"]
-- "émergents" / "emerging" / "pays émergents" → region:["emerging"]
-- "Japon" / "japonais" / "Nikkei" → region:["japan"]
+- "monde" / "mondial" / "international" / "global" / "world" / "MSCI World" / "MSCI ACWI" / "ACWI" / "FTSE All-World" → region:["world"]
+- "Europe" / "européen" / "STOXX" / "Stoxx 600" / "MSCI Europe" → region:["europe"]
+- "zone euro" / "eurozone" / "Euro Stoxx" / "EuroStoxx 50" / "MSCI EMU" → region:["eurozone"]
+- "USA" / "américain" / "US" / "États-Unis" / "S&P 500" / "Nasdaq" / "Dow Jones" / "Russell 2000" / "MSCI USA" → region:["usa"]
+- "France" / "français" / "CAC 40" / "CAC40" / "SBF 120" → region:["france"]
+- "émergents" / "emerging" / "pays émergents" / "MSCI EM" / "marchés émergents" → region:["emerging"]
+- "Japon" / "japonais" / "Nikkei" / "Topix" → region:["japan"]
 - "Asie" / "asiatique" / "Pacifique" → region:["asia"]
-- "Chine" / "chinois" → region:["china"]
-- "Royaume-Uni" / "UK" / "britannique" / "FTSE" → region:["uk"]
+- "Chine" / "chinois" / "Hang Seng" / "CSI 300" → region:["china"]
+- "Royaume-Uni" / "UK" / "britannique" / "FTSE" / "FTSE 100" → region:["uk"]
 - "Allemagne" / "allemand" / "DAX" → region:["germany"]
 - "Suisse" / "suisse" / "SMI" → region:["switzerland"]
-- "Inde" / "indien" → region:["india"]
-- "Brésil" / "brésilien" → region:["brazil"]
+- "Inde" / "indien" / "Nifty" / "Sensex" → region:["india"]
+- "Brésil" / "brésilien" / "Bovespa" → region:["brazil"]
 - "actions" / "fonds actions" / "equity" / "titres" → asset_class:["action"]
 - "obligataire" / "obligations" / "oblig" / "bonds" / "crédit" / "taux" / "high yield" / "investment grade" → asset_class:["obligation"]
 - "fonds daté" / "obligataire daté" / "fonds à échéance" / "à échéance" / "target maturity" / "fonds de portage" / "millésimé" / "fonds obligataire 20XX" → target_maturity:true + asset_class:["obligation"] (+ maturity_year_min/max si une année est citée)
@@ -274,6 +274,7 @@ Règles de mapping :
 - "ESG" ou "durable" → sfdr:[8,9]
 - "article 9" ou "impact" → sfdr:[9]
 - "peu risqué" / "défensif" → sri_max:3
+- "préserver le capital" / "protéger le capital" / "sécuriser mon épargne" / "capital protégé" / "sans prendre de risque" / "sécurité avant tout" → sri_max:2, drawdown_max:10 (intention de préservation : très défensif + chute limitée). NE PAS confondre avec un ticker/nom : garde le sens « prudence », pas free_text.
 - "modéré" / "équilibré" → sri_min:2, sri_max:5
 - "dynamique" / "risqué" → sri_min:4
 - "low cost" / "peu de frais" → ter_max:0.5
@@ -289,13 +290,16 @@ Règles de mapping :
 - "performant sur 5 ans" / "perf 5 ans" / "long terme performant" → perf_5y_min (ex: 5.0)
 - "bon Sharpe sur 3 ans" / "rendement/risque solide dans la durée" → sharpe_3y_min:0.5
 - "gros fonds" / "encours élevés" → aum_min:500
-- "tech" / "technologie" / "numérique" → sector:["Technologie"]
-- "santé" / "pharma" / "médical" / "biotech" → sector:["Santé"]
-- "finance" / "banque" / "assurance" → sector:["Finance"]
-- "énergie" / "pétrole" / "gaz" / "renouvelable" → sector:["Énergie"]
+- "tech" / "technologie" / "numérique" / "intelligence artificielle" / "IA" / "semi-conducteurs" / "robotique" / "cybersécurité" / "cloud" / "digital" / "métavers" → sector:["Technologie"]
+- "santé" / "pharma" / "médical" / "biotech" / "medtech" / "bien-être" → sector:["Santé"]
+- "finance" / "banque" / "assurance" / "fintech" → sector:["Finance"]
+- "énergie" / "pétrole" / "gaz" / "renouvelable" / "solaire" / "éolien" / "hydrogène" / "uranium" / "nucléaire" → sector:["Énergie"]
 - "REIT" / "actions immobilières cotées" → sector:["Immobilier"] (sinon, pour de l'immobilier en direct/SCPI, préférer asset_class:["immobilier"])
-- "environnement" / "eau" / "climat" → sector:["Environnement"]
-- "industrie" → sector:["Industrie"]
+- "environnement" / "eau" / "climat" / "transition écologique" / "économie circulaire" / "biodiversité" → sector:["Environnement"]
+- "consommation" / "luxe" / "biens de consommation" / "distribution" (au sens SECTEUR conso, pas dividendes) → sector:["Consommation"]
+- "industrie" / "défense" / "aéronautique" / "armement" / "infrastructures" → sector:["Industrie"]
+- "matériaux" / "matières de base" / "mines" / "métaux" (au sens SECTEUR actions, distinct de la classe d'actif matieres_premieres) → sector:["Matériaux"]
+- "communication" / "médias" / "télécoms" → sector:["Communication"]
 - NÉGATION (IMPORTANT) : une formulation comme « peu exposé à X », « faible exposition X », « sans X »,
   « hors X », « pas de X », « éviter X » signifie EXCLURE X, jamais le filtrer en positif.
   → « peu exposé tech » → exclude_sectors:["Technologie"] (et SURTOUT PAS sector:["Technologie"]).
@@ -338,6 +342,9 @@ Exemples :
 - "fonds technologie innovants" → {"sector":["Technologie"],"chips":["Technologie"]}
 - "ETF santé pharma article 9" → {"universe":["etf"],"sector":["Santé"],"sfdr":[9],"chips":["ETF","Santé","Article 9"]}
 - "fonds énergie renouvelable ESG" → {"sector":["Énergie"],"sfdr":[8,9],"chips":["Énergie","ESG"]}
+- "ETF intelligence artificielle" → {"universe":["etf"],"sector":["Technologie"],"chips":["ETF","IA"]}
+- "un fonds pour préserver mon capital" → {"sri_max":2,"drawdown_max":10,"chips":["Préservation du capital","Prudent"]}
+- "ETF actions émergentes hors Chine" → {"universe":["etf"],"asset_class":["action"],"region":["emerging"],"exclude_regions":["china"],"chips":["ETF","Émergents","Hors Chine"]}
 - "DCAM" → {"free_text":"DCAM","chips":["DCAM"]}
 - "ETF CW8" → {"universe":["etf"],"free_text":"CW8","chips":["ETF","CW8"]}
 - "ETF monde le moins cher" → {"universe":["etf"],"region":["world"],"sort_intent":{"field":"ter","dir":"asc"},"chips":["ETF","Monde","Frais bas"]}
