@@ -36,7 +36,7 @@ from pathlib import Path
 from curl_cffi import requests as cffi_requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, log_run  # noqa: E402
+from db import get_client, log_run, upsert_funds_bulk  # noqa: E402
 
 # ISIN = 2 lettres pays + 9 alphanum + 1 chiffre de contrôle.
 ISIN_RE = re.compile(r"\b([A-Z]{2}[A-Z0-9]{9}\d)\b")
@@ -121,6 +121,41 @@ def extract_isins(text: str) -> list[str]:
     return sorted(set(ISIN_RE.findall(text or "")))
 
 
+_MULTISPACE = re.compile(r"\s{2,}")
+
+
+def extract_isin_names(text: str) -> dict[str, str]:
+    """Appariement best-effort ISIN → nom : le nom est le texte qui PRÉCÈDE l'ISIN
+    sur la même ligne (mise en page `pdftotext -layout`). Retourne {isin: name} ;
+    name = "" quand aucun libellé fiable n'est extractible (on ne sèmera alors pas
+    de coquille anonyme). 1re occurrence (1er nom non vide) conservée."""
+    out: dict[str, str] = {}
+    for line in (text or "").splitlines():
+        for m in ISIN_RE.finditer(line):
+            isin = m.group(1)
+            if out.get(isin):
+                continue
+            name = line[:m.start()].strip(" .\t|·–—-")
+            name = _MULTISPACE.sub(" ", name).strip()
+            # Nom plausible : ≥ 4 caractères dont ≥ 3 lettres consécutives (écarte
+            # les colonnes purement numériques / codes voisins).
+            if len(name) < 4 or not re.search(r"[A-Za-zÀ-ÿ]{3}", name):
+                name = ""
+            out.setdefault(isin, name[:180])
+    return out
+
+
+def _seed_product_type(name: str) -> str:
+    u = (name or "").upper()
+    if "UCITS ETF" in u or " ETF" in u or u.startswith("ETF"):
+        return "etf"
+    if "OPCI" in u:
+        return "opci"
+    if "SCPI" in u:
+        return "scpi"
+    return "opcvm"
+
+
 def existing_isins(client) -> set[str]:
     """Ensemble des ISIN déjà présents dans investissement_funds (paginé)."""
     s, off = set(), 0
@@ -149,6 +184,7 @@ def run_eligibility(
     apply: bool,
     limit: int | None = None,
     use_proxy: bool = False,
+    seed_missing: bool = False,
 ) -> None:
     """Pipeline commun étapes 2→4.
 
@@ -178,28 +214,55 @@ def run_eligibility(
         print(f"  ISIN en base : {len(known)}")
 
     session = make_session(use_proxy=use_proxy)
-    rows: list[dict] = []        # {isin, contract_name, source_url}
-    union: set[str] = set()
     now = datetime.now(timezone.utc).isoformat()
 
+    # 1re passe : ISIN cités (+ nom best-effort) de chaque contrat.
+    per_contract: list[tuple[str, str, list[str]]] = []   # (name, src_url, cited)
+    all_pairs: dict[str, str] = {}                          # isin -> nom
     for i, c in enumerate(contracts):
         name = c["contract"]
         pdf_url = c["pdf_url"]
         src_url = c.get("source_url") or pdf_url
         text = fetch_pdf_text(session, pdf_url)
-        isins = extract_isins(text) if text else []
-        if known is not None:
-            kept = [x for x in isins if x in known]
-        else:
-            kept = isins  # dry-run : pas de DB, on rapporte le brut
+        pairs = extract_isin_names(text) if text else {}
+        for isin, nm in pairs.items():
+            if not all_pairs.get(isin):
+                all_pairs[isin] = nm
+        cited = sorted(pairs)
+        per_contract.append((name, src_url, cited))
+        print(f"  [{i+1}/{len(contracts)}] {name[:42]:42} {len(cited):4} ISIN cités")
+        time.sleep(RATE_LIMIT)
+
+    # Seed opt-in : INSÈRE au catalogue les fonds cités ABSENTS (hors `known` →
+    # jamais d'écrasement d'un fonds existant), avec un nom fiable, pour les rendre
+    # référençables + enrichissables (NAV/perf ensuite par le pipeline).
+    seeded = 0
+    if apply and seed_missing:
+        seed_rows = [
+            {"isin": isin, "name": all_pairs[isin],
+             "product_type": _seed_product_type(all_pairs[isin]),
+             "currency": "EUR", "data_source": f"{scraper_name}-seed"}
+            for isin in sorted(all_pairs)
+            if isin not in known and all_pairs[isin]
+        ]
+        if seed_rows:
+            s_ok, s_fail = upsert_funds_bulk(seed_rows, batch_size=100)
+            known.update(r["isin"] for r in seed_rows)
+            seeded = s_ok
+            print(f"  Seed catalogue : {s_ok} nouveaux fonds ({s_fail} échec)")
+
+    # Lignes d'éligibilité (filtrées sur le catalogue ; brut en dry-run).
+    rows: list[dict] = []
+    union: set[str] = set()
+    for name, src_url, cited in per_contract:
+        kept = [x for x in cited if known is None or x in known]
         union.update(kept)
         for x in kept:
             rows.append({"isin": x, "contract_name": name, "source_url": src_url})
-        tag = f"{len(kept)} en base" if known is not None else f"{len(isins)} bruts"
-        print(f"  [{i+1}/{len(contracts)}] {name[:42]:42} {len(isins):4} ISIN → {tag}")
-        time.sleep(RATE_LIMIT)
 
     print(f"\n  Union ISIN distincts : {len(union)} | lignes éligibilité : {len(rows)}")
+    if seeded:
+        print(f"  (dont {seeded} fonds nouvellement semés au catalogue)")
 
     if not apply:
         print("  DRY-RUN — rien écrit. Relancer avec --apply (creds réels).")
