@@ -32,6 +32,9 @@ export default function DocumentsPage() {
   const MAX_PDF_BYTES = 3_000_000;
 
   async function processFile(file: File) {
+    // Une analyse est déjà en cours : on ignore le nouveau dépôt plutôt que de
+    // lancer (et facturer) un second appel IA en parallèle.
+    if (loading) return;
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setError("Seuls les fichiers PDF sont acceptés.");
       return;

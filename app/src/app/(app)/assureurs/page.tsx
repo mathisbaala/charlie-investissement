@@ -350,9 +350,6 @@ export default function AssureursPage() {
         </div>
       ) : (
         <>
-          <p className="text-label text-muted-2 mb-3">
-            {filtered.length.toLocaleString("fr-FR")} assureur{filtered.length > 1 ? "s" : ""} · {ENV_LABEL[env]}
-          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((insurer) => (
               <InsurerCard
@@ -367,11 +364,6 @@ export default function AssureursPage() {
           </div>
         </>
       )}
-
-      <p className="text-caption text-muted-2 mt-6 leading-snug max-w-[640px]">
-        L&apos;absence d&apos;un assureur ou d&apos;un contrat ne signifie pas
-        qu&apos;un fonds n&apos;y est pas référencé.
-      </p>
     </PageShell>
   );
 }

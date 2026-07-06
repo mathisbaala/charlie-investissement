@@ -12,5 +12,11 @@ export async function GET(): Promise<NextResponse> {
   // 500 (et non 200 + []) sur erreur RPC : voir route insurers. Source principale
   // de /assureurs → une panne ne doit pas se déguiser en « aucun contrat ».
   if (error) return NextResponse.json({ error: "rpc_failed" }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+  // Agrégation pure qui bouge lentement : mêmes en-têtes de cache edge que
+  // /insurers, pour servir le FilterPanel en ~40 ms sur répétition et délester
+  // Supabase quand le trafic monte.
+  return NextResponse.json(
+    { data: data ?? [] },
+    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
+  );
 }
