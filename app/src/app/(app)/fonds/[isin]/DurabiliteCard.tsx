@@ -29,15 +29,9 @@ export function DurabiliteCard({ fund }: { fund: FundDetailHF }) {
 
   return (
     <Card className="px-6 py-5">
-      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-2">
+      <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Durabilité · recueil DDA
       </h3>
-
-      <p className="text-label text-ink-2 leading-snug mb-4">
-        Éléments pour le recueil des <span className="font-semibold">préférences de durabilité</span>{" "}
-        (DDA) : classification SFDR, labels officiels et, lorsqu&apos;ils sont publiés,
-        les seuils taxonomie / investissement durable / PAI.
-      </p>
 
       {sfdr && (
         <div className="mb-4">
@@ -47,7 +41,6 @@ export function DurabiliteCard({ fund }: { fund: FundDetailHF }) {
             </span>
             <span className="text-meta text-ink-2 font-medium">{sfdr.title}</span>
           </div>
-          <p className="text-caption text-muted-2 leading-snug">{sfdr.desc}</p>
         </div>
       )}
 
@@ -82,12 +75,6 @@ export function DurabiliteCard({ fund }: { fund: FundDetailHF }) {
           </tbody>
         </table>
       )}
-
-      <p className="text-caption text-muted-2 mt-3 leading-snug">
-        À rapprocher des préférences déclarées par le client (article 8/9 minimum,
-        part durable, sensibilité aux incidences négatives). Source : classification
-        SFDR de la société de gestion ; ne dispense pas de la documentation officielle.
-      </p>
     </Card>
   );
 }

@@ -462,9 +462,6 @@ function RechercheInner() {
           <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
             <p className="text-label text-accent-ink min-w-0 truncate">
               <span className="font-semibold">{referencingLabel}</span>
-              {!parsing && !loading && (
-                <span className="text-accent-ink/70"> · {total.toLocaleString("fr-FR")} fonds</span>
-              )}
             </p>
             <button
               onClick={clearReferencingFilter}
@@ -518,7 +515,6 @@ function RechercheInner() {
               <div className="w-12 h-12 rounded-2xl bg-paper-2 border border-line flex items-center justify-center">
                 <Search size={20} className="text-muted" strokeWidth={1.5} />
               </div>
-              <p className="text-body-lg font-medium text-ink-2">Recherchez dans la base de données</p>
             </div>
           ) : (<>
 
@@ -608,7 +604,7 @@ function RechercheInner() {
 
             {!loading && !parsing && totalPages > 1 && (
               <div className="flex items-center justify-between px-3 py-3 text-label text-muted">
-                <span>Page {page} / {totalPages}</span>
+                <span>{page} / {totalPages}</span>
                 <div className="flex gap-1">
                   <button disabled={page <= 1} onClick={goToPrevPage} className="p-1.5 rounded border border-line hover:bg-paper-2 disabled:opacity-40 transition-colors" aria-label="Page précédente">
                     <ArrowLeft size={13} />
