@@ -166,9 +166,13 @@ def _plausible_fund_name(name: str) -> bool:
 
 
 def extract_isin_names(text: str) -> dict[str, str]:
-    """Appariement best-effort ISIN → nom : le nom est le texte qui PRÉCÈDE l'ISIN
-    sur la même ligne (mise en page `pdftotext -layout`). Retourne {isin: name} ;
-    name = "" quand aucun libellé fiable n'est extractible (on ne sèmera alors pas
+    """Appariement best-effort ISIN → nom sur la même ligne (`pdftotext -layout`),
+    dans les DEUX sens de layout :
+      • nom AVANT l'ISIN     (« ECHIQUIER Agressor A   FR0010321802 … »)
+      • nom APRÈS l'ISIN     (« FR0010321802   ECHIQUIER Agressor A   FINANCIERE… »)
+        → 1re colonne après l'ISIN, bornée par le 1er séparateur de colonne (2+
+        espaces) pour ne pas déborder sur la société de gestion / les perfs.
+    Retourne {isin: name} ; name = "" si aucun libellé fiable (on ne sème alors pas
     de coquille anonyme). 1re occurrence (1er nom non vide) conservée."""
     out: dict[str, str] = {}
     for line in (text or "").splitlines():
@@ -176,10 +180,13 @@ def extract_isin_names(text: str) -> dict[str, str]:
             isin = m.group(1)
             if out.get(isin):
                 continue
-            name = line[:m.start()].strip(" .\t|·–—-")
-            name = _MULTISPACE.sub(" ", name).strip()
-            if not _plausible_fund_name(name):
-                name = ""
+            before = _MULTISPACE.sub(" ", line[:m.start()].strip(" .\t|·–—-")).strip()
+            name = before if _plausible_fund_name(before) else ""
+            if not name:
+                after = line[m.end():].strip(" .\t|·–—-")
+                first_col = re.split(r"\s{2,}", after, maxsplit=1)[0].strip() if after else ""
+                if _plausible_fund_name(first_col):
+                    name = first_col
             out.setdefault(isin, name[:180])
     return out
 
