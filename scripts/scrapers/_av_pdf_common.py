@@ -122,6 +122,47 @@ def extract_isins(text: str) -> list[str]:
 
 
 _MULTISPACE = re.compile(r"\s{2,}")
+# Libellés d'EN-TÊTE de colonne (PDF en tableau) captés à tort comme « nom » quand
+# l'ISIN suit son propre intitulé de colonne (ex. Covéa : « Code ISIN Part N : FRxxxx »).
+_HEADER_WORDS = re.compile(
+    r"\b(isin|identifiant|libell[ée]|support|unit[ée]s?\s+de\s+compte|code)\b",
+    re.IGNORECASE,
+)
+
+
+def _valid_isin(isin: str) -> bool:
+    """Vrai ISIN = 12 car. + clé de contrôle mod-10 (Luhn sur lettres→chiffres,
+    A=10…Z=35). Écarte les faux positifs du regex avant de semer au catalogue
+    (ex. n° RCS des SCPI « RCS382886323 » = Pierre Plus, pris pour un ISIN)."""
+    if len(isin) != 12:
+        return False
+    digits = ""
+    for ch in isin:
+        if ch.isdigit():
+            digits += ch
+        elif ch.isalpha():
+            digits += str(ord(ch.upper()) - 55)
+        else:
+            return False
+    total = 0
+    for i, d in enumerate(reversed(digits)):
+        n = int(d)
+        if i % 2 == 1:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+    return total % 10 == 0
+
+
+def _plausible_fund_name(name: str) -> bool:
+    """True si `name` ressemble à un vrai libellé de fonds (≠ en-tête / code / vide).
+    Conservateur : on préfère ne PAS semer plutôt que semer une coquille mal nommée."""
+    if len(name) < 4 or not re.search(r"[A-Za-zÀ-ÿ]{3}", name):
+        return False
+    if name.endswith(":") or _HEADER_WORDS.search(name):
+        return False
+    return True
 
 
 def extract_isin_names(text: str) -> dict[str, str]:
@@ -137,9 +178,7 @@ def extract_isin_names(text: str) -> dict[str, str]:
                 continue
             name = line[:m.start()].strip(" .\t|·–—-")
             name = _MULTISPACE.sub(" ", name).strip()
-            # Nom plausible : ≥ 4 caractères dont ≥ 3 lettres consécutives (écarte
-            # les colonnes purement numériques / codes voisins).
-            if len(name) < 4 or not re.search(r"[A-Za-zÀ-ÿ]{3}", name):
+            if not _plausible_fund_name(name):
                 name = ""
             out.setdefault(isin, name[:180])
     return out
@@ -243,7 +282,7 @@ def run_eligibility(
              "product_type": _seed_product_type(all_pairs[isin]),
              "currency": "EUR", "data_source": f"{scraper_name}-seed"}
             for isin in sorted(all_pairs)
-            if isin not in known and all_pairs[isin]
+            if isin not in known and all_pairs[isin] and _valid_isin(isin)
         ]
         if seed_rows:
             s_ok, s_fail = upsert_funds_bulk(seed_rows, batch_size=100)
