@@ -119,7 +119,7 @@ function InsurerCard(
                   <Link
                     href={contractHref(c.key)}
                     title={title}
-                    className="grid grid-cols-[1fr_auto] items-center gap-3 py-2 border-b border-line-soft min-h-[44px] -mx-1 px-1 rounded-md hover:bg-accent/[0.03] transition-colors"
+                    className="grid grid-cols-[1fr_auto] items-center gap-3 py-2 min-h-[44px] -mx-1 px-1 rounded-md hover:bg-accent/[0.03] transition-colors"
                   >
                     <span className="flex items-center gap-2.5 min-w-0">
                       {/* Pastille de statut : pleine = ouvert, creuse = fermé.

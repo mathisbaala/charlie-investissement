@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
-import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER } from '../lib/screenerParams'
+import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER, pickReferencing, searchUrlWithReferencing } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -286,5 +286,62 @@ describe('params — fonds à échéance (obligataire daté)', () => {
       .toContain('Échéance 2027–2030')
     expect(describeScreenerFilters({ target_maturity: true })).toContain('Fonds à échéance')
     expect(describeScreenerFilters({ maturity_year_max: 2029 })).toContain('Échéance ≤ 2029')
+  })
+})
+
+// Régression : le filtre de référencement (assureur / contrat) hérité de l'onglet
+// Assurances vie disparaissait dès qu'on tapait une nouvelle recherche texte — le
+// handler ne reconstruisait l'URL/les filtres qu'avec `q=`, écrasant insurers/
+// contracts. Ces helpers isolent la préservation, réutilisée au montage et dans
+// handleSearch.
+describe('pickReferencing — conserve assureur / contrat', () => {
+  it('extrait insurers et contracts présents', () => {
+    const ref = pickReferencing({ insurers: ['BNP Paribas Cardif'], contracts: ['BNP::Cardif Elite'], asset_class: ['action'] })
+    expect(ref).toEqual({ insurers: ['BNP Paribas Cardif'], contracts: ['BNP::Cardif Elite'] })
+  })
+
+  it('ignore les autres filtres (ne garde que le référencement)', () => {
+    const ref = pickReferencing({ insurers: ['Suravenir'], sfdr: [8], free_text: 'action' })
+    expect(ref).toEqual({ insurers: ['Suravenir'] })
+  })
+
+  it('retourne un objet vide en l\'absence de référencement', () => {
+    expect(pickReferencing({ asset_class: ['obligation'] })).toEqual({})
+    expect(pickReferencing({})).toEqual({})
+  })
+
+  it('ignore les tableaux vides', () => {
+    expect(pickReferencing({ insurers: [], contracts: [] })).toEqual({})
+  })
+})
+
+describe('searchUrlWithReferencing — URL de recherche préservant l\'assureur', () => {
+  it('inclut la requête texte ET l\'assureur', () => {
+    const url = searchUrlWithReferencing('fonds actions européennes', { insurers: ['BNP Paribas Cardif'] })
+    const sp = new URLSearchParams(url.split('?')[1])
+    expect(sp.get('q')).toBe('fonds actions européennes')
+    expect(sp.get('insurer')).toBe('BNP Paribas Cardif')
+  })
+
+  it('inclut le contrat quand il est le référencement actif', () => {
+    const url = searchUrlWithReferencing('etf monde', { contracts: ['BNP::Cardif Elite'] })
+    const sp = new URLSearchParams(url.split('?')[1])
+    expect(sp.get('q')).toBe('etf monde')
+    expect(sp.get('contracts')).toBe('BNP::Cardif Elite')
+  })
+
+  it('n\'émet que q= sans référencement (recherche libre normale)', () => {
+    const url = searchUrlWithReferencing('amundi', {})
+    const sp = new URLSearchParams(url.split('?')[1])
+    expect(sp.get('q')).toBe('amundi')
+    expect(sp.has('insurer')).toBe(false)
+    expect(sp.has('contracts')).toBe(false)
+  })
+
+  it('round-trip : l\'URL produite se relit en filtre insurers via filtersFromParams', () => {
+    const url = searchUrlWithReferencing('action', pickReferencing({ insurers: ['Spirica'] }))
+    const f = filtersFromParams(new URLSearchParams(url.split('?')[1]))
+    expect(f.insurers).toEqual(['Spirica'])
+    expect(f.free_text).toBeUndefined() // `q=` n'est pas un filtre dur, il repart en NLP
   })
 })
