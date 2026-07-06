@@ -16,7 +16,6 @@ Contrats identifiés (iframeKey=dec511123cYF4gtju8Spf67dr) :
   673  Natixis Life Luxembourg        "Liberalys Essentiel"             42 fonds
   680  La Banque Postale Life / CNP   "Compte Libre Croissance LBP"     49 fonds
   681  La Banque Postale Life / CNP   "Compte Libre Croissance LBP 2"   49 fonds
-  700  Multi-gestionnaire             "Contrat 700 (ODDO)"             175 fonds
   701  APICIL Luxembourg              "APICIL Luxembourg AV"            40 fonds
   705  Suravenir Luxembourg           "Suravenir Opportunités Lux"     468 fonds
   706  Suravenir Luxembourg           "Suravenir Libertés Lux"         468 fonds
@@ -75,7 +74,6 @@ KNOWN_CONTRACTS: dict[int, tuple[str, str, str]] = {
     673: ("Natixis Life Luxembourg",    "Liberalys Essentiel",                  "natixis-life-lux"),
     680: ("La Banque Postale Life",     "Compte Libre Croissance LBP",          "lbp-life-lux"),
     681: ("La Banque Postale Life",     "Compte Libre Croissance LBP 2",        "lbp-life-lux"),
-    700: ("Assureur inconnu",           "Contrat 700",                          "opcvm360-700"),
     701: ("APICIL Luxembourg",          "APICIL Luxembourg AV",                 "apicil-lux"),
     705: ("Suravenir Luxembourg",       "Suravenir Opportunités Lux",           "suravenir-lux"),
     706: ("Suravenir Luxembourg",       "Suravenir Libertés Lux",               "suravenir-lux"),
@@ -148,28 +146,42 @@ def parse_fund(item: dict, data_source: str) -> dict | None:
 
 # ─── Fetch ─────────────────────────────────────────────────────────────────────
 
+PAGE_SIZE = 500  # l'API plafonne une page à 500 lignes
+
+
 def fetch_contract(contract_id: int) -> list[dict]:
-    url = (
-        f"{API_BASE}"
-        f"?limit=500&offset=0&sortFields=name"
-        f"&licontracts={contract_id}"
-        f"&iframeKey={IFRAME_KEY}"
-        f"&fields={API_FIELDS}"
-    )
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=30)
-        if r.ok:
-            data = r.json()
-            items = data.get("data", [])
-            total = data.get("metadata", {}).get("totalCount", len(items))
-            print(f"    API OK — {len(items)} fonds (total={total})")
-            return items
-        else:
-            print(f"    API HTTP {r.status_code}")
-            return []
-    except Exception as e:
-        print(f"    API erreur : {e}")
-        return []
+    """Récupère TOUS les fonds du contrat en paginant. L'API plafonne une page à
+    500 lignes : les gros contrats (ex. meilleurtaux Liberté Vie = 920 fonds)
+    étaient auparavant tronqués à 500 → supports manquants côté référencement."""
+    all_items: list[dict] = []
+    offset = 0
+    total = None
+    while True:
+        url = (
+            f"{API_BASE}"
+            f"?limit={PAGE_SIZE}&offset={offset}&sortFields=name"
+            f"&licontracts={contract_id}"
+            f"&iframeKey={IFRAME_KEY}"
+            f"&fields={API_FIELDS}"
+        )
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=30)
+        except Exception as e:
+            print(f"    API erreur (offset={offset}) : {e}")
+            break
+        if not r.ok:
+            print(f"    API HTTP {r.status_code} (offset={offset})")
+            break
+        data  = r.json()
+        items = data.get("data", [])
+        total = data.get("metadata", {}).get("totalCount", len(items))
+        all_items.extend(items)
+        if len(items) < PAGE_SIZE or len(all_items) >= total:
+            break
+        offset += PAGE_SIZE
+        time.sleep(RATE_LIMIT)
+    print(f"    API OK — {len(all_items)} fonds (total={total})")
+    return all_items
 
 
 def fetch_licontracts_catalog() -> dict[int, tuple[str, str, str]]:
@@ -232,6 +244,14 @@ def run_contract(contract_id: int, apply: bool, limit: int | None,
         ("Assureur inconnu", f"Contrat {contract_id}", f"opcvm360-{contract_id}")
     )
     company = canon_company(company)
+
+    # Garde-fou : un contrat sans assureur identifiable ne porte aucune info utile
+    # pour un CGP (pollue le filtre « assureur » avec une pill « Assureur inconnu »).
+    # On saute plutôt que d'écrire du bruit ; ces fonds sont quasi toujours déjà
+    # référencés par un vrai contrat ailleurs.
+    if company == "Assureur inconnu":
+        print(f"\n  ── Contract {contract_id} : assureur non identifiable → ignoré")
+        return 0, 0
 
     iframe_url = f"{IFRAME_BASE}?iframekey={IFRAME_KEY}&licontracts={contract_id}"
     print(f"\n  ── Contract {contract_id} : {company} / {contract_name}")
