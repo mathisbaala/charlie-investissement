@@ -48,7 +48,7 @@ def main():
     ap.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = ap.parse_args()
     run_eligibility(COMPANY, CONTRACTS, scraper_name="av-fr-generali-catalog",
-                    apply=args.apply, limit=args.limit)
+                    apply=args.apply, limit=args.limit, seed_missing=True)
 
 
 if __name__ == "__main__":
