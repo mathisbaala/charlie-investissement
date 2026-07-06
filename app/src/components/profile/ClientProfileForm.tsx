@@ -213,11 +213,30 @@ export function ClientProfileForm() {
   const [importError, setImportError]   = useState<string | null>(null);
   const [dragging, setDragging]         = useState(false);
 
+  // Assureurs référencés (distribution du cabinet), chargés à la volée. Sert le
+  // bloc « Distribution » : le CGP coche les assureurs dont il dispose.
+  const [insurerOptions, setInsurerOptions] = useState<{ company: string; funds: number }[]>([]);
+  const [insurerQuery, setInsurerQuery]     = useState("");
+
   useEffect(() => {
     if (initialized) return;
     setInitialized(true);
     setProfile(loadStoredProfile());
   }, [initialized]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/screener/insurers")
+      .then((r) => (r.ok ? r.json() : { data: [] }))
+      .then((j) => { if (!cancelled) setInsurerOptions(j.data ?? []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const filteredInsurers = insurerQuery.trim()
+    ? insurerOptions.filter((o) => normalizeStr(o.company).includes(normalizeStr(insurerQuery)))
+    : insurerOptions;
 
   // Persiste chaque modification dans le profil partagé.
   useEffect(() => { if (initialized) saveStoredProfile(profile); }, [profile, initialized]);
@@ -227,7 +246,7 @@ export function ClientProfileForm() {
   function set<K extends keyof RichClientProfile>(key: K, val: RichClientProfile[K]) {
     setProfile((p) => ({ ...p, [key]: val }));
   }
-  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes" | "geographies">(key: K, val: string) {
+  function toggleArray<K extends "envelopes" | "exclusions" | "asset_classes" | "geographies" | "insurers">(key: K, val: string) {
     setProfile((p) => {
       const prev = p[key] as string[];
       return { ...p, [key]: prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val] };
@@ -511,6 +530,60 @@ export function ClientProfileForm() {
             </ChipRow>
           </FieldGroup>
         </SectionCard>
+
+        {/* 5 — Distribution du cabinet (pleine largeur) : les assureurs dont le CGP
+            dispose. Un fonds n'est recommandable que s'il est référencé chez l'un
+            d'eux ; sinon le CGP ne peut pas le loger au client. Vide = pas de
+            contrainte (tout l'univers reste consultable). */}
+        <div className="lg:col-span-2">
+          <SectionCard title="Distribution du cabinet">
+            <FieldGroup
+              label="Assureurs dont vous disposez"
+              hint="La recherche se limitera aux fonds référencés chez ces assureurs. Laissez vide pour explorer tout l'univers."
+            >
+              {insurerOptions.length > 8 && (
+                <input
+                  type="text"
+                  value={insurerQuery}
+                  onChange={(e) => setInsurerQuery(e.target.value)}
+                  placeholder="Filtrer un assureur…"
+                  className={`${inputCls} mb-3`}
+                />
+              )}
+              {insurerOptions.length === 0 ? (
+                <p className="text-caption text-muted-2">Chargement des assureurs…</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto scrollbar-thin -mr-2 pr-2">
+                  {filteredInsurers.map(({ company }) => (
+                    <Chip
+                      key={company}
+                      label={company}
+                      active={profile.insurers.includes(company)}
+                      onClick={() => toggleArray("insurers", company)}
+                    />
+                  ))}
+                  {filteredInsurers.length === 0 && (
+                    <p className="text-caption text-muted-2">Aucun assureur ne correspond.</p>
+                  )}
+                </div>
+              )}
+              {profile.insurers.length > 0 && (
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-caption text-muted">
+                    {profile.insurers.length} assureur{profile.insurers.length > 1 ? "s" : ""} sélectionné{profile.insurers.length > 1 ? "s" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => set("insurers", [])}
+                    className="text-caption text-muted hover:text-ink underline"
+                  >
+                    tout retirer
+                  </button>
+                </div>
+              )}
+            </FieldGroup>
+          </SectionCard>
+        </div>
       </div>
 
       {/* ── Action ── plus de barre : le seul élément utile est le bouton
@@ -526,7 +599,7 @@ export function ClientProfileForm() {
           </button>
         )}
         <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
-          Trouver les fonds adaptés
+          Trouver le support adapté
           <ArrowRight size={15} />
         </Btn>
       </div>

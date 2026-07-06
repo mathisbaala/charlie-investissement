@@ -4,14 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo, FileText, LayoutGrid, Shield, TrendingUp } from "@/components/ui/icons";
 
-// La recherche n'a pas d'onglet dédié : on l'atteint uniquement en lançant une
-// requête (ou un profil client) depuis l'accueil. Cela allège le rail.
+// La recherche n'a pas d'onglet dédié : c'est le prolongement de l'accueil, qu'on
+// atteint en lançant une requête / un profil client (ou en partant d'un assureur).
+// L'icône Accueil reste donc active sur /recherche. Cela allège le rail.
 const NAV = [
-  { href: "/accueil",     icon: LayoutGrid, label: "Accueil" },
+  { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
+  { href: "/assureurs",    icon: Shield,     label: "Assurances vie" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
-  { href: "/assureurs",   icon: Shield,     label: "Assurances vie" },
-  { href: "/documents",   icon: FileText,   label: "Documents" },
+  { href: "/documents",    icon: FileText,   label: "Documents" },
 ];
+
+// La recherche est une continuation de l'accueil → l'onglet Accueil reste allumé.
+const ACCUEIL_PATHS = ["/accueil", "/recherche"];
 
 export function Rail() {
   const pathname = usePathname();
@@ -26,7 +30,9 @@ export function Rail() {
       {/* Nav items */}
       <nav className="flex flex-col gap-1 flex-1">
         {NAV.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || (href !== "/accueil" && pathname.startsWith(href));
+          const active = href === "/accueil"
+            ? ACCUEIL_PATHS.includes(pathname)
+            : pathname === href || pathname.startsWith(href);
           return (
             <Link
               key={href}

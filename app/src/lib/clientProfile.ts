@@ -33,6 +33,9 @@ export type RichClientProfile = {
   management: ManagementPref | null;
   max_ter: number | null;
   no_entry_fee: boolean;
+  // Assureurs dont le CGP dispose : un fonds n'est recommandable au client que s'il
+  // est référencé chez l'un d'eux. Vide = pas de contrainte (tout l'univers).
+  insurers: string[];
 };
 
 export const EMPTY_PROFILE: RichClientProfile = {
@@ -55,6 +58,7 @@ export const EMPTY_PROFILE: RichClientProfile = {
   management: null,
   max_ter: null,
   no_entry_fee: false,
+  insurers: [],
 };
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
@@ -102,7 +106,8 @@ export function isProfileActive(p: RichClientProfile): boolean {
     p.reaction_baisse !== null ||
     p.management !== null ||
     p.max_ter !== null ||
-    p.no_entry_fee
+    p.no_entry_fee ||
+    p.insurers.length > 0
   );
 }
 
@@ -295,6 +300,11 @@ export function profileToScreenerFilters(p: RichClientProfile): ParsedFilters {
   if (p.management) f.management_style = [p.management];
   if (p.max_ter != null) f.ter_max = p.max_ter;
   if (p.no_entry_fee) f.no_entry_fee = true;
+
+  // Assureurs du CGP : filtre DUR. Un fonds n'est recommandable que s'il est
+  // référencé chez au moins un des assureurs dont dispose le CGP (sinon il ne peut
+  // pas le loger au client). Vide = aucune contrainte (tout l'univers reste visible).
+  if (p.insurers?.length) f.insurers = [...p.insurers];
 
   // Exclusions sectorielles (seules celles ayant un secteur fiable deviennent un
   // filtre dur ; cf. EXCLUSION_TO_SECTOR). Le reste agit via le contexte NLP.

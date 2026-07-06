@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { profileToScreenerFilters, EMPTY_PROFILE } from "../lib/clientProfile";
+import { profileToScreenerFilters, isProfileActive, EMPTY_PROFILE } from "../lib/clientProfile";
 
 // profileToScreenerFilters traduit le profil PARTAGÉ en filtres durs du screener
 // (« Trouver les fonds adaptés » redirige vers /recherche pré-filtré). Ne traduit
@@ -111,5 +111,30 @@ describe("profileToScreenerFilters", () => {
       sri_max: 5, sfdr: [8, 9], drawdown_max: 10, envelopes: ["PEA"],
       management_style: ["passif"], ter_max: 1, no_entry_fee: true,
     });
+  });
+
+  // Distribution du cabinet : les assureurs dont dispose le CGP bornent l'univers
+  // recommandable (un fonds non référencé chez eux ne peut pas être logé au client).
+  // C'est un filtre DUR (f.insurers), pas une préférence douce.
+  it("traduit les assureurs du cabinet en filtre dur insurers", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, insurers: ["BNP Paribas Cardif", "Spirica"] }).insurers)
+      .toEqual(["BNP Paribas Cardif", "Spirica"]);
+  });
+
+  it("ne produit aucun filtre insurers quand le cabinet n'a coché aucun assureur", () => {
+    expect(profileToScreenerFilters({ ...EMPTY_PROFILE, insurers: [] }).insurers).toBeUndefined();
+  });
+});
+
+// Régression : un profil ne portant QUE les assureurs du cabinet doit être considéré
+// actif (pastille « Profil actif » + application du filtre de référencement), même
+// sans aucun critère client renseigné.
+describe("isProfileActive — assureurs du cabinet", () => {
+  it("est actif si seuls des assureurs sont sélectionnés", () => {
+    expect(isProfileActive({ ...EMPTY_PROFILE, insurers: ["Suravenir"] })).toBe(true);
+  });
+
+  it("reste inactif pour un profil entièrement vide", () => {
+    expect(isProfileActive(EMPTY_PROFILE)).toBe(false);
   });
 });

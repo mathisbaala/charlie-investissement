@@ -13,7 +13,7 @@ import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, X, Search } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-import { buildParams, filtersFromParams, describeScreenerFilters, sortFromIntent, DEFAULT_SORT } from "@/lib/screenerParams";
+import { buildParams, filtersFromParams, describeScreenerFilters, sortFromIntent, DEFAULT_SORT, pickReferencing, searchUrlWithReferencing } from "@/lib/screenerParams";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
 import { parseContractKey } from "@/lib/insurer-envelope";
@@ -187,8 +187,31 @@ function RechercheInner() {
     // Arrivée avec des filtres déjà décidés (Profil client, enveloppe/assureur
     // depuis l'accueil, lien partagé) : on amorce directement, sans analyse NLP.
     if (hasUrlFilters || fromProfile) {
-      setFilters(initialUrlFilters);
       if (fromProfile) setShowProfileBar(true);
+      // Cas d'un rechargement / lien après une recherche partie de l'onglet
+      // Assurances vie : l'URL combine une requête texte `q=` et un filtre de
+      // référencement (assureur/contrat). On parse le texte ET on conserve le
+      // filtre de référencement (overlay), pour que le badge et le périmètre
+      // survivent au reload — comme en session.
+      const refOverlay = pickReferencing(initialUrlFilters);
+      const hasRef = !!(refOverlay.insurers || refOverlay.contracts);
+      if (initialQ && hasRef && !fromProfile) {
+        setQuery(initialQ);
+        if (asExactIsin(initialQ)) {
+          setFilters({ free_text: initialQ, ...refOverlay });
+          setNlpFailed(false);
+        } else {
+          setParsing(true);
+          parseQuery(initialQ).then((parsed) => {
+            const hasFilters = Object.keys(parsed).length > 0;
+            setFilters(hasFilters ? { ...parsed, ...refOverlay } : { free_text: initialQ, ...refOverlay });
+            setNlpFailed(!hasFilters);
+            setParsing(false);
+          });
+        }
+      } else {
+        setFilters(initialUrlFilters);
+      }
     } else if (initialQ) {
       setQuery(initialQ);
       // ISIN exact (lien partagé, rechargement) : recherche ciblée sans NLP.
@@ -266,14 +289,20 @@ function RechercheInner() {
     setPrioritizeComplete(false); // ré-évalué après le parse (true seulement si tri d'intention)
     setPage(1);
     const raw = query.trim();
+    // Filtre de référencement (assureur / contrat) hérité de l'onglet Assurances
+    // vie : il borne l'univers et doit SURVIVRE à chaque nouvelle recherche texte
+    // (sinon la requête repart sur tout le catalogue et le badge disparaît). On le
+    // réinjecte dans les filtres compris ET dans l'URL, tant que l'utilisateur ne
+    // l'a pas retiré via « Retirer le filtre ».
+    const referencing = pickReferencing(filters);
     // Un ISIN exact part directement en recherche ciblée, sans analyse NLP : le
     // LLM pourrait le déformer (p. ex. lire « FR… » comme la zone France) et c'est
     // un aller-retour inutile. L'API le traite alors par correspondance exacte.
     if (asExactIsin(raw)) {
-      setFilters({ free_text: raw });
+      setFilters({ free_text: raw, ...referencing });
       setNlpFailed(false);
       setParsing(false);
-      router.replace(`/recherche?q=${encodeURIComponent(raw)}`, { scroll: false });
+      router.replace(searchUrlWithReferencing(raw, referencing), { scroll: false });
       return;
     }
     const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
@@ -291,7 +320,9 @@ function RechercheInner() {
       if (prefs) parsed.prefs = { ...prefs, ...parsed.prefs };
     }
     const hasFilters = Object.keys(parsed).length > 0;
-    setFilters(hasFilters ? parsed : { free_text: query.trim() });
+    // `...referencing` en dernier : le filtre assureur/contrat prime sur ce que le
+    // NLP aurait pu produire, et n'est jamais écrasé par une requête sans filtre.
+    setFilters(hasFilters ? { ...parsed, ...referencing } : { free_text: raw, ...referencing });
     setNlpFailed(!hasFilters);
     // Tri piloté par l'intention détectée (« le moins cher » → TER croissant…),
     // sinon retour au tri par défaut : chaque nouvelle requête repart proprement.
@@ -303,8 +334,8 @@ function RechercheInner() {
     // (pas en tri par défaut, déjà classé par complétude).
     setPrioritizeComplete(detectedSort != null);
     setParsing(false);    // libère le fetch, qui part avec les filtres compris
-    router.replace(`/recherche?q=${encodeURIComponent(query.trim())}`, { scroll: false });
-  }, [query, router, profile]);
+    router.replace(searchUrlWithReferencing(raw, referencing), { scroll: false });
+  }, [query, router, profile, filters.insurers, filters.contracts]);
 
   const handleFiltersApply = useCallback(() => setPage(1), []);
 

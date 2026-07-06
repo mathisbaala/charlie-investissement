@@ -174,6 +174,30 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
   return f;
 }
 
+// ─── Filtre de référencement (assureur / contrat) ────────────────────────────
+// Hérité de l'onglet Assurances vie : il borne l'univers à un assureur/contrat et
+// doit SURVIVRE à chaque nouvelle recherche texte (sinon la requête repart sur tout
+// le catalogue et le badge « Supports référencés chez… » disparaît). Ces deux
+// helpers isolent la logique, réutilisée au montage et dans le handler de recherche.
+
+// Ne conserve QUE les clés de référencement effectivement présentes.
+export function pickReferencing(f: ParsedFilters): ParsedFilters {
+  const ref: ParsedFilters = {};
+  if (f.insurers?.length)  ref.insurers  = f.insurers;
+  if (f.contracts?.length) ref.contracts = f.contracts;
+  return ref;
+}
+
+// URL de recherche texte préservant le filtre de référencement (assureur/contrat),
+// pour que le périmètre et le badge survivent au rechargement et au partage.
+export function searchUrlWithReferencing(rawQuery: string, ref: ParsedFilters): string {
+  const sp = new URLSearchParams();
+  sp.set("q", rawQuery);
+  if (ref.insurers?.length)  sp.set("insurer",   ref.insurers.join(","));
+  if (ref.contracts?.length) sp.set("contracts", ref.contracts.join(","));
+  return `/recherche?${sp.toString()}`;
+}
+
 // ─── Libellés lisibles des filtres issus du profil client ─────────────────────
 // Source unique partagée entre la barre d'action de la page Profil client et le
 // bandeau de contexte du screener (après redirection « Trouver les fonds adaptés »).
@@ -218,5 +242,8 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
   for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
   for (const m of f.management_style ?? []) out.push(MGMT_STYLE_FILTER_LABELS[m] ?? m);
+  // Note : les assureurs du CGP (f.insurers) ne sont PAS listés ici — le screener
+  // les affiche déjà via son bandeau de référencement dédié (« Supports référencés
+  // chez… »), avec son propre retrait. Les dupliquer alourdirait l'en-tête.
   return out;
 }
