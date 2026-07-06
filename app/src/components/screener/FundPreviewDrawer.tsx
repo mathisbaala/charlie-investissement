@@ -177,12 +177,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
           <div>
             <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Référencement assureur</p>
             {(fund.insurers ?? []).length > 0 ? (
-              <>
-                <InsurerChips insurers={(fund.insurers ?? []).map((r) => r.company)} max={6} />
-                <p className="text-caption text-muted-2 mt-2 leading-snug">
-                  L&apos;absence d&apos;un assureur ne signifie pas que le fonds n&apos;y est pas référencé.
-                </p>
-              </>
+              <InsurerChips insurers={(fund.insurers ?? []).map((r) => r.company)} max={6} />
             ) : (
               <p className="text-label text-muted">Aucun référencement renseigné</p>
             )}

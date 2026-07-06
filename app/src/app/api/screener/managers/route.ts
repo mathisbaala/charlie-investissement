@@ -8,5 +8,11 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<NextResponse> {
   const { data, error } = await supabase.rpc("get_management_companies_list");
   if (error) return NextResponse.json({ data: [] }, { status: 200 });
-  return NextResponse.json({ data: data ?? [] });
+  // Agrégation pure qui bouge lentement : mêmes en-têtes de cache edge que
+  // /insurers, pour servir le FilterPanel en ~40 ms sur répétition et délester
+  // Supabase quand le trafic monte.
+  return NextResponse.json(
+    { data: data ?? [] },
+    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
+  );
 }

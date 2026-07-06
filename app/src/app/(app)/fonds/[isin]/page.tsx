@@ -17,40 +17,15 @@ export default async function FondPage({
   if (!ISIN_RE.test(isin)) notFound();
   const upper = isin.toUpperCase();
 
-  const { data: fund } = await supabase
-    .from("investissement_funds")
-    .select(`
-      isin, name, management_company, management_company_normalized, tickers,
-      product_type, category, category_normalized, asset_class_broad, asset_class, allocation_profile, region_normalized, region_exposure, management_style,
-      currency, inception_date, track_record_years,
-      hedged, distributor_france, ucits_compliant, data_source, field_sources,
-      sfdr_article, sri, srri,
-      performance_1y, performance_3y, performance_5y,
-      volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
-      max_drawdown_1y, max_drawdown_3y,
-      ongoing_charges, ter,
-      benchmark_index, benchmark_variant, benchmark_is_category,
-      benchmark_perf_1y, benchmark_perf_3y, benchmark_perf_5y,
-      alpha_1y, alpha_3y, alpha_5y,
-      tracking_diff_1y, tracking_diff_3y, tracking_diff_5y,
-      entry_fee_max, exit_fee_max, performance_fee,
-      retrocession_cgp, holding_period_years,
-      pea_eligible, per_eligible, av_lux_eligible,
-      av_fr_eligible, pea_pme_eligible, cto_eligible,
-      taxonomy_alignment_pct, sustainable_investment_pct, pai_considered,
-      aum_eur, morningstar_rating, labels, kid_url,
-      data_completeness
-    `)
-    .eq("isin", upper)
-    .single();
-
-  if (!fund) notFound();
-
   const fiveYearsAgo = new Date();
   fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
   const since = fiveYearsAgo.toISOString().split("T")[0];
 
+  // Les 6 requêtes de ventilation ne dépendent que de l'ISIN (pas des données du
+  // fonds) : on les lance en parallèle AVEC la requête fonds, plutôt qu'après.
+  // Économise un aller-retour Supabase complet sur la page la plus cliquée.
   const [
+    { data: fund },
     { data: prices },
     { data: holdingsRaw },
     { data: sectorsRaw },
@@ -58,6 +33,32 @@ export default async function FondPage({
     { data: insurersRaw },
     { data: scpiMetrics },
   ] = await Promise.all([
+    supabase
+      .from("investissement_funds")
+      .select(`
+        isin, name, management_company, management_company_normalized, tickers,
+        product_type, category, category_normalized, asset_class_broad, asset_class, allocation_profile, region_normalized, region_exposure, management_style,
+        currency, inception_date, track_record_years,
+        hedged, distributor_france, ucits_compliant, data_source, field_sources,
+        sfdr_article, sri, srri,
+        performance_1y, performance_3y, performance_5y,
+        volatility_1y, volatility_3y, sharpe_1y, sharpe_3y,
+        max_drawdown_1y, max_drawdown_3y,
+        ongoing_charges, ter,
+        benchmark_index, benchmark_variant, benchmark_is_category,
+        benchmark_perf_1y, benchmark_perf_3y, benchmark_perf_5y,
+        alpha_1y, alpha_3y, alpha_5y,
+        tracking_diff_1y, tracking_diff_3y, tracking_diff_5y,
+        entry_fee_max, exit_fee_max, performance_fee,
+        retrocession_cgp, holding_period_years,
+        pea_eligible, per_eligible, av_lux_eligible,
+        av_fr_eligible, pea_pme_eligible, cto_eligible,
+        taxonomy_alignment_pct, sustainable_investment_pct, pai_considered,
+        aum_eur, morningstar_rating, labels, kid_url,
+        data_completeness
+      `)
+      .eq("isin", upper)
+      .single(),
     supabase
       .from("investissement_fund_prices")
       .select("price_date, nav")
@@ -91,6 +92,8 @@ export default async function FondPage({
       .eq("isin", upper)
       .maybeSingle(),
   ]);
+
+  if (!fund) notFound();
 
   const scpi = scpiMetrics as { price_per_share: number | null; dvm: number | null; tof: number | null; period: string | null } | null;
 
