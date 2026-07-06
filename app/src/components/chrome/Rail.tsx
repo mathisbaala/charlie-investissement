@@ -32,7 +32,7 @@ export function Rail() {
         {NAV.map(({ href, icon: Icon, label }) => {
           const active = href === "/accueil"
             ? ACCUEIL_PATHS.includes(pathname)
-            : pathname === href || pathname.startsWith(href);
+            : pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
