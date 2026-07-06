@@ -237,9 +237,15 @@ export function ClientProfileForm() {
   }, []);
 
   const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const filteredInsurers = insurerQuery.trim()
-    ? insurerOptions.filter((o) => normalizeStr(o.company).includes(normalizeStr(insurerQuery)))
-    : insurerOptions;
+  // Suggestions du typeahead : assureurs correspondant à la saisie, hors ceux déjà
+  // sélectionnés, plafonnées (liste déroulante légère, on n'affiche pas tout le
+  // catalogue). Vide tant que rien n'est tapé → aucune liste dense à l'écran.
+  const insurerMatches = insurerQuery.trim()
+    ? insurerOptions
+        .filter((o) => !profile.insurers.includes(o.company))
+        .filter((o) => normalizeStr(o.company).includes(normalizeStr(insurerQuery)))
+        .slice(0, 8)
+    : [];
 
   // Persiste chaque modification dans le profil partagé.
   useEffect(() => { if (initialized) saveStoredProfile(profile); }, [profile, initialized]);
@@ -540,52 +546,61 @@ export function ClientProfileForm() {
             contrainte (tout l'univers reste consultable). */}
         <div className="lg:col-span-2">
           <SectionCard title="Distribution du cabinet">
-            <FieldGroup
-              label="Assureurs dont vous disposez"
-              hint="La recherche se limitera aux fonds référencés chez ces assureurs. Laissez vide pour explorer tout l'univers."
-            >
-              {insurerOptions.length > 8 && (
+            <FieldGroup label="Assureurs dont vous disposez">
+              {/* Typeahead : on tape, une liste des assureurs correspondants
+                  s'affiche, on sélectionne. On n'affiche jamais tout le catalogue
+                  (trop dense + long à charger). Les sélectionnés partent en rangée
+                  horizontale scrollable juste en dessous. */}
+              <div className="relative">
                 <input
                   type="text"
-                  aria-label="Filtrer un assureur"
+                  aria-label="Rechercher un assureur"
                   value={insurerQuery}
                   onChange={(e) => setInsurerQuery(e.target.value)}
-                  placeholder="Filtrer un assureur…"
-                  className={`${inputCls} mb-3`}
+                  placeholder="Rechercher un assureur…"
+                  autoComplete="off"
+                  className={inputCls}
                 />
-              )}
-              {insurerStatus === "loading" ? (
-                <p className="text-caption text-muted-2">Chargement des assureurs…</p>
-              ) : insurerStatus === "error" ? (
-                <p className="text-caption text-warn">Impossible de charger les assureurs. Réessayez plus tard.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto scrollbar-thin -mr-2 pr-2">
-                  {filteredInsurers.map(({ company }) => (
-                    <Chip
-                      key={company}
-                      label={company}
-                      active={profile.insurers.includes(company)}
-                      onClick={() => toggleArray("insurers", company)}
-                    />
-                  ))}
-                  {filteredInsurers.length === 0 && (
-                    <p className="text-caption text-muted-2">Aucun assureur ne correspond.</p>
-                  )}
-                </div>
-              )}
+                {insurerQuery.trim() && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-20 max-h-60 overflow-y-auto scrollbar-thin rounded-lg border border-line bg-paper shadow-lg">
+                    {insurerStatus === "loading" ? (
+                      <p className="px-3 py-2 text-meta text-muted-2">Chargement des assureurs…</p>
+                    ) : insurerStatus === "error" ? (
+                      <p className="px-3 py-2 text-meta text-warn">Impossible de charger les assureurs.</p>
+                    ) : insurerMatches.length === 0 ? (
+                      <p className="px-3 py-2 text-meta text-muted-2">Aucun assureur ne correspond.</p>
+                    ) : (
+                      insurerMatches.map(({ company }) => (
+                        <button
+                          key={company}
+                          type="button"
+                          onClick={() => { toggleArray("insurers", company); setInsurerQuery(""); }}
+                          className="block w-full text-left px-3 py-2 text-meta text-ink-2 hover:bg-accent-soft/40 transition-colors"
+                        >
+                          {company}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Assureurs sélectionnés : rangée sur UNE ligne, scrollable vers la
+                  droite (ChipRow) — jamais une liste de courses verticale. Clic = retire. */}
               {profile.insurers.length > 0 && (
-                <div className="flex items-center gap-2 pt-1">
-                  <span className="text-caption text-muted">
-                    {profile.insurers.length} assureur{profile.insurers.length > 1 ? "s" : ""} sélectionné{profile.insurers.length > 1 ? "s" : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => set("insurers", [])}
-                    className="text-caption text-muted hover:text-ink underline"
-                  >
-                    tout retirer
-                  </button>
-                </div>
+                <ChipRow>
+                  {profile.insurers.map((company) => (
+                    <button
+                      key={company}
+                      type="button"
+                      onClick={() => toggleArray("insurers", company)}
+                      aria-label={`Retirer ${company}`}
+                      className="shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-meta font-medium bg-brown text-paper border border-brown"
+                    >
+                      {company}
+                      <X size={11} className="opacity-80" />
+                    </button>
+                  ))}
+                </ChipRow>
               )}
             </FieldGroup>
           </SectionCard>
