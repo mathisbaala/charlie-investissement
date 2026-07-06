@@ -76,6 +76,17 @@ describe("scoreFit", () => {
     expect(scoreFit(large, ctx)).toBeGreaterThan(scoreFit(small, ctx));
   });
 
+  it("marge SRI : confort optimal à ~1 cran, PAS pour un fonds anormalement défensif", () => {
+    const ctx: FitContext = { sriMax: 3 };
+    const atCap = fund({ data_completeness: 80, risk_score: 3 });      // au plafond, head 0
+    const oneUnder = fund({ data_completeness: 80, risk_score: 2 });   // head 1 (confort max)
+    const wayUnder = fund({ data_completeness: 80, risk_score: 1 });   // head 2 (trop défensif, ex. monétaire)
+    // Un cran de marge > au plafond exact (confort réel).
+    expect(scoreFit(oneUnder, ctx)).toBeGreaterThan(scoreFit(atCap, ctx));
+    // Le fonds anormalement défensif (SRI 1) ne doit PAS battre le quasi-cible (SRI 2).
+    expect(scoreFit(wayUnder, ctx)).toBeLessThan(scoreFit(oneUnder, ctx));
+  });
+
   it("préférence revenus : favorise une classe génératrice de revenus", () => {
     const ctx: FitContext = { preferIncome: true };
     const equity = fund({ data_completeness: 80, asset_class_broad: "action" });
