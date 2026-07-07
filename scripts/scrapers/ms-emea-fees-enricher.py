@@ -54,7 +54,8 @@ FEE_DEBUG_FIELDS = FEE_VALUE_FIELDS + ["ExpenseRatio", "ManagementFee"]
 
 RATE_LIMIT_SEC = 0.25
 TOKEN_REFRESH_EVERY = 400   # les tokens oauth expirent : on refait un token régulièrement
-FLUSH_EVERY = 50            # écriture incrémentale : flush tous les N frais résolus
+FLUSH_EVERY = 25            # écriture incrémentale : flush tous les N frais résolus
+                            # (< yield×limit d'un shard de rotation 300 → flush réel en cours de run)
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
