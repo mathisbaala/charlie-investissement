@@ -283,7 +283,7 @@ def run(apply: bool, limit: int | None):
     offset = 0
     while True:
         r = client.table("investissement_funds") \
-            .select("isin, name, product_type, asset_class, category, asset_class_broad, allocation_profile, region_normalized, sector, labels, management_style, ucits_compliant, per_eligible") \
+            .select("isin, name, product_type, asset_class, category, asset_class_broad, allocation_profile, region_normalized, sector, labels, management_style, ucits_compliant, per_eligible, kid_url") \
             .range(offset, offset + 999) \
             .execute()
         if not r.data:
@@ -301,11 +301,17 @@ def run(apply: bool, limit: int | None):
 
     # Classifier
     updates = []
-    reclassifs = []   # opcvm → structuré (correction product_type, overwrite ciblé)
+    reclassifs = []        # opcvm → structuré (correction product_type, overwrite ciblé)
+    stock_reclassifs = []  # opcvm → action (titres vifs : kid_url amfinesoft « kid-security »)
     skipped = 0
     for f in out:
-        if f.get("product_type") == "opcvm" and is_structured(f.get("name") or ""):
-            reclassifs.append(f["isin"])
+        if f.get("product_type") == "opcvm":
+            # Titre vif mal classé opcvm : signal FIABLE = kid_url « kid-security »
+            # (endpoint amfinesoft des sous-jacents TITRES, ex. AXA) → action.
+            if "kid-security" in (f.get("kid_url") or ""):
+                stock_reclassifs.append(f["isin"])
+            elif is_structured(f.get("name") or ""):
+                reclassifs.append(f["isin"])
         result = classify(f.get("name") or "", f.get("product_type"),
                           f.get("asset_class"), f.get("category"))
         if not result:
@@ -321,6 +327,7 @@ def run(apply: bool, limit: int | None):
 
     print(f"  {len(updates)} fonds à enrichir, {skipped} skippés (déjà complets ou non-classifiables)")
     print(f"  {len(reclassifs)} opcvm → structuré (produits structurés détectés au nom)")
+    print(f"  {len(stock_reclassifs)} opcvm → action (titres vifs détectés par kid-security)")
     print()
 
     # Stats
@@ -387,6 +394,25 @@ def run(apply: bool, limit: int | None):
                 if rc_fail <= 3:
                     print(f"    ✗ reclassif {isin} : {e}")
         print(f"  ✓ {rc_ok} reclassés opcvm→structuré ({rc_fail} échecs)")
+
+    # Correction product_type : titres vifs (actions individuelles) mal classés
+    # opcvm → action. Overwrite ciblé idempotent (garde .eq('product_type','opcvm')).
+    if stock_reclassifs:
+        sc_ok = sc_fail = 0
+        now_iso = datetime.now(timezone.utc).isoformat()
+        for isin in stock_reclassifs:
+            try:
+                client.table("investissement_funds") \
+                    .update({"product_type": "action",
+                             "asset_class_broad": "action_individuelle",
+                             "updated_at": now_iso}) \
+                    .eq("isin", isin).eq("product_type", "opcvm").execute()
+                sc_ok += 1
+            except Exception as e:
+                sc_fail += 1
+                if sc_fail <= 3:
+                    print(f"    ✗ reclassif titre {isin} : {e}")
+        print(f"  ✓ {sc_ok} reclassés opcvm→action ({sc_fail} échecs)")
 
     # Profil d'allocation dérivé de la composition RÉELLE (part actions vs
     # oblig/cash des holdings). Fill-only : ne touche que les diversifiés sans
