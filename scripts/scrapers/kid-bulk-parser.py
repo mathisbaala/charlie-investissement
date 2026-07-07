@@ -38,7 +38,49 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests as _requests
-from scrapling.fetchers import FetcherSession
+
+# Fetcher : scrapling en local/dev (furtivité navigateur), curl_cffi en CI.
+# scrapling est VOLONTAIREMENT absent de scripts/requirements.txt (navigateur +
+# IP datacenter bloquée) ; on retombe alors sur un shim curl_cffi (impersonation
+# TLS, sans navigateur) — suffisant pour des endpoints PDF directs type
+# amfinesoft/GECO qui composent l'essentiel des kid_url.
+try:
+    from scrapling.fetchers import FetcherSession
+except ModuleNotFoundError:
+    from curl_cffi import requests as _ccreq
+
+    class _CcResp:
+        """Réponse minimale compatible scrapling (.status / .headers / .body)."""
+        __slots__ = ("status", "headers", "body")
+
+        def __init__(self, r):
+            self.status = r.status_code
+            self.headers = r.headers
+            self.body = r.content
+
+    class FetcherSession:
+        """Shim curl_cffi drop-in pour scrapling.FetcherSession (usage CI)."""
+
+        def __init__(self, impersonate="chrome", verify=True, retries=1, **_):
+            self._kw = dict(impersonate=impersonate, verify=verify)
+            self._s = None
+
+        def __enter__(self):
+            self._s = _ccreq.Session(**self._kw)
+            return self
+
+        def __exit__(self, *_):
+            if self._s is not None:
+                self._s.close()
+                self._s = None
+
+        def _sess(self):
+            if self._s is None:
+                self._s = _ccreq.Session(**self._kw)
+            return self._s
+
+        def get(self, url, stealthy_headers=True, timeout=30, **_):
+            return _CcResp(self._sess().get(url, timeout=timeout))
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, upsert_fund, log_run
