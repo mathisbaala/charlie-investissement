@@ -23,9 +23,17 @@ on:
         type: boolean
         default: false
       debug:
-        description: "Imprimer les data points frais bruts des 8 premiers fonds"
+        description: "Imprimer les data points frais bruts (échantillon)"
         type: boolean
         default: true
+      bulk:
+        description: "Mode bulk : pagine les univers (contourne le throttle Morningstar)"
+        type: boolean
+        default: true
+      max_pages:
+        description: "Bulk : limite pages/univers (vide = tout ; 3 pour un canary)"
+        type: string
+        default: ""
 
 concurrency:
   group: data-refresh
@@ -53,6 +61,8 @@ jobs:
           set -euo pipefail
           APPLY=""; if [ "${{ inputs.apply }}" = "true" ]; then APPLY="--apply"; fi
           DEBUG=""; if [ "${{ inputs.debug }}" = "true" ]; then DEBUG="--debug"; fi
+          BULK="";  if [ "${{ inputs.bulk }}" = "true" ]; then BULK="--bulk"; fi
           LIM="";   if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
+          MP="";    if [ -n "${{ inputs.max_pages }}" ]; then MP="--max-pages ${{ inputs.max_pages }}"; fi
           python3 scripts/scrapers/ms-emea-fees-enricher.py \
-            $APPLY $DEBUG $LIM --min-aum "${{ inputs.min_aum }}"
+            $APPLY $DEBUG $BULK $LIM $MP --min-aum "${{ inputs.min_aum }}"
