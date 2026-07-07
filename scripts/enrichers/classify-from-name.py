@@ -121,6 +121,47 @@ LABEL_RULES = [
 ]
 
 
+# ─── Détection produits structurés (autocalls / notes / EMTN mal classés opcvm) ─
+# Ces produits arrivent souvent en product_type='opcvm' depuis les sources (AMF/AV)
+# alors qu'ils n'ont ni frais courants (frais embarqués) ni série de VL exploitable.
+# Signal FIABLE = le NOM. ⚠ Le sourcing kid_url CARDIF/amfinesoft est INUTILISABLE
+# comme signal (3 271 en opcvm, dont la plupart sont de VRAIS fonds UC de CARDIF).
+# On EXCLUT les obligataires datés (« … Obli … Mois AAAA ») qui finissent aussi par
+# un millésime mais restent de vrais OPCVM. Patterns écrits sur le nom NORMALISÉ
+# (_norm : accents strippés, minuscules). Cf. reclassement du 2026-07-07 (426 fonds,
+# backup investissement_funds_structured_reclassif_backup_20260707).
+_STRUCTURED_MONTHS = (
+    r"(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)"
+)
+_STRUCTURED_TOKENS = re.compile(
+    r"\bautocall\b|\b(phenix|phoenix)\b|\bcallable\b|\btremplin\b|\bpente\b|\bstrike\b"
+    r"|rendement.{0,20}memoire|\bmemoire\b"
+    r"|taux fixe.{0,30}in fine|in fine.{0,30}callable"
+    r"|a l.?echeance|protege.{0,20}(a l.?echeance|%)",
+    re.IGNORECASE,
+)
+_STRUCTURED_MONTH_END = re.compile(_STRUCTURED_MONTHS + r"\s+20[0-9]{2}\s*$", re.IGNORECASE)
+_STRUCTURED_ATHENA = re.compile(r"\bathena\b", re.IGNORECASE)
+# Obligataires / fonds datés à ne PAS reclasser (vrais OPCVM).
+_STRUCTURED_BOND_EXCL = re.compile(
+    r"\bobli|obligation|\bbond\b|high yield|investment grade|\big\b", re.IGNORECASE
+)
+
+
+def is_structured(name: str) -> bool:
+    """True si le nom désigne un produit structuré (autocall/note/EMTN) mal classé opcvm."""
+    nm = _norm(name)
+    if not nm or _STRUCTURED_BOND_EXCL.search(nm):
+        return False  # obligataires datés & fonds oblig = vrais OPCVM
+    if _STRUCTURED_TOKENS.search(nm):
+        return True
+    if _STRUCTURED_MONTH_END.search(nm):
+        return True
+    if _STRUCTURED_ATHENA.search(nm) and not re.search(r"dynamic", nm):
+        return True
+    return False
+
+
 def classify(name: str, product_type: str | None, asset_class: str | None,
              category: str | None) -> dict:
     """Retourne dict {asset_class_broad, region_normalized, sector, management_style, labels, ucits_compliant}."""
@@ -260,8 +301,11 @@ def run(apply: bool, limit: int | None):
 
     # Classifier
     updates = []
+    reclassifs = []   # opcvm → structuré (correction product_type, overwrite ciblé)
     skipped = 0
     for f in out:
+        if f.get("product_type") == "opcvm" and is_structured(f.get("name") or ""):
+            reclassifs.append(f["isin"])
         result = classify(f.get("name") or "", f.get("product_type"),
                           f.get("asset_class"), f.get("category"))
         if not result:
@@ -276,6 +320,7 @@ def run(apply: bool, limit: int | None):
             updates.append({"isin": f["isin"], **payload})
 
     print(f"  {len(updates)} fonds à enrichir, {skipped} skippés (déjà complets ou non-classifiables)")
+    print(f"  {len(reclassifs)} opcvm → structuré (produits structurés détectés au nom)")
     print()
 
     # Stats
@@ -323,6 +368,25 @@ def run(apply: bool, limit: int | None):
             print(f"    [{i:>5}/{len(updates)}] {100*i/len(updates):.0f}% ok={ok} fail={fail}")
 
     print(f"\n  ✓ {ok} mis à jour, {fail} échecs")
+
+    # Correction product_type : produits structurés (autocalls/notes/EMTN) mal
+    # classés opcvm → structuré. Overwrite CIBLÉ (pas fill-only : product_type
+    # existe déjà) ; le garde .eq('product_type','opcvm') rend l'opération
+    # idempotente et ne touche jamais un autre type.
+    if reclassifs:
+        rc_ok = rc_fail = 0
+        now_iso = datetime.now(timezone.utc).isoformat()
+        for isin in reclassifs:
+            try:
+                client.table("investissement_funds") \
+                    .update({"product_type": "structuré", "updated_at": now_iso}) \
+                    .eq("isin", isin).eq("product_type", "opcvm").execute()
+                rc_ok += 1
+            except Exception as e:
+                rc_fail += 1
+                if rc_fail <= 3:
+                    print(f"    ✗ reclassif {isin} : {e}")
+        print(f"  ✓ {rc_ok} reclassés opcvm→structuré ({rc_fail} échecs)")
 
     # Profil d'allocation dérivé de la composition RÉELLE (part actions vs
     # oblig/cash des holdings). Fill-only : ne touche que les diversifiés sans
