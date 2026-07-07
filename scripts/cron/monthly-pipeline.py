@@ -113,6 +113,13 @@ MONTHLY_STEPS = [
     # l'API publique sal-service throttle sous charge soutenue (constaté 20/06).
     ("scrapers/populate-holdings-morningstar.py",
      ["--limit", str(MS_HOLDINGS_BUCKET), "--offset", "0", "--include-unrated"]),
+    # Frais courants (TER) via le screener Morningstar (OngoingCharge). Petit SHARD
+    # de rotation (top-300 ter-null par encours, fill-only) : le mode per-fonds
+    # throttle sur les gros drains → on draine ~300/mois, jamais un run massif (ni
+    # --bulk : univers Morningstar de 57k/190k fonds, impraticable). Écriture
+    # incrémentale + field_sources=morningstar. Plafond ~13 % (beaucoup de ter-null
+    # sont des fonds récents sans frais courants encore publiés). --apply auto.
+    ("scrapers/ms-emea-fees-enricher.py", ["--limit", "300", "--min-aum", "0"]),
     ("enrichers/compute-metrics.py", []),
     # Recalcul data_completeness APRÈS compute-metrics (vol/perf fraîches) et AVANT
     # refresh-primary-share-class (qui privilégie les parts éligibles ≥50). Sans
