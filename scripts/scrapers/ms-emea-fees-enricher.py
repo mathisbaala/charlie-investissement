@@ -43,9 +43,14 @@ SCREENER  = "https://www.emea-api.morningstar.com/ecint/v1/screener"
 UNIVERSES = ["FOFRA$$ALL", "FEEUR$$ALL"]   # FR + Europe (couvre LU/IE)
 SOURCE    = "morningstar"
 
-# Candidats data point « frais courants » (nom exact incertain → on lit le 1er
-# renseigné). OngoingCharge = frais courants KIID ; les autres = filets.
-FEE_DATAPOINTS = ["OngoingCharge", "ExpenseRatioNet", "ExpenseRatio", "ManagementFee"]
+# Champs FRAIS TOTAUX valides pour ter (frais courants). OngoingCharge = frais
+# courants KIID (référence) ; ExpenseRatioNet = ratio de frais total net (filet
+# US-style). ⚠ NE JAMAIS utiliser ManagementFee : c'est une SOUS-composante (frais
+# de gestion seuls), pas le total → l'écrire sous-estimerait le TER.
+FEE_VALUE_FIELDS = ["OngoingCharge", "ExpenseRatioNet"]
+# Champs supplémentaires demandés uniquement pour le debug (visibilité), jamais
+# écrits : permet de constater la couverture réelle de chaque data point.
+FEE_DEBUG_FIELDS = FEE_VALUE_FIELDS + ["ExpenseRatio", "ManagementFee"]
 
 RATE_LIMIT_SEC = 0.25
 TOKEN_REFRESH_EVERY = 400   # les tokens oauth expirent : on refait un token régulièrement
@@ -93,7 +98,7 @@ def resolve_fees(isin: str, token: str, debug: bool = False) -> dict:
 
     Morningstar renvoie les frais en POURCENT (ex. 1.25) ; la base stocke une
     FRACTION (ter_pct = ter*100). Garde-fou : 0 < frais ≤ 10 %."""
-    dp = "SecId|ISIN|Name|" + "|".join(FEE_DATAPOINTS)
+    dp = "SecId|ISIN|Name|" + "|".join(FEE_DEBUG_FIELDS)
     for universe in UNIVERSES:
         data = _api_get(SCREENER, {
             "languageId": "fr-FR", "currencyId": "EUR",
@@ -102,9 +107,9 @@ def resolve_fees(isin: str, token: str, debug: bool = False) -> dict:
         }, token)
         for row in (data or {}).get("rows", []):
             if debug:
-                raw = {f: row.get(f) for f in FEE_DATAPOINTS}
+                raw = {f: row.get(f) for f in FEE_DEBUG_FIELDS}
                 print(f"    [debug] {isin} {universe} → {raw}")
-            for f in FEE_DATAPOINTS:
+            for f in FEE_VALUE_FIELDS:
                 v = row.get(f)
                 if v is None or v == "":
                     continue
