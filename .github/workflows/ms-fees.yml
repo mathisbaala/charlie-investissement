@@ -27,11 +27,11 @@ on:
         type: boolean
         default: true
       bulk:
-        description: "Mode bulk : pagine les univers (contourne le throttle Morningstar)"
+        description: "Mode bulk (opt-in) : pagine les univers — IMPRATICABLE en plein (univers 57k/190k) ; réservé à un sous-ensemble ciblé via max_pages. Défaut = per-fonds."
         type: boolean
-        default: true
+        default: false
       max_pages:
-        description: "Bulk : limite pages/univers (vide = tout ; 3 pour un canary)"
+        description: "Bulk uniquement : limite pages/univers (obligatoire en bulk, sinon des milliers de pages)"
         type: string
         default: ""
 
