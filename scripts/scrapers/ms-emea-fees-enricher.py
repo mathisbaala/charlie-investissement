@@ -56,6 +56,9 @@ RATE_LIMIT_SEC = 0.25
 TOKEN_REFRESH_EVERY = 400   # les tokens oauth expirent : on refait un token régulièrement
 FLUSH_EVERY = 25            # écriture incrémentale : flush tous les N frais résolus
                             # (< yield×limit d'un shard de rotation 300 → flush réel en cours de run)
+# NB : Morningstar throttle les drains soutenus → on fonctionne en petits shards
+# per-fonds (--limit) plutôt qu'un run massif. La pagination « bulk » par univers
+# a été écartée (univers FOFRA 57k / FEEUR 190k = milliers de pages).
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -128,56 +131,6 @@ def resolve_fees(isin: str, token: str, debug: bool = False) -> dict:
     return {}
 
 
-BULK_PAGE_SIZE = 50   # nb de fonds par page screener en mode bulk
-
-
-def fetch_universe_fees(token: str, universe: str, max_pages: int | None = None,
-                        debug: bool = False) -> dict:
-    """Pagine le screener SANS term (tout l'univers) et renvoie {isin: fraction}.
-
-    ~BULK_PAGE_SIZE fonds par appel au lieu d'1 → des dizaines d'appels au lieu de
-    milliers : contourne le throttle Morningstar sur les drains soutenus (1 ISIN =
-    1 appel faisait ramper le run). On lit OngoingCharge/ExpenseRatioNet (JAMAIS
-    ManagementFee, sous-composante ≠ TER)."""
-    fees, page = {}, 1
-    dp = "ISIN|" + "|".join(FEE_DEBUG_FIELDS)
-    while True:
-        data = _api_get(SCREENER, {
-            "languageId": "fr-FR", "currencyId": "EUR",
-            "universeIds": universe, "outputType": "json",
-            "securityDataPoints": dp, "pageSize": BULK_PAGE_SIZE, "page": page,
-        }, token)
-        rows = (data or {}).get("rows", [])
-        if not rows:
-            break
-        for row in rows:
-            isin = row.get("ISIN") or row.get("Isin") or row.get("isin")
-            if not isin:
-                continue
-            for f in FEE_VALUE_FIELDS:
-                v = row.get(f)
-                try:
-                    pct = float(v)
-                except (TypeError, ValueError):
-                    continue
-                if 0 < pct <= 10:
-                    fees[isin] = round(pct / 100, 6)
-                    break
-        if debug and page <= 2:
-            print(f"    [bulk] {universe} p{page}: rows={len(rows)} "
-                  f"total={(data or {}).get('total')} frais_cumul={len(fees)}", flush=True)
-        if len(rows) < BULK_PAGE_SIZE:
-            break
-        page += 1
-        if max_pages and page > max_pages:
-            break
-        if page > 1000:   # garde-fou
-            break
-        time.sleep(RATE_LIMIT_SEC)
-    print(f"  {universe} : {len(fees)} frais récupérés sur {page} page(s)")
-    return fees
-
-
 # ─── Sélection cible ──────────────────────────────────────────────────────────
 def select_targets(client, min_aum: int, limit: int | None) -> list[str]:
     """opcvm/etf avec ter NULL, triés encours décroissant. min_aum : early-stop
@@ -206,52 +159,15 @@ def select_targets(client, min_aum: int, limit: int | None) -> list[str]:
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
-def run(apply: bool, min_aum: int, limit: int | None, debug: bool,
-        bulk: bool = False, max_pages: int | None = None):
+def run(apply: bool, min_aum: int, limit: int | None, debug: bool):
     print("=" * 70)
     print("  Morningstar EMEA — Frais courants (TER)")
-    mode = "BULK" if bulk else "per-fonds"
-    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'} | {mode} | min_aum={min_aum:,}€ | limit={limit}")
+    print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'} | min_aum={min_aum:,}€ | limit={limit}")
     print("=" * 70)
 
     started = datetime.now(timezone.utc)
     client = get_client()
     token = get_token()
-
-    # ─── Mode BULK : pagination par univers (contourne le throttle) ───────────
-    if bulk:
-        fee_map = {}
-        for u in UNIVERSES:
-            fee_map.update(fetch_universe_fees(token, u, max_pages=max_pages, debug=debug))
-        print(f"\n  {len(fee_map)} frais Morningstar au total (2 univers)")
-
-        targets = select_targets(client, min_aum, limit)
-        records, sample = [], []
-        for isin in targets:
-            f = fee_map.get(isin)
-            if f is not None:
-                records.append({"isin": isin, "ter": f, "ongoing_charges": f})
-                if len(sample) < 5:
-                    sample.append((isin, f"{f*100:.2f}%"))
-        print(f"  {len(records)}/{len(targets)} fonds ter-null couverts par Morningstar")
-        if sample:
-            print("  Échantillon :", sample)
-
-        if not apply:
-            print("\n  DRY-RUN — pas d'écriture.")
-            return
-
-        totals = {"new_inserted": 0, "rows_updated": 0, "fields_filled": 0, "failed": 0}
-        for i in range(0, len(records), 500):
-            s = safe_fill_funds(records[i:i + 500], source=SOURCE)
-            for k in totals:
-                totals[k] += s.get(k, 0)
-            print(f"    ⤷ lot {i//500 + 1} → {s}", flush=True)
-        print(f"\n  ✓ écriture fill-only (cumul) : {totals}")
-        log_run(scraper="ms-emea-fees", status="success",
-                records_processed=totals.get("rows_updated", 0),
-                records_failed=totals.get("failed", 0), started_at=started)
-        return
 
     targets = select_targets(client, min_aum, limit)
     print(f"  {len(targets)} fonds ter-null à tenter\n")
@@ -318,11 +234,6 @@ if __name__ == "__main__":
                     help="AUM minimum en euros (défaut 10M ; 0 = tous)")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--debug", action="store_true",
-                    help="Imprime les data points frais bruts (per-fonds : 8 premiers ; bulk : 2 pages)")
-    ap.add_argument("--bulk", action="store_true",
-                    help="Mode bulk : pagine les univers (contourne le throttle) au lieu d'1 appel/ISIN")
-    ap.add_argument("--max-pages", type=int, default=None,
-                    help="Bulk : limite le nb de pages par univers (canary)")
+                    help="Imprime les data points frais bruts des 8 premiers fonds")
     args = ap.parse_args()
-    run(apply=args.apply, min_aum=args.min_aum, limit=args.limit, debug=args.debug,
-        bulk=args.bulk, max_pages=args.max_pages)
+    run(apply=args.apply, min_aum=args.min_aum, limit=args.limit, debug=args.debug)

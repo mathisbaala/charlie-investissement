@@ -26,14 +26,6 @@ on:
         description: "Imprimer les data points frais bruts (échantillon)"
         type: boolean
         default: true
-      bulk:
-        description: "Mode bulk (opt-in) : pagine les univers — IMPRATICABLE en plein (univers 57k/190k) ; réservé à un sous-ensemble ciblé via max_pages. Défaut = per-fonds."
-        type: boolean
-        default: false
-      max_pages:
-        description: "Bulk uniquement : limite pages/univers (obligatoire en bulk, sinon des milliers de pages)"
-        type: string
-        default: ""
 
 concurrency:
   group: data-refresh
@@ -61,8 +53,6 @@ jobs:
           set -euo pipefail
           APPLY=""; if [ "${{ inputs.apply }}" = "true" ]; then APPLY="--apply"; fi
           DEBUG=""; if [ "${{ inputs.debug }}" = "true" ]; then DEBUG="--debug"; fi
-          BULK="";  if [ "${{ inputs.bulk }}" = "true" ]; then BULK="--bulk"; fi
           LIM="";   if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
-          MP="";    if [ -n "${{ inputs.max_pages }}" ]; then MP="--max-pages ${{ inputs.max_pages }}"; fi
           python3 scripts/scrapers/ms-emea-fees-enricher.py \
-            $APPLY $DEBUG $BULK $LIM $MP --min-aum "${{ inputs.min_aum }}"
+            $APPLY $DEBUG $LIM --min-aum "${{ inputs.min_aum }}"
