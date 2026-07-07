@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
@@ -227,14 +227,31 @@ export function ClientProfileForm() {
     setProfile(loadStoredProfile());
   }, [initialized]);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Chargement de la liste des assureurs, avec réessai. Un échec passager
+  // (cold start / throttle CPU Supabase) ne doit pas rester figé à l'écran :
+  // sans réessai, un seul hoquet réseau bloquait l'erreur pour toute la session
+  // même une fois le serveur revenu. On retente automatiquement (délai croissant),
+  // et le champ peut relancer le chargement (focus / clic sur le message d'erreur).
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const loadInsurers = useCallback((attempt = 0) => {
+    setInsurerStatus("loading");
     fetch("/api/screener/insurers")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
-      .then((j) => { if (!cancelled) { setInsurerOptions(j.data ?? []); setInsurerStatus("ready"); } })
-      .catch(() => { if (!cancelled) setInsurerStatus("error"); });
-    return () => { cancelled = true; };
+      .then((j) => {
+        if (!mountedRef.current) return;
+        setInsurerOptions(j.data ?? []);
+        setInsurerStatus("ready");
+      })
+      .catch(() => {
+        if (!mountedRef.current) return;
+        if (attempt < 2) setTimeout(() => loadInsurers(attempt + 1), 800 * (attempt + 1));
+        else setInsurerStatus("error");
+      });
   }, []);
+
+  useEffect(() => { loadInsurers(); }, [loadInsurers]);
 
   const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   // Suggestions du typeahead : assureurs correspondant à la saisie, hors ceux déjà
@@ -557,6 +574,7 @@ export function ClientProfileForm() {
                   aria-label="Rechercher un assureur"
                   value={insurerQuery}
                   onChange={(e) => setInsurerQuery(e.target.value)}
+                  onFocus={() => { if (insurerStatus === "error") loadInsurers(); }}
                   placeholder="Rechercher un assureur…"
                   autoComplete="off"
                   className={inputCls}
@@ -566,7 +584,13 @@ export function ClientProfileForm() {
                     {insurerStatus === "loading" ? (
                       <p className="px-3 py-2 text-meta text-muted-2">Chargement des assureurs…</p>
                     ) : insurerStatus === "error" ? (
-                      <p className="px-3 py-2 text-meta text-warn">Impossible de charger les assureurs.</p>
+                      <button
+                        type="button"
+                        onClick={() => loadInsurers()}
+                        className="block w-full text-left px-3 py-2 text-meta text-warn hover:bg-accent-soft/40 transition-colors"
+                      >
+                        Impossible de charger les assureurs. Cliquez pour réessayer.
+                      </button>
                     ) : insurerMatches.length === 0 ? (
                       <p className="px-3 py-2 text-meta text-muted-2">Aucun assureur ne correspond.</p>
                     ) : (
