@@ -54,6 +54,7 @@ FEE_DEBUG_FIELDS = FEE_VALUE_FIELDS + ["ExpenseRatio", "ManagementFee"]
 
 RATE_LIMIT_SEC = 0.25
 TOKEN_REFRESH_EVERY = 400   # les tokens oauth expirent : on refait un token régulièrement
+FLUSH_EVERY = 50            # écriture incrémentale : flush tous les N frais résolus
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -75,12 +76,15 @@ def get_token() -> str:
     return r.json()["access_token"]
 
 
-def _api_get(url: str, params: dict, token: str, retries: int = 3) -> dict | None:
+def _api_get(url: str, params: dict, token: str, retries: int = 2) -> dict | None:
+    # Fail-fast : timeout court + peu de retries. Sous throttle Morningstar, un
+    # fonds qui pendouille est sauté vite (reste ter-null → re-tenté au prochain
+    # run, fill-only) plutôt que de faire ramer tout le drain.
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json",
                "Referer": "https://www.linxea.com/"}
     for attempt in range(retries):
         try:
-            r = requests.get(url, params=params, headers=headers, timeout=20)
+            r = requests.get(url, params=params, headers=headers, timeout=12)
             if r.status_code == 404:
                 return None
             r.raise_for_status()
@@ -164,7 +168,22 @@ def run(apply: bool, min_aum: int, limit: int | None, debug: bool):
     targets = select_targets(client, min_aum, limit)
     print(f"  {len(targets)} fonds ter-null à tenter\n")
 
-    records, resolved, empty = [], 0, 0
+    # Écriture INCRÉMENTALE par lots : un drain de plusieurs milliers de fonds
+    # peut être long (throttle Morningstar) ; flusher tous les FLUSH_EVERY fonds
+    # rend le progrès DURABLE (rien n'est perdu si le run est coupé/timeout) et
+    # idempotent (fill-only → un rerun reprend là où il s'était arrêté).
+    records, resolved, empty, sample = [], 0, 0, []
+    totals = {"new_inserted": 0, "rows_updated": 0, "fields_filled": 0, "failed": 0}
+
+    def flush():
+        nonlocal records
+        if apply and records:
+            s = safe_fill_funds(records, source=SOURCE)
+            for k in totals:
+                totals[k] += s.get(k, 0)
+            print(f"    ⤷ flush {len(records)} → {s}", flush=True)
+        records = []
+
     for i, isin in enumerate(targets, 1):
         if i % TOKEN_REFRESH_EVERY == 0:
             try:
@@ -174,28 +193,32 @@ def run(apply: bool, min_aum: int, limit: int | None, debug: bool):
         fees = resolve_fees(isin, token, debug=debug and i <= 8)
         if fees:
             records.append({"isin": isin, **fees})
+            if len(sample) < 5:
+                sample.append((isin, f"{fees['ter']*100:.2f}%"))
             resolved += 1
         else:
             empty += 1
         time.sleep(RATE_LIMIT_SEC)
+        if len(records) >= FLUSH_EVERY:
+            flush()
         if i % 200 == 0:
-            print(f"  [{i}/{len(targets)}] résolus={resolved} vides={empty}")
+            print(f"  [{i}/{len(targets)}] résolus={resolved} vides={empty}", flush=True)
 
+    flush()  # dernier lot
     print(f"\n  → {resolved} frais résolus, {empty} sans donnée Morningstar")
-    if records[:5]:
-        print("  Échantillon :", [(r['isin'], f"{r['ter']*100:.2f}%") for r in records[:5]])
+    if sample:
+        print("  Échantillon :", sample)
 
     if not apply:
         print("\n  DRY-RUN — pas d'écriture.")
         return
 
-    stats = safe_fill_funds(records, source=SOURCE)
-    print(f"\n  ✓ écriture fill-only : {stats}")
+    print(f"\n  ✓ écriture fill-only (cumul) : {totals}")
     log_run(
         scraper="ms-emea-fees",
         status="success",
-        records_processed=stats.get("rows_updated", 0),
-        records_failed=stats.get("failed", 0),
+        records_processed=totals.get("rows_updated", 0),
+        records_failed=totals.get("failed", 0),
         started_at=started,
     )
 
