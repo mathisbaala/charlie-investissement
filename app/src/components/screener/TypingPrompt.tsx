@@ -68,14 +68,14 @@ export function TypingPrompt({ value, onChange, onSubmit, className = "" }: Typi
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && value.trim() && onSubmit()}
         className="w-full bg-transparent text-ink text-body-lg outline-none pr-6"
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{ fontFamily: "var(--font-sans)" }}
         placeholder=""
         aria-label="Rechercher des fonds"
       />
       {!value && (
         <span
           className="absolute left-0 right-6 top-1/2 -translate-y-1/2 flex items-center whitespace-nowrap overflow-hidden text-muted text-body-lg pointer-events-none select-none"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           {placeholder}
           <span

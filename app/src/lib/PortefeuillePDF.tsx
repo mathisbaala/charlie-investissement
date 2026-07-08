@@ -61,7 +61,7 @@ const S = StyleSheet.create({
   heroLeft: { flex: 1.7 },
   accentRule: { width: 32, height: 2.5, backgroundColor: C.clay, marginBottom: 12 },
   coverEyebrow: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 8, letterSpacing: 1.8, textTransform: "uppercase", color: C.clay },
-  coverTitle: { fontFamily: FONT.serif, fontSize: 31, color: C.ink, lineHeight: 1.02, marginTop: 5 },
+  coverTitle: { fontFamily: FONT.sans, fontSize: 31, color: C.ink, lineHeight: 1.02, marginTop: 5 },
   coverSub: { fontFamily: FONT.sans, fontSize: 10, color: C.ink2, marginTop: 7 },
   block: { backgroundColor: C.paper, borderWidth: 0.75, borderColor: C.line, borderRadius: 9, padding: 13, marginTop: 14 },
   label: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7, letterSpacing: 1.1, textTransform: "uppercase", color: C.muted, marginBottom: 8 },
@@ -86,7 +86,7 @@ const S = StyleSheet.create({
   },
   calloutLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 9.5, color: C.clayInk },
   calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#86422A", marginTop: 3 },
-  calloutValue: { fontFamily: FONT.serif, fontSize: 22, color: C.clay },
+  calloutValue: { fontFamily: FONT.sans, fontSize: 22, color: C.clay },
   // Corrélation
   corrCell: { borderRadius: 3, paddingVertical: 5, alignItems: "center", justifyContent: "center" },
   corrTxt: { fontFamily: FONT.mono, fontSize: 7.5 },
@@ -105,7 +105,7 @@ const S = StyleSheet.create({
     gap: 16,
   },
   disclaimer: { fontFamily: FONT.sans, fontSize: 6.8, color: C.muted, lineHeight: 1.4, flex: 1 },
-  footerBrand: { fontFamily: FONT.serif, fontSize: 9, color: C.ink2 },
+  footerBrand: { fontFamily: FONT.sans, fontSize: 9, color: C.ink2 },
 });
 
 const DISCLAIMER =

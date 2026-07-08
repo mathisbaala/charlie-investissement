@@ -24,7 +24,7 @@ function KpiTile({ label, value, sub, ok }: { label: string; value: string; sub?
         className={`text-subhead leading-none font-medium ${
           ok == null ? "text-ink" : ok ? "text-ok" : "text-danger"
         }`}
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         {value}
       </p>
@@ -64,7 +64,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
           {loading ? (
             <div className="h-5 w-3/4 bg-paper-2 rounded animate-pulse" />
           ) : (
-            <p className="text-body-lg font-medium text-ink leading-tight truncate" style={{ fontFamily: "var(--font-serif)" }}>
+            <p className="text-body-lg font-medium text-ink leading-tight truncate" style={{ fontFamily: "var(--font-sans)" }}>
               {fund?.name ?? "—"}
             </p>
           )}
@@ -209,7 +209,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             href={`/fonds/${fund.isin}`}
             className="flex items-center justify-between w-full bg-paper-2 hover:bg-accent-soft/40 border border-line hover:border-accent/30 rounded-lg px-4 py-3 transition-colors group"
           >
-            <span className="text-meta font-medium text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+            <span className="text-meta font-medium text-ink" style={{ fontFamily: "var(--font-sans)" }}>
               Voir la fiche complète
             </span>
             <ChevronRight size={15} className="text-muted group-hover:text-accent-ink transition-colors" />

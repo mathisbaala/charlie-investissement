@@ -54,7 +54,7 @@ const S = StyleSheet.create({
   heroLeft: { flex: 1.7 },
   accentRule: { width: 32, height: 2.5, backgroundColor: C.clay, marginBottom: 12 },
   coverEyebrow: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 8, letterSpacing: 1.8, textTransform: "uppercase", color: C.clay },
-  coverTitle: { fontFamily: FONT.serif, fontSize: 33, color: C.ink, lineHeight: 1.02, marginTop: 5 },
+  coverTitle: { fontFamily: FONT.sans, fontSize: 33, color: C.ink, lineHeight: 1.02, marginTop: 5 },
   coverSub: { fontFamily: FONT.sans, fontSize: 10, color: C.ink2, marginTop: 7 },
   // Table
   tHead: { flexDirection: "row", alignItems: "flex-end", paddingBottom: 7, borderBottomWidth: 1.25, borderBottomColor: C.ink },
@@ -68,7 +68,7 @@ const S = StyleSheet.create({
   colMd: { flex: 1.15, fontFamily: FONT.mono, fontWeight: 500, fontSize: 8.5, textAlign: "right" },
   colPerf: { flex: 2, paddingLeft: 12 },
   // Fund page
-  fundTitle: { fontFamily: FONT.serif, fontSize: 25, color: C.ink, lineHeight: 1.05, marginTop: 2 },
+  fundTitle: { fontFamily: FONT.sans, fontSize: 25, color: C.ink, lineHeight: 1.05, marginTop: 2 },
   fundMeta: { fontFamily: FONT.sans, fontSize: 9, color: C.ink2, marginTop: 5 },
   fundMetaIsin: { fontFamily: FONT.mono, fontSize: 9, color: C.clay },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 9, marginBottom: 9 },
@@ -105,7 +105,7 @@ const S = StyleSheet.create({
   },
   calloutLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 9.5, color: C.clayInk },
   calloutSub: { fontFamily: FONT.sans, fontSize: 7.5, color: "#86422A", marginTop: 3 },
-  calloutValue: { fontFamily: FONT.serif, fontSize: 19, color: C.clay },
+  calloutValue: { fontFamily: FONT.sans, fontSize: 19, color: C.clay },
   callout2: { marginTop: 6, paddingVertical: 7 },
   // Footer
   footer: {
@@ -122,7 +122,7 @@ const S = StyleSheet.create({
     gap: 16,
   },
   disclaimer: { fontFamily: FONT.sans, fontSize: 6.8, color: C.muted, lineHeight: 1.4, flex: 1 },
-  footerBrand: { fontFamily: FONT.serif, fontSize: 9, color: C.ink2 },
+  footerBrand: { fontFamily: FONT.sans, fontSize: 9, color: C.ink2 },
   compLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7, letterSpacing: 1.1, textTransform: "uppercase", color: C.muted, marginBottom: 7 },
 });
 

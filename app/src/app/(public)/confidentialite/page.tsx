@@ -23,7 +23,7 @@ function Section({
     <section className="mt-9">
       <h2
         className="text-title text-ink mb-3"
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         {title}
       </h2>
@@ -48,7 +48,7 @@ export default function ConfidentialitePage() {
 
         <h1
           className="mt-6 text-display-lg leading-[1.1] tracking-[-0.02em] text-ink"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           Politique de confidentialité
         </h1>

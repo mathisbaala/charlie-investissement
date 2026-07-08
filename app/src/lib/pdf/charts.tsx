@@ -32,7 +32,7 @@ const s = StyleSheet.create({
   // Donut
   donutWrap: { flexDirection: "row", alignItems: "center", gap: 14 },
   donutCenter: { position: "absolute", alignItems: "center", justifyContent: "center" },
-  donutCenterVal: { fontFamily: FONT.serif, fontSize: 13, color: C.ink },
+  donutCenterVal: { fontFamily: FONT.sans, fontSize: 13, color: C.ink },
   donutCenterLbl: { fontFamily: FONT.sans, fontSize: 6, letterSpacing: 0.8, textTransform: "uppercase", color: C.muted },
   // Barres de composition
   compRow: { marginBottom: 6 },

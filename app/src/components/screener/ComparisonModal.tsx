@@ -226,7 +226,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
 
         {/* Head */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-line shrink-0">
-          <h2 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+          <h2 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-sans)" }}>
             Comparer{" "}
             <em className="text-accent not-italic">
               {selected.length} fonds.
@@ -262,7 +262,7 @@ export function ComparisonModal({ onClose }: ComparisonModalProps) {
                     />
                     <p
                       className="text-body-lg font-medium text-ink leading-tight"
-                      style={{ fontFamily: "var(--font-serif)" }}
+                      style={{ fontFamily: "var(--font-sans)" }}
                     >
                       {f.name}
                     </p>

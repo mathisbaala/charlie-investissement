@@ -48,27 +48,3 @@ export function MorningstarBadge({ rating }: { rating: number | null | undefined
     </span>
   );
 }
-
-// Generic badge
-type BadgeTone = "neutral" | "ok" | "warn" | "accent";
-export function Badge({
-  children,
-  tone = "neutral",
-  className = "",
-}: {
-  children: React.ReactNode;
-  tone?: BadgeTone;
-  className?: string;
-}) {
-  const tones: Record<BadgeTone, string> = {
-    neutral: "bg-paper-2 text-ink-2",
-    ok:      "bg-ok-soft text-ok",
-    warn:    "bg-warn-soft text-warn",
-    accent:  "bg-accent-soft text-accent-ink",
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-meta font-medium ${tones[tone]} ${className}`}>
-      {children}
-    </span>
-  );
-}

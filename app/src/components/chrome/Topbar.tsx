@@ -52,7 +52,7 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
         <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
           <span
             className="text-ink text-title leading-none"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-sans)" }}
           >
             Charlie
           </span>
@@ -60,7 +60,7 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
       ) : (
         <h1
           className="text-ink text-title leading-none shrink-0"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           {title}
         </h1>
