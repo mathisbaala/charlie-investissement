@@ -65,7 +65,7 @@ export function FundSheetClient({ fund }: Props) {
               {/* Fund name */}
               <h1
                 className="text-display leading-[1.2] text-ink font-medium"
-                style={{ fontFamily: "var(--font-serif)" }}
+                style={{ fontFamily: "var(--font-sans)" }}
               >
                 {fund.name}
               </h1>

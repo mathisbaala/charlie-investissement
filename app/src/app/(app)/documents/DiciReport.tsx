@@ -119,7 +119,7 @@ function KpiTile({
       <p className="mt-1.5 flex items-baseline gap-1">
         <span
           className={`text-title-lg font-medium ${toneCls}`}
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           {value}
         </span>
@@ -329,7 +329,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
             </div>
             <h2
               className="text-display-md leading-[1.1] text-ink font-medium"
-              style={{ fontFamily: "var(--font-serif)" }}
+              style={{ fontFamily: "var(--font-sans)" }}
             >
               {fiche.name}
             </h2>
@@ -356,7 +356,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
                       ? "text-warn"
                       : "text-danger"
                   }`}
-                  style={{ fontFamily: "var(--font-serif)" }}
+                  style={{ fontFamily: "var(--font-sans)" }}
                 >
                   {fiche.sri}
                   <span className="text-title text-muted">/7</span>
@@ -368,7 +368,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
                 <p className="text-caption uppercase tracking-widest text-muted">Frais/an</p>
                 <p
                   className="text-display-md font-medium text-ink"
-                  style={{ fontFamily: "var(--font-serif)" }}
+                  style={{ fontFamily: "var(--font-sans)" }}
                 >
                   {nf.format(fiche.ongoing_charges)}
                   <span className="text-title text-muted">%</span>

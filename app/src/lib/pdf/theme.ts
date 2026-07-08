@@ -61,7 +61,6 @@ export const C = {
 } as const;
 
 export const FONT = {
-  serif: "Inter",
   sans: "Inter",
   mono: "DMMono",
 } as const;

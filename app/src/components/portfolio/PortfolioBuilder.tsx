@@ -63,7 +63,7 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: "ok"
       <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1.5 truncate">{label}</p>
       <p
         className={`text-title md:text-title-lg leading-none ${tone === "ok" ? "text-ok" : tone === "bad" ? "text-danger" : "text-ink"}`}
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         {value}
       </p>
@@ -232,7 +232,7 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
         {/* Composition */}
         <Card className="px-5 py-5 h-fit">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-serif)" }}>Composition</h2>
+            <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>Composition</h2>
             <button
               onClick={() => setHoldings(normalizeWeights(holdings))}
               className={`text-meta ${Math.abs(sum - 100) < 0.5 ? "text-muted hover:text-ink" : "text-accent font-medium"} transition-colors`}
@@ -282,7 +282,7 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
         <div className="space-y-5 min-w-0">
           <Card className="px-5 py-5">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-              <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-serif)" }}>Back-test</h2>
+              <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>Back-test</h2>
               <div className="flex items-center gap-2">
                 {/* Sélecteur de période */}
                 <div className="flex rounded-md border border-line overflow-hidden">
@@ -369,7 +369,7 @@ export function PortfolioBuilder({ initialIsins, initialWeights, initialBenchmar
 
           {ready && holdings.length >= 2 && (
             <Card className="px-5 py-5 overflow-x-auto">
-              <h2 className="text-subhead text-ink mb-3" style={{ fontFamily: "var(--font-serif)" }}>Corrélation</h2>
+              <h2 className="text-subhead text-ink mb-3" style={{ fontFamily: "var(--font-sans)" }}>Corrélation</h2>
               <table className="border-collapse text-caption tabular-nums">
                 <thead>
                   <tr>

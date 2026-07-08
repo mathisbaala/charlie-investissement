@@ -99,7 +99,7 @@ export function WelcomeTour() {
 
         <h2
           className="text-subhead font-semibold text-ink"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           {step.title}
         </h2>

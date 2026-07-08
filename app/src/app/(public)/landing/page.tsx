@@ -103,7 +103,7 @@ export default function LandingPage() {
         {/* H1 */}
         <h1
           className="text-display-lg sm:text-display-xl leading-[1.08] sm:leading-[1.06] tracking-[-0.025em] text-ink mb-7 sm:mb-10"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           Trouver{" "}
           <em className="not-italic" style={{ color: "var(--color-accent)" }}>
@@ -155,7 +155,7 @@ export default function LandingPage() {
           </div>
           <span
             className="flex-1 text-body-lg text-muted"
-            style={{ fontFamily: "var(--font-serif)" }}
+            style={{ fontFamily: "var(--font-sans)" }}
           >
             {importing ? "Analyse du profil client…" : "Glisser un profil client"}
           </span>

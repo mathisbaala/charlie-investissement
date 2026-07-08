@@ -51,7 +51,7 @@ const s = StyleSheet.create({
   // En-tête de marque (haut de page)
   brand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
   wordmark: { flexDirection: "row", alignItems: "center", gap: 8 },
-  wordmarkText: { fontFamily: FONT.serif, fontSize: 16, color: C.ink },
+  wordmarkText: { fontFamily: FONT.sans, fontSize: 16, color: C.ink },
   dot: { width: 5, height: 5, borderRadius: 5, backgroundColor: C.clay },
   // Chips / badges
   chip: {
@@ -65,7 +65,7 @@ const s = StyleSheet.create({
   },
   // Intro de section éditoriale
   introEyebrow: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.6, textTransform: "uppercase", color: C.clay },
-  introTitle: { fontFamily: FONT.serif, fontSize: 16, color: C.ink, marginTop: 3, lineHeight: 1.05 },
+  introTitle: { fontFamily: FONT.sans, fontSize: 16, color: C.ink, marginTop: 3, lineHeight: 1.05 },
   introDesc: { fontFamily: FONT.sans, fontSize: 8.5, color: C.muted, marginTop: 3, lineHeight: 1.4, maxWidth: 360 },
   // Lignes label / valeur
   row: {
@@ -82,12 +82,12 @@ const s = StyleSheet.create({
   grid: { borderWidth: 0.75, borderColor: C.line, borderRadius: 7, flexDirection: "row", flexWrap: "wrap" },
   cell: { paddingVertical: 10, paddingHorizontal: 12 },
   cellLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7, letterSpacing: 1.1, textTransform: "uppercase", color: C.muted, marginBottom: 4 },
-  cellValue: { fontFamily: FONT.serif, fontSize: 18, color: C.ink, lineHeight: 1 },
+  cellValue: { fontFamily: FONT.sans, fontSize: 18, color: C.ink, lineHeight: 1 },
   cellSub: { fontFamily: FONT.sans, fontSize: 7, color: C.muted, marginTop: 3 },
   // Hero stat (gros chiffre dans panneau teinté)
   hero: { borderRadius: 9, paddingVertical: 16, paddingHorizontal: 18, justifyContent: "center" },
   heroLabel: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.4, textTransform: "uppercase", color: C.muted, marginBottom: 6 },
-  heroValue: { fontFamily: FONT.serif, fontSize: 38, lineHeight: 0.95 },
+  heroValue: { fontFamily: FONT.sans, fontSize: 38, lineHeight: 0.95 },
   heroSub: { fontFamily: FONT.sans, fontSize: 8, color: C.muted, marginTop: 6 },
   // Barre horizontale
   barTrack: { height: 5, backgroundColor: C.lineSoft, borderRadius: 3, flexDirection: "row", overflow: "hidden" },

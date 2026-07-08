@@ -41,7 +41,7 @@ export function RateLimitDialog() {
           <RefreshCw size={19} className="text-accent-ink" />
         </div>
 
-        <h2 className="text-subhead font-semibold text-ink" style={{ fontFamily: "var(--font-serif)" }}>
+        <h2 className="text-subhead font-semibold text-ink" style={{ fontFamily: "var(--font-sans)" }}>
           {day ? "Crédits du jour épuisés" : "Petite pause"}
         </h2>
 

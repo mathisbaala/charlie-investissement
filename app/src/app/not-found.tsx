@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="max-w-md text-center">
         <p
           className="text-display-lg text-ink mb-2"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           Introuvable.
         </p>

@@ -22,7 +22,7 @@ export default function AppError({
       <div className="max-w-md text-center">
         <p
           className="text-display text-ink mb-3"
-          style={{ fontFamily: "var(--font-serif)" }}
+          style={{ fontFamily: "var(--font-sans)" }}
         >
           Une erreur est survenue.
         </p>
