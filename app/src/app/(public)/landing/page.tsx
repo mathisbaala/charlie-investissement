@@ -136,10 +136,7 @@ export default function LandingPage() {
         {/* Ou divider */}
         <div className="w-full flex items-center gap-4 my-5">
           <div className="flex-1 h-px bg-line-soft" />
-          <span
-            className="text-subhead text-muted-2 leading-none"
-            style={{ fontFamily: "var(--font-hand)" }}
-          >
+          <span className="text-subhead text-muted-2 leading-none">
             ou
           </span>
           <div className="flex-1 h-px bg-line-soft" />
