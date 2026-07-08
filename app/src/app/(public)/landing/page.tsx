@@ -158,7 +158,7 @@ export default function LandingPage() {
           </div>
           <span
             className="flex-1 text-body-lg text-muted"
-            style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+            style={{ fontFamily: "var(--font-serif)" }}
           >
             {importing ? "Analyse du profil client…" : "Glisser un profil client"}
           </span>

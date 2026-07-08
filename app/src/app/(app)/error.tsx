@@ -21,7 +21,7 @@ export default function AppError({
     <div className="h-full flex items-center justify-center bg-cream px-6">
       <div className="max-w-md text-center">
         <p
-          className="text-display text-ink italic mb-3"
+          className="text-display text-ink mb-3"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Une erreur est survenue.

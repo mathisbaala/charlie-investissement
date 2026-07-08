@@ -142,7 +142,7 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
       <div className="flex items-center justify-between px-5 pt-4 pb-1 shrink-0">
         <span
           className="text-body-lg text-ink"
-          style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+          style={{ fontFamily: "var(--font-serif)" }}
         >
           Charlie
         </span>
@@ -204,7 +204,6 @@ export function ChatPanel({ open, onClose }: ChatPanelProps) {
             placeholder="Écrire à Charlie…"
             disabled={streaming}
             className="flex-1 bg-transparent text-body text-ink placeholder:text-muted outline-none"
-            style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
           />
           <button
             onClick={send}

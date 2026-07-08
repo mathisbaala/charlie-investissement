@@ -145,7 +145,7 @@ export default async function Image() {
             }}
           >
             <span>Trouver&nbsp;</span>
-            <span style={{ fontWeight: 400, fontStyle: "italic", color: CLAY }}>le bon support</span>
+            <span style={{ color: CLAY }}>le bon support</span>
           </div>
           <div
             style={{
