@@ -66,9 +66,10 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
         </h1>
       )}
 
-      {/* Breadcrumb */}
+      {/* Breadcrumb — masqué sous md : sur mobile il déborde et fait doublon
+         avec le bouton « Retour à la recherche » de la page. */}
       {crumbs.length > 0 && (
-        <nav className="flex items-center gap-1 text-muted" aria-label="breadcrumb">
+        <nav className="hidden md:flex items-center gap-1 text-muted" aria-label="breadcrumb">
           <ChevronRight size={12} strokeWidth={1.8} />
           {crumbs.map((c, i) => (
             <span key={c.href} className="flex items-center gap-1">
