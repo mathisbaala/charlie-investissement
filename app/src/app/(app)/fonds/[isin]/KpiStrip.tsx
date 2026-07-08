@@ -8,7 +8,7 @@ function KpiTile({ label, value, ok, accent }: { label: string; value: string; o
     <div className={`md:flex-1 rounded-xl border px-3 py-3 md:px-5 md:py-4 text-center min-w-0 ${accent ? "bg-accent/10 border-accent/30" : "bg-paper border-line"}`}>
       <p className="text-caption md:text-caption uppercase tracking-widest text-muted font-semibold mb-1.5 md:mb-2 truncate">{label}</p>
       <p
-        className={`text-title md:text-title-lg leading-none font-normal ${
+        className={`text-title md:text-title-lg leading-none font-medium ${
           accent ? "text-accent font-semibold" : ok == null ? "text-ink" : ok ? "text-ok" : "text-danger"
         }`}
         style={{ fontFamily: "var(--font-serif)" }}
