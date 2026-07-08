@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Stub `db` pour importer le module sans supabase / env (fonctions testées pures).
 _fake_db = types.ModuleType("db")
-for _name in ("get_client", "log_run", "compute_completeness"):
+for _name in ("get_client", "log_run", "compute_completeness", "upsert_prices"):
     setattr(_fake_db, _name, lambda *a, **k: None)
 sys.modules.setdefault("db", _fake_db)
 
