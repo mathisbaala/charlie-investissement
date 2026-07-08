@@ -9,31 +9,28 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 // Palette dérivée de globals.css (oklch → hex approché, Satori ne gère pas oklch).
-const CREAM = "#F4F2EE";
+const CREAM = "#F5F3EF";
 const INK = "#2C2A27";
 const INK_2 = "#4A4742";
 const MUTED = "#8B8782";
-const CLAY = "#AC5E3C";
+const CLAY = "#8F4A31"; // clay désaturé (cohérent app + PDF)
 const LINE = "#D8D4CE";
 
-const FONT_BASE =
-  "https://cdn.jsdelivr.net/fontsource/fonts/instrument-serif@latest/latin-400";
-const DM_SANS =
-  "https://cdn.jsdelivr.net/fontsource/fonts/dm-sans@latest/latin-600-normal.ttf";
+const INTER = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest";
 
 // Chargement best-effort : en cas d'échec réseau, on rend sans police custom
 // (Satori bascule sur sa police par défaut) plutôt que de casser le build.
 async function loadFonts() {
   try {
-    const [serif, serifItalic, sans] = await Promise.all([
-      fetch(`${FONT_BASE}-normal.ttf`).then((r) => r.arrayBuffer()),
-      fetch(`${FONT_BASE}-italic.ttf`).then((r) => r.arrayBuffer()),
-      fetch(DM_SANS).then((r) => r.arrayBuffer()),
+    const [regular, semibold, italic] = await Promise.all([
+      fetch(`${INTER}/latin-400-normal.ttf`).then((r) => r.arrayBuffer()),
+      fetch(`${INTER}/latin-600-normal.ttf`).then((r) => r.arrayBuffer()),
+      fetch(`${INTER}/latin-400-italic.ttf`).then((r) => r.arrayBuffer()),
     ]);
     return [
-      { name: "Instrument Serif", data: serif, style: "normal" as const, weight: 400 as const },
-      { name: "Instrument Serif", data: serifItalic, style: "italic" as const, weight: 400 as const },
-      { name: "DM Sans", data: sans, style: "normal" as const, weight: 600 as const },
+      { name: "Inter", data: regular, style: "normal" as const, weight: 400 as const },
+      { name: "Inter", data: semibold, style: "normal" as const, weight: 600 as const },
+      { name: "Inter", data: italic, style: "italic" as const, weight: 400 as const },
     ];
   } catch {
     return [];
@@ -66,7 +63,7 @@ export default async function Image() {
           justifyContent: "space-between",
           padding: 84,
           background: CREAM,
-          fontFamily: "DM Sans",
+          fontFamily: "Inter",
           position: "relative",
         }}
       >
@@ -81,7 +78,7 @@ export default async function Image() {
             borderRadius: "50%",
             display: "flex",
             background:
-              "radial-gradient(circle, rgba(172,94,60,0.32) 0%, rgba(172,94,60,0) 70%)",
+              "radial-gradient(circle, rgba(143,74,49,0.28) 0%, rgba(143,74,49,0) 70%)",
           }}
         />
         <div
@@ -94,7 +91,7 @@ export default async function Image() {
             borderRadius: "50%",
             display: "flex",
             background:
-              "radial-gradient(circle, rgba(172,94,60,0.16) 0%, rgba(172,94,60,0) 70%)",
+              "radial-gradient(circle, rgba(143,74,49,0.14) 0%, rgba(143,74,49,0) 70%)",
           }}
         />
 
@@ -123,10 +120,11 @@ export default async function Image() {
           <div
             style={{
               display: "flex",
-              fontFamily: "Instrument Serif",
-              fontSize: 52,
+              fontFamily: "Inter",
+              fontWeight: 600,
+              fontSize: 46,
               color: INK,
-              letterSpacing: -0.5,
+              letterSpacing: -1,
             }}
           >
             Charlie
@@ -138,22 +136,24 @@ export default async function Image() {
           <div
             style={{
               display: "flex",
-              fontFamily: "Instrument Serif",
-              fontSize: 104,
-              lineHeight: 1.04,
+              fontFamily: "Inter",
+              fontWeight: 600,
+              fontSize: 92,
+              lineHeight: 1.06,
               letterSpacing: -3,
               color: INK,
             }}
           >
             <span>Trouver&nbsp;</span>
-            <span style={{ fontStyle: "italic", color: CLAY }}>le bon support</span>
+            <span style={{ fontWeight: 400, fontStyle: "italic", color: CLAY }}>le bon support</span>
           </div>
           <div
             style={{
               display: "flex",
-              fontFamily: "Instrument Serif",
-              fontSize: 104,
-              lineHeight: 1.04,
+              fontFamily: "Inter",
+              fontWeight: 600,
+              fontSize: 92,
+              lineHeight: 1.06,
               letterSpacing: -3,
               color: INK,
             }}

@@ -2,11 +2,10 @@ import { Font } from "@react-pdf/renderer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ADN visuel Charlie — partagé par tous les documents PDF (rapports, fiches).
-// Même palette terre/terracotta que l'app (cf. globals.css) + typographie
-// éditoriale (Instrument Serif en display, DM Sans en texte, DM Mono pour les
-// chiffres tabulaires). Polices servies en WOFF par jsDelivr (CDN fiable,
-// supporté par @react-pdf/fontkit). Inspiration : charlie-reporting (cartes,
-// gros chiffres, labels eyebrow, hairlines).
+// Même palette terre/terracotta (désaturée) que l'app (cf. globals.css) +
+// typographie institutionnelle : Inter partout (display + texte), DM Mono pour
+// les chiffres tabulaires. Plus de serif éditoriale. Polices servies en WOFF
+// par jsDelivr (CDN fiable, supporté par @react-pdf/fontkit).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FS = "https://cdn.jsdelivr.net/npm";
@@ -19,16 +18,13 @@ export function registerCharlieFonts() {
   registered = true;
 
   Font.register({
-    family: "DMSans",
+    family: "Inter",
     fonts: [
-      { src: `${FS}/@fontsource/dm-sans@5.0.18/files/dm-sans-latin-400-normal.woff`, fontWeight: 400 },
-      { src: `${FS}/@fontsource/dm-sans@5.0.18/files/dm-sans-latin-500-normal.woff`, fontWeight: 500 },
-      { src: `${FS}/@fontsource/dm-sans@5.0.18/files/dm-sans-latin-700-normal.woff`, fontWeight: 700 },
+      { src: `${FS}/@fontsource/inter@5.0.18/files/inter-latin-400-normal.woff`, fontWeight: 400 },
+      { src: `${FS}/@fontsource/inter@5.0.18/files/inter-latin-500-normal.woff`, fontWeight: 500 },
+      { src: `${FS}/@fontsource/inter@5.0.18/files/inter-latin-600-normal.woff`, fontWeight: 600 },
+      { src: `${FS}/@fontsource/inter@5.0.18/files/inter-latin-700-normal.woff`, fontWeight: 700 },
     ],
-  });
-  Font.register({
-    family: "InstrumentSerif",
-    src: `${FS}/@fontsource/instrument-serif@5.0.18/files/instrument-serif-latin-400-normal.woff`,
   });
   Font.register({
     family: "DMMono",
@@ -53,9 +49,9 @@ export const C = {
   muted: "#7C7A76", // labels, texte tertiaire
   line: "#C9C7C2", // bordures cartes
   lineSoft: "#DFDEDA", // séparateurs discrets
-  clay: "#9F4325", // accent clay
-  claySoft: "#F7C4B0", // fond accent doux
-  clayInk: "#681600", // texte sur fond accent
+  clay: "#8F4A31", // accent clay désaturé (sobre)
+  claySoft: "#EFCBBB", // fond accent doux
+  clayInk: "#5E2411", // texte sur fond accent
   green: "#1E7A4F", // performance positive
   greenSoft: "#E4EFE8",
   red: "#A83A2A", // performance négative (brique chaude)
@@ -65,8 +61,8 @@ export const C = {
 } as const;
 
 export const FONT = {
-  serif: "InstrumentSerif",
-  sans: "DMSans",
+  serif: "Inter",
+  sans: "Inter",
   mono: "DMMono",
 } as const;
 
