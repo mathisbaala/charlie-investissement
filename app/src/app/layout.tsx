@@ -7,8 +7,8 @@ import "./globals.css";
 // Police d'interface unique : Inter. Sans-serif neutre, institutionnelle et
 // hyper-lisible pour les tableaux financiers denses (registre fintech/banque,
 // pas « éditorial/coffee shop »). Elle alimente à la fois --font-sans et, via
-// globals.css, --font-serif / --font-hand (plus de serif décorative ni de
-// manuscrite). DM Mono reste réservé aux chiffres/ISIN tabulaires.
+// globals.css, --font-serif (alias, plus de serif décorative). DM Mono reste
+// réservé aux chiffres/ISIN tabulaires.
 const inter = Inter({
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],

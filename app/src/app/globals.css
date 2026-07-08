@@ -44,14 +44,13 @@
   --color-danger:      oklch(0.52  0.18  27); /* rouge brique — échecs, erreurs, pertes (≠ warn) */
   --color-danger-soft: oklch(0.93  0.05  27);
 
-  /* Typographie — Inter partout (interface sérieuse/institutionnelle). Les rôles
-     historiques serif/hand sont conservés comme alias pour ne pas casser les
-     ~380 usages de font-serif/font-hand : ils pointent tous vers Inter (via
-     --font-sans, injecté par next/font sur <html>). Plus aucune serif éditoriale
-     ni police manuscrite. DM Mono reste pour les chiffres/ISIN tabulaires. */
+  /* Typographie — Inter partout (interface sérieuse/institutionnelle). Le rôle
+     historique serif est conservé comme alias pour ne pas casser les ~380 usages
+     de font-serif : il pointe vers Inter (via --font-sans, injecté par next/font
+     sur <html>). Plus aucune serif éditoriale ni police manuscrite. DM Mono reste
+     pour les chiffres/ISIN tabulaires. */
   --font-sans:   "Inter", system-ui, sans-serif;
   --font-serif:  var(--font-sans);
-  --font-hand:   var(--font-sans);
   --font-mono:   "DM Mono", "Courier New", monospace;
 
   /* Échelle typographique — noms sémantiques (pas de collision avec les
