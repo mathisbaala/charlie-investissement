@@ -99,6 +99,10 @@ SECTOR_RULES = [
 
 
 # ─── Style de gestion ──────────────────────────────────────────────────────────
+# Véhicules définis par leur CLASSE D'ACTIF, pas par une approche de gestion
+# liquide : le facet management_style ne s'y applique pas (cf. classify()).
+NON_STYLE_PRODUCT_TYPES = {"scpi", "opci", "fpci", "fcpr", "fcpi", "fip", "structuré"}
+
 STYLE_RULES = [
     (r"\b(smart\s*beta|factor|quality|momentum|low\s*vol(atility)?|equal\s*weight|enhanced)\b", "smart_beta"),
     (r"\b(etf|tracker|index|ucits\s*etf|swap)\b", "passif"),  # ETF = passif par défaut
@@ -238,14 +242,23 @@ def classify(name: str, product_type: str | None, asset_class: str | None,
             out["sector"] = sector
             break
 
-    # style
-    for pattern, style in STYLE_RULES:
-        if re.search(pattern, nm, re.IGNORECASE):
-            out["management_style"] = style
-            break
-    # Override : si product_type='etf', par défaut "passif" sauf "active"
-    if product_type == "etf" and "management_style" not in out:
-        out["management_style"] = "passif"
+    # style — SEULEMENT pour les fonds de titres liquides. `management_style`
+    # (passif/actif/smart_beta/alternatif) décrit une APPROCHE de gestion d'un
+    # portefeuille liquide ; il n'a aucun sens sur un véhicule défini par sa
+    # CLASSE D'ACTIF (SCPI/OPCI = immobilier, FPCI/FCPR = non coté, structuré =
+    # payoff). Historiquement les sources rangeaient ces véhicules en
+    # « Alternative » → collision : une requête NLP « long/short » (→ alternatif)
+    # faisait remonter des SCPI géantes (Corum Origin…). On n'émet donc PAS de
+    # style de gestion pour ces product_types. (Les FPS restent éligibles : ce
+    # sont des wrappers pro qui portent souvent de vrais hedge funds liquides.)
+    if product_type not in NON_STYLE_PRODUCT_TYPES:
+        for pattern, style in STYLE_RULES:
+            if re.search(pattern, nm, re.IGNORECASE):
+                out["management_style"] = style
+                break
+        # Override : si product_type='etf', par défaut "passif" sauf "active"
+        if product_type == "etf" and "management_style" not in out:
+            out["management_style"] = "passif"
 
     # labels
     labels = []
