@@ -14,7 +14,6 @@ import {
   downsample,
 } from "./chartMath";
 
-export type { Slice };
 
 // Palette de séries (courbes / donut). Accent clay en tête, puis tons terre
 // distincts et lisibles en impression. Étendue/réutilisée par tous les charts.

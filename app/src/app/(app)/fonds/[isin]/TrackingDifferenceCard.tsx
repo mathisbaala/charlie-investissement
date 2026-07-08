@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 
 // Un ETF / fonds indiciel : la comparaison est un ÉCART DE RÉPLICATION (coût
 // réel) plutôt qu'un alpha de gestion. Sert à choisir le bon vocabulaire.
-export function isIndexTracker(fund: FundDetailHF): boolean {
+function isIndexTracker(fund: FundDetailHF): boolean {
   if (fund.product_type === "etf") return true;
   const s = (fund.management_style ?? "").toLowerCase();
   return s === "passif" || s === "index" || s === "smart_beta";

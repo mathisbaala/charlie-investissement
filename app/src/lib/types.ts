@@ -106,7 +106,7 @@ export type Fund = {
 
 // ─── FundDetail (RPC get_fund_detail) ────────────────────────────────────────
 // Inclut les champs bruts non exposés par la vue + percentiles peer-group
-export type FundDetail = Fund & {
+type FundDetail = Fund & {
   // Champs bruts de la table (absents de la vue)
   management_company: string | null;
   category: string | null;             // catégorie brute (non normalisée)
@@ -151,7 +151,7 @@ export type NavPoint = {
 
 // ─── ScreenerFilters ──────────────────────────────────────────────────────────
 // Paramètres de requête pour GET /api/screener/funds
-export type ScreenerFilters = {
+type ScreenerFilters = {
   types?: string[];
   regions?: string[];
   categories?: string[];
@@ -191,7 +191,7 @@ export type ScreenerFilters = {
   labels?: string[];
 };
 
-export type SortField =
+type SortField =
   | 'performance_3y'
   | 'performance_1y'
   | 'performance_5y'
@@ -225,7 +225,7 @@ export type ScreenerResponse = {
   relaxed?: string[];
 };
 
-export type FundDetailResponse = {
+type FundDetailResponse = {
   data: FundDetail;
 };
 
@@ -242,7 +242,7 @@ export type NavResponse = {
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 
-export type FundStats = {
+type FundStats = {
   total_funds: number;
   exploitable_funds: number;           // data_completeness >= 60
   with_kid: number;

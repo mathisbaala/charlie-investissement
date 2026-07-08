@@ -1,6 +1,6 @@
 "use client";
 
-export type SearchEntry = {
+type SearchEntry = {
   query: string;
   chips: string[];
   count: number;

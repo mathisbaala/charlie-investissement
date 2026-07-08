@@ -155,7 +155,7 @@ const REACTION_LABELS: Record<ReactionBaisse, string> = {
 };
 
 // Zones géographiques (vocabulaire UI) → libellé lisible pour le contexte NLP.
-export const GEO_LABELS: Record<string, string> = {
+const GEO_LABELS: Record<string, string> = {
   monde:         "Monde",
   europe:        "Europe",
   zone_euro:     "Zone euro",

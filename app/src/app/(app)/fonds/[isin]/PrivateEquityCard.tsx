@@ -4,7 +4,7 @@ import { productTypeLabel } from "@/lib/format";
 
 // Types de private equity (non coté) — partagé avec FundSheetClient pour neutraliser
 // les blocs « cotés » (graphe VL, perf annualisée, vol/sharpe) qui n'ont pas de sens ici.
-export const PE_TYPES = new Set(["fcpr", "fcpi", "fip", "fpci"]);
+const PE_TYPES = new Set(["fcpr", "fcpi", "fip", "fpci"]);
 export function isPrivateEquity(productType: string | null | undefined): boolean {
   return !!productType && PE_TYPES.has(productType.toLowerCase());
 }

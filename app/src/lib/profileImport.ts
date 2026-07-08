@@ -5,7 +5,7 @@
 
 import { type RichClientProfile } from "./clientProfile";
 
-export function readAsBase64(file: File): Promise<string> {
+function readAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve((reader.result as string).split(",")[1]);
@@ -14,7 +14,7 @@ export function readAsBase64(file: File): Promise<string> {
   });
 }
 
-export function readAsText(file: File): Promise<string> {
+function readAsText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -23,7 +23,7 @@ export function readAsText(file: File): Promise<string> {
   });
 }
 
-export async function readExcelAsText(file: File): Promise<string> {
+async function readExcelAsText(file: File): Promise<string> {
   const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: "array" });

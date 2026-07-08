@@ -373,5 +373,3 @@ Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
   }
 }
 
-// Re-export ParsedFilters pour compatibilité
-export type { ParsedFilters };

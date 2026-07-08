@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import type { NavPointHF } from "@/lib/types";
 
-export type Period = { label: string; months: number; years: number };
+type Period = { label: string; months: number; years: number };
 
 export const PERIODS: Period[] = [
   { label: "1A",  months: 12,   years: 1 },
