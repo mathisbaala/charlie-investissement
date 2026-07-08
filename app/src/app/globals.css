@@ -8,11 +8,12 @@
      l'ancienne crème beige. Les surfaces restent quasi-achromatiques (hue 90,
      chroma ≤ 0.008), seul l'accent porte la couleur de marque (clay, hue 38). */
 
-  /* Surfaces — tonalité neutre/lin (alignée Charlie Prospection live) */
-  --color-cream:       oklch(0.965 0.005 90); /* fond global neutre */
-  --color-paper:       oklch(0.99  0.003 95); /* cartes & panneaux (blanc cassé froid) */
-  --color-paper-2:     oklch(0.94  0.006 90); /* surface alternée / hover */
-  --color-paper-3:     oklch(0.91  0.008 90); /* surface enfoncée */
+  /* Surfaces — tonalité neutre, très légèrement refroidie (moins « crème
+     chaude » : chroma abaissé pour tirer vers un blanc-gris institutionnel). */
+  --color-cream:       oklch(0.968 0.003 100); /* fond global neutre */
+  --color-paper:       oklch(0.992 0.002 100); /* cartes & panneaux (blanc cassé froid) */
+  --color-paper-2:     oklch(0.945 0.004 100); /* surface alternée / hover */
+  --color-paper-3:     oklch(0.915 0.005 100); /* surface enfoncée */
 
   /* Texte */
   --color-ink:         oklch(0.22  0.005 90); /* texte principal & boutons primaires (encre) */
@@ -25,14 +26,15 @@
   --color-line:        oklch(0.83  0.008 90); /* séparateurs & contours de cartes */
   --color-line-soft:   oklch(0.9   0.006 90); /* hairlines très discrètes */
 
-  /* Accent terracotta / clay (= --accent de Charlie Prospection) — porte toute
-     la couleur de marque : liens, signaux, états sélectionnés, toggles, nav active */
-  --color-accent:      oklch(0.5   0.13  38); /* clay */
-  --color-accent-soft: oklch(0.86  0.065 42);
-  --color-accent-ink:  oklch(0.34  0.12  38);
-  --color-accent-tint: oklch(0.95  0.028 45);
-  --color-brown:       oklch(0.5   0.13  38); /* alias clay — états sélectionnés, toggles, nav active */
-  --color-brown-2:     oklch(0.45  0.125 38); /* hover clay */
+  /* Accent terracotta / clay désaturé — identité chaude conservée mais calmée
+     (chroma abaissé ≈ -25 % : plus sobre, moins « déco/café »). Porte toute la
+     couleur de marque : liens, signaux, états sélectionnés, toggles, nav active */
+  --color-accent:      oklch(0.47  0.095 40); /* clay sobre */
+  --color-accent-soft: oklch(0.87  0.05  42);
+  --color-accent-ink:  oklch(0.35  0.09  40);
+  --color-accent-tint: oklch(0.955 0.022 45);
+  --color-brown:       oklch(0.47  0.095 40); /* alias clay — états sélectionnés, toggles, nav active */
+  --color-brown-2:     oklch(0.42  0.09  40); /* hover clay */
 
   /* Status */
   --color-ok:          oklch(0.55  0.10  150);
@@ -42,10 +44,14 @@
   --color-danger:      oklch(0.52  0.18  27); /* rouge brique — échecs, erreurs, pertes (≠ warn) */
   --color-danger-soft: oklch(0.93  0.05  27);
 
-  /* Typographie */
-  --font-serif:  "Instrument Serif", Georgia, serif;
-  --font-sans:   "DM Sans", system-ui, sans-serif;
-  --font-hand:   "Caveat", cursive;
+  /* Typographie — Inter partout (interface sérieuse/institutionnelle). Les rôles
+     historiques serif/hand sont conservés comme alias pour ne pas casser les
+     ~380 usages de font-serif/font-hand : ils pointent tous vers Inter (via
+     --font-sans, injecté par next/font sur <html>). Plus aucune serif éditoriale
+     ni police manuscrite. DM Mono reste pour les chiffres/ISIN tabulaires. */
+  --font-sans:   "Inter", system-ui, sans-serif;
+  --font-serif:  var(--font-sans);
+  --font-hand:   var(--font-sans);
   --font-mono:   "DM Mono", "Courier New", monospace;
 
   /* Échelle typographique — noms sémantiques (pas de collision avec les
@@ -64,14 +70,19 @@
   --text-title--line-height:      1.3;
   --text-title-lg:    22px; /* titres de page */
   --text-title-lg--line-height:   1.2;
+  --text-title-lg--letter-spacing:  -0.01em;
   --text-display:     28px; /* grands titres */
   --text-display--line-height:    1.15;
+  --text-display--letter-spacing:   -0.015em;
   --text-display-md:  32px;
   --text-display-md--line-height: 1.12;
+  --text-display-md--letter-spacing: -0.02em;
   --text-display-lg:  40px;
   --text-display-lg--line-height: 1.08;
-  --text-display-xl:  58px; /* hero serif */
+  --text-display-lg--letter-spacing: -0.021em;
+  --text-display-xl:  58px; /* hero */
   --text-display-xl--line-height: 1.05;
+  --text-display-xl--letter-spacing: -0.025em;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -99,10 +110,14 @@ html { height: 100%; }
 body {
   background-color: var(--color-cream);
   color: var(--color-ink);
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: var(--text-body);
   line-height: 1.45;
+  /* Chiffres à chasse fixe : les colonnes de perf/frais/VL s'alignent
+     verticalement (registre « document financier », pas prose). */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100%;
 }
 

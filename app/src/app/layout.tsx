@@ -1,33 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Instrument_Serif,
-  DM_Sans,
-  Caveat,
-  DM_Mono,
-} from "next/font/google";
+import { Inter, DM_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const instrumentSerif = Instrument_Serif({
-  weight: ["400"],
+// Police d'interface unique : Inter. Sans-serif neutre, institutionnelle et
+// hyper-lisible pour les tableaux financiers denses (registre fintech/banque,
+// pas « éditorial/coffee shop »). Elle alimente à la fois --font-sans et, via
+// globals.css, --font-serif / --font-hand (plus de serif décorative ni de
+// manuscrite). DM Mono reste réservé aux chiffres/ISIN tabulaires.
+const inter = Inter({
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
   subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
   variable: "--font-sans",
-  display: "swap",
-});
-
-const caveat = Caveat({
-  weight: ["500"],
-  subsets: ["latin"],
-  variable: "--font-hand",
   display: "swap",
 });
 
@@ -77,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className={`${instrumentSerif.variable} ${dmSans.variable} ${caveat.variable} ${dmMono.variable} h-full`}
+      className={`${inter.variable} ${dmMono.variable} h-full`}
     >
       <body className="h-full">
         {children}
