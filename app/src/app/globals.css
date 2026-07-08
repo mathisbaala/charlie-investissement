@@ -71,18 +71,23 @@
   --text-title-lg:    22px; /* titres de page */
   --text-title-lg--line-height:   1.2;
   --text-title-lg--letter-spacing:  -0.01em;
+  --text-title-lg--font-weight:     500;
   --text-display:     28px; /* grands titres */
   --text-display--line-height:    1.15;
   --text-display--letter-spacing:   -0.015em;
+  --text-display--font-weight:      500;
   --text-display-md:  32px;
   --text-display-md--line-height: 1.12;
   --text-display-md--letter-spacing: -0.02em;
+  --text-display-md--font-weight:    500;
   --text-display-lg:  40px;
   --text-display-lg--line-height: 1.08;
   --text-display-lg--letter-spacing: -0.021em;
+  --text-display-lg--font-weight:    500;
   --text-display-xl:  58px; /* hero */
   --text-display-xl--line-height: 1.05;
   --text-display-xl--letter-spacing: -0.025em;
+  --text-display-xl--font-weight:    500;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

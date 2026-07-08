@@ -73,7 +73,7 @@ export default function LandingPage() {
           top: "-120px", right: "-120px",
           width: "520px", height: "520px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, oklch(0.90 0.07 48 / 0.45) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.91 0.04 48 / 0.20) 0%, transparent 70%)",
         }}
       />
       {/* Radial bloom bottom-left */}
@@ -83,7 +83,7 @@ export default function LandingPage() {
           bottom: "-80px", left: "-80px",
           width: "340px", height: "340px",
           borderRadius: "50%",
-          background: "radial-gradient(circle, oklch(0.90 0.07 48 / 0.30) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.91 0.04 48 / 0.12) 0%, transparent 70%)",
         }}
       />
 

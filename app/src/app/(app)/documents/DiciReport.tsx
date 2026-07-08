@@ -118,7 +118,7 @@ function KpiTile({
       <p className="text-caption uppercase tracking-widest text-muted">{label}</p>
       <p className="mt-1.5 flex items-baseline gap-1">
         <span
-          className={`text-title-lg font-normal ${toneCls}`}
+          className={`text-title-lg font-medium ${toneCls}`}
           style={{ fontFamily: "var(--font-serif)" }}
         >
           {value}
@@ -328,7 +328,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
               )}
             </div>
             <h2
-              className="text-display-md leading-[1.1] text-ink font-normal"
+              className="text-display-md leading-[1.1] text-ink font-medium"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               {fiche.name}
@@ -349,7 +349,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
               <div className="text-center">
                 <p className="text-caption uppercase tracking-widest text-muted">Risque</p>
                 <p
-                  className={`text-display-md font-normal ${
+                  className={`text-display-md font-medium ${
                     sriTone(fiche.sri) === "ok"
                       ? "text-ok"
                       : sriTone(fiche.sri) === "warn"
@@ -367,7 +367,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
               <div className="text-center">
                 <p className="text-caption uppercase tracking-widest text-muted">Frais/an</p>
                 <p
-                  className="text-display-md font-normal text-ink"
+                  className="text-display-md font-medium text-ink"
                   style={{ fontFamily: "var(--font-serif)" }}
                 >
                   {nf.format(fiche.ongoing_charges)}
