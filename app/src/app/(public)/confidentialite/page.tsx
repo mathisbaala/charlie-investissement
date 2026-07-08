@@ -23,7 +23,7 @@ function Section({
     <section className="mt-9">
       <h2
         className="text-title text-ink mb-3"
-        style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+        style={{ fontFamily: "var(--font-serif)" }}
       >
         {title}
       </h2>

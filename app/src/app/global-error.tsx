@@ -27,12 +27,12 @@ export default function GlobalError({
           justifyContent: "center",
           backgroundColor: "#F5F3F0",
           color: "#1B1A18",
-          fontFamily: "Georgia, 'Times New Roman', serif",
+          fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
           padding: "1.5rem",
         }}
       >
         <div style={{ maxWidth: "28rem", textAlign: "center" }}>
-          <p style={{ fontSize: "28px", fontStyle: "italic", margin: "0 0 0.75rem" }}>
+          <p style={{ fontSize: "28px", margin: "0 0 0.75rem" }}>
             Une erreur inattendue est survenue.
           </p>
           <p style={{ fontSize: "14px", color: "#3B3A38", margin: "0 0 1.5rem" }}>
