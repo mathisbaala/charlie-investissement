@@ -17,7 +17,7 @@ function pickLabel(votes: Map<string, number>): string {
 }
 
 // Lignes génériques / non identifiables → exclues de la détection de doublons.
-export const GENERIC_POSITIONS = new Set([
+const GENERIC_POSITIONS = new Set([
   "autre", "autres", "other", "others", "cash", "liquidités", "liquidites",
   "divers", "n/a", "na", "non communiqué", "non communique", "-",
 ]);
@@ -98,8 +98,8 @@ export function weightedExposure(
     .slice(0, limit);
 }
 
-export type HoldingRow = { isin: string; position_name: string | null; ticker: string | null; weight: number | null };
-export type Overlap = {
+type HoldingRow = { isin: string; position_name: string | null; ticker: string | null; weight: number | null };
+type Overlap = {
   name: string; ticker: string | null; count: number;
   funds: { isin: string; weight: number }[]; max_weight: number;
 };

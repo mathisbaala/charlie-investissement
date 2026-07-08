@@ -5,7 +5,7 @@
 
 export const RATE_LIMIT_EVENT = "charlie:rate-limit";
 
-export function notifyRateLimit(scope: "day" | "hour" = "day") {
+function notifyRateLimit(scope: "day" | "hour" = "day") {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(RATE_LIMIT_EVENT, { detail: { scope } }));
 }

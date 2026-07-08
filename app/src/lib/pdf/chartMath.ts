@@ -6,8 +6,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Pt = { t: number; v: number };
-export type XY = { x: number; y: number };
-export type Bounds = { minT: number; maxT: number; minV: number; maxV: number };
+type XY = { x: number; y: number };
+type Bounds = { minT: number; maxT: number; minV: number; maxV: number };
 /** Tranche de composition (libellé + poids) — partagée donut/barres/données. */
 export type Slice = { label: string; weight: number };
 
@@ -94,7 +94,7 @@ function polar(cx: number, cy: number, r: number, angleDeg: number): XY {
   return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
 }
 
-export type DonutSeg = { d: string; value: number; share: number };
+type DonutSeg = { d: string; value: number; share: number };
 
 /**
  * Segments d'anneau (donut) à partir de valeurs positives. `share` = fraction du

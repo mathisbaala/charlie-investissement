@@ -45,7 +45,7 @@ export function activeFilters(
   return Object.keys(out).length ? out : null;
 }
 
-export type AnalyticsEvent = {
+type AnalyticsEvent = {
   event_type: "search" | "search_nl" | "fund_view" | "matching" | "chat" | "dici";
   path?: string | null;
   isin?: string | null;

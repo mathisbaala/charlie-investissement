@@ -13,7 +13,7 @@ export type { Slice };
 export type FundComposition = { geos: Slice[]; sectors: Slice[]; holdings: Slice[] };
 
 /** Date ISO (AAAA-MM-JJ) il y a `years` années, pour borner l'historique. */
-export function cutoffDate(years: number, now: number = Date.now()): string {
+function cutoffDate(years: number, now: number = Date.now()): string {
   return new Date(now - years * 365.25 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 }
 

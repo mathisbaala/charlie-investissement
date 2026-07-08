@@ -18,7 +18,7 @@ const COLS = [
   "entry_fee_max",
 ].join(",");
 
-export type ChatFund = {
+type ChatFund = {
   isin: string;
   name: string;
   gestionnaire: string | null;

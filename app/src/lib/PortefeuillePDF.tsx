@@ -27,7 +27,7 @@ registerCharlieFonts();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Fund = Record<string, any>;
 
-export interface PortefeuillePDFProps {
+interface PortefeuillePDFProps {
   analysis: PortfolioAnalysis;
   holdings: Holding[]; // poids en % (déjà normalisés), dans l'ordre d'affichage
   fundsInfo: Record<string, Fund>;
