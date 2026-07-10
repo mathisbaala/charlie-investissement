@@ -170,37 +170,46 @@ export function AllocationStudio() {
         </p>
       </div>
 
-      {/* Profil client — LE MÊME formulaire que l'accueil, données partagées */}
+      {/* Une seule carte : le profil (données CLIENT, partagées avec l'accueil)
+          puis les paramètres du moteur (choix du CONSEILLER pour cette étude) —
+          réunis pour la lisibilité, mais séparés par un intertitre car ils ne
+          décrivent pas la même chose. */}
       <Card className="px-5 py-5">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-label text-ink font-semibold">Profil du client</h2>
           <span className="text-meta text-muted">Partagé avec l'accueil · enregistré automatiquement</span>
         </div>
-        <ClientProfileForm />
-      </Card>
+        <ClientProfileForm showSearchCta={false} />
 
-      {/* Paramètres propres à l'allocation */}
-      <Card className="px-5 py-5">
-        <h2 className="text-label text-ink font-semibold mb-4">Paramètres de l'allocation</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Field label="Contrat">
-            <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
-          </Field>
-          <Field label="Poids max. par fonds (%)">
-            <input className={inputCls} type="number" min={10} max={100} value={maxPerFund} onChange={(e) => setMaxPerFund(e.target.value)} />
-          </Field>
-          <Field label="Nombre max. de supports">
-            <input className={inputCls} type="number" min={4} max={10} value={maxAssets} onChange={(e) => setMaxAssets(e.target.value)} />
-          </Field>
-          <Field label="Cabinet / conseiller (optionnel)">
-            <input className={inputCls} value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Ex. Métagram Gestion Privée" />
-          </Field>
-        </div>
-        <div className="mt-5 flex items-center gap-3">
-          <Btn variant="primary" size="md" onClick={generate}>Générer l'allocation</Btn>
-          <span className="text-meta text-muted">
-            Univers de démonstration ({SAMPLE_UNIVERSE.length} fonds). En production : les fonds réels du contrat.
-          </span>
+        <div className="mt-6 pt-5 border-t border-line-soft">
+          <div className="flex items-baseline justify-between mb-1">
+            <h2 className="text-label text-ink font-semibold">Paramètres de l'allocation</h2>
+            <span className="text-meta text-muted">Réglages du conseiller — indépendants du profil client</span>
+          </div>
+          <p className="text-meta text-muted mb-4">
+            Sur quel contrat optimiser, et les garde-fous du moteur : concentration maximale
+            par fonds et nombre de lignes du portefeuille.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Field label="Contrat">
+              <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
+            </Field>
+            <Field label="Poids max. par fonds (%)">
+              <input className={inputCls} type="number" min={10} max={100} value={maxPerFund} onChange={(e) => setMaxPerFund(e.target.value)} />
+            </Field>
+            <Field label="Nombre max. de supports">
+              <input className={inputCls} type="number" min={4} max={10} value={maxAssets} onChange={(e) => setMaxAssets(e.target.value)} />
+            </Field>
+            <Field label="Cabinet / conseiller (optionnel)">
+              <input className={inputCls} value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Ex. Métagram Gestion Privée" />
+            </Field>
+          </div>
+          <div className="mt-5 flex items-center gap-3">
+            <Btn variant="primary" size="md" onClick={generate}>Générer l'allocation</Btn>
+            <span className="text-meta text-muted">
+              Univers de démonstration ({SAMPLE_UNIVERSE.length} fonds). En production : les fonds réels du contrat.
+            </span>
+          </div>
         </div>
       </Card>
 
