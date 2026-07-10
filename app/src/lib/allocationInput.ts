@@ -20,6 +20,8 @@ export interface FundRow {
   gestionnaire?: string | null;
   risk_score?: number | null; // SRI 1–7
   sfdr_article?: number | null;
+  morningstar_rating?: number | null; // 1–5 étoiles
+
   ter?: number | null; // fraction
   ongoing_charges?: number | null; // fraction
   performance_1y?: number | null; // % annuel
@@ -103,6 +105,7 @@ export function toFundInput(row: FundRow): FundInput | null {
     volatility: volPct / 100,
     ter: ter ?? null,
     sfdr: row.sfdr_article ?? null,
+    rating: row.morningstar_rating ?? null,
     managementStyle: row.management_style ?? null,
     gestionnaire: row.gestionnaire ?? null,
     region: row.region_normalized ?? null,

@@ -9,6 +9,7 @@ import {
 } from "./optimizer";
 import { toFundInputs, type FundRow } from "./allocationInput";
 import { buildPresentation, type AllocationPresentation } from "./allocationRationale";
+import { filterUniverse, GEO_TO_REGIONS } from "./profileToConstraints";
 
 // Service serveur du moteur d'allocation : partagé par la route JSON
 // (/api/portfolio/optimize) et la route PDF (…/pdf) pour ne pas dupliquer la
@@ -19,8 +20,8 @@ const VIEW = "investissement_funds_cgp_ref";
 const COLS =
   "isin, name, product_type, asset_class_broad, category_normalized, " +
   "region_normalized, management_style, gestionnaire, risk_score, sfdr_article, " +
-  "ter, ongoing_charges, performance_1y, performance_3y, performance_5y, " +
-  "volatility_1y, volatility_3y, data_completeness";
+  "morningstar_rating, ter, ongoing_charges, performance_1y, performance_3y, " +
+  "performance_5y, volatility_1y, volatility_3y, data_completeness";
 
 export interface OptimizeParams {
   contract: string; // « Assureur::Contrat »
@@ -33,11 +34,27 @@ export interface OptimizeParams {
   mustInclude: string[];
   advisorName?: string | null;
   asOfLabel?: string;
+  /** Zones géographiques du profil (vocabulaire UI : monde, europe, amerique_nord…). */
+  geographies?: string[];
+  /** Préférence ESG (art8 / art9). */
+  esg?: string | null;
+  /** Frais courants max, en pourcentage. */
+  terMax?: number | null;
+  /** Plafond SRI par fonds (adéquation MIF). */
+  sriMax?: number | null;
+  /** ISIN écartés à la main par le conseiller. */
+  exclude?: string[];
 }
 
 export interface OptimizeOutput {
   allocation: AllocationResult;
   presentation: AllocationPresentation;
+  /** Matrice de corrélation des lignes retenues (alignée sur allocation.lines). */
+  correlations: {
+    isins: string[];
+    names: string[];
+    matrix: (number | null)[][];
+  };
   meta: {
     contract: string;
     universe: number;
@@ -45,6 +62,7 @@ export interface OptimizeOutput {
     shortlisted: number;
     correlationWindow: unknown;
     droppedFromUniverse: number;
+    droppedByPreferences: number;
   };
 }
 
@@ -131,8 +149,55 @@ export async function optimizeContract(
     };
   }
 
+  // 2 bis) Filtres de préférence (profil client + réglages conseiller), avec
+  // assouplissement progressif si l'univers restant ne permet plus de diversifier :
+  // d'abord la contrainte géographique, puis toutes les préférences — mais JAMAIS
+  // les exclusions manuelles du conseiller.
+  const filterOpts = {
+    maxTer: params.terMax ?? null,
+    esg: params.esg ?? null,
+    geographies: params.geographies ?? [],
+    sriMax: params.sriMax ?? null,
+    exclude: params.exclude ?? [],
+  };
+  const filterNotes: string[] = [];
+  let filtered = filterUniverse(inputs, filterOpts);
+  if (filtered.funds.length < minAssets && (params.geographies?.length ?? 0) > 0) {
+    const retry = filterUniverse(inputs, { ...filterOpts, geographies: [] });
+    if (retry.funds.length >= minAssets) {
+      filtered = retry;
+      filterNotes.push(
+        "Zones géographiques trop restrictives sur ce contrat : contrainte levée pour préserver la diversification.",
+      );
+    }
+  }
+  if (filtered.funds.length < minAssets) {
+    const bare = filterUniverse(inputs, { exclude: params.exclude ?? [] });
+    if (bare.funds.length >= minAssets) {
+      filtered = bare;
+      filterNotes.push(
+        "Préférences du profil trop restrictives sur ce contrat : allocation calculée sur l'univers complet.",
+      );
+    } else {
+      return {
+        error: "Univers insuffisant",
+        detail: `${bare.funds.length} fonds restants après exclusions (< ${minAssets} requis).`,
+        status: 422,
+      };
+    }
+  }
+  // Ré-injecte les supports imposés écartés par les préférences (pas les exclus).
+  const excludedSet = new Set((params.exclude ?? []).map((s) => s.toUpperCase()));
+  const universe = [...filtered.funds];
+  for (const isin of mustInclude) {
+    if (excludedSet.has(isin.toUpperCase())) continue;
+    if (universe.some((f) => f.isin === isin)) continue;
+    const f = inputs.find((x) => x.isin === isin);
+    if (f) universe.push(f);
+  }
+
   // 3) Pré-sélection puis corrélation dédiée sur le shortlist.
-  const candidates = shortlist(inputs, classTargets, riskFree);
+  const candidates = shortlist(universe, classTargets, riskFree);
   const isins = candidates.map((f) => f.isin);
 
   const { data: corrData, error: corrErr } = await supabase.rpc("inv_fund_correlation", {
@@ -162,6 +227,11 @@ export async function optimizeContract(
     mustInclude,
   };
   const allocation = optimizeAllocation(candidates, corrOf, constraints);
+  allocation.notes.unshift(...filterNotes);
+
+  // Matrice de corrélation des lignes retenues (pour l'affichage studio).
+  const lineIsins = allocation.lines.map((l) => l.isin);
+  const corrMatrix = lineIsins.map((a) => lineIsins.map((b) => corrOf(a, b)));
 
   const contractName = contract.split("::")[1] ?? contract;
   const presentation = buildPresentation(allocation, {
@@ -174,6 +244,11 @@ export async function optimizeContract(
   return {
     allocation,
     presentation,
+    correlations: {
+      isins: lineIsins,
+      names: allocation.lines.map((l) => l.name),
+      matrix: corrMatrix,
+    },
     meta: {
       contract,
       universe: inputs.length + dropped,
@@ -181,6 +256,7 @@ export async function optimizeContract(
       shortlisted: candidates.length,
       correlationWindow: corrData?.window ?? null,
       droppedFromUniverse: dropped,
+      droppedByPreferences: filtered.dropped,
     },
   };
 }
@@ -224,6 +300,14 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
   const maxAssets = Math.min(Math.max(Number(p.get("max")) || 7, minAssets), 12);
   const rfRaw = p.get("rf");
   const riskFree = rfRaw !== null && Number.isFinite(Number(rfRaw)) ? Number(rfRaw) / 100 : 0.02;
+  const isinList = (raw: string | null): string[] =>
+    (raw ?? "")
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => ISIN_RE.test(s));
+  const esgRaw = p.get("esg")?.trim().toLowerCase() || null;
+  const terMaxRaw = p.get("terMax");
+  const sriMaxRaw = p.get("sriMax");
   return {
     contract,
     classTargets: parseTargets(p.get("targets")),
@@ -232,11 +316,22 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
     maxWeightedSri: p.get("maxSri") ? Number(p.get("maxSri")) : null,
     riskFree,
     years: Math.min(Math.max(Number(p.get("years")) || 3, 1), 10),
-    mustInclude: (p.get("must") ?? "")
-      .split(",")
-      .map((s) => s.trim().toUpperCase())
-      .filter((s) => ISIN_RE.test(s)),
+    mustInclude: isinList(p.get("must")),
     advisorName: p.get("advisor")?.trim() || null,
     asOfLabel: p.get("asOf")?.trim() || undefined,
+    geographies: (p.get("geo") ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s in GEO_TO_REGIONS),
+    esg: esgRaw === "art8" || esgRaw === "art9" ? esgRaw : null,
+    terMax:
+      terMaxRaw !== null && Number.isFinite(Number(terMaxRaw)) && Number(terMaxRaw) > 0
+        ? Number(terMaxRaw)
+        : null,
+    sriMax:
+      sriMaxRaw !== null && Number.isFinite(Number(sriMaxRaw))
+        ? Math.min(Math.max(Math.round(Number(sriMaxRaw)), 1), 7)
+        : null,
+    exclude: isinList(p.get("exclude")),
   };
 }

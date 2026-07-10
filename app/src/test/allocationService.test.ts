@@ -55,6 +55,29 @@ describe("paramsFromQuery", () => {
     if ("error" in p) throw new Error("inattendu");
     expect(p.maxAssets).toBeGreaterThanOrEqual(p.minAssets);
   });
+  it("parse les zones géographiques en ignorant les zones inconnues", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&geo=europe,amerique_nord,mars"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.geographies).toEqual(["europe", "amerique_nord"]);
+  });
+  it("parse esg, terMax et sriMax (borné 1 à 7)", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&esg=art8&terMax=1.5&sriMax=9"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.esg).toBe("art8");
+    expect(p.terMax).toBeCloseTo(1.5, 9);
+    expect(p.sriMax).toBe(7);
+  });
+  it("rejette un esg inconnu et un terMax non positif", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&esg=vert&terMax=-1"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.esg).toBeNull();
+    expect(p.terMax).toBeNull();
+  });
+  it("parse les exclusions comme les inclusions (ISIN valides, en majuscules)", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&exclude=fr0000000000,???,LU1111111111"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.exclude).toEqual(["FR0000000000", "LU1111111111"]);
+  });
 });
 
 describe("shortlist", () => {

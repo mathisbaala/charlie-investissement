@@ -53,6 +53,26 @@ describe("MarkowitzChart", () => {
     expect(screen.queryByText("Revenir à l'optimal")).toBeNull();
   });
 
+  it("recalcule le SRI moyen pondéré quand on bouge un poids", () => {
+    render(<MarkowitzChart lines={LINES} cov={COV} riskFree={0.02} />);
+    // Départ : 0,5×5 + 0,3×2 + 0,2×1 = 3,3.
+    expect(screen.getByTestId("simulated-sri").textContent).toContain("3,3".replace(",", "."));
+
+    // Tout le poids sur le monétaire (SRI 1) → le SRI simulé plonge vers 1.
+    fireEvent.change(screen.getByLabelText("Poids de Fonds Actions Monde"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Poids de Fonds Obligations Euro"), { target: { value: "0" } });
+    const sri = screen.getByTestId("simulated-sri").textContent!;
+    expect(sri).toContain("1.0 / 7");
+    // Le comparatif vs optimal s'affiche en mode édité.
+    expect(sri).toContain("optimal 3.3");
+  });
+
+  it("affiche un tiret quand aucun SRI n'est renseigné", () => {
+    const noSri = LINES.map((l) => ({ ...l, sri: null }));
+    render(<MarkowitzChart lines={noSri} cov={COV} riskFree={0.02} />);
+    expect(screen.getByTestId("simulated-sri").textContent).toContain("—");
+  });
+
   it("normalise les poids affichés à 100 %", () => {
     render(<MarkowitzChart lines={LINES} cov={COV} riskFree={0.02} />);
     const slider = screen.getByLabelText("Poids de Fonds Monétaire");

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // AllocationStudio embarque ClientProfileForm, qui utilise useRouter → on le neutralise.
 vi.mock("next/navigation", () => ({
@@ -45,5 +45,76 @@ describe("AllocationStudio", () => {
     render(<AllocationStudio />);
     fireEvent.click(screen.getByText("Générer l'allocation"));
     expect(screen.getByText(/Profil utilisé — Profil Dynamique/)).toBeTruthy();
+  });
+
+  it("affiche la matrice de corrélation, la colonne Notation et les liens vers les fiches", () => {
+    render(<AllocationStudio />);
+    fireEvent.click(screen.getByText("Générer l'allocation"));
+
+    expect(screen.getByText("Corrélation des supports retenus")).toBeTruthy();
+    expect(screen.getByText("Notation")).toBeTruthy();
+    expect(screen.getByText("Frais")).toBeTruthy();
+    // Chaque ligne du tableau pointe vers la fiche du fonds.
+    const links = screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("/fonds/"));
+    expect(links.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("retire un fonds de l'allocation, propose un similaire et recalcule sans lui", async () => {
+    render(<AllocationStudio />);
+    fireEvent.click(screen.getByText("Générer l'allocation"));
+
+    const firstRemove = screen.getAllByLabelText(/^Retirer /)[0];
+    const label = firstRemove.getAttribute("aria-label")!; // « Retirer NOM de l'allocation »
+    fireEvent.click(firstRemove);
+
+    // Bandeau de retrait + suggestion de remplacement similaire.
+    expect(screen.getByText(/retiré de l'allocation/)).toBeTruthy();
+    expect(screen.getByText(/Fonds écartés/)).toBeTruthy();
+
+    // Après le recalcul automatique (débouncé), le fonds a quitté le tableau.
+    await waitFor(() => {
+      expect(screen.queryByLabelText(label)).toBeNull();
+    }, { timeout: 2000 });
+  });
+
+  it("le retrait est annulable : le fonds réintègre l'univers", async () => {
+    render(<AllocationStudio />);
+    fireEvent.click(screen.getByText("Générer l'allocation"));
+
+    const firstRemove = screen.getAllByLabelText(/^Retirer /)[0];
+    const label = firstRemove.getAttribute("aria-label")!;
+    fireEvent.click(firstRemove);
+    fireEvent.click(screen.getByText("Annuler le retrait"));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(label)).toBeTruthy();
+    }, { timeout: 2000 });
+    expect(screen.queryByText(/Fonds écartés/)).toBeNull();
+  });
+
+  it("baisser le plafond SRI relance le calcul (filtre trop strict → note d'assouplissement)", async () => {
+    render(<AllocationStudio />);
+    fireEvent.click(screen.getByText("Générer l'allocation"));
+
+    fireEvent.change(screen.getByLabelText("Plafond SRI par fonds"), { target: { value: "2" } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/trop restrictifs sur l'univers d'exemple/)).toBeTruthy();
+    }, { timeout: 2000 });
+  });
+
+  it("impose un fonds choisi dans l'univers d'exemple (mode démo)", async () => {
+    render(<AllocationStudio />);
+    fireEvent.click(screen.getByText("Générer l'allocation"));
+
+    const select = screen.getByLabelText("Imposer un fonds (univers d'exemple)") as HTMLSelectElement;
+    const isin = (select.querySelectorAll("option")[1] as HTMLOptionElement).value;
+    expect(isin).toBeTruthy();
+    fireEvent.change(select, { target: { value: isin } });
+
+    // Le fonds imposé finit dans le tableau après recalcul (ligne avec son ISIN).
+    await waitFor(() => {
+      expect(screen.getByText(isin)).toBeTruthy();
+    }, { timeout: 2000 });
   });
 });

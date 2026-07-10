@@ -276,4 +276,29 @@ describe("optimizeAllocation (bout en bout)", () => {
     expect(cr.weight).toBeCloseTo(40, 0);
     expect(res.notes.some((n) => n.toLowerCase().includes("plafond"))).toBe(true);
   });
+
+  it("propage la notation et la région du fonds jusqu'aux lignes du résultat", () => {
+    const funds = [
+      fund({ isin: "EQ1", rating: 5, region: "usa" }),
+      fund({ isin: "EQ2", rating: null, region: null }),
+      fund({ isin: "BD1", assetClass: "obligations", expectedReturn: 0.04, volatility: 0.05 }),
+      fund({ isin: "BD2", assetClass: "obligations", expectedReturn: 0.035, volatility: 0.06, rating: 3, region: "europe" }),
+    ];
+    const res = optimizeAllocation(funds, zeroCorr, { minAssets: 4, maxAssets: 4 });
+    const byIsin = new Map(res.lines.map((l) => [l.isin, l]));
+    expect(byIsin.get("EQ1")!.rating).toBe(5);
+    expect(byIsin.get("EQ1")!.region).toBe("usa");
+    expect(byIsin.get("EQ2")!.rating).toBeNull();
+    expect(byIsin.get("BD2")!.rating).toBe(3);
+    expect(byIsin.get("BD2")!.region).toBe("europe");
+  });
+
+  it("calcule le nombre effectif de lignes (1 / somme des poids²)", () => {
+    // Deux fonds identiques, plafond 50 % → poids 50/50 → 1/(0,25+0,25) = 2.
+    const funds = [fund({ isin: "A" }), fund({ isin: "B" })];
+    const res = optimizeAllocation(funds, zeroCorr, {
+      minAssets: 2, maxAssets: 2, maxWeightPerFund: 0.5,
+    });
+    expect(res.diversification.effectiveHoldings).toBeCloseTo(2, 5);
+  });
 });

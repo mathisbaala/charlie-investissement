@@ -88,6 +88,15 @@ describe("toFundInput", () => {
   });
 });
 
+describe("toFundInput — notation", () => {
+  it("mappe morningstar_rating → rating (et null si absent)", () => {
+    const rated = toFundInput(row({ isin: "A", asset_class_broad: "action", performance_1y: 8, volatility_1y: 14, morningstar_rating: 4 }));
+    expect(rated!.rating).toBe(4);
+    const unrated = toFundInput(row({ isin: "B", asset_class_broad: "action", performance_1y: 8, volatility_1y: 14 }));
+    expect(unrated!.rating).toBeNull();
+  });
+});
+
 describe("toFundInputs", () => {
   it("filtre les non-optimisables et compte les écarts", () => {
     const { inputs, dropped } = toFundInputs([
