@@ -56,10 +56,15 @@ dépassement du SRI plafond signalé (note non bloquante).
 | `app/src/lib/optimizer.ts` | Sélection + max-Sharpe sous contraintes | `src/test/optimizer.test.ts` |
 | `app/src/lib/allocationInput.ts` | Ligne DB → `FundInput` (unités, classes) | `src/test/allocationInput.test.ts` |
 | `app/src/lib/allocationRationale.ts` | Restitution (objectifs, justif., SRI/SFDR) | `src/test/allocationRationale.test.ts` |
-| `app/src/app/api/portfolio/optimize/route.ts` | Route API (câblage) | — |
+| `app/src/lib/allocationService.ts` | Chaîne DB→optim→restitution partagée (JSON+PDF) | `src/test/allocationService.test.ts` |
+| `app/src/lib/AllocationReportPDF.tsx` | Export PDF « présentation client » (react-pdf) | `src/test/allocationReportPdf.test.ts` |
+| `app/src/components/portfolio/AllocationReport.tsx` | Restitution à l'écran | `src/test/AllocationReport.component.test.tsx` |
+| `app/src/app/api/portfolio/optimize/route.ts` | Route API JSON | — |
+| `app/src/app/api/portfolio/optimize/pdf/route.ts` | Route API export PDF | — |
 | `supabase/migrations/20260710130000_inv_fund_correlation.sql` | RPC corrélation | — |
 
-Tests : `cd app && npm test` (66 tests dédiés ; 431 au total, verts).
+Tests : `cd app && npm test` (91 tests dédiés ; 446 au total, verts).
+Aperçu du PDF : `PDF_DUMP=1 npx vitest run src/test/allocationReportPdf.test.ts` → `/tmp/allocation-charlie.pdf`.
 
 ## Restitution (calquée sur le modèle Métagram / Cardif ELITE)
 
@@ -70,9 +75,20 @@ support** (pourquoi retenu, rôle, justification du poids) · profil de risque
 (histogramme SRI pondéré + répartition SFDR) · convictions (piliers) ·
 avertissements MIF II.
 
-## Reste à faire (hors périmètre de ce commit)
+## Restitution
 
-- **UI** : page/onglet rendant `presentation` (non vérifiable en local sans build
-  applicatif réel) + export PPTX/DOCX au format du modèle fourni.
-- **Appliquer les migrations** (`inv_fund_correlation`) via la CI/PR — nécessite
-  les secrets Supabase.
+Deux sorties, un seul chemin de vérité (`allocationService`) :
+- **À l'écran** : `<AllocationReport presentation={…} pdfHref={…} />` — en-tête + KPI,
+  objectifs, répartition par classe, tableau détaillé, profil SRI/SFDR, justification
+  par support, convictions, avertissements.
+- **PDF** : `GET /api/portfolio/optimize/pdf?contract=…&targets=…` — document 3 pages
+  au format « proposition client » (design system PDF partagé).
+
+## Reste à faire (hors périmètre)
+
+- **Page conteneur** : onglet interactif (sélecteur de contrat + curseurs de cibles)
+  qui appelle `/api/portfolio/optimize` et monte `<AllocationReport>`. Non écrit ici
+  car non vérifiable sans build applicatif réel (fetch + état client).
+- **Export PPTX/DOCX** natif au format Métagram (le PDF couvre déjà le besoin
+  « présentation » ; PPTX/DOCX = confort, dépendances supplémentaires).
+- **Appliquer la migration** (`inv_fund_correlation`) via la CI/PR — secrets Supabase.
