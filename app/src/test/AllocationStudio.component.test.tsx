@@ -20,8 +20,9 @@ describe("AllocationStudio", () => {
     expect(screen.getByText("Répartition par classe d'actifs")).toBeTruthy();
     expect(screen.getByText("Allocation détaillée")).toBeTruthy();
     expect(screen.getByText("Analyse et justification par support")).toBeTruthy();
-    // Le bouton d'export PDF est proposé.
-    expect(screen.getByText(/Télécharger la présentation/)).toBeTruthy();
+    // Les boutons d'export (PowerPoint + PDF) sont proposés.
+    expect(screen.getByText(/Télécharger \(PowerPoint\)/)).toBeTruthy();
+    expect(screen.getByText(/Télécharger \(PDF\)/)).toBeTruthy();
     // Une projection chiffrée est affichée (montant par défaut 100 000 €).
     expect(screen.getByText(/Projection indicative/)).toBeTruthy();
   });
