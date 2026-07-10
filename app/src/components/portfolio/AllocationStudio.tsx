@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
+import { PageShell } from "@/components/ui/Page";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { optimizeAllocation, type AllocationResult } from "@/lib/optimizer";
 import { buildPresentation, type AllocationPresentation } from "@/lib/allocationRationale";
@@ -131,7 +132,7 @@ export function AllocationStudio() {
       : null;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto px-4 py-6">
+    <PageShell className="space-y-6">
       <div>
         <h1 className="text-heading text-ink font-semibold">Allocation optimisée</h1>
         <p className="text-meta text-muted">
@@ -220,6 +221,6 @@ export function AllocationStudio() {
           <AllocationReport presentation={presentation} />
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
