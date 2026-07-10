@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
+import { MorningstarBadge } from "@/components/ui/Badge";
+import { X } from "@/components/ui/icons";
 import type { AllocationPresentation } from "@/lib/allocationRationale";
 
 // Restitution à l'écran d'une proposition d'allocation (miroir du PDF). Purement
@@ -36,9 +39,12 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function AllocationReport({
   presentation,
   pdfHref,
+  onRemoveLine,
 }: {
   presentation: AllocationPresentation;
   pdfHref?: string;
+  /** Si fourni : bouton « retirer ce fonds » sur chaque ligne du tableau. */
+  onRemoveLine?: (isin: string) => void;
 }) {
   const p = presentation;
   const maxSri = Math.max(1, ...p.riskProfile.sriDistribution.map((b) => b.weight));
@@ -106,20 +112,43 @@ export function AllocationReport({
               <th className="text-right font-medium py-1.5 pr-2">Poids</th>
               <th className="text-center font-medium py-1.5 pr-2">SRI</th>
               <th className="text-center font-medium py-1.5 pr-2">SFDR</th>
-              <th className="text-right font-medium py-1.5">TER</th>
+              <th className="text-center font-medium py-1.5 pr-2">Notation</th>
+              <th className="text-right font-medium py-1.5">Frais</th>
+              {onRemoveLine && <th className="py-1.5" aria-label="Retirer" />}
             </tr>
           </thead>
           <tbody>
             {p.table.map((l, i) => (
               <tr key={l.isin} className="border-b border-line-soft/60">
                 <td className="py-1.5 pr-2 text-muted">{i + 1}</td>
-                <td className="py-1.5 pr-2 text-ink-2">{l.name}</td>
+                <td className="py-1.5 pr-2">
+                  <Link
+                    href={`/fonds/${l.isin}`}
+                    className="text-ink-2 hover:text-ink hover:underline underline-offset-2 transition-colors"
+                    title={`Voir la fiche de ${l.name}`}
+                  >
+                    {l.name}
+                  </Link>
+                </td>
                 <td className="py-1.5 pr-2 font-mono text-[11px] text-muted">{l.isin}</td>
                 <td className="py-1.5 pr-2 text-ink-2">{l.category ?? "—"}</td>
                 <td className="py-1.5 pr-2 text-right text-ink font-semibold">{fmtPct(l.weight)}</td>
                 <td className="py-1.5 pr-2 text-center text-ink-2">{l.sri ?? "—"}</td>
                 <td className="py-1.5 pr-2 text-center text-ink-2">{sfdrText(l.sfdr)}</td>
+                <td className="py-1.5 pr-2 text-center whitespace-nowrap"><MorningstarBadge rating={l.rating} /></td>
                 <td className="py-1.5 text-right text-ink-2">{l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)} %`}</td>
+                {onRemoveLine && (
+                  <td className="py-1.5 pl-2 text-right">
+                    <button
+                      onClick={() => onRemoveLine(l.isin)}
+                      aria-label={`Retirer ${l.name} de l'allocation`}
+                      title="Retirer ce fonds et réoptimiser"
+                      className="text-muted hover:text-danger transition-colors align-middle"
+                    >
+                      <X size={13} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

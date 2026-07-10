@@ -49,14 +49,15 @@ const s = StyleSheet.create({
   trow: { flexDirection: "row", paddingVertical: 3, borderBottomWidth: 0.5, borderColor: C.lineSoft },
   th: { fontSize: 7.5, color: C.muted, fontWeight: 700, textTransform: "uppercase" },
   td: { fontSize: 8, color: C.ink2 },
-  cNum: { width: "5%" },
-  cName: { width: "32%" },
-  cIsin: { width: "16%", fontFamily: FONT.mono, fontSize: 7 },
-  cCat: { width: "19%" },
-  cW: { width: "9%", textAlign: "right", fontWeight: 700, color: C.ink },
-  cSri: { width: "7%", textAlign: "center" },
+  cNum: { width: "4%" },
+  cName: { width: "29%" },
+  cIsin: { width: "15%", fontFamily: FONT.mono, fontSize: 7 },
+  cCat: { width: "18%" },
+  cW: { width: "8%", textAlign: "right", fontWeight: 700, color: C.ink },
+  cSri: { width: "6%", textAlign: "center" },
   cSfdr: { width: "7%", textAlign: "center" },
-  cTer: { width: "5%", textAlign: "right" },
+  cNote: { width: "7%", textAlign: "center" },
+  cTer: { width: "6%", textAlign: "right" },
   classRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
   classSwatch: { width: 8, height: 8, borderRadius: 2, marginRight: 7 },
   classLabel: { width: 150, fontWeight: 700 },
@@ -149,7 +150,8 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
             <Text style={[s.th, s.cW]}>Poids</Text>
             <Text style={[s.th, s.cSri]}>SRI</Text>
             <Text style={[s.th, s.cSfdr]}>SFDR</Text>
-            <Text style={[s.th, s.cTer]}>TER</Text>
+            <Text style={[s.th, s.cNote]}>Note</Text>
+            <Text style={[s.th, s.cTer]}>Frais</Text>
           </View>
           {p.table.map((l, i) => (
             <View style={s.trow} key={l.isin} wrap={false}>
@@ -160,6 +162,7 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
               <Text style={[s.td, s.cW]}>{fmtPct1(l.weight)}</Text>
               <Text style={[s.td, s.cSri]}>{l.sri ?? "—"}</Text>
               <Text style={[s.td, s.cSfdr]}>{sfdrText(l.sfdr)}</Text>
+              <Text style={[s.td, s.cNote]}>{l.rating == null ? "—" : `${l.rating}/5`}</Text>
               <Text style={[s.td, s.cTer]}>{l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)}`}</Text>
             </View>
           ))}

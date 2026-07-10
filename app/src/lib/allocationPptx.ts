@@ -118,7 +118,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
     text: t, options: { bold: true, color: C.white, fill: { color: C.navy }, fontSize: 9, align, valign: "middle" },
   });
   const detailRows: pptxgen.TableRow[] = [
-    [H("#"), H("Fonds"), H("ISIN"), H("Catégorie"), H("Poids", "right"), H("SRI", "center"), H("SFDR", "center"), H("TER", "right")],
+    [H("#"), H("Fonds"), H("ISIN"), H("Catégorie"), H("Poids", "right"), H("SRI", "center"), H("SFDR", "center"), H("Note", "center"), H("Frais", "right")],
     ...p.table.map((l, i): pptxgen.TableRow => {
       const bg = i % 2 ? C.panel : C.panel2;
       const cell = (text: string, opts: Partial<pptxgen.TextPropsOptions> = {}): pptxgen.TableCell => ({
@@ -132,11 +132,12 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
         cell(pct(l.weight), { color: C.indigo, bold: true, align: "right" }),
         cell(l.sri == null ? "—" : String(l.sri), { align: "center" }),
         cell(sfdrText(l.sfdr), { color: C.indigo, align: "center" }),
+        cell(l.rating == null ? "—" : `${l.rating}/5`, { align: "center" }),
         cell(l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)} %`, { align: "right" }),
       ];
     }),
   ];
-  s4.addTable(detailRows, { x: 0.45, y: 1.85, w: 12.45, colW: [0.5, 3.7, 1.9, 2.65, 1.1, 0.85, 0.95, 0.8], rowH: 0.34, valign: "middle", fontFace: FONT, border: { type: "none" } });
+  s4.addTable(detailRows, { x: 0.45, y: 1.85, w: 12.45, colW: [0.5, 3.3, 1.8, 2.4, 1.05, 0.8, 0.9, 0.9, 0.8], rowH: 0.34, valign: "middle", fontFace: FONT, border: { type: "none" } });
   footer(s4, p);
 
   // ─── Slide 5 — profil de risque ─────────────────────────────────────

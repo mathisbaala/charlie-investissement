@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { efficientFrontier } from "@/lib/frontier";
-import { portfolioStats, type AllocationLine } from "@/lib/optimizer";
+import { portfolioStats, weightedAverage, type AllocationLine } from "@/lib/optimizer";
 
 // Graphique risque/rendement (Markowitz) de l'allocation proposée :
 //  - chaque support retenu est un point (volatilité, rendement attendu) ;
@@ -67,6 +67,14 @@ export function MarkowitzChart({ lines, cov, riskFree }: Props) {
   const current = useMemo(
     () => portfolioStats(wFrac, mu, cov, riskFree),
     [wFrac, mu, cov, riskFree],
+  );
+  // SRI moyen pondéré : suit les curseurs en direct (les SRI manquants sont
+  // ignorés, leur poids renormalisé — même règle que le moteur).
+  const sris = useMemo(() => lines.map((l) => l.sri ?? null), [lines]);
+  const currentSri = useMemo(() => weightedAverage(sris, wFrac), [sris, wFrac]);
+  const optimalSri = useMemo(
+    () => weightedAverage(sris, optimalWeights.map((x) => x / 100)),
+    [sris, optimalWeights],
   );
   const edited = weights.some((w, i) => Math.abs(w - optimalWeights[i]) > 0.05);
 
@@ -207,7 +215,7 @@ export function MarkowitzChart({ lines, cov, riskFree }: Props) {
       </div>
 
       {/* Lecture chiffrée : simulé vs optimal */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         {(
           [
             ["Rendement attendu", current.ret, optimal.ret, (v: number) => pct(v)],
@@ -227,6 +235,15 @@ export function MarkowitzChart({ lines, cov, riskFree }: Props) {
             </div>
           </div>
         ))}
+        <div className="rounded-lg bg-paper-2 px-3 py-2">
+          <div className="text-meta text-muted">SRI moyen</div>
+          <div className="text-label text-ink font-semibold" style={{ fontVariantNumeric: "tabular-nums" }} data-testid="simulated-sri">
+            {currentSri == null ? "—" : `${currentSri.toFixed(1)} / 7`}
+            {edited && optimalSri != null && (
+              <span className="text-meta text-muted font-normal"> · optimal {optimalSri.toFixed(1)}</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Curseurs de poids */}

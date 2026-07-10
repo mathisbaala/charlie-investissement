@@ -102,24 +102,76 @@ export function profileToConstraints(
   };
 }
 
+// Zones géographiques du profil (vocabulaire UI) → valeurs region_normalized de
+// la base. Une zone du profil couvre plusieurs régions fines de la taxonomie.
+export const GEO_TO_REGIONS: Record<string, string[]> = {
+  monde: ["world"],
+  europe: ["europe", "eurozone", "france", "germany", "switzerland", "uk"],
+  zone_euro: ["eurozone", "france", "germany"],
+  amerique_nord: ["usa"],
+  emergents: ["emerging", "china", "india", "brazil"],
+  asie: ["asia", "japan", "china", "india"],
+  france: ["france"],
+};
+
+/** Régions de la base autorisées par les zones du profil (null = pas de contrainte). */
+export function regionsForGeographies(geographies: string[]): Set<string> | null {
+  const out = new Set<string>();
+  for (const g of geographies) for (const r of GEO_TO_REGIONS[g] ?? []) out.add(r);
+  return out.size > 0 ? out : null;
+}
+
+export interface UniverseFilterOptions {
+  /** Frais courants maximum, en pourcentage (0.5 = 0,5 %). */
+  maxTer?: number | null;
+  /** Préférence ESG (art8 → SFDR 8/9 ; art9 → SFDR 9 ; sinon tout). */
+  esg?: string | null;
+  /** Zones géographiques du profil (vocabulaire UI, cf. GEO_TO_REGIONS). */
+  geographies?: string[] | null;
+  /** Plafond SRI par fonds (adéquation MIF : jamais plus risqué que la tolérance). */
+  sriMax?: number | null;
+  /** ISIN écartés à la main par le conseiller (« jeter un fonds »). */
+  exclude?: string[] | null;
+}
+
 /**
- * Restreint l'univers selon les préférences « dures » du profil :
- *  - frais courants maximum (max_ter, en %) ;
- *  - préférence ESG (art8 → SFDR 8/9 ; art9 → SFDR 9 ; labelise/indifferent → tout).
- * Un fonds dont la donnée est absente n'est PAS écarté (on ne pénalise pas un trou
- * de données). Renvoie l'univers filtré + le nombre de fonds retirés.
+ * Restreint l'univers selon les préférences « dures » (frais max, ESG, zones
+ * géographiques, plafond SRI, exclusions manuelles). Un fonds dont la donnée est
+ * absente n'est PAS écarté (on ne pénalise pas un trou de données) — sauf pour
+ * les exclusions manuelles, toujours appliquées. Renvoie l'univers filtré + le
+ * nombre de fonds retirés.
  */
-export function filterFundsByProfile(
+export function filterUniverse(
   funds: FundInput[],
-  profile: Pick<RichClientProfile, "max_ter" | "esg">,
+  opts: UniverseFilterOptions,
 ): { funds: FundInput[]; dropped: number } {
-  const maxTer = profile.max_ter; // en pourcentage (0.5 = 0,5 %)
-  const esg = profile.esg;
+  const { maxTer, esg, sriMax } = opts;
+  const regions = regionsForGeographies(opts.geographies ?? []);
+  const excluded = new Set((opts.exclude ?? []).map((s) => s.toUpperCase()));
   const kept = funds.filter((f) => {
+    if (excluded.has(f.isin.toUpperCase())) return false;
     if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
     if (esg === "art8" && !(f.sfdr === 8 || f.sfdr === 9)) return false;
     if (esg === "art9" && f.sfdr !== 9) return false;
+    if (regions && f.region != null && !regions.has(f.region)) return false;
+    if (sriMax != null && f.sri != null && f.sri > sriMax) return false;
     return true;
   });
   return { funds: kept, dropped: funds.length - kept.length };
+}
+
+/**
+ * Restreint l'univers selon les préférences « dures » du profil (frais max, ESG,
+ * zones géographiques). Enveloppe de `filterUniverse` pilotée par le profil.
+ */
+export function filterFundsByProfile(
+  funds: FundInput[],
+  profile: Pick<RichClientProfile, "max_ter" | "esg"> &
+    Partial<Pick<RichClientProfile, "geographies">>,
+): { funds: FundInput[]; dropped: number } {
+  return filterUniverse(funds, {
+    maxTer: profile.max_ter,
+    esg: profile.esg,
+    geographies: profile.geographies ?? [],
+  });
 }
