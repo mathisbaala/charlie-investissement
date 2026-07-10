@@ -39,8 +39,11 @@ from curl_cffi import requests as cffi_requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-COMPANY = "MAIF Vie"
-CONTRACT = "Assurance vie Responsable et Solidaire"
+# ⚠️ Noms alignés sur l'EXISTANT en base (seed manuel du 2026-06-21, 16 UC) :
+# la clé d'upsert est (isin, contract_name) — toute variante de casse créerait
+# un contrat doublon, et « Maif » est déjà le nom assureur exposé par l'UI.
+COMPANY = "Maif"
+CONTRACT = "Assurance Vie Responsable et Solidaire"
 API_URL = (
     "https://www.maif.fr/gateway/socle-api/vieprevoyance/"
     "informations_produits/v1/assurance_vie/unites_compte"
