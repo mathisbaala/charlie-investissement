@@ -1,0 +1,34 @@
+import { NextRequest, NextResponse } from "next/server";
+import { renderToBuffer } from "@react-pdf/renderer";
+import React from "react";
+import AllocationReportPDF from "@/lib/AllocationReportPDF";
+import { optimizeContract, paramsFromQuery } from "@/lib/allocationService";
+
+export const dynamic = "force-dynamic";
+
+// Export PDF de la proposition d'allocation (modèle « présentation client »).
+// Même service que la route JSON → un seul chemin de vérité pour l'optimisation.
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const parsed = paramsFromQuery(req.nextUrl.searchParams);
+  if ("error" in parsed) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+
+  const out = await optimizeContract(parsed);
+  if ("status" in out) {
+    return NextResponse.json({ error: out.error, detail: out.detail }, { status: out.status });
+  }
+
+  const buf = await renderToBuffer(
+    React.createElement(AllocationReportPDF, { presentation: out.presentation }) as never,
+  );
+
+  const filename = `allocation-${out.presentation.headline.profileLabel.toLowerCase()}.pdf`;
+  return new NextResponse(buf as unknown as BodyInit, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
