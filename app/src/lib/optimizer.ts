@@ -46,6 +46,8 @@ export interface FundInput {
   managementStyle?: string | null;
   gestionnaire?: string | null;
   region?: string | null;
+  /** Notation Morningstar 1–5 étoiles (null si non noté, ex. SCPI). */
+  rating?: number | null;
   /** Complétude 0–100 — pénalise les fonds mal renseignés à la sélection. */
   dataCompleteness?: number | null;
 }
@@ -90,6 +92,9 @@ export interface AllocationLine {
   sri?: number | null;
   sfdr?: number | null;
   ter?: number | null;
+  /** Notation Morningstar 1–5 étoiles (null si non noté). */
+  rating?: number | null;
+  region?: string | null;
   expectedReturn: number;
   volatility: number;
 }
@@ -481,12 +486,14 @@ export function optimizeAllocation(
       sri: f.sri ?? null,
       sfdr: f.sfdr ?? null,
       ter: f.ter ?? null,
+      rating: f.rating ?? null,
+      region: f.region ?? null,
       expectedReturn: f.expectedReturn,
       volatility: f.volatility,
     }))
     .sort((a, b) => b.weight - a.weight);
 
-  const effectiveHoldings = 1 / wFrac.reduce((s, x) => s + x * x, 0 || 1e-12);
+  const effectiveHoldings = 1 / Math.max(wFrac.reduce((s, x) => s + x * x, 0), 1e-12);
 
   return {
     lines,

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { buildPresentation } from "@/lib/allocationRationale";
 import type { AllocationResult, AllocationLine } from "@/lib/optimizer";
@@ -7,13 +7,13 @@ import type { AllocationResult, AllocationLine } from "@/lib/optimizer";
 function line(over: Partial<AllocationLine> & { isin: string }): AllocationLine {
   return {
     name: over.isin, assetClass: "actions", category: "Actions Monde", weight: 10,
-    sri: 4, sfdr: 8, ter: 0.01, expectedReturn: 0.08, volatility: 0.12, ...over,
+    sri: 4, sfdr: 8, ter: 0.01, rating: null, expectedReturn: 0.08, volatility: 0.12, ...over,
   };
 }
 
 const RESULT: AllocationResult = {
   lines: [
-    line({ isin: "LU1135865084", name: "Amundi S&P 500 ETF", category: "Actions USA", weight: 33.4, assetClass: "actions", sri: 5 }),
+    line({ isin: "LU1135865084", name: "Amundi S&P 500 ETF", category: "Actions USA", weight: 33.4, assetClass: "actions", sri: 5, rating: 5 }),
     line({ isin: "LU1164219682", name: "AXA WF Euro Credit TR", category: "Oblig. Crédit", weight: 30, assetClass: "obligations", sri: 3 }),
     line({ isin: "FR0013267663", name: "Hugau Moneterme", category: "Monétaire", weight: 10, assetClass: "monetaire", sri: 1 }),
     line({ isin: "LU1897556517", name: "Groupama Global Disruption", category: "Actions Disruption", weight: 26.6, assetClass: "actions", sri: 5, sfdr: 9 }),
@@ -63,5 +63,34 @@ describe("AllocationReport", () => {
       { contractName: "X" },
     );
     expect(() => render(<AllocationReport presentation={bare} />)).not.toThrow();
+  });
+
+  it("rend chaque nom de fonds en lien vers sa fiche /fonds/[isin]", () => {
+    render(<AllocationReport presentation={presentation} />);
+    const link = screen.getByRole("link", { name: "Amundi S&P 500 ETF" }) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe("/fonds/LU1135865084");
+  });
+
+  it("affiche la colonne Notation : étoiles si noté, tiret sinon", () => {
+    render(<AllocationReport presentation={presentation} />);
+    expect(screen.getByText("Notation")).toBeTruthy();
+    expect(screen.getByText("★★★★★")).toBeTruthy(); // Amundi, rating 5
+    // Les fonds non notés affichent un tiret cadratin dans la colonne.
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  it("affiche l'en-tête de colonne Frais (et plus TER)", () => {
+    render(<AllocationReport presentation={presentation} />);
+    expect(screen.getByText("Frais")).toBeTruthy();
+    expect(screen.queryByText("TER")).toBeNull();
+  });
+
+  it("montre le bouton de retrait seulement si onRemoveLine est fourni, et le déclenche avec l'ISIN", () => {
+    const onRemove = vi.fn();
+    const { rerender } = render(<AllocationReport presentation={presentation} />);
+    expect(screen.queryByLabelText(/Retirer Amundi/)).toBeNull();
+    rerender(<AllocationReport presentation={presentation} onRemoveLine={onRemove} />);
+    fireEvent.click(screen.getByLabelText("Retirer Amundi S&P 500 ETF de l'allocation"));
+    expect(onRemove).toHaveBeenCalledWith("LU1135865084");
   });
 });

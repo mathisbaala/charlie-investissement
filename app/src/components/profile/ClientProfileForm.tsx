@@ -198,7 +198,14 @@ const TMI_OPTIONS: Tmi[] = ["0", "11", "30", "41", "45"];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function ClientProfileForm({ showSearchCta = true }: { showSearchCta?: boolean } = {}) {
+export function ClientProfileForm({
+  showSearchCta = true,
+  onChange,
+}: {
+  showSearchCta?: boolean;
+  /** Notifie le conteneur à chaque modification du profil (déjà persisté). */
+  onChange?: (p: RichClientProfile) => void;
+} = {}) {
   // showSearchCta=false : pages qui ont leur PROPRE action principale (ex.
   // « Générer l'allocation ») et où le CTA screener ferait doublon.
   const router = useRouter();
@@ -266,8 +273,12 @@ export function ClientProfileForm({ showSearchCta = true }: { showSearchCta?: bo
         .slice(0, 8)
     : [];
 
-  // Persiste chaque modification dans le profil partagé.
-  useEffect(() => { if (initialized) saveStoredProfile(profile); }, [profile, initialized]);
+  // Persiste chaque modification dans le profil partagé + notifie le conteneur.
+  useEffect(() => {
+    if (!initialized) return;
+    saveStoredProfile(profile);
+    onChange?.(profile);
+  }, [profile, initialized, onChange]);
 
   // ─── Setters ────────────────────────────────────────────────────────────────
 
