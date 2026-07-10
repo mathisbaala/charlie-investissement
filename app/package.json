@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "demo:allocation": "DEMO=1 vitest run src/test/allocationDemo.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
