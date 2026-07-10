@@ -77,7 +77,7 @@ def main():
     args = ap.parse_args()
 
     print("=" * 64)
-    print(f"  MAIF Vie — catalogue UC ({CONTRACT})")
+    print(f"  {COMPANY} — catalogue UC ({CONTRACT})")
     print(f"  Mode : {'APPLY' if args.apply else 'DRY-RUN'}")
     print("=" * 64)
 
