@@ -4,7 +4,7 @@
 // client, ça génère l'allocation ».
 
 import type { RiskProfile, RichClientProfile } from "./clientProfile";
-import type { AssetClass, OptimizerConstraints } from "./optimizer";
+import type { AssetClass, OptimizerConstraints, FundInput } from "./optimizer";
 
 // Répartition cible par défaut selon le niveau de risque (profil MIF).
 const RISK_TARGETS: Record<RiskProfile, Partial<Record<AssetClass, number>>> = {
@@ -71,18 +71,55 @@ export function targetsForProfile(
   return renormalize(restricted);
 }
 
+// Plafond de SRI moyen induit par la tolérance à la perte maximale déclarée.
+const PERTE_MAX_SRI: Record<string, number> = {
+  "5": 3,
+  "10": 4,
+  "20": 5,
+  "30": 6,
+  // "illimitee" → aucun plafond additionnel
+};
+
 /**
  * Traduit un profil client complet en contraintes d'optimisation partielles
  * (cibles de classe + plafond SRI). Profil de risque absent → « equilibre » par
- * défaut (choix prudent et neutre). Les autres réglages (min/max lignes, plafond
- * par fonds) restent aux valeurs par défaut du moteur, surchargeables par l'UI.
+ * défaut (choix prudent et neutre). La tolérance à la perte, si renseignée,
+ * DURCIT le plafond de SRI (on prend le plus contraignant des deux). Les autres
+ * réglages (min/max lignes, plafond par fonds) restent aux valeurs par défaut du
+ * moteur, surchargeables par l'UI.
  */
 export function profileToConstraints(
-  profile: Pick<RichClientProfile, "risk_profile" | "asset_classes" | "max_ter">,
+  profile: Pick<RichClientProfile, "risk_profile" | "asset_classes"> &
+    Partial<Pick<RichClientProfile, "max_ter" | "perte_max">>,
 ): Partial<OptimizerConstraints> {
   const risk: RiskProfile = profile.risk_profile ?? "equilibre";
+  let maxSri = RISK_MAX_SRI[risk];
+  const perteCap = profile.perte_max ? PERTE_MAX_SRI[profile.perte_max] : undefined;
+  if (perteCap != null) maxSri = Math.min(maxSri, perteCap);
   return {
     classTargets: targetsForProfile(risk, profile.asset_classes ?? []),
-    maxWeightedSri: RISK_MAX_SRI[risk],
+    maxWeightedSri: maxSri,
   };
+}
+
+/**
+ * Restreint l'univers selon les préférences « dures » du profil :
+ *  - frais courants maximum (max_ter, en %) ;
+ *  - préférence ESG (art8 → SFDR 8/9 ; art9 → SFDR 9 ; labelise/indifferent → tout).
+ * Un fonds dont la donnée est absente n'est PAS écarté (on ne pénalise pas un trou
+ * de données). Renvoie l'univers filtré + le nombre de fonds retirés.
+ */
+export function filterFundsByProfile(
+  funds: FundInput[],
+  profile: Pick<RichClientProfile, "max_ter" | "esg">,
+): { funds: FundInput[]; dropped: number } {
+  const maxTer = profile.max_ter; // en pourcentage (0.5 = 0,5 %)
+  const esg = profile.esg;
+  const kept = funds.filter((f) => {
+    if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
+    if (esg === "art8" && !(f.sfdr === 8 || f.sfdr === 9)) return false;
+    if (esg === "art9" && f.sfdr !== 9) return false;
+    return true;
+  });
+  return { funds: kept, dropped: funds.length - kept.length };
 }
