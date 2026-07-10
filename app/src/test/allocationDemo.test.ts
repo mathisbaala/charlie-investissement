@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 import { optimizeAllocation, type FundInput } from "@/lib/optimizer";
 import { buildPresentation } from "@/lib/allocationRationale";
 import AllocationReportPDF from "@/lib/AllocationReportPDF";
+import { buildAllocationDeck } from "@/lib/allocationPptx";
 
 // Univers d'exemple : supports plausibles d'un contrat AV luxembourgeois.
 const UNIVERSE: FundInput[] = [
@@ -94,10 +95,13 @@ describe("Démo allocation", () => {
         React.createElement(AllocationReportPDF, { presentation }) as unknown as Doc,
       );
       writeFileSync(resolve(outDir, "Demo_Allocation_Charlie.pdf"), buf);
+      const pptxBuf = (await buildAllocationDeck(presentation).write({ outputType: "nodebuffer" })) as Buffer;
+      writeFileSync(resolve(outDir, "Demo_Allocation_Charlie.pptx"), pptxBuf);
       // eslint-disable-next-line no-console
       console.log(
         `\n✅ Démo générée dans « Charlie AI/Screener » :\n` +
-          `   • Demo_Allocation_Charlie.pdf  (présentation 3 pages)\n` +
+          `   • Demo_Allocation_Charlie.pptx (présentation PowerPoint, 8 slides)\n` +
+          `   • Demo_Allocation_Charlie.pdf  (même présentation en PDF)\n` +
           `   • Demo_Allocation_Charlie.txt  (résumé texte)\n\n` +
           txt,
       );

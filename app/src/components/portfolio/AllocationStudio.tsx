@@ -61,6 +61,7 @@ export function AllocationStudio() {
   const [presentation, setPresentation] = useState<AllocationPresentation | null>(null);
   const [result, setResult] = useState<AllocationResult | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pptBusy, setPptBusy] = useState(false);
 
   function generate() {
     const base = profileToConstraints({
@@ -106,6 +107,20 @@ export function AllocationStudio() {
       window.print();
     } finally {
       setPdfBusy(false);
+    }
+  }
+
+  async function downloadPptx() {
+    if (!presentation) return;
+    setPptBusy(true);
+    try {
+      const { buildAllocationDeck } = await import("@/lib/allocationPptx");
+      const deck = buildAllocationDeck(presentation);
+      await deck.writeFile({ fileName: `allocation-${presentation.headline.profileLabel.toLowerCase()}.pptx` });
+    } catch {
+      // Génération indisponible côté navigateur : le PDF reste disponible.
+    } finally {
+      setPptBusy(false);
     }
   }
 
@@ -193,9 +208,12 @@ export function AllocationStudio() {
             </Card>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Btn variant="primary" size="sm" loading={pptBusy} onClick={downloadPptx}>
+              Télécharger (PowerPoint)
+            </Btn>
             <Btn variant="outline" size="sm" loading={pdfBusy} onClick={downloadPdf}>
-              Télécharger la présentation (PDF)
+              Télécharger (PDF)
             </Btn>
           </div>
 
