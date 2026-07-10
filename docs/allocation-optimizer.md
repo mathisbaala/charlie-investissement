@@ -84,11 +84,25 @@ Deux sorties, un seul chemin de vérité (`allocationService`) :
 - **PDF** : `GET /api/portfolio/optimize/pdf?contract=…&targets=…` — document 3 pages
   au format « proposition client » (design system PDF partagé).
 
+## Plateforme (saisie profil client → génération auto)
+
+Onglet **Allocation** (`/allocation`) : le conseiller saisit le profil (risque MIF,
+montant, horizon, objectif, plafond par fonds, nb de supports) → l'allocation et sa
+présentation sont générées automatiquement, avec projection chiffrée et export PDF.
+
+- `profileToConstraints.ts` : profil client → cibles de classe + plafond SRI (testé).
+- `sampleUniverse.ts` : univers de fonds d'exemple pour la **démo sans base**.
+- `AllocationStudio.tsx` : formulaire + génération **côté navigateur** (aucun secret,
+  aucune base) → `<AllocationReport>` + PDF client. Testé bout-en-bout (jsdom).
+
+**Démo interactive** : `cd app && npm run dev` puis ouvrir `/allocation`. Fonctionne
+sans secrets (univers d'exemple). En production, brancher la génération sur
+`/api/portfolio/optimize` (mêmes types) pour les fonds réels du contrat.
+
 ## Reste à faire (hors périmètre)
 
-- **Page conteneur** : onglet interactif (sélecteur de contrat + curseurs de cibles)
-  qui appelle `/api/portfolio/optimize` et monte `<AllocationReport>`. Non écrit ici
-  car non vérifiable sans build applicatif réel (fetch + état client).
-- **Export PPTX/DOCX** natif au format Métagram (le PDF couvre déjà le besoin
-  « présentation » ; PPTX/DOCX = confort, dépendances supplémentaires).
-- **Appliquer la migration** (`inv_fund_correlation`) via la CI/PR — secrets Supabase.
+- **Brancher les vraies données** : remplacer, dans `AllocationStudio`, la génération
+  locale (univers d'exemple) par un fetch de `/api/portfolio/optimize?contract=…`
+  (sélecteur de contrat alimenté par `/api/screener/contracts`). Nécessite les
+  secrets Supabase + la migration `inv_fund_correlation` appliquée.
+- **Export PPTX/DOCX** natif au format Métagram (le PDF couvre déjà le besoin).
