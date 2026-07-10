@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
-import { optimizeAllocation, type AllocationResult } from "@/lib/optimizer";
+import { MarkowitzChart } from "@/components/portfolio/MarkowitzChart";
+import { covarianceMatrix } from "@/lib/correlation";
+import { DEFAULT_CONSTRAINTS, optimizeAllocation, type AllocationResult } from "@/lib/optimizer";
 import { buildPresentation, profileFromSri, type AllocationPresentation } from "@/lib/allocationRationale";
 import { profileToConstraints, filterFundsByProfile } from "@/lib/profileToConstraints";
 import { SAMPLE_UNIVERSE, sampleCorrelation, SAMPLE_CONTRACT } from "@/lib/sampleUniverse";
@@ -148,6 +150,16 @@ export function AllocationStudio() {
       ? amountEur * Math.pow(1 + result.expectedReturn, Math.max(1, horizon))
       : null;
 
+  // Covariance des lignes retenues (pour le plan de Markowitz interactif) —
+  // reconstruite depuis les corrélations de l'univers de démo.
+  const resultCov = useMemo(() => {
+    if (!result || result.lines.length === 0) return null;
+    const corr = result.lines.map((a, i) =>
+      result.lines.map((b, j) => (i === j ? 1 : sampleCorrelation(a.isin, b.isin))),
+    );
+    return covarianceMatrix(result.lines.map((l) => l.volatility), corr, 0);
+  }, [result]);
+
   return (
     <PageShell className="space-y-6">
       <div>
@@ -222,6 +234,9 @@ export function AllocationStudio() {
             <Btn variant="primary" size="sm" loading={pptBusy} onClick={downloadPptx}>Télécharger (PowerPoint)</Btn>
             <Btn variant="outline" size="sm" loading={pdfBusy} onClick={downloadPdf}>Télécharger (PDF)</Btn>
           </div>
+          {resultCov && (
+            <MarkowitzChart lines={result.lines} cov={resultCov} riskFree={DEFAULT_CONSTRAINTS.riskFree} />
+          )}
           <AllocationReport presentation={presentation} />
         </>
       )}
