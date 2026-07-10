@@ -11,12 +11,26 @@
 
 ## TL;DR
 
-**Les 16 assureurs sont déjà couverts par des scrapers fonctionnels.** La plupart
-utilisent une **découverte dynamique** (API/HTML/PDF) qui se complète toute seule ;
-rien à ajouter à la main pour ceux-là. Un seul **vrai trou** : **La Banque Postale
-Life** (aucun scraper — pas de liste UC publique statique trouvée). Quelques cas
-marginaux (Macif Multi Vie, contrats Utmost hors « Liberté ») ne sont accessibles
-que derrière un portail JS / espace courtier, donc non ajoutables de façon fiable.
+**Les 16 assureurs sont déjà en base** (vérifié sur l'API publique de prod, cf.
+§« Base live »). Le manque n'est donc pas « l'assureur », mais **des contrats et des
+fonds à l'intérieur**. Trois natures de manque :
+
+1. **Bug de visibilité** (corrigé dans cette branche) : **Generali Luxembourg** avait
+   716 fonds référencés mais **0 contrat navigable** (contract_name == company_name,
+   exclu par la matview). → renommé « Generali Luxembourg Univers Global » + migration.
+2. **Contrats déjà codés mais pas encore en base** (attendent un run CI `--apply`,
+   seul Mathis a les secrets) : **ACM** (+ Options Capi, Plan Capitalisation),
+   **MACSF** (+ RES Retraite, RES Capitalisation), **Afer** (+ Afer Génération).
+   Aucun code à écrire — juste lancer le workflow.
+3. **Fonds manquants** (le vrai fond du sujet) : les scrapers sont *éligibilité-only* —
+   une UC n'apparaît que si son ISIN est **déjà** dans `investissement_funds`. Ex. MACSF
+   cite 23 ISIN mais 18 en base ; Macif 18→14. Les UC absentes de la table `funds` sont
+   invisibles. Les faire entrer = pipeline *fonds* (plus gros ; identité scrapa­ble
+   gratuitement, enrichissement perf/frais parfois payant).
+
+**Vrais trous structurels** : **La Banque Postale Life** est un *seed orphelin*
+(49 fonds, 1 contrat, **aucun scraper** → jamais rafraîchi, sera purgé à terme).
+Cas marginaux portail-only : Macif Multi Vie, contrats Utmost hors « Liberté ».
 
 ## Tableau de couverture
 
@@ -49,6 +63,34 @@ n'aligne pas les colonnes comme poppler. L'extraction ISIN brute du même PDF do
 **330 ISIN** → le scraper est sain en CI (poppler réel). Même réserve pour tout scraper
 « parse par colonnes » (generali-lux, baloise) : leurs comptes de *fonds* locaux sont
 indicatifs, pas la preuve d'un manque.
+
+## Base live (API publique de prod — lecture gratuite)
+
+Interroger `https://www.charliewealth.fr/api/screener/{insurers,contracts}` (GET public,
+non authentifié, aucune écriture) donne l'état **réel** de la base. Compte de fonds par
+assureur demandé, au 2026-07-10 :
+
+| Assureur | Fonds en base | Contrats en base | vs scraper |
+|---|---:|---:|---|
+| Suravenir | 1 971 | 119 | ✅ |
+| Linxea | 1 483 | 8 | ✅ |
+| SwissLife France | 1 220 | 33 | ✅ |
+| Generali Luxembourg | 716 | **0 → 1** (corrigé) | ⚠️ bug visibilité |
+| Cardif Lux Vie | 610 | 7 | ✅ |
+| Apicil / OneLife | 435 | 1 | ✅ |
+| Predica | 380 | 12 | ✅ aligné |
+| Baloise Life | 275 | 1 | ✅ |
+| AXA Wealth Europe | 258 | 1 | ✅ |
+| Afer | 114 | 1 | ➕ manque « Génération » (codé) |
+| ACM Vie | 102 | 4 | ➕ manque « Options Capi », « Plan Capitalisation » (codés) |
+| Utmost Luxembourg S.A. | 64 | 1 | ✅ |
+| La Banque Postale Life | 49 | 1 | ❌ seed orphelin (pas de scraper) |
+| Carac | 29 | 2 | ✅ |
+| MACSF | 18 | 1 | ➕ manque « RES Retraite », « RES Capitalisation » (codés) |
+| Macif Vie | 14 | 1 | ⚠️ portail-only pour Multi Vie |
+
+« codé » = le scraper découvre déjà ce contrat en dry-run ; il entrera en base au prochain
+run CI `av-refresh.yml --apply` (secrets requis). Aucune ligne de code à écrire pour ceux-là.
 
 ## Vérification des liens en dur (santé des URLs)
 
