@@ -41,7 +41,13 @@ PDF_URL_FALLBACK    = (
     "annexe-liste-des-supports-dinvestissement-univers-global-2025-05-gel-fr.pdf"
 )
 COMPANY  = "Generali Luxembourg"
-CONTRACT = "Generali Luxembourg"
+# ⚠️ Le nom de contrat DOIT différer du nom d'assureur : investissement_fund_insurers_mv
+# construit contracts[] avec FILTER (contract_name <> company_name) (cf. migration
+# 20260611200000). Un contract_name == COMPANY rend les fonds référencés mais NON
+# navigables par contrat dans /assureurs. Ici le PDF est l'annexe « Univers Global »
+# (liste de supports commune aux contrats Generali Lux) — d'où ce nom distinct, aligné
+# sur le pattern Baloise/AXA Wealth Europe (contrat ≠ société).
+CONTRACT = "Generali Luxembourg Univers Global"
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
            "Accept-Language": "fr-FR,fr;q=0.9"}
