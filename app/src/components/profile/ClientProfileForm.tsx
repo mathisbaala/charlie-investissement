@@ -198,7 +198,9 @@ const TMI_OPTIONS: Tmi[] = ["0", "11", "30", "41", "45"];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function ClientProfileForm() {
+export function ClientProfileForm({ showSearchCta = true }: { showSearchCta?: boolean } = {}) {
+  // showSearchCta=false : pages qui ont leur PROPRE action principale (ex.
+  // « Générer l'allocation ») et où le CTA screener ferait doublon.
   const router = useRouter();
 
   // Profil PARTAGÉ (localStorage) : même objet que la pastille « Profil actif »
@@ -632,22 +634,27 @@ export function ClientProfileForm() {
       </div>
 
       {/* ── Action ── plus de barre : le seul élément utile est le bouton
-          principal, aligné à droite (+ lien « Effacer » si un profil est actif). */}
-      <div className="mt-8 flex items-center justify-end gap-4">
-        {active && (
-          <button
-            type="button"
-            onClick={() => setProfile(EMPTY_PROFILE)}
-            className="text-label font-medium text-muted hover:text-ink transition-colors"
-          >
-            Effacer
-          </button>
-        )}
-        <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
-          Trouver le support adapté
-          <ArrowRight size={15} />
-        </Btn>
-      </div>
+          principal, aligné à droite (+ lien « Effacer » si un profil est actif).
+          Masqué (showSearchCta=false) sur les pages qui ont leur propre CTA. */}
+      {(active || showSearchCta) && (
+        <div className="mt-8 flex items-center justify-end gap-4">
+          {active && (
+            <button
+              type="button"
+              onClick={() => setProfile(EMPTY_PROFILE)}
+              className="text-label font-medium text-muted hover:text-ink transition-colors"
+            >
+              Effacer
+            </button>
+          )}
+          {showSearchCta && (
+            <Btn variant="primary" size="lg" onClick={findFunds} className="shadow-sm">
+              Trouver le support adapté
+              <ArrowRight size={15} />
+            </Btn>
+          )}
+        </div>
+      )}
     </div>
   );
 }
