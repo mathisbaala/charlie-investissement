@@ -83,4 +83,46 @@ describe("MarkowitzChart", () => {
     expect(screen.getByText("62,5 %")).toBeTruthy();
     expect(screen.getByText("37,5 %")).toBeTruthy();
   });
+
+  it("mode piloté : notifie le parent des poids, null au retour à l'optimal", () => {
+    const received: (number[] | null)[] = [];
+    const { rerender } = render(
+      <MarkowitzChart lines={LINES} cov={COV} riskFree={0.02} weights={null}
+        onWeightsChange={(w) => received.push(w)} />,
+    );
+    fireEvent.change(screen.getByLabelText("Poids de Fonds Actions Monde"), { target: { value: "10" } });
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual([10, 30, 20]);
+
+    // Le parent répercute les poids → le mode « édité » s'active.
+    rerender(
+      <MarkowitzChart lines={LINES} cov={COV} riskFree={0.02} weights={received[0]}
+        onWeightsChange={(w) => received.push(w)} />,
+    );
+    fireEvent.click(screen.getByText("Revenir à l'optimal"));
+    expect(received[1]).toBeNull();
+  });
+
+  it("survit à une allocation régénérée avec MOINS de lignes (régression)", () => {
+    // Bug d'origine : après édition des poids (état à 3 entrées), un re-rendu
+    // avec 2 lignes croisait les anciens poids avec la nouvelle covariance 2×2
+    // → cov[2] undefined → TypeError dans portfolioStats.
+    const { rerender } = render(<MarkowitzChart lines={LINES} cov={COV} riskFree={0.02} />);
+    fireEvent.change(screen.getByLabelText("Poids de Fonds Actions Monde"), { target: { value: "10" } });
+
+    const fewer = LINES.slice(0, 2);
+    const fewerCov = covarianceMatrix(
+      fewer.map((l) => l.volatility),
+      [
+        [1, 0.2],
+        [0.2, 1],
+      ],
+      0,
+    );
+    expect(() =>
+      rerender(<MarkowitzChart lines={fewer} cov={fewerCov} riskFree={0.02} />),
+    ).not.toThrow();
+    // Les curseurs suivent la nouvelle allocation (2 supports).
+    expect(screen.getAllByRole("slider").length).toBe(2);
+  });
 });

@@ -5,6 +5,8 @@ import {
   correlationMatrix,
   covarianceMatrix,
   averagePairwiseCorrelation,
+  classCorrelation,
+  missingPairCount,
 } from "../lib/correlation";
 
 describe("pearson", () => {
@@ -122,6 +124,85 @@ describe("covarianceMatrix", () => {
 
   it("lève une erreur si vols et corr sont incohérents", () => {
     expect(() => covarianceMatrix([0.1, 0.2], [[1]])).toThrow();
+  });
+
+  it("accepte un fallback par paire (fonction) pour les ρ null", () => {
+    const cov = covarianceMatrix(
+      [0.1, 0.2, 0.3],
+      [
+        [1, null, 0.5],
+        [null, 1, null],
+        [0.5, null, 1],
+      ],
+      (i, j) => (i === 0 && j === 1 ? 0.75 : 0.2),
+    );
+    expect(cov[0][1]).toBeCloseTo(0.1 * 0.2 * 0.75, 12); // fallback (0,1)
+    expect(cov[1][2]).toBeCloseTo(0.2 * 0.3 * 0.2, 12); // fallback (1,2)
+    expect(cov[0][2]).toBeCloseTo(0.1 * 0.3 * 0.5, 12); // ρ observé, pas de fallback
+  });
+});
+
+describe("classCorrelation", () => {
+  it("est symétrique", () => {
+    expect(classCorrelation("actions", "obligations")).toBe(
+      classCorrelation("obligations", "actions"),
+    );
+    expect(classCorrelation("crypto", "immobilier")).toBe(
+      classCorrelation("immobilier", "crypto"),
+    );
+  });
+
+  it("reste dans [0, 1] et ordonne raisonnablement les priors", () => {
+    const classes = [
+      "actions",
+      "obligations",
+      "monetaire",
+      "diversifie",
+      "immobilier",
+      "alternatif",
+      "crypto",
+      "fonds_euros",
+    ];
+    for (const a of classes) {
+      for (const b of classes) {
+        const c = classCorrelation(a, b);
+        expect(c).toBeGreaterThanOrEqual(0);
+        expect(c).toBeLessThanOrEqual(1);
+      }
+    }
+    // Deux fonds actions se ressemblent bien plus qu'un fonds actions et un
+    // fonds euros — sinon le prior pousserait à de fausses diversifications.
+    expect(classCorrelation("actions", "actions")).toBeGreaterThan(
+      classCorrelation("actions", "fonds_euros"),
+    );
+    expect(classCorrelation("actions", "actions")).toBeGreaterThan(
+      classCorrelation("actions", "obligations"),
+    );
+  });
+
+  it("applique un prior neutre pour une classe inconnue", () => {
+    expect(classCorrelation("actions", "martienne")).toBeCloseTo(0.3, 12);
+  });
+});
+
+describe("missingPairCount", () => {
+  it("compte les paires distinctes null (hors diagonale)", () => {
+    expect(
+      missingPairCount([
+        [1, null, 0.5],
+        [null, 1, null],
+        [0.5, null, 1],
+      ]),
+    ).toBe(2);
+  });
+
+  it("renvoie 0 quand la matrice est complète", () => {
+    expect(
+      missingPairCount([
+        [1, 0.2],
+        [0.2, 1],
+      ]),
+    ).toBe(0);
   });
 });
 

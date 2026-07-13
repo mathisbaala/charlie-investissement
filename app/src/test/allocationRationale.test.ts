@@ -32,6 +32,7 @@ function result(): AllocationResult {
   ];
   return {
     lines,
+    method: "sharpe" as const,
     expectedReturn: 0.078,
     volatility: 0.09,
     sharpe: 0.64,

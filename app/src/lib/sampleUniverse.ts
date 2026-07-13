@@ -10,24 +10,28 @@ export const SAMPLE_CONTRACT = "Contrat démo::Cardif Elite Lux (exemple)";
 
 export const SAMPLE_UNIVERSE: FundInput[] = [
   // Actions
-  { isin: "LU1135865084", name: "Amundi S&P 500 UCITS ETF", assetClass: "actions", category: "Actions USA", expectedReturn: 0.162, volatility: 0.17, sri: 5, sfdr: 6, ter: 0.0015, gestionnaire: "Amundi", region: "usa", rating: 5 },
-  { isin: "IE00B4L5Y983", name: "iShares Core MSCI World ETF", assetClass: "actions", category: "Actions Monde", expectedReturn: 0.14, volatility: 0.16, sri: 5, sfdr: 6, ter: 0.002, gestionnaire: "BlackRock", region: "world", rating: 5 },
-  { isin: "LU0115773425", name: "Fidelity Global Technology", assetClass: "actions", category: "Actions Technologie", expectedReturn: 0.188, volatility: 0.21, sri: 4, sfdr: 8, ter: 0.010, gestionnaire: "Fidelity", region: "world", rating: 4 },
-  { isin: "LU1897556517", name: "Groupama Global Disruption", assetClass: "actions", category: "Actions Disruption", expectedReturn: 0.177, volatility: 0.22, sri: 5, sfdr: 9, ter: 0.018, gestionnaire: "Groupama AM", region: "world", rating: 3 },
-  { isin: "LU1876459303", name: "Axiom European Banks Equity", assetClass: "actions", category: "Actions Europe Financières", expectedReturn: 0.26, volatility: 0.24, sri: 6, sfdr: 8, ter: 0.0185, gestionnaire: "Axiom AI", region: "europe", rating: 4 },
-  { isin: "FR0010655746", name: "Moneta Multi Caps", assetClass: "actions", category: "Actions France", expectedReturn: 0.09, volatility: 0.15, sri: 4, sfdr: 8, ter: 0.017, gestionnaire: "Moneta AM", region: "france", rating: 4 },
+  { isin: "LU1135865084", name: "Amundi S&P 500 UCITS ETF", assetClass: "actions", category: "Actions USA", expectedReturn: 0.162, volatility: 0.17, sri: 5, sfdr: 6, ter: 0.0015, retrocession: 0, gestionnaire: "Amundi", region: "usa", rating: 5 },
+  { isin: "IE00B4L5Y983", name: "iShares Core MSCI World ETF", assetClass: "actions", category: "Actions Monde", expectedReturn: 0.14, volatility: 0.16, sri: 5, sfdr: 6, ter: 0.002, retrocession: 0, gestionnaire: "BlackRock", region: "world", rating: 5 },
+  { isin: "LU0115773425", name: "Fidelity Global Technology", assetClass: "actions", category: "Actions Technologie", expectedReturn: 0.188, volatility: 0.21, sri: 4, sfdr: 8, ter: 0.010, retrocession: 0.005, gestionnaire: "Fidelity", region: "world", rating: 4 },
+  { isin: "LU1897556517", name: "Groupama Global Disruption", assetClass: "actions", category: "Actions Disruption", expectedReturn: 0.177, volatility: 0.22, sri: 5, sfdr: 9, ter: 0.018, retrocession: 0.009, gestionnaire: "Groupama AM", region: "world", rating: 3 },
+  { isin: "LU1876459303", name: "Axiom European Banks Equity", assetClass: "actions", category: "Actions Europe Financières", expectedReturn: 0.26, volatility: 0.24, sri: 6, sfdr: 8, ter: 0.0185, retrocession: 0.009, gestionnaire: "Axiom AI", region: "europe", rating: 4 },
+  { isin: "FR0010655746", name: "Moneta Multi Caps", assetClass: "actions", category: "Actions France", expectedReturn: 0.09, volatility: 0.15, sri: 4, sfdr: 8, ter: 0.017, retrocession: 0.0085, gestionnaire: "Moneta AM", region: "france", rating: 4 },
+  { isin: "LU0327757729", name: "Schroder ISF Asian Opportunities", assetClass: "actions", category: "Actions Asie", expectedReturn: 0.105, volatility: 0.19, sri: 5, sfdr: 8, ter: 0.0165, retrocession: 0.008, gestionnaire: "Schroders", region: "asia", rating: 4 },
+  { isin: "LU0048573561", name: "Fidelity Emerging Markets", assetClass: "actions", category: "Actions Émergents", expectedReturn: 0.095, volatility: 0.20, sri: 5, sfdr: 6, ter: 0.019, retrocession: 0.0095, gestionnaire: "Fidelity", region: "emerging", rating: 3 },
   // Diversifiés / flexibles
-  { isin: "FR0011261197", name: "R-co Valor", assetClass: "diversifie", category: "Allocation Flexible", expectedReturn: 0.075, volatility: 0.11, sri: 4, sfdr: 8, ter: 0.015, gestionnaire: "Rothschild & Co", region: "world", rating: 4 },
-  { isin: "LU0171283459", name: "BGF Global Allocation", assetClass: "diversifie", category: "Multi-actifs Monde", expectedReturn: 0.071, volatility: 0.10, sri: 4, sfdr: 6, ter: 0.0175, gestionnaire: "BlackRock", region: "world", rating: 3 },
-  { isin: "FR0010097642", name: "CPR Croissance Dynamique", assetClass: "diversifie", category: "Allocation Flexible", expectedReturn: 0.082, volatility: 0.12, sri: 4, sfdr: 8, ter: 0.018, gestionnaire: "CPR AM", region: "world", rating: 3 },
+  { isin: "FR0011261197", name: "R-co Valor", assetClass: "diversifie", category: "Allocation Flexible", expectedReturn: 0.075, volatility: 0.11, sri: 4, sfdr: 8, ter: 0.015, retrocession: 0.0075, gestionnaire: "Rothschild & Co", region: "world", rating: 4 },
+  { isin: "LU0171283459", name: "BGF Global Allocation", assetClass: "diversifie", category: "Multi-actifs Monde", expectedReturn: 0.071, volatility: 0.10, sri: 4, sfdr: 6, ter: 0.0175, retrocession: 0.00875, gestionnaire: "BlackRock", region: "world", rating: 3 },
+  { isin: "FR0010097642", name: "CPR Croissance Dynamique", assetClass: "diversifie", category: "Allocation Flexible", expectedReturn: 0.082, volatility: 0.12, sri: 4, sfdr: 8, ter: 0.018, retrocession: 0.009, gestionnaire: "CPR AM", region: "world", rating: 3 },
   // Obligations
-  { isin: "LU1164219682", name: "AXA WF Euro Credit Total Return", assetClass: "obligations", category: "Obligations Crédit", expectedReturn: 0.047, volatility: 0.05, sri: 3, sfdr: 8, ter: 0.0075, gestionnaire: "AXA IM", region: "eurozone", rating: 4 },
-  { isin: "FR0010230490", name: "Lazard Credit Opportunities", assetClass: "obligations", category: "Obligations Crédit", expectedReturn: 0.045, volatility: 0.055, sri: 3, sfdr: 8, ter: 0.0085, gestionnaire: "Lazard Frères Gestion", region: "europe", rating: 4 },
-  { isin: "LU1694789535", name: "DNCA Invest Alpha Bonds", assetClass: "obligations", category: "Obligations Flexibles", expectedReturn: 0.035, volatility: 0.04, sri: 2, sfdr: 8, ter: 0.010, gestionnaire: "DNCA Finance", region: "world", rating: 3 },
+  { isin: "LU1164219682", name: "AXA WF Euro Credit Total Return", assetClass: "obligations", category: "Obligations Crédit", expectedReturn: 0.047, volatility: 0.05, sri: 3, sfdr: 8, ter: 0.0075, retrocession: 0.00375, gestionnaire: "AXA IM", region: "eurozone", rating: 4 },
+  { isin: "FR0010230490", name: "Lazard Credit Opportunities", assetClass: "obligations", category: "Obligations Crédit", expectedReturn: 0.045, volatility: 0.055, sri: 3, sfdr: 8, ter: 0.0085, retrocession: 0.00425, gestionnaire: "Lazard Frères Gestion", region: "europe", rating: 4 },
+  { isin: "LU1694789535", name: "DNCA Invest Alpha Bonds", assetClass: "obligations", category: "Obligations Flexibles", expectedReturn: 0.035, volatility: 0.04, sri: 2, sfdr: 8, ter: 0.010, retrocession: 0.005, gestionnaire: "DNCA Finance", region: "world", rating: 3 },
   // Monétaire
-  { isin: "FR0013267663", name: "Hugau Moneterme", assetClass: "monetaire", category: "Monétaire", expectedReturn: 0.033, volatility: 0.005, sri: 1, sfdr: 8, ter: 0.001, gestionnaire: "Hugau Gestion", region: "eurozone", rating: 3 },
+  { isin: "FR0013267663", name: "Hugau Moneterme", assetClass: "monetaire", category: "Monétaire", expectedReturn: 0.033, volatility: 0.005, sri: 1, sfdr: 8, ter: 0.001, retrocession: 0.0005, gestionnaire: "Hugau Gestion", region: "eurozone", rating: 3 },
   // Immobilier
-  { isin: "FR0011871128", name: "SCPI Primovie (part démo)", assetClass: "immobilier", category: "SCPI Santé/Éducation", expectedReturn: 0.045, volatility: 0.07, sri: 3, sfdr: 8, ter: 0.012, gestionnaire: "Primonial REIM", region: "france", rating: null },
+  { isin: "FR0011871128", name: "SCPI Primovie (part démo)", assetClass: "immobilier", category: "SCPI Santé/Éducation", expectedReturn: 0.045, volatility: 0.07, sri: 3, sfdr: 8, ter: 0.012, retrocession: 0.006, gestionnaire: "Primonial REIM", region: "france", rating: null },
+  // Alternatif (private equity « evergreen » accessible en AV)
+  { isin: "FR001400ILG1", name: "Altaroc Odyssey (PE démo)", assetClass: "alternatif", category: "Private Equity", expectedReturn: 0.11, volatility: 0.14, sri: 6, sfdr: 8, ter: 0.024, retrocession: 0.012, gestionnaire: "Altaroc", region: "world", rating: null },
 ];
 
 // Corrélation d'exemple, pilotée par les classes d'actifs (réaliste et stable) :
@@ -38,14 +42,19 @@ const INTRA: Partial<Record<AssetClass, number>> = {
   obligations: 0.45,
   diversifie: 0.6,
   immobilier: 0.3,
+  alternatif: 0.55,
 };
 const INTER: Record<string, number> = {
   "actions|diversifie": 0.6,
   "actions|obligations": 0.1,
   "actions|immobilier": 0.2,
+  "actions|alternatif": 0.5,
   "obligations|diversifie": 0.35,
   "obligations|immobilier": 0.25,
+  "alternatif|obligations": 0.15,
   "diversifie|immobilier": 0.3,
+  "alternatif|diversifie": 0.4,
+  "alternatif|immobilier": 0.3,
 };
 
 export function sampleCorrelation(a: string, b: string): number | null {

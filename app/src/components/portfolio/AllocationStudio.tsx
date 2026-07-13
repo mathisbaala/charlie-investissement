@@ -9,16 +9,31 @@ import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { MarkowitzChart } from "@/components/portfolio/MarkowitzChart";
 import { FundAdder } from "@/components/portfolio/FundAdder";
-import { covarianceMatrix } from "@/lib/correlation";
+import { covarianceMatrix, classCorrelation } from "@/lib/correlation";
 import {
+  COMMISSION_TIE_BREAK_TOL,
   DEFAULT_CONSTRAINTS,
   optimizeAllocation,
+  reweightAllocation,
+  type AllocationMethod,
   type AllocationResult,
 } from "@/lib/optimizer";
 import { buildPresentation, profileFromSri, type AllocationPresentation } from "@/lib/allocationRationale";
-import { profileToConstraints, filterUniverse } from "@/lib/profileToConstraints";
+import { profileToConstraints, filterUniverse, GEO_TO_REGIONS } from "@/lib/profileToConstraints";
 import { SAMPLE_UNIVERSE, sampleCorrelation, SAMPLE_CONTRACT } from "@/lib/sampleUniverse";
-import { loadStoredProfile, EMPTY_PROFILE, type RichClientProfile } from "@/lib/clientProfile";
+import {
+  loadStoredProfile,
+  EMPTY_PROFILE,
+  GOAL_PRIORITY_LABELS,
+  type RichClientProfile,
+  type ClientGoal,
+} from "@/lib/clientProfile";
+import {
+  goalToPlan,
+  requiredAnnualReturn,
+  goalSuccessProbabilityMC,
+  pocketSriCap,
+} from "@/lib/goalPlanning";
 
 // Plateforme d'allocation : réutilise le PROFIL CLIENT saisi à l'accueil (même
 // formulaire, mêmes données, partagées via le stockage local) → génère
@@ -113,6 +128,176 @@ function CorrelationCard({ names, matrix }: { names: string[]; matrix: (number |
   );
 }
 
+// ─── Projets du client : une POCHE par projet ─────────────────────────────────
+// Chaque projet est évalué avec SES moyens (capital affecté + épargne mensuelle,
+// jamais mis en commun avec les autres projets) et SA poche : une allocation
+// dédiée, calibrée sur son horizon et sa priorité (plafond SRI de poche).
+// Probabilité par simulation Monte Carlo (2 000 trajectoires mensuelles).
+
+/** Poche d'un projet : plafond SRI + profil (μ, σ) de l'allocation dédiée. */
+export interface PocketStats {
+  sriCap: number;
+  mu: number;
+  sigma: number;
+  /** true = la poche n'a pas pu être calculée (repli sur le portefeuille global). */
+  fallback: boolean;
+  /** Plafond initial quand il a dû être assoupli faute de fonds assez défensifs. */
+  relaxedFrom?: number;
+}
+
+function probTone(p: number): { cls: string; label: string } {
+  if (p >= 0.75) return { cls: "text-ok", label: "en bonne voie" };
+  if (p >= 0.5) return { cls: "text-warn", label: "atteignable, à surveiller" };
+  return { cls: "text-danger", label: "compromis en l'état" };
+}
+
+const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+
+function GoalsCard({
+  goals,
+  globalMu,
+  globalSigma,
+  pockets,
+  amountEur,
+}: {
+  goals: ClientGoal[];
+  globalMu: number;
+  globalSigma: number;
+  pockets: Record<string, PocketStats>;
+  amountEur: number | null;
+}) {
+  const rows = useMemo(
+    () =>
+      goals
+        .map((g) => ({ goal: g, plan: goalToPlan(g) }))
+        .filter((r) => r.plan !== null)
+        .map(({ goal, plan }) => {
+          const pocket = pockets[goal.id] ?? null;
+          const mu = pocket?.mu ?? globalMu;
+          const sigma = pocket?.sigma ?? globalSigma;
+          return {
+            goal,
+            plan: plan!,
+            pocket,
+            rReq: requiredAnnualReturn(plan!),
+            prob: goalSuccessProbabilityMC(plan!, mu, sigma),
+            mu,
+            sigma,
+          };
+        }),
+    [goals, pockets, globalMu, globalSigma],
+  );
+  if (rows.length === 0) return null;
+
+  // Cohérence des moyens : la somme des capitaux affectés aux poches ne peut pas
+  // dépasser le montant à investir du client.
+  const totalAffected = rows.reduce((s, r) => s + r.plan.initial, 0);
+  const overAllocated = amountEur != null && totalAffected > amountEur + 0.5;
+
+  return (
+    <Card className="px-5 py-5">
+      <h2 className="text-label text-ink font-semibold mb-1">Projets du client — une poche par projet</h2>
+      <p className="text-meta text-muted mb-4">
+        Chaque projet est évalué avec ses seuls moyens (capital affecté + épargne mensuelle)
+        et une poche dédiée, calibrée sur son horizon et sa priorité. Les moyens d&apos;un projet
+        ne financent jamais un autre. Probabilités par simulation Monte Carlo
+        (2 000 trajectoires) — hors frais et fiscalité, performances non garanties.
+      </p>
+      {overAllocated && (
+        <p className="text-meta text-warn mb-3">
+          ⚠ Les capitaux affectés aux projets ({eur(totalAffected)}) dépassent le montant à
+          investir du client ({eur(amountEur!)}) : revoir la répartition.
+        </p>
+      )}
+      <div className="space-y-3">
+        {rows.map(({ goal, plan, pocket, rReq, prob }) => {
+          const label = goal.label.trim() || "Projet";
+          return (
+            <div key={goal.id} className="border-t border-line-soft pt-3 first:border-t-0 first:pt-0 space-y-1">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <span className="text-meta font-semibold text-ink">{label}</span>
+                <span className="text-meta text-muted">
+                  {eur(plan.target)} à {plan.years} ans · {GOAL_PRIORITY_LABELS[goal.priority]}
+                  {" "}· avec {eur(plan.initial)} affectés
+                  {plan.monthly > 0 ? ` + ${eur(plan.monthly)}/mois` : ""}
+                </span>
+                {rReq === null ? (
+                  <span className="text-meta text-danger">
+                    Hors de portée avec les moyens affectés — augmenter l&apos;épargne ou revoir la cible.
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-meta text-ink-2">
+                      Rendement requis :{" "}
+                      <strong>{rReq <= 0 ? "aucun (objectif sécurisé)" : `${(rReq * 100).toFixed(1)} %/an`}</strong>
+                    </span>
+                    {prob != null && (
+                      <span className={`text-meta font-semibold ${probTone(prob).cls}`}>
+                        {(prob * 100).toFixed(0)} % de chances — {probTone(prob).label}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              {pocket && (
+                <div className="text-meta text-muted">
+                  Poche dédiée : SRI ≤ {pocket.sriCap} · ~{(pocket.mu * 100).toFixed(1)} %/an ·
+                  volatilité {(pocket.sigma * 100).toFixed(1)} %
+                  {pocket.relaxedFrom != null &&
+                    ` (assoupli depuis SRI ≤ ${pocket.relaxedFrom} : pas assez de fonds aussi défensifs dans cet univers)`}
+                  {pocket.fallback && " (poche indisponible sur cet univers : portefeuille global utilisé)"}
+                </div>
+              )}
+              {rReq !== null && prob != null && prob < 0.5 && (
+                <div className="text-meta text-muted">
+                  Leviers : épargner plus, allonger l&apos;horizon, revoir la cible ou accepter plus de risque.
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// Poche démo : ré-optimise l'univers d'exemple sous le plafond SRI de la poche.
+// Renvoie le profil (μ, σ) de l'allocation dédiée, ou null si l'univers restant
+// est trop pauvre (le conteneur replie alors sur le portefeuille global).
+function demoPocketStats(
+  p: RichClientProfile,
+  pocketCap: number,
+  method: AllocationMethod,
+  maxAssetsN: number,
+  maxPerFundN: number,
+  excludedIsins: string[],
+): { mu: number; sigma: number } | null {
+  const base = profileToConstraints(p);
+  let funds = filterUniverse(SAMPLE_UNIVERSE, {
+    maxTer: p.max_ter,
+    esg: p.esg,
+    geographies: p.geographies,
+    sriMax: pocketCap,
+    exclude: excludedIsins,
+  }).funds;
+  if (funds.length < 4) {
+    // Préférences trop restrictives pour cette poche : on ne garde que le
+    // plafond SRI (contrainte de la poche) et les exclusions manuelles.
+    funds = filterUniverse(SAMPLE_UNIVERSE, { sriMax: pocketCap, exclude: excludedIsins }).funds;
+  }
+  if (funds.length < 2) return null;
+  const res = optimizeAllocation(funds, sampleCorrelation, {
+    ...base,
+    maxWeightedSri: pocketCap,
+    minAssets: Math.min(4, funds.length),
+    maxAssets: maxAssetsN,
+    maxWeightPerFund: maxPerFundN,
+    method,
+  });
+  if (res.lines.length === 0) return null;
+  return { mu: res.expectedReturn, sigma: res.volatility };
+}
+
 // ─── Studio ───────────────────────────────────────────────────────────────────
 
 interface SimilarSuggestion {
@@ -130,7 +315,7 @@ type OptimizeApiResponse = {
   allocation: AllocationResult;
   presentation: AllocationPresentation;
   correlations?: { isins: string[]; names: string[]; matrix: (number | null)[][] };
-  meta?: { droppedByPreferences?: number };
+  meta?: { droppedByPreferences?: number; universe?: number };
 };
 
 export function AllocationStudio() {
@@ -138,6 +323,12 @@ export function AllocationStudio() {
   const [maxAssets, setMaxAssets] = useState("7");
   const [advisor, setAdvisor] = useState("");
   const [contract, setContract] = useState(SAMPLE_CONTRACT);
+  // Méthode de pondération : max-Sharpe (compromis rendement/risque) ou HRP
+  // (budgets de risque hiérarchiques — robuste quand les données sont bruitées).
+  const [method, setMethod] = useState<AllocationMethod>("sharpe");
+  // Départage rémunération cabinet : à adéquation client équivalente, préférer
+  // le fonds à la meilleure rétrocession (estimée). Choix du CONSEILLER.
+  const [retroTilt, setRetroTilt] = useState(false);
 
   // Profil client synchronisé avec le formulaire (persisté en localStorage).
   const [profile, setProfile] = useState<RichClientProfile>(EMPTY_PROFILE);
@@ -152,6 +343,16 @@ export function AllocationStudio() {
 
   const [presentation, setPresentation] = useState<AllocationPresentation | null>(null);
   const [result, setResult] = useState<AllocationResult | null>(null);
+  // Poches par projet (goal.id → plafond SRI + μ/σ de l'allocation dédiée).
+  const [pockets, setPockets] = useState<Record<string, PocketStats>>({});
+  // Poids simulés par le conseiller (curseurs du plan de Markowitz), en
+  // pourcentages ; null = allocation optimale intacte. Remontés ici pour que
+  // TOUT le rapport (profil de risque, répartition SRI, projection, projets,
+  // exports) suive les curseurs, pas seulement le graphique.
+  const [simWeights, setSimWeights] = useState<number[] | null>(null);
+  // Options de restitution du dernier calcul (nécessaires pour reconstruire la
+  // présentation quand les poids simulés changent).
+  const [presOpts, setPresOpts] = useState<Parameters<typeof buildPresentation>[1] | null>(null);
   const [corr, setCorr] = useState<{ names: string[]; matrix: (number | null)[][] } | null>(null);
   const [source, setSource] = useState<"api" | "demo" | null>(null);
   const [summary, setSummary] = useState<string>("");
@@ -177,13 +378,13 @@ export function AllocationStudio() {
   // se déclenche que si quelque chose a réellement changé depuis.
   const lastSigRef = useRef<string | null>(null);
   const inputsSig = useMemo(
-    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor }),
-    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor],
+    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt }),
+    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt],
   );
 
   const compute = useCallback(async () => {
     const runId = ++runIdRef.current;
-    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor });
+    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt });
     setBusy(true);
     setErrorMsg(null);
     // Le profil de l'état est déjà synchronisé par le formulaire ; on relit le
@@ -204,30 +405,50 @@ export function AllocationStudio() {
     const contractName = contract.includes("::") ? contract.split("::")[1] : contract;
     const profileLabel = p.risk_profile ? RISK_LABEL[p.risk_profile] : undefined;
 
+    // Construit la query d'optimisation ; les poches réutilisent le même
+    // constructeur avec leur propre plafond SRI (et sans fonds imposés).
+    const buildQs = (maxSriParam: number | null, sriMaxParam: number | null, must: string[]) => {
+      const qs = new URLSearchParams({
+        contract,
+        min: "4",
+        max: String(maxAssetsN),
+      });
+      const targets = Object.entries(base.classTargets ?? {})
+        .filter(([, v]) => (v ?? 0) > 0)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(",");
+      if (targets) qs.set("targets", targets);
+      if (maxSriParam != null) qs.set("maxSri", String(maxSriParam));
+      if (sriMaxParam != null) qs.set("sriMax", String(sriMaxParam));
+      if (p.geographies.length) qs.set("geo", p.geographies.join(","));
+      if (p.esg === "art8" || p.esg === "art9") qs.set("esg", p.esg);
+      if (p.max_ter != null) qs.set("terMax", String(p.max_ter));
+      if (must.length) qs.set("must", must.join(","));
+      if (excludedIsins.length) qs.set("exclude", excludedIsins.join(","));
+      if (advisor.trim()) qs.set("advisor", advisor.trim());
+      if (method !== "sharpe") qs.set("method", method);
+      if (retroTilt) qs.set("retro", "1");
+      qs.set("asOf", asOfLabel);
+      return qs;
+    };
+
+    // Projets valides → plafond SRI de leur poche.
+    const goalRows = p.goals
+      .map((g) => ({ g, plan: goalToPlan(g) }))
+      .filter((x): x is { g: ClientGoal; plan: NonNullable<ReturnType<typeof goalToPlan>> } => x.plan !== null)
+      .map(({ g, plan }) => ({
+        g,
+        plan,
+        cap: pocketSriCap(plan.years, g.priority, sriMax),
+        // Poche identique au portefeuille global → pas de recalcul.
+        sameAsGlobal: sriMax != null ? pocketSriCap(plan.years, g.priority, sriMax) === sriMax : pocketSriCap(plan.years, g.priority, sriMax) >= 7,
+      }));
+
     // 1) Base réelle : /api/portfolio/optimize (fonds du contrat, corrélations DB).
     let api: OptimizeApiResponse | null = null;
     if (contract.includes("::") && contract !== SAMPLE_CONTRACT) {
       try {
-        const qs = new URLSearchParams({
-          contract,
-          min: "4",
-          max: String(maxAssetsN),
-        });
-        const targets = Object.entries(base.classTargets ?? {})
-          .filter(([, v]) => (v ?? 0) > 0)
-          .map(([k, v]) => `${k}:${v}`)
-          .join(",");
-        if (targets) qs.set("targets", targets);
-        if (base.maxWeightedSri != null) qs.set("maxSri", String(base.maxWeightedSri));
-        if (sriMax != null) qs.set("sriMax", String(sriMax));
-        if (p.geographies.length) qs.set("geo", p.geographies.join(","));
-        if (p.esg === "art8" || p.esg === "art9") qs.set("esg", p.esg);
-        if (p.max_ter != null) qs.set("terMax", String(p.max_ter));
-        if (mustIsins.length) qs.set("must", mustIsins.join(","));
-        if (excludedIsins.length) qs.set("exclude", excludedIsins.join(","));
-        if (advisor.trim()) qs.set("advisor", advisor.trim());
-        qs.set("asOf", asOfLabel);
-        const res = await fetch(`/api/portfolio/optimize?${qs.toString()}`);
+        const res = await fetch(`/api/portfolio/optimize?${buildQs(base.maxWeightedSri ?? null, sriMax, mustIsins).toString()}`);
         if (res.ok) {
           api = (await res.json()) as OptimizeApiResponse;
         } else {
@@ -249,6 +470,14 @@ export function AllocationStudio() {
     if (api) {
       setResult(api.allocation);
       setPresentation(api.presentation);
+      setSimWeights(null); // nouvelle allocation → simulation remise à zéro
+      setPresOpts({
+        contractName,
+        universeSize: api.meta?.universe ?? api.allocation.lines.length,
+        advisorName: advisor.trim() || null,
+        asOfLabel,
+        profileLabel: profileLabel ?? profileFromSri(api.allocation.weightedSri),
+      });
       setCorr(
         api.correlations
           ? { names: api.correlations.names, matrix: api.correlations.matrix }
@@ -258,6 +487,42 @@ export function AllocationStudio() {
       setSummary(profileSummary(p, api.meta?.droppedByPreferences ?? 0));
       setBusy(false);
       setHasGenerated(true);
+
+      // Poches par projet : une optimisation dédiée par plafond SRI de poche,
+      // APRÈS l'affichage du résultat principal (les cartes se précisent quand
+      // les poches arrivent). Échec d'une poche → repli global, signalé.
+      const globalStats = { mu: api.allocation.expectedReturn, sigma: api.allocation.volatility };
+      const capMax = sriMax ?? 7;
+      const entries = await Promise.all(
+        goalRows.map(async ({ g, cap, sameAsGlobal }) => {
+          if (sameAsGlobal) {
+            return [g.id, { sriCap: cap, ...globalStats, fallback: false } satisfies PocketStats] as const;
+          }
+          // Assouplissement cran par cran si l'univers manque de fonds assez
+          // défensifs (ex. plafond 1 sur un contrat sans monétaire) — sans
+          // jamais dépasser le plafond global du client.
+          for (let c = cap; c <= capMax; c++) {
+            try {
+              const r = await fetch(`/api/portfolio/optimize?${buildQs(c, c, []).toString()}`);
+              if (!r.ok) continue;
+              const j = (await r.json()) as OptimizeApiResponse;
+              const entry: PocketStats = {
+                sriCap: c,
+                mu: j.allocation.expectedReturn,
+                sigma: j.allocation.volatility,
+                fallback: false,
+                ...(c > cap ? { relaxedFrom: cap } : {}),
+              };
+              return [g.id, entry] as const;
+            } catch {
+              break; // réseau indisponible : inutile d'insister
+            }
+          }
+          return [g.id, { sriCap: cap, ...globalStats, fallback: true } satisfies PocketStats] as const;
+        }),
+      );
+      if (runId !== runIdRef.current) return;
+      setPockets(Object.fromEntries(entries));
       return;
     }
 
@@ -270,17 +535,20 @@ export function AllocationStudio() {
       exclude: excludedIsins,
     };
     const notes: string[] = [];
+    let geoActive = p.geographies.length > 0;
     let filtered = filterUniverse(SAMPLE_UNIVERSE, filterOpts);
-    if (filtered.funds.length < 4 && p.geographies.length > 0) {
+    if (filtered.funds.length < 4 && geoActive) {
       const retry = filterUniverse(SAMPLE_UNIVERSE, { ...filterOpts, geographies: [] });
       if (retry.funds.length >= 4) {
         filtered = retry;
+        geoActive = false;
         notes.push("Zones géographiques trop restrictives sur l'univers d'exemple : contrainte levée pour préserver la diversification.");
       }
     }
     if (filtered.funds.length < 4) {
       const bare = filterUniverse(SAMPLE_UNIVERSE, { exclude: excludedIsins });
       filtered = bare;
+      geoActive = false;
       notes.push("Filtres du profil trop restrictifs sur l'univers d'exemple : allocation calculée sur l'univers complet.");
     }
     // Les fonds imposés restent dans l'univers même si un filtre les écarte.
@@ -299,32 +567,64 @@ export function AllocationStudio() {
       maxAssets: maxAssetsN,
       maxWeightPerFund: maxPerFundN,
       mustInclude: mustIsins,
+      method,
+      commissionTieBreak: retroTilt ? COMMISSION_TIE_BREAK_TOL : 0,
+      // Chaque zone demandée doit être représentée (tant que le filtre géo est actif).
+      coverRegions: geoActive
+        ? p.geographies
+            .map((g) => ({ zone: g, regions: GEO_TO_REGIONS[g] ?? [] }))
+            .filter((z) => z.regions.length > 0)
+        : undefined,
     });
     res.notes.unshift(
       ...notes,
       "Mode démonstration : base non connectée, univers d'exemple. En production : les fonds réels du contrat.",
     );
 
-    const pres = buildPresentation(res, {
+    const demoPresOpts = {
       contractName,
       universeSize: universe.length,
       advisorName: advisor.trim() || null,
       asOfLabel,
       profileLabel: profileLabel ?? profileFromSri(res.weightedSri),
-    });
+    };
+    const pres = buildPresentation(res, demoPresOpts);
 
     if (runId !== runIdRef.current) return;
     setResult(res);
     setPresentation(pres);
+    setSimWeights(null); // nouvelle allocation → simulation remise à zéro
+    setPresOpts(demoPresOpts);
     setCorr({
       names: res.lines.map((l) => l.name),
       matrix: res.lines.map((a) => res.lines.map((b) => (a.isin === b.isin ? 1 : sampleCorrelation(a.isin, b.isin)))),
     });
     setSource("demo");
     setSummary(profileSummary(p, filtered.dropped));
+
+    // Poches par projet sur l'univers d'exemple (synchrone), avec le même
+    // assouplissement cran par cran que la voie API.
+    const demoGlobal = { mu: res.expectedReturn, sigma: res.volatility };
+    const demoCapMax = sriMax ?? 7;
+    const pocketMap: Record<string, PocketStats> = {};
+    for (const { g, cap, sameAsGlobal } of goalRows) {
+      if (sameAsGlobal) {
+        pocketMap[g.id] = { sriCap: cap, ...demoGlobal, fallback: false };
+        continue;
+      }
+      let entry: PocketStats | null = null;
+      for (let c = cap; c <= demoCapMax && !entry; c++) {
+        const stats = demoPocketStats(p, c, method, maxAssetsN, maxPerFundN, excludedIsins);
+        if (stats) {
+          entry = { sriCap: c, ...stats, fallback: false, ...(c > cap ? { relaxedFrom: cap } : {}) };
+        }
+      }
+      pocketMap[g.id] = entry ?? { sriCap: cap, ...demoGlobal, fallback: true };
+    }
+    setPockets(pocketMap);
     setBusy(false);
     setHasGenerated(true);
-  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor]);
+  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt]);
 
   // Recalcul automatique (débouncé) après la première génération : jouer avec le
   // SRI, les zones géographiques, les frais, l'ESG ou la composition met le
@@ -382,15 +682,16 @@ export function AllocationStudio() {
   // ─── Exports ────────────────────────────────────────────────────────────────
 
   async function downloadPdf() {
-    if (!presentation) return;
+    const pres = effectivePresentation ?? presentation;
+    if (!pres) return;
     setPdfBusy(true);
     try {
       const [{ pdf }, { default: AllocationReportPDF }] = await Promise.all([
         import("@react-pdf/renderer"),
         import("@/lib/AllocationReportPDF"),
       ]);
-      const blob = await pdf(<AllocationReportPDF presentation={presentation} />).toBlob();
-      triggerDownload(blob, `allocation-${presentation.headline.profileLabel.toLowerCase()}.pdf`);
+      const blob = await pdf(<AllocationReportPDF presentation={pres} />).toBlob();
+      triggerDownload(blob, `allocation-${pres.headline.profileLabel.toLowerCase()}.pdf`);
     } catch {
       window.print();
     } finally {
@@ -399,12 +700,13 @@ export function AllocationStudio() {
   }
 
   async function downloadPptx() {
-    if (!presentation) return;
+    const pres = effectivePresentation ?? presentation;
+    if (!pres) return;
     setPptBusy(true);
     try {
       const { buildAllocationDeck } = await import("@/lib/allocationPptx");
-      await buildAllocationDeck(presentation).writeFile({
-        fileName: `allocation-${presentation.headline.profileLabel.toLowerCase()}.pptx`,
+      await buildAllocationDeck(pres).writeFile({
+        fileName: `allocation-${pres.headline.profileLabel.toLowerCase()}.pptx`,
       });
     } catch {
       /* génération navigateur indisponible : le PDF reste dispo */
@@ -422,20 +724,39 @@ export function AllocationStudio() {
     URL.revokeObjectURL(url);
   }
 
-  const projected =
-    result && amountEur && amountEur > 0
-      ? amountEur * Math.pow(1 + result.expectedReturn, Math.max(1, horizon))
-      : null;
-
   // Covariance des lignes retenues (pour le plan de Markowitz interactif),
   // reconstruite depuis la matrice de corrélation affichée (démo ou base).
   const resultCov = useMemo(() => {
     if (!result || result.lines.length === 0 || !corr) return null;
     if (corr.matrix.length !== result.lines.length) return null;
-    return covarianceMatrix(result.lines.map((l) => l.volatility), corr.matrix, 0);
+    const lines = result.lines;
+    return covarianceMatrix(
+      lines.map((l) => l.volatility),
+      corr.matrix,
+      // Paires sans corrélation observée : même prior de classe que le moteur.
+      (i, j) => classCorrelation(lines[i].assetClass, lines[j].assetClass),
+    );
   }, [result, corr]);
 
   const linesIsins = useMemo(() => new Set((result?.lines ?? []).map((l) => l.isin)), [result]);
+
+  // Résultat EFFECTIF : l'allocation optimale, ou sa version repondérée par les
+  // curseurs du conseiller. Tout ce qui est affiché/exporté en dessous du
+  // graphique suit ce résultat-là (profil de risque, SRI, projection, projets).
+  const effectiveResult = useMemo(() => {
+    if (!result || !simWeights || !resultCov) return result;
+    return reweightAllocation(result, simWeights, resultCov, DEFAULT_CONSTRAINTS.riskFree);
+  }, [result, simWeights, resultCov]);
+  const effectivePresentation = useMemo(() => {
+    if (!presentation || !effectiveResult || !result) return presentation;
+    if (effectiveResult === result || !presOpts) return presentation;
+    return buildPresentation(effectiveResult, presOpts);
+  }, [presentation, effectiveResult, result, presOpts]);
+
+  const projected =
+    effectiveResult && amountEur && amountEur > 0
+      ? amountEur * Math.pow(1 + effectiveResult.expectedReturn, Math.max(1, horizon))
+      : null;
 
   return (
     <PageShell className="space-y-6">
@@ -480,6 +801,60 @@ export function AllocationStudio() {
             <Field label="Cabinet / conseiller (optionnel)">
               <input className={inputCls} value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Ex. Métagram Gestion Privée" />
             </Field>
+          </div>
+
+          {/* Méthode de pondération : deux moteurs, mêmes contraintes. */}
+          <div className="mt-4 flex flex-col gap-1">
+            <span className="text-meta text-muted">Moteur de pondération</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMethod("sharpe")}
+                className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
+                  method === "sharpe"
+                    ? "bg-brown text-paper border-brown shadow-sm"
+                    : "bg-paper text-ink-2 border-line hover:border-brown/30"
+                }`}
+              >
+                Max-Sharpe (rendement / risque)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMethod("hrp")}
+                className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
+                  method === "hrp"
+                    ? "bg-brown text-paper border-brown shadow-sm"
+                    : "bg-paper text-ink-2 border-line hover:border-brown/30"
+                }`}
+              >
+                HRP (diversification par budgets de risque)
+              </button>
+            </div>
+            <span className="text-meta text-muted">
+              Max-Sharpe vise le meilleur compromis rendement/risque à partir des performances passées ;
+              HRP répartit le risque par familles de fonds corrélés, sans dépendre des rendements attendus.
+            </span>
+          </div>
+
+          {/* Départage rémunération cabinet : l'adéquation client reste première,
+              la rétrocession ne départage que des fonds quasi équivalents. */}
+          <div className="mt-4 flex flex-col gap-1">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={retroTilt}
+                onChange={(e) => setRetroTilt(e.target.checked)}
+                style={{ accentColor: "var(--color-accent)" }}
+              />
+              <span className="text-meta text-ink font-medium">
+                Départage rémunération cabinet (rétrocessions)
+              </span>
+            </label>
+            <span className="text-meta text-muted">
+              À adéquation client équivalente, retient le fonds à la meilleure rétrocession (estimée :
+              ~50 % des frais courants en gestion active, 0 sur les ETF). Un fonds moins adapté au client
+              n&apos;est jamais préféré ; le choix est tracé dans les notes de l&apos;allocation.
+            </span>
           </div>
 
           {/* Risque : plafond SRI jouable par le conseiller */}
@@ -645,16 +1020,45 @@ export function AllocationStudio() {
           {projected != null && (
             <Card className="px-5 py-4 bg-paper-2">
               <span className="text-meta text-ink-2">
-                Projection indicative : {amountEur!.toLocaleString("fr-FR")} € à ~{(result.expectedReturn * 100).toFixed(1)} %/an
+                Projection indicative : {amountEur!.toLocaleString("fr-FR")} € à ~{((effectiveResult ?? result).expectedReturn * 100).toFixed(1)} %/an
                 sur {horizon} ans ≈ <strong>{Math.round(projected).toLocaleString("fr-FR")} €</strong>
                 {" "}(hors frais et fiscalité, performances non garanties).
               </span>
             </Card>
           )}
-          {result.notes.length > 0 && (
+          {/* Rémunération cabinet (visible seulement si le départage est activé). */}
+          {retroTilt && amountEur != null && amountEur > 0 && (() => {
+            const lines = (effectiveResult ?? result).lines;
+            const known = lines.filter((l) => l.retrocession != null);
+            if (known.length === 0) return null;
+            const annual = lines.reduce(
+              (s, l) => s + (l.weight / 100) * (l.retrocession ?? 0) * amountEur,
+              0,
+            );
+            return (
+              <Card className="px-5 py-4 bg-paper-2">
+                <span className="text-meta text-ink-2">
+                  Rémunération cabinet estimée : <strong>~{Math.round(annual).toLocaleString("fr-FR")} €/an</strong>
+                  {" "}sur {amountEur.toLocaleString("fr-FR")} € investis
+                  {known.length < lines.length ? ` (${lines.length - known.length} ligne(s) sans donnée)` : ""}
+                  {" "}— estimation à défaut des conventions réelles, non contractuelle.
+                </span>
+              </Card>
+            );
+          })()}
+          {/* Projets du client : une poche dédiée par projet (capital, épargne
+              et allocation propres — jamais mis en commun entre projets). */}
+          <GoalsCard
+            goals={profile.goals}
+            globalMu={(effectiveResult ?? result).expectedReturn}
+            globalSigma={(effectiveResult ?? result).volatility}
+            pockets={pockets}
+            amountEur={amountEur}
+          />
+          {(effectiveResult ?? result).notes.length > 0 && (
             <Card className="px-5 py-3">
               <ul className="space-y-1">
-                {result.notes.map((n, i) => (
+                {(effectiveResult ?? result).notes.map((n, i) => (
                   <li key={i} className="text-meta text-muted">ⓘ {n}</li>
                 ))}
               </ul>
@@ -665,10 +1069,16 @@ export function AllocationStudio() {
             <Btn variant="outline" size="sm" loading={pdfBusy} onClick={downloadPdf}>Télécharger (PDF)</Btn>
           </div>
           {resultCov && (
-            <MarkowitzChart lines={result.lines} cov={resultCov} riskFree={DEFAULT_CONSTRAINTS.riskFree} />
+            <MarkowitzChart
+              lines={result.lines}
+              cov={resultCov}
+              riskFree={DEFAULT_CONSTRAINTS.riskFree}
+              weights={simWeights}
+              onWeightsChange={setSimWeights}
+            />
           )}
           {corr && <CorrelationCard names={corr.names} matrix={corr.matrix} />}
-          <AllocationReport presentation={presentation} onRemoveLine={removeFund} />
+          <AllocationReport presentation={effectivePresentation ?? presentation} onRemoveLine={removeFund} />
         </>
       )}
     </PageShell>

@@ -41,10 +41,13 @@ describe("targetsForProfile", () => {
     const t = targetsForProfile("equilibre", ["scpi", "multi_actifs"]);
     expect(Object.keys(t).sort()).toEqual(["diversifie", "immobilier"]);
   });
-  it("ignore private_equity (pas de bucket) et retombe sur la répartition type", () => {
+  it("mappe private_equity vers la classe alternatif (régression : plus jamais écarté)", () => {
     const t = targetsForProfile("dynamique", ["private_equity"]);
-    // aucune classe exploitable → répartition type dynamique
-    expect(t.actions ?? 0).toBeGreaterThan(50);
+    expect(t.alternatif ?? 0).toBeGreaterThan(0);
+    // combiné à d'autres classes, l'alternatif garde une part plancher
+    const mix = targetsForProfile("dynamique", ["actions", "private_equity"]);
+    expect(mix.alternatif ?? 0).toBeGreaterThan(5);
+    expect(mix.actions ?? 0).toBeGreaterThan(mix.alternatif ?? 0);
   });
 });
 
@@ -156,6 +159,18 @@ describe("filterUniverse", () => {
     const { funds, dropped } = filterUniverse(universe, { geographies: ["europe"] });
     expect(funds.map((x) => x.isin).sort()).toEqual(["EUR3", "NOGEO"]);
     expect(dropped).toBe(2);
+  });
+  it("ne filtre par zones QUE la classe actions (régression : la SCPI et les obligations survivent)", () => {
+    const mixed: FundInput[] = [
+      f({ isin: "EQUSA", assetClass: "actions", region: "usa" }),
+      f({ isin: "SCPIFR", assetClass: "immobilier", region: "france" }),
+      f({ isin: "BONDEUR", assetClass: "obligations", region: "eurozone" }),
+      f({ isin: "MONEUR", assetClass: "monetaire", region: "eurozone" }),
+    ];
+    // Le client demande « monde + asie » : seule l'action usa est écartée —
+    // la SCPI française, l'obligation et le monétaire euro restent recommandables.
+    const { funds } = filterUniverse(mixed, { geographies: ["monde", "asie"] });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["BONDEUR", "MONEUR", "SCPIFR"]);
   });
   it("filtre par plafond SRI par fonds en gardant les SRI inconnus", () => {
     const { funds } = filterUniverse(universe, { sriMax: 3 });

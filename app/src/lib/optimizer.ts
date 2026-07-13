@@ -10,11 +10,22 @@
 // corrélation entre actifs (matrice fournie), diversification. C'est le modèle
 // classique qui exploite le PLUS de paramètres disponibles — d'où son choix.
 //
+// La corrélation intervient aux DEUX étages : à la sélection (gloutonne, chaque
+// ajout est pénalisé par sa corrélation moyenne avec le panier courant — les
+// fonds imposés par le client servant de panier de départ), puis à la
+// pondération (covariance du max-Sharpe).
+//
 // Fonctions PURES et déterministes (mêmes entrées → même sortie) : tout le
 // hasard est proscrit, l'optimiseur part d'un point initial fixe et itère.
 // Le calcul des corrélations vit dans `./correlation` + le RPC SQL jumeau.
 
-import { covarianceMatrix, averagePairwiseCorrelation } from "./correlation";
+import {
+  covarianceMatrix,
+  averagePairwiseCorrelation,
+  classCorrelation,
+  missingPairCount,
+} from "./correlation";
+import { hrpWeights } from "./hrp";
 
 /** Classes d'actifs canoniques manipulées par le moteur (buckets d'allocation). */
 export type AssetClass =
@@ -23,6 +34,7 @@ export type AssetClass =
   | "monetaire"
   | "diversifie"
   | "immobilier"
+  | "alternatif"
   | "crypto"
   | "fonds_euros";
 
@@ -41,6 +53,12 @@ export interface FundInput {
   volatility: number;
   /** Frais courants en fraction (0.015 = 1,5 %) — départage à qualité égale. */
   ter?: number | null;
+  /**
+   * Rétrocession distributeur en fraction de l'encours/an (0.008 = 0,8 %) —
+   * estimée tant que les conventions réelles du cabinet ne sont pas saisies.
+   * N'intervient QUE comme départage borné (cf. commissionTieBreak).
+   */
+  retrocession?: number | null;
   /** Article SFDR 6/8/9 — restitution durabilité. */
   sfdr?: number | null;
   managementStyle?: string | null;
@@ -71,7 +89,41 @@ export interface OptimizerConstraints {
   riskFree: number;
   /** ISIN à inclure obligatoirement (ex. contrainte « Hegoa » du template). */
   mustInclude?: string[];
+  /**
+   * Poids de la pénalité de corrélation dans la sélection gloutonne (défaut
+   * 0.5) : le score d'un candidat est réduit de λ × (corrélation moyenne avec
+   * les fonds déjà retenus). 0 = sélection au score individuel pur.
+   */
+  correlationPenalty: number;
+  /**
+   * Méthode de pondération : « sharpe » (max-Sharpe, défaut) ou « hrp »
+   * (hierarchical risk parity — budgets de risque hiérarchiques, sans
+   * rendements attendus, robuste aux matrices bruitées). Dans les deux cas les
+   * contraintes (cibles de classes, plafond par fonds, SRI) sont respectées.
+   */
+  method: AllocationMethod;
+  /**
+   * Zones géographiques demandées par le client, chacune avec ses régions de
+   * la base (cf. GEO_TO_REGIONS). La sélection s'efforce de représenter CHAQUE
+   * zone par au moins un fonds actions (bonus glouton puis passe de
+   * réparation) — « monde + Asie » doit donner un fonds monde ET un fonds
+   * asiatique, pas deux fonds monde. Zone impossible à couvrir → note.
+   */
+  coverRegions?: { zone: string; regions: string[] }[];
+  /**
+   * Départage « rémunération cabinet » : tolérance de score en dessous de
+   * laquelle deux candidats sont jugés ÉQUIVALENTS pour le client — parmi eux,
+   * celui à la meilleure rétrocession est retenu. 0 (défaut) = désactivé.
+   * L'adéquation client reste première : un fonds mieux rémunérateur mais
+   * moins adapté (écart de score > tolérance) n'est JAMAIS préféré.
+   */
+  commissionTieBreak: number;
 }
+
+/** Tolérance de score standard du départage rétrocession (quasi-équivalence). */
+export const COMMISSION_TIE_BREAK_TOL = 0.05;
+
+export type AllocationMethod = "sharpe" | "hrp";
 
 export const DEFAULT_CONSTRAINTS: OptimizerConstraints = {
   minAssets: 4,
@@ -80,6 +132,9 @@ export const DEFAULT_CONSTRAINTS: OptimizerConstraints = {
   maxWeightedSri: null,
   riskFree: 0.02,
   mustInclude: [],
+  correlationPenalty: 0.5,
+  method: "sharpe",
+  commissionTieBreak: 0,
 };
 
 export interface AllocationLine {
@@ -92,6 +147,8 @@ export interface AllocationLine {
   sri?: number | null;
   sfdr?: number | null;
   ter?: number | null;
+  /** Rétrocession distributeur estimée (fraction/an) — cf. FundInput. */
+  retrocession?: number | null;
   /** Notation Morningstar 1–5 étoiles (null si non noté). */
   rating?: number | null;
   region?: string | null;
@@ -101,6 +158,8 @@ export interface AllocationLine {
 
 export interface AllocationResult {
   lines: AllocationLine[];
+  /** Méthode de pondération effectivement utilisée. */
+  method: AllocationMethod;
   /** Rendement annualisé attendu du portefeuille (fraction). */
   expectedReturn: number;
   /** Volatilité annualisée du portefeuille (fraction). */
@@ -177,28 +236,97 @@ export function allocateSlots(
 }
 
 /**
- * Sélectionne les fonds : respecte les créneaux par classe, inclut d'office les
- * `mustInclude`, et complète pour atteindre au moins `minAssets` si les cibles
- * n'y suffisent pas. Renvoie les fonds retenus (au plus `maxAssets`).
+ * Bonus de score quand un candidat représente une zone géographique demandée
+ * encore absente du panier — assez fort pour faire passer un bon fonds de la
+ * zone devant un très bon fonds redondant, sans écraser le score individuel.
+ */
+export const GEO_COVER_BONUS = 0.5;
+
+/**
+ * Score d'un candidat compte tenu du panier déjà constitué : score individuel
+ * diminué de λ × (corrélation moyenne avec les fonds déjà retenus). La
+ * corrélation d'une paire sans historique observable vaut le prior de classe
+ * (`classCorrelation`) — jamais 0, sinon un trou de données passerait pour de
+ * la diversification. Panier vide → score individuel pur.
+ */
+export function diversifiedScore(
+  candidate: FundInput,
+  basket: FundInput[],
+  riskFree: number,
+  penalty: number,
+  corrOf: (a: string, b: string) => number | null,
+): number {
+  const base = selectionScore(candidate, riskFree);
+  if (basket.length === 0 || penalty <= 0) return base;
+  let sum = 0;
+  for (const held of basket) {
+    const rho = corrOf(candidate.isin, held.isin);
+    sum += rho ?? classCorrelation(candidate.assetClass, held.assetClass);
+  }
+  return base - penalty * (sum / basket.length);
+}
+
+/**
+ * Sélectionne les fonds de façon GLOUTONNE : les `mustInclude` (fonds imposés
+ * par le client) forment le panier de départ, puis chaque ajout est le candidat
+ * au meilleur `diversifiedScore` — score individuel pénalisé par sa corrélation
+ * moyenne avec le panier courant. Les créneaux par classe cible sont respectés
+ * (quotas `allocateSlots`), et la sélection complète jusqu'à `minAssets` si les
+ * cibles n'y suffisent pas. Renvoie au plus `maxAssets` fonds. Déterministe
+ * (départage par ISIN).
  */
 export function selectFunds(
   funds: FundInput[],
   constraints: OptimizerConstraints,
+  corrOf: (a: string, b: string) => number | null = () => null,
 ): { selected: FundInput[]; notes: string[] } {
   const notes: string[] = [];
-  const { minAssets, maxAssets, riskFree } = constraints;
+  const { minAssets, maxAssets, riskFree, correlationPenalty } = constraints;
   const byIsin = new Map(funds.map((f) => [f.isin, f]));
-
-  // Classement global décroissant par score (stable via ISIN pour déterminisme).
-  const ranked = [...funds].sort((a, b) => {
-    const d = selectionScore(b, riskFree) - selectionScore(a, riskFree);
-    return d !== 0 ? d : a.isin.localeCompare(b.isin);
-  });
 
   const selected: FundInput[] = [];
   const chosen = new Set<string>();
 
-  // 1) Inclusions obligatoires.
+  // Zones géographiques à représenter (chacune par ≥ 1 fonds actions).
+  const coverage = (constraints.coverRegions ?? []).map((z) => ({
+    zone: z.zone,
+    set: new Set(z.regions),
+  }));
+  const coversZone = (f: FundInput, z: { set: Set<string> }): boolean =>
+    f.assetClass === "actions" && f.region != null && z.set.has(f.region);
+  const uncoveredZones = () =>
+    coverage.filter((z) => !selected.some((f) => coversZone(f, z)));
+
+  // Meilleur candidat (score pénalisé par le panier courant) parmi `pool`.
+  // Bonus si le candidat représente une zone demandée encore absente du panier.
+  // Départage rétrocession (si activé) : parmi les candidats à ≤ `tieTol` du
+  // meilleur score — donc équivalents pour le CLIENT — on retient celui qui
+  // rémunère le mieux le cabinet. Jamais au-delà de la tolérance.
+  const tieTol = Math.max(0, constraints.commissionTieBreak);
+  const pickBest = (pool: FundInput[]): FundInput | null => {
+    const open = uncoveredZones();
+    const cands: { f: FundInput; s: number }[] = [];
+    for (const f of pool) {
+      if (chosen.has(f.isin)) continue;
+      let s = diversifiedScore(f, selected, riskFree, correlationPenalty, corrOf);
+      if (open.length > 0 && open.some((z) => coversZone(f, z))) s += GEO_COVER_BONUS;
+      cands.push({ f, s });
+    }
+    if (cands.length === 0) return null;
+    let maxS = -Infinity;
+    for (const c of cands) if (c.s > maxS) maxS = c.s;
+    const band = cands.filter((c) => c.s >= maxS - tieTol);
+    band.sort((a, b) => {
+      if (tieTol > 0) {
+        const dr = (b.f.retrocession ?? 0) - (a.f.retrocession ?? 0);
+        if (Math.abs(dr) > 1e-12) return dr;
+      }
+      return b.s - a.s || a.f.isin.localeCompare(b.f.isin);
+    });
+    return band[0].f;
+  };
+
+  // 1) Inclusions obligatoires : le panier de départ.
   for (const isin of constraints.mustInclude ?? []) {
     const f = byIsin.get(isin);
     if (f && !chosen.has(isin) && selected.length < maxAssets) {
@@ -212,31 +340,35 @@ export function selectFunds(
   const targets = normalizeTargets(constraints.classTargets);
 
   if (targets) {
-    // 2) Sélection pilotée par les classes cibles.
+    // 2) Sélection pilotée par les classes cibles : quotas par classe, puis
+    // remplissage glouton — chaque tour ajoute le meilleur candidat toutes
+    // classes non saturées confondues.
     const available: Record<string, number> = {};
-    const rankedByClass: Record<string, FundInput[]> = {};
-    for (const f of ranked) {
+    const byClass: Record<string, FundInput[]> = {};
+    for (const f of funds) {
       available[f.assetClass] = (available[f.assetClass] ?? 0) + 1;
-      (rankedByClass[f.assetClass] ??= []).push(f);
+      (byClass[f.assetClass] ??= []).push(f);
     }
     // Créneaux déjà pris par les inclusions obligatoires, par classe.
-    const forced: Record<string, number> = {};
-    for (const f of selected) forced[f.assetClass] = (forced[f.assetClass] ?? 0) + 1;
+    const taken: Record<string, number> = {};
+    for (const f of selected) taken[f.assetClass] = (taken[f.assetClass] ?? 0) + 1;
 
     const budget = Math.min(maxAssets, funds.length);
     const slots = allocateSlots(targets, available, budget);
 
-    for (const cls of Object.keys(slots)) {
-      const want = slots[cls] - (forced[cls] ?? 0);
-      let taken = 0;
-      for (const f of rankedByClass[cls] ?? []) {
-        if (taken >= want || selected.length >= maxAssets) break;
-        if (chosen.has(f.isin)) continue;
-        selected.push(f);
-        chosen.add(f.isin);
-        taken += 1;
+    for (;;) {
+      if (selected.length >= maxAssets) break;
+      const openPool: FundInput[] = [];
+      for (const cls of Object.keys(slots)) {
+        if ((taken[cls] ?? 0) < slots[cls]) openPool.push(...(byClass[cls] ?? []));
       }
+      const f = pickBest(openPool);
+      if (!f) break; // tous les créneaux servis ou saturés
+      selected.push(f);
+      chosen.add(f.isin);
+      taken[f.assetClass] = (taken[f.assetClass] ?? 0) + 1;
     }
+
     for (const cls of Object.keys(targets)) {
       if (targets[cls] > 0 && !(available[cls] > 0)) {
         notes.push(
@@ -246,21 +378,81 @@ export function selectFunds(
     }
   }
 
-  // 3) Complément pour atteindre minAssets (par score global).
-  for (const f of ranked) {
-    if (selected.length >= Math.max(minAssets, selected.length)) {
-      if (selected.length >= minAssets) break;
+  // 3) Complément glouton pour atteindre minAssets, toutes classes confondues.
+  while (selected.length < minAssets && selected.length < maxAssets) {
+    const f = pickBest(funds);
+    if (!f) break;
+    selected.push(f);
+    chosen.add(f.isin);
+  }
+
+  // 4) Réparation de couverture géographique : chaque zone demandée doit être
+  // représentée par un fonds actions. Ajout si un créneau reste, sinon échange
+  // avec le fonds actions le plus faible (jamais un fonds imposé, jamais le
+  // dernier représentant d'une autre zone demandée). Même classe → les quotas
+  // de classes restent intacts.
+  const mustSet = new Set(constraints.mustInclude ?? []);
+  for (const z of coverage) {
+    if (selected.some((f) => coversZone(f, z))) continue; // couverte entre-temps
+    const candidates = funds
+      .filter((f) => !chosen.has(f.isin) && coversZone(f, z))
+      .sort(
+        (a, b) =>
+          diversifiedScore(b, selected, riskFree, correlationPenalty, corrOf) -
+            diversifiedScore(a, selected, riskFree, correlationPenalty, corrOf) ||
+          a.isin.localeCompare(b.isin),
+      );
+    const cand = candidates[0];
+    if (!cand) {
+      notes.push(
+        `Zone « ${z.zone} » demandée : aucun fonds actions disponible pour la représenter dans cet univers.`,
+      );
+      continue;
     }
-    if (selected.length >= maxAssets) break;
-    if (!chosen.has(f.isin)) {
-      selected.push(f);
-      chosen.add(f.isin);
+    if (selected.length < maxAssets) {
+      selected.push(cand);
+      chosen.add(cand.isin);
+      continue;
     }
+    const removable = selected.filter(
+      (f) =>
+        f.assetClass === "actions" &&
+        !mustSet.has(f.isin) &&
+        coverage.every(
+          (oz) =>
+            oz === z ||
+            !coversZone(f, oz) ||
+            selected.some((g) => g !== f && coversZone(g, oz)),
+        ),
+    );
+    if (removable.length === 0) {
+      notes.push(
+        `Zone « ${z.zone} » demandée : impossible à représenter sans casser une autre contrainte.`,
+      );
+      continue;
+    }
+    removable.sort(
+      (a, b) =>
+        selectionScore(a, riskFree) - selectionScore(b, riskFree) ||
+        a.isin.localeCompare(b.isin),
+    );
+    const out = removable[0];
+    selected[selected.indexOf(out)] = cand;
+    chosen.delete(out.isin);
+    chosen.add(cand.isin);
+    notes.push(
+      `« ${out.name} » remplacé par « ${cand.name} » pour représenter la zone « ${z.zone} » demandée.`,
+    );
   }
 
   if (selected.length < minAssets) {
     notes.push(
       `Univers trop petit : ${selected.length} fonds retenus (< ${minAssets} demandés).`,
+    );
+  }
+  if (tieTol > 0) {
+    notes.push(
+      "Départage rémunération cabinet actif : à adéquation client équivalente, le fonds à la meilleure rétrocession (estimée) est retenu — les critères client restent prioritaires.",
     );
   }
   return { selected, notes };
@@ -282,19 +474,43 @@ export function normalizeTargets(
 }
 
 /**
+ * Contrainte de SRI moyen pondéré pour la projection des poids. Les SRI
+ * inconnus (`null`) comptent comme `max` : ils sont neutres pour la contrainte,
+ * ce qui la rend équivalente au SRI moyen renormalisé sur les SRI connus —
+ * exactement la métrique restituée (`weightedAverage`).
+ */
+export interface SriConstraint {
+  sri: (number | null)[];
+  max: number;
+}
+
+/**
  * Projette un vecteur de poids sur l'ensemble réalisable :
  *  - poids ≥ 0 et ≤ cap ;
- *  - somme de chaque groupe de classe = sa cible (fraction).
- * Itère clip+renormalisation par groupe (façon Dykstra) pour satisfaire les deux.
+ *  - somme de chaque groupe de classe = sa cible (fraction) ;
+ *  - SRI moyen pondéré ≤ plafond (si `sriConstraint` fourni) — projection sur
+ *    le demi-espace Σ (sri_i − max)·w_i ≤ 0, qui déplace du poids des fonds
+ *    risqués vers les défensifs.
+ * Itère clip+renormalisation+demi-espace (façon Dykstra) puis termine par un
+ * clip+renormalisation pour garantir EXACTEMENT les sommes de groupe (le SRI
+ * est alors satisfait à la tolérance d'itération près ; l'insatisfiabilité
+ * éventuelle est diagnostiquée par l'appelant).
  */
 export function projectWeights(
   w: number[],
   groups: number[][],
   groupTargets: number[],
   cap: number,
+  sriConstraint?: SriConstraint,
 ): number[] {
   const out = [...w];
-  for (let iter = 0; iter < 30; iter++) {
+  // Direction de la contrainte SRI : a_i = sri_i − max (inconnu → 0, neutre).
+  const a = sriConstraint
+    ? sriConstraint.sri.map((s) => (s == null ? 0 : s - sriConstraint.max))
+    : null;
+  const aNorm2 = a ? a.reduce((s, x) => s + x * x, 0) : 0;
+
+  const clipAndRenorm = (): number => {
     // Clip [0, cap].
     for (let i = 0; i < out.length; i++) {
       if (out[i] < 0) out[i] = 0;
@@ -316,8 +532,24 @@ export function projectWeights(
       }
       maxErr = Math.max(maxErr, Math.abs(idx.reduce((s, i) => s + out[i], 0) - target));
     }
-    if (maxErr < 1e-9) break;
+    return maxErr;
+  };
+
+  for (let iter = 0; iter < 60; iter++) {
+    const maxErr = clipAndRenorm();
+    // Projection sur le demi-espace SRI : w ← w − d·a/‖a‖² si dépassement d > 0.
+    let sriErr = 0;
+    if (a && aNorm2 > 1e-12) {
+      const d = a.reduce((s, ai, i) => s + ai * out[i], 0);
+      if (d > 1e-12) {
+        sriErr = d;
+        for (let i = 0; i < out.length; i++) out[i] -= (d * a[i]) / aNorm2;
+      }
+    }
+    if (maxErr < 1e-9 && sriErr < 1e-9) break;
   }
+  // Garantit les contraintes dures (bornes + sommes de groupe) en sortie.
+  clipAndRenorm();
   return out;
 }
 
@@ -352,6 +584,7 @@ export function maximizeSharpe(
   groupTargets: number[],
   cap: number,
   riskFree: number,
+  sriConstraint?: SriConstraint,
 ): number[] {
   const n = mu.length;
   // Départ : cible répartie uniformément dans chaque groupe (déjà réalisable).
@@ -361,7 +594,7 @@ export function maximizeSharpe(
     const even = groupTargets[g] / idx.length;
     for (const i of idx) w[i] = even;
   }
-  w = projectWeights(w, groups, groupTargets, cap);
+  w = projectWeights(w, groups, groupTargets, cap, sriConstraint);
 
   let best = [...w];
   let bestSharpe = portfolioStats(w, mu, cov, riskFree).sharpe;
@@ -383,7 +616,7 @@ export function maximizeSharpe(
     const gnorm = Math.sqrt(grad.reduce((s, x) => s + x * x, 0)) || 1;
     const step = (lr / gnorm) * (1 - iter / 400);
     const next = w.map((wi, i) => wi + step * grad[i]);
-    w = projectWeights(next, groups, groupTargets, cap);
+    w = projectWeights(next, groups, groupTargets, cap, sriConstraint);
 
     const s = portfolioStats(w, mu, cov, riskFree).sharpe;
     if (s > bestSharpe) {
@@ -411,11 +644,12 @@ export function optimizeAllocation(
   partial: Partial<OptimizerConstraints> = {},
 ): AllocationResult {
   const constraints: OptimizerConstraints = { ...DEFAULT_CONSTRAINTS, ...partial };
-  const { selected, notes } = selectFunds(funds, constraints);
+  const { selected, notes } = selectFunds(funds, constraints, corrOf);
 
   if (selected.length === 0) {
     return {
       lines: [],
+      method: constraints.method,
       expectedReturn: 0,
       volatility: 0,
       sharpe: 0,
@@ -430,11 +664,22 @@ export function optimizeAllocation(
   const mu = selected.map((f) => f.expectedReturn);
   const vols = selected.map((f) => f.volatility);
 
-  // Matrice de corrélation du sous-ensemble retenu.
+  // Matrice de corrélation du sous-ensemble retenu. Les paires sans historique
+  // commun exploitable (null) reçoivent le prior de leur paire de classes
+  // d'actifs — jamais 0, qui ferait passer un trou de données pour de la
+  // diversification parfaite.
   const corr: (number | null)[][] = selected.map((fi, i) =>
     selected.map((fj, j) => (i === j ? 1 : corrOf(fi.isin, fj.isin))),
   );
-  const cov = covarianceMatrix(vols, corr, 0);
+  const missing = missingPairCount(corr);
+  if (missing > 0) {
+    notes.push(
+      `${missing} paire(s) de fonds sans historique commun suffisant : corrélation prudente par classe d'actifs appliquée.`,
+    );
+  }
+  const cov = covarianceMatrix(vols, corr, (i, j) =>
+    classCorrelation(selected[i].assetClass, selected[j].assetClass),
+  );
 
   // Groupes de contraintes : par classe cible, sinon un seul groupe = 100 %.
   const targets = normalizeTargets(constraints.classTargets);
@@ -453,7 +698,39 @@ export function optimizeAllocation(
     );
   }
 
-  const wFrac = maximizeSharpe(mu, cov, groups, groupTargets, cap, constraints.riskFree);
+  // Plafond de SRI moyen pondéré : contrainte DURE de l'optimisation (projection
+  // à chaque pas), pas un simple avertissement après coup.
+  const sriConstraint: SriConstraint | undefined =
+    constraints.maxWeightedSri != null
+      ? { sri: selected.map((f) => f.sri ?? null), max: constraints.maxWeightedSri }
+      : undefined;
+
+  let wFrac: number[];
+  if (constraints.method === "hrp") {
+    // HRP : poids par budgets de risque hiérarchiques (aucun rendement attendu),
+    // puis projection sur les contraintes produit — les cibles de classes fixent
+    // les poids INTER-classes, HRP conserve les rapports INTRA-classe.
+    const corrFilled = corr.map((row, i) =>
+      row.map((c, j) =>
+        i === j ? 1 : c ?? classCorrelation(selected[i].assetClass, selected[j].assetClass),
+      ),
+    );
+    const raw = hrpWeights(cov, corrFilled);
+    wFrac = projectWeights(raw, groups, groupTargets, cap, sriConstraint);
+    notes.push(
+      "Pondération HRP (hierarchical risk parity) : répartition par budgets de risque hiérarchiques, indépendante des rendements attendus.",
+    );
+  } else {
+    wFrac = maximizeSharpe(
+      mu,
+      cov,
+      groups,
+      groupTargets,
+      cap,
+      constraints.riskFree,
+      sriConstraint,
+    );
+  }
   const stats = portfolioStats(wFrac, mu, cov, constraints.riskFree);
 
   // SRI moyen pondéré (ignore les SRI manquants en renormalisant leur poids).
@@ -461,13 +738,16 @@ export function optimizeAllocation(
     selected.map((f) => f.sri ?? null),
     wFrac,
   );
+  // Encore au-dessus après optimisation sous contrainte : le plafond est
+  // insatisfiable avec ce panier (classes cibles trop offensives / plafond par
+  // fonds) — on le dit, on ne le masque pas.
   if (
     constraints.maxWeightedSri != null &&
     weightedSri != null &&
-    weightedSri > constraints.maxWeightedSri + 1e-6
+    weightedSri > constraints.maxWeightedSri + 0.05
   ) {
     notes.push(
-      `SRI moyen pondéré ${weightedSri.toFixed(1)} > plafond ${constraints.maxWeightedSri} : durcir les cibles vers les classes défensives.`,
+      `SRI moyen pondéré ${weightedSri.toFixed(1)} > plafond ${constraints.maxWeightedSri} malgré la contrainte : insatisfiable avec ces fonds — durcir les cibles vers les classes défensives.`,
     );
   }
 
@@ -486,6 +766,7 @@ export function optimizeAllocation(
       sri: f.sri ?? null,
       sfdr: f.sfdr ?? null,
       ter: f.ter ?? null,
+      retrocession: f.retrocession ?? null,
       rating: f.rating ?? null,
       region: f.region ?? null,
       expectedReturn: f.expectedReturn,
@@ -497,6 +778,7 @@ export function optimizeAllocation(
 
   return {
     lines,
+    method: constraints.method,
     expectedReturn: stats.ret,
     volatility: stats.vol,
     sharpe: stats.sharpe,
@@ -508,6 +790,62 @@ export function optimizeAllocation(
       assetClasses: new Set(selected.map((f) => f.assetClass)).size,
     },
     notes,
+  };
+}
+
+/**
+ * Recalcule un `AllocationResult` avec des poids IMPOSÉS par le conseiller
+ * (curseurs de simulation du studio) : mêmes lignes, poids normalisés à 100 %,
+ * et toutes les statistiques recalculées (rendement, volatilité, Sharpe, SRI
+ * moyen pondéré, poids par classe, nombre effectif de lignes). L'ordre des
+ * lignes est conservé (pas de re-tri : les curseurs ne doivent pas sauter).
+ * Renvoie le résultat d'origine tel quel si les poids sont inutilisables
+ * (longueur différente, total nul).
+ *
+ * @param weightsPct poids en POURCENTAGES (mêmes unités que les curseurs)
+ * @param cov        covariance alignée sur result.lines
+ */
+export function reweightAllocation(
+  result: AllocationResult,
+  weightsPct: number[],
+  cov: number[][],
+  riskFree: number = DEFAULT_CONSTRAINTS.riskFree,
+): AllocationResult {
+  const n = result.lines.length;
+  if (weightsPct.length !== n || cov.length !== n || n === 0) return result;
+  const total = weightsPct.reduce((s, x) => s + Math.max(0, x), 0);
+  if (total <= 1e-9) return result;
+
+  const wFrac = weightsPct.map((x) => Math.max(0, x) / total);
+  const mu = result.lines.map((l) => l.expectedReturn);
+  const stats = portfolioStats(wFrac, mu, cov, riskFree);
+  const weightedSri = weightedAverage(
+    result.lines.map((l) => l.sri ?? null),
+    wFrac,
+  );
+  const classWeights: Partial<Record<AssetClass, number>> = {};
+  result.lines.forEach((l, i) => {
+    classWeights[l.assetClass] = (classWeights[l.assetClass] ?? 0) + wFrac[i] * 100;
+  });
+  const lines = result.lines.map((l, i) => ({
+    ...l,
+    weight: Math.round(wFrac[i] * 1000) / 10,
+  }));
+  const effectiveHoldings = 1 / Math.max(wFrac.reduce((s, x) => s + x * x, 0), 1e-12);
+
+  return {
+    ...result,
+    lines,
+    expectedReturn: stats.ret,
+    volatility: stats.vol,
+    sharpe: stats.sharpe,
+    weightedSri,
+    classWeights,
+    diversification: { ...result.diversification, effectiveHoldings },
+    notes: [
+      ...result.notes,
+      "Poids ajustés manuellement par le conseiller — statistiques recalculées sur la pondération simulée.",
+    ],
   };
 }
 

@@ -43,6 +43,7 @@ const BROAD_MAP: Record<string, AssetClass> = {
   diversifie: "diversifie",
   "diversifié": "diversifie",
   immobilier: "immobilier",
+  alternatif: "alternatif",
   crypto: "crypto",
   fonds_euros: "fonds_euros",
 };
@@ -50,6 +51,8 @@ const BROAD_MAP: Record<string, AssetClass> = {
 const PRODUCT_MAP: Record<string, AssetClass> = {
   scpi: "immobilier",
   opci: "immobilier",
+  private_equity: "alternatif",
+  fcpr: "alternatif",
   crypto: "crypto",
   livret: "fonds_euros",
   fonds_euros: "fonds_euros",
@@ -81,6 +84,22 @@ export function expectedAnnualReturnPct(row: FundRow): number | null {
 }
 
 /**
+ * Rétrocession distributeur ESTIMÉE, en fraction de l'encours/an, tant que les
+ * conventions de distribution réelles du cabinet ne sont pas saisies. Règle de
+ * place : la gestion passive (ETF/indiciel) ne rétrocède rien ; la gestion
+ * active rétrocède typiquement ~50 % des frais courants au distributeur.
+ * `null` si les frais sont inconnus (aucune estimation possible).
+ */
+export function estimateRetrocession(row: FundRow): number | null {
+  const style = (row.management_style ?? "").trim().toLowerCase();
+  const product = (row.product_type ?? "").trim().toLowerCase();
+  if (style.includes("passi") || style.includes("indiciel") || product === "etf") return 0;
+  const fees = row.ongoing_charges ?? row.ter ?? null;
+  if (fees == null) return null;
+  return fees * 0.5;
+}
+
+/**
  * Convertit une ligne de fonds en `FundInput`. Renvoie `null` si le fonds n'est
  * pas optimisable (classe d'actifs inconnue, ou rendement/volatilité manquants —
  * l'optimisation moyenne-variance exige les deux).
@@ -104,6 +123,7 @@ export function toFundInput(row: FundRow): FundInput | null {
     expectedReturn: retPct / 100,
     volatility: volPct / 100,
     ter: ter ?? null,
+    retrocession: estimateRetrocession(row),
     sfdr: row.sfdr_article ?? null,
     rating: row.morningstar_rating ?? null,
     managementStyle: row.management_style ?? null,

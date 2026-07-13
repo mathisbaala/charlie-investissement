@@ -13,6 +13,47 @@ export type IncomeNeed = "non" | "ponctuel" | "regulier";
 export type ReactionBaisse = "vendre" | "conserver" | "renforcer";
 export type Versements = "non" | "mensuel" | "trimestriel" | "annuel";
 
+// ─── Projets du client (goal-based) ──────────────────────────────────────────
+// Un projet = un objectif chiffré à horizon donné. Vient EN PLUS du profil de
+// risque global (on n'en remplace rien) : il affine le conseil — chaque projet
+// a son montant cible, son horizon, sa priorité et les moyens qui lui sont
+// affectés (capital de départ, épargne mensuelle).
+
+export type GoalPriority = "vital" | "important" | "souhaitable";
+
+export type ClientGoal = {
+  id: string;
+  /** Intitulé libre (« Apport immobilier », « Études des enfants »…). */
+  label: string;
+  /** Montant à atteindre, en euros. */
+  target_eur: number | null;
+  /** Horizon du projet, en années. */
+  horizon_years: number | null;
+  /** Capital de départ affecté à ce projet, en euros. */
+  initial_eur: number | null;
+  /** Épargne mensuelle affectée à ce projet, en euros. */
+  monthly_eur: number | null;
+  priority: GoalPriority;
+};
+
+export const GOAL_PRIORITY_LABELS: Record<GoalPriority, string> = {
+  vital: "Vital",
+  important: "Important",
+  souhaitable: "Souhaitable",
+};
+
+export function emptyGoal(id: string): ClientGoal {
+  return {
+    id,
+    label: "",
+    target_eur: null,
+    horizon_years: null,
+    initial_eur: null,
+    monthly_eur: null,
+    priority: "important",
+  };
+}
+
 export type RichClientProfile = {
   age: number | null;
   amount_eur: number | null;
@@ -36,6 +77,9 @@ export type RichClientProfile = {
   // Assureurs dont le CGP dispose : un fonds n'est recommandable au client que s'il
   // est référencé chez l'un d'eux. Vide = pas de contrainte (tout l'univers).
   insurers: string[];
+  // Projets chiffrés du client (goal-based) — s'ajoutent au profil, ne
+  // remplacent rien.
+  goals: ClientGoal[];
 };
 
 export const EMPTY_PROFILE: RichClientProfile = {
@@ -59,6 +103,7 @@ export const EMPTY_PROFILE: RichClientProfile = {
   max_ter: null,
   no_entry_fee: false,
   insurers: [],
+  goals: [],
 };
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
@@ -107,7 +152,8 @@ export function isProfileActive(p: RichClientProfile): boolean {
     p.management !== null ||
     p.max_ter !== null ||
     p.no_entry_fee ||
-    p.insurers.length > 0
+    p.insurers.length > 0 ||
+    p.goals.length > 0
   );
 }
 
@@ -201,6 +247,13 @@ export function serializeForNlp(p: RichClientProfile): string {
       ? `${(p.amount_eur / 1_000_000).toFixed(1)}M€`
       : `${Math.round(p.amount_eur / 1000)}k€`;
     parts.push(`montant à investir: ${m}`);
+  }
+  for (const g of p.goals) {
+    if (!g.target_eur || !g.horizon_years) continue;
+    const label = g.label.trim() || "projet";
+    parts.push(
+      `projet « ${label} »: ${Math.round(g.target_eur).toLocaleString("fr-FR")}€ à ${g.horizon_years} ans (${GOAL_PRIORITY_LABELS[g.priority].toLowerCase()})`,
+    );
   }
 
   return parts.join(", ");

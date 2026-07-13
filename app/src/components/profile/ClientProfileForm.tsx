@@ -20,6 +20,10 @@ import {
   type IncomeNeed,
   type ReactionBaisse,
   type Versements,
+  type ClientGoal,
+  type GoalPriority,
+  GOAL_PRIORITY_LABELS,
+  emptyGoal,
   EMPTY_PROFILE,
   loadStoredProfile,
   saveStoredProfile,
@@ -196,6 +200,16 @@ const PERTE_OPTIONS: { value: PerteMax; label: string }[] = [
 
 const TMI_OPTIONS: Tmi[] = ["0", "11", "30", "41", "45"];
 
+const GOAL_PRIORITIES: GoalPriority[] = ["vital", "important", "souhaitable"];
+
+// Identifiant local d'un projet (client-side uniquement, jamais persisté ailleurs
+// que dans le profil localStorage).
+function newGoalId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `goal-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ClientProfileForm({
@@ -293,6 +307,21 @@ export function ClientProfileForm({
   }
   function toggleOne<T>(current: T | null, val: T, key: keyof RichClientProfile) {
     set(key, (current === val ? null : val) as RichClientProfile[typeof key]);
+  }
+
+  // ─── Projets (goal-based) ────────────────────────────────────────────────────
+
+  function addGoal() {
+    setProfile((p) => ({ ...p, goals: [...p.goals, emptyGoal(newGoalId())] }));
+  }
+  function updateGoal(id: string, patch: Partial<ClientGoal>) {
+    setProfile((p) => ({
+      ...p,
+      goals: p.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)),
+    }));
+  }
+  function removeGoal(id: string) {
+    setProfile((p) => ({ ...p, goals: p.goals.filter((g) => g.id !== id) }));
   }
 
   // ─── Import ───────────────────────────────────────────────────────────────────
@@ -570,7 +599,86 @@ export function ClientProfileForm({
           </FieldGroup>
         </SectionCard>
 
-        {/* 5 — Distribution du cabinet (pleine largeur) : les assureurs dont le CGP
+        {/* 5 — Projets du client (goal-based, pleine largeur) : chaque projet a un
+            montant cible, un horizon, une priorité et les moyens affectés. Vient
+            EN PLUS du profil de risque (rien n'est remplacé) : la page allocation
+            calcule le rendement requis et la probabilité d'atteinte par projet. */}
+        <div className="lg:col-span-2">
+          <SectionCard title="Projets du client">
+            {profile.goals.length === 0 && (
+              <p className="text-meta text-muted">
+                Aucun projet renseigné. Ajoutez les objectifs chiffrés du client
+                (apport immobilier, études, retraite…) : l&apos;allocation affichera la
+                probabilité de les atteindre.
+              </p>
+            )}
+            {profile.goals.map((g, gi) => (
+              <div key={g.id} className="rounded-xl border border-line p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={g.label}
+                    onChange={(e) => updateGoal(g.id, { label: e.target.value })}
+                    placeholder={`Projet ${gi + 1} — ex : Apport immobilier`}
+                    aria-label={`Intitulé du projet ${gi + 1}`}
+                    className={`${inputCls} flex-1`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeGoal(g.id)}
+                    aria-label={`Supprimer le projet ${g.label || gi + 1}`}
+                    className="shrink-0 text-muted hover:text-danger transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <FieldGroup label="Montant cible (€)">
+                    <input
+                      type="number" min={0} value={g.target_eur ?? ""}
+                      onChange={(e) => updateGoal(g.id, { target_eur: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="ex : 80 000" className={inputCls}
+                    />
+                  </FieldGroup>
+                  <FieldGroup label="Horizon (années)">
+                    <input
+                      type="number" min={1} max={40} value={g.horizon_years ?? ""}
+                      onChange={(e) => updateGoal(g.id, { horizon_years: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="ex : 5" className={inputCls}
+                    />
+                  </FieldGroup>
+                  <FieldGroup label="Capital affecté (€)">
+                    <input
+                      type="number" min={0} value={g.initial_eur ?? ""}
+                      onChange={(e) => updateGoal(g.id, { initial_eur: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="ex : 20 000" className={inputCls}
+                    />
+                  </FieldGroup>
+                  <FieldGroup label="Épargne mensuelle (€)">
+                    <input
+                      type="number" min={0} value={g.monthly_eur ?? ""}
+                      onChange={(e) => updateGoal(g.id, { monthly_eur: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="ex : 400" className={inputCls}
+                    />
+                  </FieldGroup>
+                </div>
+                <FieldGroup label="Priorité" hint="Vital = l'échec n'est pas acceptable (allocation à sécuriser en priorité).">
+                  <ChipRow>
+                    {GOAL_PRIORITIES.map((pr) => (
+                      <Chip key={pr} label={GOAL_PRIORITY_LABELS[pr]} active={g.priority === pr}
+                        onClick={() => updateGoal(g.id, { priority: pr })} />
+                    ))}
+                  </ChipRow>
+                </FieldGroup>
+              </div>
+            ))}
+            <Btn variant="outline" size="sm" onClick={addGoal}>
+              + Ajouter un projet
+            </Btn>
+          </SectionCard>
+        </div>
+
+        {/* 6 — Distribution du cabinet (pleine largeur) : les assureurs dont le CGP
             dispose. Un fonds n'est recommandable que s'il est référencé chez l'un
             d'eux ; sinon le CGP ne peut pas le loger au client. Vide = pas de
             contrainte (tout l'univers reste consultable). */}

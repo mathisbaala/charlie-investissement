@@ -29,6 +29,7 @@ const RESULT: AllocationResult = {
     line({ isin: "FR0013267663", name: "Hugau Moneterme", category: "Monétaire", weight: 10, assetClass: "monetaire", sri: 1, sfdr: 8, ter: 0.001, expectedReturn: 0.033, volatility: 0.005 }),
     line({ isin: "LU1897556517", name: "Groupama Global Disruption", category: "Actions Disruption", weight: 5, assetClass: "actions", sri: 5, sfdr: 9, ter: 0.018, expectedReturn: 0.177, volatility: 0.22 }),
   ],
+  method: "sharpe" as const,
   expectedReturn: 0.119, volatility: 0.109, sharpe: 0.92, weightedSri: 3.7,
   classWeights: { actions: 60, obligations: 30, monetaire: 10 },
   diversification: { effectiveHoldings: 4.3, averageCorrelation: 0.34, assetClasses: 3 },
