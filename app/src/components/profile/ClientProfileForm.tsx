@@ -255,8 +255,14 @@ export function ClientProfileForm({
   // sans réessai, un seul hoquet réseau bloquait l'erreur pour toute la session
   // même une fois le serveur revenu. On retente automatiquement (délai croissant),
   // et le champ peut relancer le chargement (focus / clic sur le message d'erreur).
+  // Repasse à true au (re)montage : en mode strict React (dev), le composant
+  // est monté/démonté/remonté — sans ça, le ref restait « démonté » et la
+  // réponse du fetch des assureurs était ignorée (chargement infini).
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const loadInsurers = useCallback((attempt = 0) => {
     setInsurerStatus("loading");

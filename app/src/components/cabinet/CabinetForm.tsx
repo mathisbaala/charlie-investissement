@@ -83,8 +83,15 @@ export function CabinetForm() {
     saveStoredCabinet(cabinet);
   }, [cabinet, initialized]);
 
+  // IMPORTANT : repasser à true au (re)montage — en mode strict React (dev),
+  // le composant est monté/démonté/remonté : sans cette remise à true, le ref
+  // restait « démonté » et la réponse du fetch était ignorée pour toujours
+  // (« Chargement du référencement… » infini).
   const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const loadOptions = useCallback((attempt = 0) => {
     setOptStatus("loading");
     fetch("/api/screener/contracts")
