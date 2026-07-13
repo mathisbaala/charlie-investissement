@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "documents" | "chat";
+  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "documents" | "guide";
   title: string;
   body: string;
 };
@@ -38,9 +38,9 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Déposez un DICI ou un KID : Charlie en extrait frais, risque et scénarios.",
   },
   {
-    key: "chat",
-    title: "Demander à Charlie",
-    body: "Une question ? Ouvrez Charlie en haut à droite, à tout moment.",
+    key: "guide",
+    title: "Comprendre chaque page",
+    body: "Cliquez le logo Charlie en haut à droite : une explication de la page et de son usage, à tout moment.",
   },
 ];
 

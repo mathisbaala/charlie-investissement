@@ -17,7 +17,7 @@ function StepIcon({ stepKey, size = 20 }: { stepKey: TourStep["key"]; size?: num
     case "portefeuille": return <TrendingUp size={size} strokeWidth={1.7} />;
     case "assureurs": return <Shield size={size} strokeWidth={1.7} />;
     case "documents": return <FileText size={size} strokeWidth={1.7} />;
-    case "chat":      return <Logo size={size + 4} />;
+    case "guide":     return <Logo size={size + 4} />;
   }
 }
 

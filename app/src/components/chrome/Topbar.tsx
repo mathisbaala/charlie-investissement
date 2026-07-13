@@ -32,11 +32,11 @@ function pageTitle(pathname: string): string {
 }
 
 interface TopbarProps {
-  onChatToggle: () => void;
-  chatOpen: boolean;
+  onGuideToggle: () => void;
+  guideOpen: boolean;
 }
 
-export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
+export function Topbar({ onGuideToggle, guideOpen }: TopbarProps) {
   const pathname = usePathname();
   const crumbs = breadcrumb(pathname);
   const title = pageTitle(pathname);
@@ -95,16 +95,16 @@ export function Topbar({ onChatToggle, chatOpen }: TopbarProps) {
         Confidentialité
       </Link>
 
-      {/* Chat trigger — logo mark */}
+      {/* Déclencheur du guide — logo mark. Explique la page courante. */}
       <button
-        onClick={onChatToggle}
-        title="Demander à Charlie"
+        onClick={onGuideToggle}
+        title="Comprendre cette page"
         className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
-          chatOpen
+          guideOpen
             ? "border-accent/30 bg-paper-2"
             : "border-line bg-paper hover:bg-paper-2"
         }`}
-        aria-label="Demander à Charlie"
+        aria-label="Comprendre cette page"
       >
         <Logo size={24} />
       </button>

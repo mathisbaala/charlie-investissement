@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { TOUR_STEPS, isTourDone, markTourDone } from "@/lib/tour";
 
 describe("tour content", () => {
-  it("couvre les 5 onglets + le chat, dans l'ordre", () => {
+  it("couvre les 5 onglets + le guide, dans l'ordre", () => {
     expect(TOUR_STEPS.map((s) => s.key)).toEqual([
       "accueil",
       "recherche",
       "portefeuille",
       "assureurs",
       "documents",
-      "chat",
+      "guide",
     ]);
   });
 

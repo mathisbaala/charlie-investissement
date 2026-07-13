@@ -484,7 +484,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // tie-break secondaire. Sinon, choisir un tri non-défaut (ex. TER) ferait remonter un
     // match faible (relevance=1) devant le nom exact (relevance=3) — perte de pertinence.
     // À pertinence ÉGALE, on départage par l'ENCOURS (aum_eur desc) AVANT le tri par
-    // défaut/intention — aligné sur le chat (chatTools.ts) : entre plusieurs « MSCI World »
+    // défaut/intention : entre plusieurs « MSCI World »
     // également pertinents, le flagship (gros encours) prime sur une coquille / une variante
     // de niche. Quand un tri explicite non-défaut est choisi (clic colonne), il reste
     // prioritaire sur l'AUM (cf. tri appliqué juste après).

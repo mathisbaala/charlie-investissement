@@ -13,8 +13,7 @@ function getClient(): Anthropic {
 
 // Modèle pour les tâches d'extraction structurée (phrase / PDF → JSON).
 // Haiku 4.5 : ~3× moins cher que Sonnet en entrée comme en sortie, largement
-// suffisant pour du mapping déterministe vers des filtres. Le chat conversationnel
-// (app/api/chat) reste sur Sonnet, où la qualité de rédaction compte.
+// suffisant pour du mapping déterministe vers des filtres.
 // NB : le prompt caching n'est PAS activé ici — les system prompts (~500-2500 tokens)
 // restent sous le seuil minimum cachable de Haiku (4096 tokens), le cache ne se
 // déclencherait donc jamais. Le gain de coût vient entièrement du choix du modèle.
