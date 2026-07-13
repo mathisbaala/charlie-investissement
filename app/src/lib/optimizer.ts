@@ -372,7 +372,7 @@ export function selectFunds(
     for (const cls of Object.keys(targets)) {
       if (targets[cls] > 0 && !(available[cls] > 0)) {
         notes.push(
-          `Aucun fonds disponible pour la classe « ${cls} » (${targets[cls]}% cible) — poids redistribué.`,
+          `Aucun fonds disponible pour la classe « ${cls} » (${Math.round(targets[cls] * 10) / 10}% cible) — poids redistribué.`,
         );
       }
     }
@@ -510,46 +510,47 @@ export function projectWeights(
     : null;
   const aNorm2 = a ? a.reduce((s, x) => s + x * x, 0) : 0;
 
-  const clipAndRenorm = (): number => {
-    // Clip [0, cap].
-    for (let i = 0; i < out.length; i++) {
-      if (out[i] < 0) out[i] = 0;
-      else if (out[i] > cap) out[i] = cap;
+  // Projection EXACTE d'un groupe sur { 0 ≤ w ≤ cap, Σ = cible } : bissection
+  // sur le décalage θ tel que Σ clamp(w_i − θ, 0, cap) = cible. Contrairement à
+  // l'ancien écrêtage + renormalisation multiplicative (qui oscillait sans
+  // converger quand la masse se concentrait sur peu de fonds, laissant des
+  // poids AU-DESSUS du plafond), l'excédent se déverse ici sur les autres
+  // fonds du groupe.
+  const projectGroup = (idx: number[], target: number): void => {
+    if (idx.length === 0) return;
+    if (idx.length * cap <= target + 1e-12) {
+      // Plafond infaisable pour ce groupe (cas neutralisé en amont par le
+      // relèvement du cap) : saturation uniforme, meilleur point atteignable.
+      for (const i of idx) out[i] = cap;
+      return;
     }
-    // Renormalise chaque groupe à sa cible.
-    let maxErr = 0;
-    for (let g = 0; g < groups.length; g++) {
-      const idx = groups[g];
-      const target = groupTargets[g];
-      const sum = idx.reduce((s, i) => s + out[i], 0);
-      if (sum <= 1e-12) {
-        // Groupe effondré : répartition uniforme sur la cible.
-        const even = target / idx.length;
-        for (const i of idx) out[i] = even;
-      } else {
-        const scale = target / sum;
-        for (const i of idx) out[i] *= scale;
-      }
-      maxErr = Math.max(maxErr, Math.abs(idx.reduce((s, i) => s + out[i], 0) - target));
+    let lo = Math.min(...idx.map((i) => out[i])) - cap - 1;
+    let hi = Math.max(...idx.map((i) => out[i])) + 1;
+    for (let k = 0; k < 60; k++) {
+      const th = (lo + hi) / 2;
+      const s = idx.reduce((acc, i) => acc + Math.min(Math.max(out[i] - th, 0), cap), 0);
+      if (s > target) lo = th;
+      else hi = th;
     }
-    return maxErr;
+    const th = (lo + hi) / 2;
+    for (const i of idx) out[i] = Math.min(Math.max(out[i] - th, 0), cap);
+  };
+  const projectGroups = (): void => {
+    for (let g = 0; g < groups.length; g++) projectGroup(groups[g], groupTargets[g]);
   };
 
-  for (let iter = 0; iter < 60; iter++) {
-    const maxErr = clipAndRenorm();
-    // Projection sur le demi-espace SRI : w ← w − d·a/‖a‖² si dépassement d > 0.
-    let sriErr = 0;
-    if (a && aNorm2 > 1e-12) {
+  projectGroups();
+  // Alternance demi-espace SRI ↔ groupes (façon Dykstra) ; on TERMINE par les
+  // groupes pour garantir exactement bornes et sommes (le SRI est alors
+  // satisfait à la tolérance d'itération près, diagnostiqué par l'appelant).
+  if (a && aNorm2 > 1e-12) {
+    for (let iter = 0; iter < 60; iter++) {
       const d = a.reduce((s, ai, i) => s + ai * out[i], 0);
-      if (d > 1e-12) {
-        sriErr = d;
-        for (let i = 0; i < out.length; i++) out[i] -= (d * a[i]) / aNorm2;
-      }
+      if (d <= 1e-12) break;
+      for (let i = 0; i < out.length; i++) out[i] -= (d * a[i]) / aNorm2;
+      projectGroups();
     }
-    if (maxErr < 1e-9 && sriErr < 1e-9) break;
   }
-  // Garantit les contraintes dures (bornes + sommes de groupe) en sortie.
-  clipAndRenorm();
   return out;
 }
 

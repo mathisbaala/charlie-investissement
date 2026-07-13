@@ -34,6 +34,13 @@ import {
   goalSuccessProbabilityMC,
   pocketSriCap,
 } from "@/lib/goalPlanning";
+import {
+  EMPTY_CABINET,
+  loadStoredCabinet,
+  cabinetContract,
+  resolveFundRetrocession,
+  type CabinetSettings,
+} from "@/lib/cabinet";
 
 // Plateforme d'allocation : réutilise le PROFIL CLIENT saisi à l'accueil (même
 // formulaire, mêmes données, partagées via le stockage local) → génère
@@ -330,6 +337,18 @@ export function AllocationStudio() {
   // le fonds à la meilleure rétrocession (estimée). Choix du CONSEILLER.
   const [retroTilt, setRetroTilt] = useState(false);
 
+  // Données CABINET (onglet « Mon cabinet », localStorage) : contrats distribués
+  // → sélecteur de contrat direct ; conventions → rémunération sur vrais taux ;
+  // nom du cabinet → pré-rempli.
+  const [cabinet, setCabinet] = useState<CabinetSettings>(EMPTY_CABINET);
+  useEffect(() => {
+    const cab = loadStoredCabinet();
+    setCabinet(cab);
+    if (cab.cabinetName.trim()) setAdvisor((a) => (a.trim() ? a : cab.cabinetName));
+    if (cab.contracts.length > 0) setContract((c) => (c === SAMPLE_CONTRACT ? cab.contracts[0].key : c));
+  }, []);
+  const convention = useMemo(() => cabinetContract(cabinet, contract), [cabinet, contract]);
+
   // Profil client synchronisé avec le formulaire (persisté en localStorage).
   const [profile, setProfile] = useState<RichClientProfile>(EMPTY_PROFILE);
   const onProfileChange = useCallback((p: RichClientProfile) => setProfile(p), []);
@@ -378,13 +397,13 @@ export function AllocationStudio() {
   // se déclenche que si quelque chose a réellement changé depuis.
   const lastSigRef = useRef<string | null>(null);
   const inputsSig = useMemo(
-    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt }),
-    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt],
+    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet }),
+    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet],
   );
 
   const compute = useCallback(async () => {
     const runId = ++runIdRef.current;
-    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt });
+    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet });
     setBusy(true);
     setErrorMsg(null);
     // Le profil de l'état est déjà synchronisé par le formulaire ; on relit le
@@ -428,6 +447,10 @@ export function AllocationStudio() {
       if (advisor.trim()) qs.set("advisor", advisor.trim());
       if (method !== "sharpe") qs.set("method", method);
       if (retroTilt) qs.set("retro", "1");
+      // Convention du cabinet pour ce contrat : le taux UC remplace l'estimation.
+      if (convention?.ucRetroShare != null) {
+        qs.set("ucShare", String(Math.round(convention.ucRetroShare * 10000) / 100));
+      }
       qs.set("asOf", asOfLabel);
       return qs;
     };
@@ -624,7 +647,7 @@ export function AllocationStudio() {
     setPockets(pocketMap);
     setBusy(false);
     setHasGenerated(true);
-  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt]);
+  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, convention]);
 
   // Recalcul automatique (débouncé) après la première génération : jouer avec le
   // SRI, les zones géographiques, les frais, l'ESG ou la composition met le
@@ -790,7 +813,28 @@ export function AllocationStudio() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Field label="Contrat">
-              <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
+              {cabinet.contracts.length > 0 ? (
+                <select
+                  className={inputCls}
+                  value={contract}
+                  aria-label="Contrat du cabinet"
+                  onChange={(e) => setContract(e.target.value)}
+                >
+                  {cabinet.contracts.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.key.replace("::", " — ")}
+                    </option>
+                  ))}
+                  <option value={SAMPLE_CONTRACT}>Contrat démo (univers d&apos;exemple)</option>
+                </select>
+              ) : (
+                <>
+                  <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
+                  <span className="text-caption text-muted-2">
+                    Renseignez vos contrats dans l&apos;onglet <a href="/cabinet" className="underline underline-offset-2 hover:text-ink">Mon cabinet</a> pour les retrouver ici.
+                  </span>
+                </>
+              )}
             </Field>
             <Field label="Poids max. par fonds (%)">
               <input className={inputCls} type="number" min={10} max={100} value={maxPerFund} onChange={(e) => setMaxPerFund(e.target.value)} />
@@ -1026,22 +1070,35 @@ export function AllocationStudio() {
               </span>
             </Card>
           )}
-          {/* Rémunération cabinet (visible seulement si le départage est activé). */}
+          {/* Rémunération cabinet (visible seulement si le départage est activé).
+              Cascade complète côté affichage : exception par fonds (convention)
+              → rétro de la ligne (convention contrat côté serveur, sinon
+              estimation) ; plus la part des frais de gestion du contrat. */}
           {retroTilt && amountEur != null && amountEur > 0 && (() => {
             const lines = (effectiveResult ?? result).lines;
             const known = lines.filter((l) => l.retrocession != null);
-            if (known.length === 0) return null;
-            const annual = lines.reduce(
-              (s, l) => s + (l.weight / 100) * (l.retrocession ?? 0) * amountEur,
-              0,
-            );
+            if (known.length === 0 && convention?.contractFeeShare == null) return null;
+            const ucAnnual = lines.reduce((s, l) => {
+              const retro = resolveFundRetrocession(convention, l.isin, l.ter ?? null, l.retrocession ?? null);
+              return s + (l.weight / 100) * (retro ?? 0) * amountEur;
+            }, 0);
+            const contractAnnual = (convention?.contractFeeShare ?? 0) * amountEur;
+            const total = ucAnnual + contractAnnual;
+            const hasConvention = convention != null &&
+              (convention.ucRetroShare != null || convention.contractFeeShare != null || convention.fundOverrides.length > 0);
             return (
               <Card className="px-5 py-4 bg-paper-2">
                 <span className="text-meta text-ink-2">
-                  Rémunération cabinet estimée : <strong>~{Math.round(annual).toLocaleString("fr-FR")} €/an</strong>
+                  Rémunération cabinet estimée : <strong>~{Math.round(total).toLocaleString("fr-FR")} €/an</strong>
                   {" "}sur {amountEur.toLocaleString("fr-FR")} € investis
-                  {known.length < lines.length ? ` (${lines.length - known.length} ligne(s) sans donnée)` : ""}
-                  {" "}— estimation à défaut des conventions réelles, non contractuelle.
+                  {contractAnnual > 0 && (
+                    <> ({Math.round(contractAnnual).toLocaleString("fr-FR")} € part contrat
+                    {" "}+ {Math.round(ucAnnual).toLocaleString("fr-FR")} € rétrocessions UC)</>
+                  )}
+                  {known.length < lines.length ? ` — ${lines.length - known.length} ligne(s) sans donnée` : ""}
+                  {" "}— {hasConvention
+                    ? "selon vos conventions saisies dans Mon cabinet, non contractuel."
+                    : "estimation à défaut des conventions réelles (à saisir dans Mon cabinet), non contractuelle."}
                 </span>
               </Card>
             );

@@ -50,6 +50,32 @@ export interface OptimizeParams {
   method?: AllocationMethod;
   /** Départage rétrocession à adéquation client équivalente (choix conseiller). */
   retroTieBreak?: boolean;
+  /**
+   * Taux de rétrocession UC de la convention du cabinet pour ce contrat
+   * (fraction des frais courants, ex 0.5). Quand il est fourni, il remplace
+   * l'estimation de place pour les fonds à rétrocession (les fonds indiciels
+   * restent à 0 — ils ne rétrocèdent pas). Les exceptions par fonds restent
+   * résolues côté client (affichage).
+   */
+  ucRetroShare?: number | null;
+}
+
+/**
+ * Applique le taux de convention UC du cabinet aux fonds de l'univers :
+ * retro = taux × frais courants — sauf pour les fonds qui ne rétrocèdent pas
+ * (estimation à 0 : indiciels/ETF), qui restent à 0. Sans taux, l'univers est
+ * renvoyé tel quel (estimation de place). Fonction pure (testable).
+ */
+export function applyUcRetroShare(
+  funds: FundInput[],
+  ucRetroShare: number | null | undefined,
+): FundInput[] {
+  if (ucRetroShare == null) return funds;
+  return funds.map((f) => {
+    if (f.retrocession === 0) return f; // indiciel : pas de rétro, convention ou pas
+    if (f.ter == null) return f; // frais inconnus : on garde l'estimation
+    return { ...f, retrocession: ucRetroShare * f.ter };
+  });
 }
 
 export interface OptimizeOutput {
@@ -165,8 +191,11 @@ export async function optimizeContract(
     return { error: "Univers du contrat indisponible", detail: error.message, status: 500 };
   }
 
-  // 2) Conversion + filtrage des non-optimisables.
-  const { inputs, dropped } = toFundInputs((rows ?? []) as unknown as FundRow[]);
+  // 2) Conversion + filtrage des non-optimisables. Le taux de convention UC du
+  // cabinet, s'il est fourni, remplace l'estimation de place des rétrocessions.
+  const converted = toFundInputs((rows ?? []) as unknown as FundRow[]);
+  const inputs = applyUcRetroShare(converted.inputs, params.ucRetroShare);
+  const dropped = converted.dropped;
   if (inputs.length < minAssets) {
     return {
       error: "Univers insuffisant",
@@ -236,9 +265,10 @@ export async function optimizeContract(
     p_isins: isins,
     p_years: years,
   });
-  if (corrErr) {
-    return { error: "Corrélations indisponibles", detail: corrErr.message, status: 500 };
-  }
+  // RPC absent (migration non appliquée) ou en erreur : on N'ÉCHOUE PAS —
+  // toutes les paires restent inconnues et le moteur applique ses priors par
+  // classe d'actifs. Dégradé honnête (signalé en note) plutôt que panne.
+  const corrUnavailable = corrErr != null;
 
   const corrMap = new Map<string, number | null>();
   const pairs: CorrPair[] = (corrData?.pairs ?? []) as CorrPair[];
@@ -267,6 +297,11 @@ export async function optimizeContract(
   };
   const allocation = optimizeAllocation(candidates, corrOf, constraints);
   allocation.notes.unshift(...filterNotes);
+  if (corrUnavailable) {
+    allocation.notes.push(
+      "Corrélations historiques indisponibles sur la base (fonction de calcul absente ou en erreur) : corrélations prudentes par classe d'actifs utilisées pour toute l'allocation.",
+    );
+  }
 
   // Fonds retenus dont l'historique de VL est trop court pour des corrélations
   // observées : le conseiller doit savoir que leurs corrélations sont des priors.
@@ -392,5 +427,13 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
     exclude: isinList(p.get("exclude")),
     method: p.get("method")?.trim().toLowerCase() === "hrp" ? "hrp" : "sharpe",
     retroTieBreak: p.get("retro") === "1",
+    // ucShare : taux de convention UC en POURCENTAGE (50 = 50 % des frais).
+    ucRetroShare: (() => {
+      const raw = p.get("ucShare");
+      if (raw === null) return null;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) return null;
+      return Math.min(n, 100) / 100;
+    })(),
   };
 }
