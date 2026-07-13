@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "documents" | "guide";
+  key: "accueil" | "recherche" | "portefeuille" | "allocation" | "assureurs" | "cabinet" | "documents" | "guide";
   title: string;
   body: string;
 };
@@ -28,9 +28,19 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Pondérez plusieurs fonds : performance, volatilité, Sharpe, corrélation et back-test face à un indice.",
   },
   {
+    key: "allocation",
+    title: "Allocation optimisée",
+    body: "À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP), avec restitution PDF et PowerPoint.",
+  },
+  {
     key: "assureurs",
     title: "Assurances vie",
     body: "Les contrats et leurs unités de compte référencées, assureur par assureur.",
+  },
+  {
+    key: "cabinet",
+    title: "Mon cabinet",
+    body: "Renseignez vos partenariats assureurs et vos rétrocessions une fois : le reste de la plateforme les réutilise.",
   },
   {
     key: "documents",

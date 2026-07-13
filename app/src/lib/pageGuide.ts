@@ -103,6 +103,60 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     },
   },
   {
+    prefixes: ["/allocation"],
+    guide: {
+      title: "Allocation optimisée",
+      intro:
+        "Le studio d'allocation. À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP) sous vos contraintes, avec restitution PDF / PowerPoint.",
+      sections: [
+        {
+          heading: "Sur cette page",
+          items: [
+            "Le profil du client, partagé avec l'accueil et enregistré automatiquement : il pilote les contraintes de l'allocation.",
+            "Les réglages du conseiller, indépendants du profil : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
+            "Les projets du client — une poche par objectif — pour une allocation orientée buts.",
+            "L'allocation générée : supports et poids, indicateurs (rendement / volatilité / Sharpe attendus, SRI pondéré) et la matrice de corrélation des supports retenus.",
+            "Le pilotage fin : imposer un fonds, en écarter un (réoptimisation) et le remplacer par un similaire.",
+          ],
+        },
+        {
+          heading: "Comment l'utiliser",
+          items: [
+            "Renseignez ou réutilisez le profil, choisissez un contrat, puis générez l'allocation.",
+            "Ajustez les réglages (risque, zones, frais, moteur) : chaque changement recalcule l'allocation.",
+            "Affinez support par support (imposer / écarter / remplacer), puis téléchargez la restitution en PDF ou PowerPoint.",
+          ],
+        },
+      ],
+    },
+  },
+  {
+    prefixes: ["/cabinet"],
+    guide: {
+      title: "Mon cabinet",
+      intro:
+        "Votre cabinet, renseigné une fois et réutilisé par toute la plateforme (allocation, rapports) : partenariats assureurs, contrats et conventions de rétrocession.",
+      sections: [
+        {
+          heading: "Sur cette page",
+          items: [
+            "L'identité : nom du cabinet / conseiller, repris automatiquement dans les études et les rapports.",
+            "Vos partenariats assureurs : recherchez et ajoutez les assureurs avec lesquels vous travaillez.",
+            "Pour chaque assureur, les contrats référencés et vos conventions de rétrocession.",
+          ],
+        },
+        {
+          heading: "Comment l'utiliser",
+          items: [
+            "Ajoutez vos assureurs partenaires : la sélection alimente le référencement et l'allocation.",
+            "Renseignez les rétrocessions par contrat pour qu'elles remontent dans les restitutions.",
+            "Une fois rempli, tout le reste de la plateforme réutilise ces informations sans re-saisie.",
+          ],
+        },
+      ],
+    },
+  },
+  {
     prefixes: ["/documents"],
     guide: {
       title: "Documents",
