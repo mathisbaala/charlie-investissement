@@ -64,12 +64,3 @@ export function markTourDone(): void {
     /* stockage indisponible : on n'insiste pas */
   }
 }
-
-export function resetTour(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* idem */
-  }
-}

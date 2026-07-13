@@ -147,11 +147,6 @@ export function dt(iso: string | null | undefined): string {
   return d.toLocaleDateString("fr-FR");
 }
 
-export function dtYear(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).getFullYear().toString();
-}
-
 export function fmtSharpe(v: number | null | undefined): string {
   if (v == null) return "—";
   return nf2.format(v);

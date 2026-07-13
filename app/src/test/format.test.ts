@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, dtYear, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS } from '../lib/format'
+import { pct, eur, fmtAum, dt, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS } from '../lib/format'
 
 describe('pct', () => {
   it('returns em dash for null', () => expect(pct(null)).toBe('—'))

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { getRecentSearches, addSearch, clearSearches } from '../lib/searches'
+import { getRecentSearches, addSearch } from '../lib/searches'
 
 // Régression : un localStorage corrompu (JSON valide mais pas un tableau, ex.
 // `{}`) faisait renvoyer cette valeur, et le .filter()/.slice() en aval
@@ -44,6 +44,6 @@ describe('getRecentSearches — robustesse localStorage', () => {
     localStorage.setItem('charlie_searches', '{"corrompu":true}')
     expect(() => addSearch({ query: 'test', chips: [], count: 0 })).not.toThrow()
     expect(getRecentSearches()[0].query).toBe('test')
-    clearSearches()
+    localStorage.removeItem('charlie_searches')
   })
 })

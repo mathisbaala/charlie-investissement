@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { TOUR_STEPS, isTourDone, markTourDone, resetTour } from "@/lib/tour";
+import { TOUR_STEPS, isTourDone, markTourDone } from "@/lib/tour";
 
 describe("tour content", () => {
   it("couvre les 5 onglets + le chat, dans l'ordre", () => {
@@ -30,7 +30,7 @@ describe("tour content", () => {
 
 describe("tour storage", () => {
   beforeEach(() => {
-    resetTour();
+    localStorage.removeItem("charlie_tour_v2_done");
   });
 
   it("n'est pas terminé par défaut", () => {
@@ -40,11 +40,5 @@ describe("tour storage", () => {
   it("devient terminé après markTourDone", () => {
     markTourDone();
     expect(isTourDone()).toBe(true);
-  });
-
-  it("redevient affichable après resetTour", () => {
-    markTourDone();
-    resetTour();
-    expect(isTourDone()).toBe(false);
   });
 });
