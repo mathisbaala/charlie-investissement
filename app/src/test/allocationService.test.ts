@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { parseTargets, paramsFromQuery, shortlist } from "../lib/allocationService";
+import {
+  parseTargets,
+  paramsFromQuery,
+  shortlist,
+  lowCoverageIsins,
+} from "../lib/allocationService";
 import type { FundInput } from "../lib/optimizer";
 
 describe("parseTargets", () => {
@@ -78,6 +83,17 @@ describe("paramsFromQuery", () => {
     if ("error" in p) throw new Error("inattendu");
     expect(p.exclude).toEqual(["FR0000000000", "LU1111111111"]);
   });
+  it("parse la méthode de pondération (hrp), défaut sharpe", () => {
+    const hrp = paramsFromQuery(new URLSearchParams("contract=A::B&method=HRP"));
+    if ("error" in hrp) throw new Error("inattendu");
+    expect(hrp.method).toBe("hrp");
+    const def = paramsFromQuery(new URLSearchParams("contract=A::B"));
+    if ("error" in def) throw new Error("inattendu");
+    expect(def.method).toBe("sharpe");
+    const junk = paramsFromQuery(new URLSearchParams("contract=A::B&method=foo"));
+    if ("error" in junk) throw new Error("inattendu");
+    expect(junk.method).toBe("sharpe");
+  });
 });
 
 describe("shortlist", () => {
@@ -97,5 +113,27 @@ describe("shortlist", () => {
     expect(sl.length).toBe(10);
     // la classe obligations doit être représentée malgré son score faible
     expect(sl.some((f) => f.assetClass === "obligations")).toBe(true);
+  });
+});
+
+describe("lowCoverageIsins", () => {
+  it("isole les fonds sous le seuil de points", () => {
+    const weak = lowCoverageIsins(
+      [
+        { isin: "FR0000000001", n_points: 12 },
+        { isin: "FR0000000002", n_points: 26 },
+        { isin: "FR0000000003", n_points: 150 },
+      ],
+      26,
+    );
+    expect(weak.has("FR0000000001")).toBe(true);
+    expect(weak.has("FR0000000002")).toBe(false); // au seuil = suffisant
+    expect(weak.has("FR0000000003")).toBe(false);
+  });
+
+  it("tolère une couverture absente ou nulle", () => {
+    expect(lowCoverageIsins(null, 26).size).toBe(0);
+    expect(lowCoverageIsins(undefined, 26).size).toBe(0);
+    expect(lowCoverageIsins([], 26).size).toBe(0);
   });
 });

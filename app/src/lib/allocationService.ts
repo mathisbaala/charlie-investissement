@@ -2,8 +2,10 @@ import { supabase } from "./supabase";
 import {
   optimizeAllocation,
   selectionScore,
+  COMMISSION_TIE_BREAK_TOL,
   type FundInput,
   type AssetClass,
+  type AllocationMethod,
   type OptimizerConstraints,
   type AllocationResult,
 } from "./optimizer";
@@ -44,6 +46,10 @@ export interface OptimizeParams {
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller. */
   exclude?: string[];
+  /** Méthode de pondération : max-Sharpe (défaut) ou HRP. */
+  method?: AllocationMethod;
+  /** Départage rétrocession à adéquation client équivalente (choix conseiller). */
+  retroTieBreak?: boolean;
 }
 
 export interface OptimizeOutput {
@@ -109,7 +115,27 @@ export function shortlist(
 interface CorrPair {
   a: string;
   b: string;
+  /** Nombre de rendements hebdo communs ayant servi au calcul. */
+  n?: number;
+  /** Coefficient, ou null si la paire est sous le seuil de points du RPC. */
   c: number | null;
+}
+
+/**
+ * ISIN dont l'historique de VL est trop court pour des corrélations fiables
+ * (moins de `minPoints` rendements hebdo sur la fenêtre). Leurs paires seront
+ * `null` côté RPC et remplacées par les priors de classe côté optimiseur — on
+ * le signale au conseiller plutôt que de le masquer.
+ */
+export function lowCoverageIsins(
+  coverage: { isin: string; n_points: number }[] | null | undefined,
+  minPoints: number,
+): Set<string> {
+  const out = new Set<string>();
+  for (const c of coverage ?? []) {
+    if ((c.n_points ?? 0) < minPoints) out.add(c.isin);
+  }
+  return out;
 }
 
 /** Exécute la chaîne complète d'optimisation d'un contrat. */
@@ -161,11 +187,16 @@ export async function optimizeContract(
     exclude: params.exclude ?? [],
   };
   const filterNotes: string[] = [];
+  // Tant que la contrainte géographique est active, chaque zone demandée devra
+  // aussi être REPRÉSENTÉE dans la sélection (cf. coverRegions). Si elle est
+  // levée pour préserver la diversification, la couverture l'est aussi.
+  let geoActive = (params.geographies?.length ?? 0) > 0;
   let filtered = filterUniverse(inputs, filterOpts);
-  if (filtered.funds.length < minAssets && (params.geographies?.length ?? 0) > 0) {
+  if (filtered.funds.length < minAssets && geoActive) {
     const retry = filterUniverse(inputs, { ...filterOpts, geographies: [] });
     if (retry.funds.length >= minAssets) {
       filtered = retry;
+      geoActive = false;
       filterNotes.push(
         "Zones géographiques trop restrictives sur ce contrat : contrainte levée pour préserver la diversification.",
       );
@@ -175,6 +206,7 @@ export async function optimizeContract(
     const bare = filterUniverse(inputs, { exclude: params.exclude ?? [] });
     if (bare.funds.length >= minAssets) {
       filtered = bare;
+      geoActive = false;
       filterNotes.push(
         "Préférences du profil trop restrictives sur ce contrat : allocation calculée sur l'univers complet.",
       );
@@ -225,9 +257,33 @@ export async function optimizeContract(
     maxWeightedSri,
     riskFree,
     mustInclude,
+    method: params.method ?? "sharpe",
+    commissionTieBreak: params.retroTieBreak ? COMMISSION_TIE_BREAK_TOL : 0,
+    coverRegions: geoActive
+      ? (params.geographies ?? [])
+          .map((g) => ({ zone: g, regions: GEO_TO_REGIONS[g] ?? [] }))
+          .filter((z) => z.regions.length > 0)
+      : undefined,
   };
   const allocation = optimizeAllocation(candidates, corrOf, constraints);
   allocation.notes.unshift(...filterNotes);
+
+  // Fonds retenus dont l'historique de VL est trop court pour des corrélations
+  // observées : le conseiller doit savoir que leurs corrélations sont des priors.
+  const minPoints = Number(
+    (corrData?.window as { min_points?: number } | null)?.min_points ?? 26,
+  );
+  const weakIsins = lowCoverageIsins(
+    (corrData?.coverage ?? null) as { isin: string; n_points: number }[] | null,
+    minPoints,
+  );
+  const weakLines = allocation.lines.filter((l) => weakIsins.has(l.isin));
+  if (weakLines.length > 0) {
+    allocation.notes.push(
+      `Historique de VL limité pour ${weakLines.map((l) => l.name).join(", ")} ` +
+        `(moins de ${minPoints} points hebdomadaires) : corrélations estimées par classe d'actifs.`,
+    );
+  }
 
   // Matrice de corrélation des lignes retenues (pour l'affichage studio).
   const lineIsins = allocation.lines.map((l) => l.isin);
@@ -267,6 +323,7 @@ const VALID_CLASSES: AssetClass[] = [
   "monetaire",
   "diversifie",
   "immobilier",
+  "alternatif",
   "crypto",
   "fonds_euros",
 ];
@@ -333,5 +390,7 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
         ? Math.min(Math.max(Math.round(Number(sriMaxRaw)), 1), 7)
         : null,
     exclude: isinList(p.get("exclude")),
+    method: p.get("method")?.trim().toLowerCase() === "hrp" ? "hrp" : "sharpe",
+    retroTieBreak: p.get("retro") === "1",
   };
 }

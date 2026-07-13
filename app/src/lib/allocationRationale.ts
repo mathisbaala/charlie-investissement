@@ -70,6 +70,7 @@ const CLASS_LABEL: Record<AssetClass, string> = {
   monetaire: "Monétaire",
   diversifie: "Allocations flexibles",
   immobilier: "Immobilier (SCPI / SCI)",
+  alternatif: "Alternatif (Private Equity)",
   crypto: "Crypto-actifs",
   fonds_euros: "Fonds Euros",
 };
@@ -80,6 +81,7 @@ const CLASS_ROLE: Record<AssetClass, string> = {
   monetaire: "Réserve de liquidité tactique, absorbe les mouvements.",
   diversifie: "Alpha tactique, gestion active multi-actifs.",
   immobilier: "Rendement récurrent et décorrélation des marchés cotés.",
+  alternatif: "Prime d'illiquidité du non coté, moteur de performance long terme.",
   crypto: "Poche de dynamisation décorrélée, dimensionnée et bornée.",
   fonds_euros: "Ancre défensive à capital garanti, liquidité immédiate.",
 };

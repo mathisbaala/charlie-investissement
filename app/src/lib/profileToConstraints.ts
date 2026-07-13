@@ -32,7 +32,7 @@ const PROFILE_CLASS_TO_BUCKET: Record<string, AssetClass> = {
   immobilier: "immobilier",
   monetaire: "monetaire",
   multi_actifs: "diversifie",
-  // private_equity → pas de bucket dédié (écarté).
+  private_equity: "alternatif",
 };
 
 /** Renormalise une table de cibles pour que la somme fasse 100. */
@@ -140,6 +140,11 @@ export interface UniverseFilterOptions {
  * absente n'est PAS écarté (on ne pénalise pas un trou de données) — sauf pour
  * les exclusions manuelles, toujours appliquées. Renvoie l'univers filtré + le
  * nombre de fonds retirés.
+ *
+ * Les zones géographiques ne contraignent QUE la classe actions : quand un
+ * client demande une exposition « monde + Asie », il parle de ses actions — pas
+ * d'écarter sa SCPI française, ses obligations euro ou son fonds monétaire, dont
+ * la « région » relève d'une autre logique (immobilier physique, devise…).
  */
 export function filterUniverse(
   funds: FundInput[],
@@ -153,7 +158,7 @@ export function filterUniverse(
     if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
     if (esg === "art8" && !(f.sfdr === 8 || f.sfdr === 9)) return false;
     if (esg === "art9" && f.sfdr !== 9) return false;
-    if (regions && f.region != null && !regions.has(f.region)) return false;
+    if (regions && f.assetClass === "actions" && f.region != null && !regions.has(f.region)) return false;
     if (sriMax != null && f.sri != null && f.sri > sriMax) return false;
     return true;
   });

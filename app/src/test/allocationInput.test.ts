@@ -5,6 +5,7 @@ import {
   toFundInput,
   toFundInputs,
   type FundRow,
+  estimateRetrocession,
 } from "../lib/allocationInput";
 
 function row(over: Partial<FundRow> & { isin: string }): FundRow {
@@ -20,6 +21,11 @@ describe("canonicalAssetClass", () => {
   it("retombe sur product_type (SCPI → immobilier, livret → fonds euros)", () => {
     expect(canonicalAssetClass(row({ isin: "A", product_type: "scpi" }))).toBe("immobilier");
     expect(canonicalAssetClass(row({ isin: "A", product_type: "livret" }))).toBe("fonds_euros");
+  });
+  it("mappe le private equity vers alternatif (régression : plus jamais écarté)", () => {
+    expect(canonicalAssetClass(row({ isin: "A", asset_class_broad: "alternatif" }))).toBe("alternatif");
+    expect(canonicalAssetClass(row({ isin: "A", product_type: "private_equity" }))).toBe("alternatif");
+    expect(canonicalAssetClass(row({ isin: "A", product_type: "fcpr" }))).toBe("alternatif");
   });
   it("renvoie null si non classable", () => {
     expect(canonicalAssetClass(row({ isin: "A", product_type: "opcvm" }))).toBeNull();
@@ -107,5 +113,21 @@ describe("toFundInputs", () => {
     expect(inputs).toHaveLength(1);
     expect(inputs[0].isin).toBe("OK");
     expect(dropped).toBe(2);
+  });
+});
+
+describe("estimateRetrocession", () => {
+  it("gestion passive / ETF → 0 (pas de rétrocession sur l'indiciel)", () => {
+    expect(estimateRetrocession(row({ isin: "A", management_style: "passif", ongoing_charges: 0.002 }))).toBe(0);
+    expect(estimateRetrocession(row({ isin: "A", management_style: "Passive", ter: 0.003 }))).toBe(0);
+    expect(estimateRetrocession(row({ isin: "A", product_type: "etf", ter: 0.002 }))).toBe(0);
+  });
+  it("gestion active → ~50 % des frais courants", () => {
+    expect(estimateRetrocession(row({ isin: "A", management_style: "actif", ongoing_charges: 0.018 }))).toBeCloseTo(0.009, 9);
+    // repli sur le TER quand ongoing_charges manque
+    expect(estimateRetrocession(row({ isin: "A", management_style: "actif", ter: 0.016 }))).toBeCloseTo(0.008, 9);
+  });
+  it("frais inconnus → null (aucune estimation possible)", () => {
+    expect(estimateRetrocession(row({ isin: "A", management_style: "actif" }))).toBeNull();
   });
 });

@@ -20,6 +20,14 @@ interface Props {
   cov: number[][];
   /** Taux sans risque (fraction). */
   riskFree: number;
+  /**
+   * Mode piloté (optionnel) : poids simulés en POURCENTAGES, possédés par le
+   * parent (`null` = poids optimaux). Permet au reste de la page (rapport,
+   * profil de risque, projets) de suivre les curseurs.
+   */
+  weights?: number[] | null;
+  /** Notifié à chaque ajustement ; `null` = retour aux poids optimaux. */
+  onWeightsChange?: (weights: number[] | null) => void;
 }
 
 const W = 720;
@@ -40,19 +48,44 @@ function niceTicks(max: number, n = 5): number[] {
   return out;
 }
 
-export function MarkowitzChart({ lines, cov, riskFree }: Props) {
+export function MarkowitzChart({
+  lines,
+  cov,
+  riskFree,
+  weights: controlledWeights,
+  onWeightsChange,
+}: Props) {
   const mu = useMemo(() => lines.map((l) => l.expectedReturn), [lines]);
   const frontier = useMemo(() => efficientFrontier(mu, cov), [mu, cov]);
 
-  // Poids simulés, en POURCENTAGES (état local ; init = allocation optimale).
+  // Poids simulés, en POURCENTAGES. Deux modes :
+  //  - piloté (onWeightsChange fourni) : le parent possède l'état ;
+  //  - autonome : état local (init = allocation optimale).
+  const controlled = onWeightsChange !== undefined;
   const optimalWeights = useMemo(() => lines.map((l) => l.weight), [lines]);
-  const [weights, setWeights] = useState<number[]>(optimalWeights);
+  const [internalWeights, setInternalWeights] = useState<number[]>(optimalWeights);
   const [lastLines, setLastLines] = useState(lines);
   if (lines !== lastLines) {
-    // Nouvelle allocation générée → on réinitialise la simulation.
+    // Nouvelle allocation générée → on réinitialise la simulation locale.
     setLastLines(lines);
-    setWeights(lines.map((l) => l.weight));
+    setInternalWeights(lines.map((l) => l.weight));
   }
+  // GARDE-FOU : pendant la passe de rendu déclenchée par un changement de
+  // `lines` (le setState ci-dessus fait rejouer le rendu, mais la passe
+  // courante va au bout), les poids peuvent encore avoir l'ANCIENNE longueur.
+  // Croiser d'anciens poids avec la nouvelle covariance ferait déborder
+  // portfolioStats (cov[i] undefined) → on aligne toujours sur les lignes
+  // courantes.
+  const rawWeights = controlled ? controlledWeights ?? optimalWeights : internalWeights;
+  const weights = rawWeights.length === lines.length ? rawWeights : optimalWeights;
+  const setWeights = (w: number[]) => {
+    if (controlled) onWeightsChange!(w);
+    else setInternalWeights(w);
+  };
+  const resetWeights = () => {
+    if (controlled) onWeightsChange!(null);
+    else setInternalWeights(lines.map((l) => l.weight));
+  };
 
   const totalPct = weights.reduce((s, x) => s + x, 0);
   const wFrac = useMemo(() => {
@@ -255,7 +288,7 @@ export function MarkowitzChart({ lines, cov, riskFree }: Props) {
               Total saisi {totalPct.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % — normalisé à 100 % pour le calcul
             </span>
             {edited && (
-              <Btn variant="outline" size="sm" onClick={() => setWeights(lines.map((l) => l.weight))}>
+              <Btn variant="outline" size="sm" onClick={resetWeights}>
                 Revenir à l&apos;optimal
               </Btn>
             )}
