@@ -42,7 +42,7 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-cardif-catalog.py", []),
     ("scrapers/av-fr-generali-catalog.py", []),     # Generali Vie FR (Himalia + e-Xaélidia, annexes PDF ~2,3k liens)
     ("scrapers/av-fr-mutualistes-catalog.py", []),  # OK (vérifié 22/06 : 8 PDF live, ~280 ISIN en base)
-    ("scrapers/av-fr-oradea-catalog.py", []),
+    # av-fr-oradea-catalog.py RETIRÉ 13/07 : portail source décommissionné (cf. quarantaine ci-dessous).
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
@@ -85,6 +85,16 @@ AV_CATALOG_STEPS = [
 #       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent ;
 #                                            la gamme AG2R LMEP Lux est désormais couverte
 #                                            par av-lux-lmep-easypack ci-dessus)
+#   • sources DÉCOMMISSIONNÉES (hôte source disparu, à re-sourcer avant réintégration) :
+#       - scrapers/av-fr-oradea-catalog.py   (RETIRÉ 13/07 : le portail statique
+#                                            priips.oradea-vie.com — HTML à attributs cdisine="ISIN" —
+#                                            est mort (NXDOMAIN, tout le domaine oradea-vie.com).
+#                                            Le groupe a migré vers oradeavie.fr (Imperva/Incapsula,
+#                                            landing marketing sans catalogue machine-lisible).
+#                                            Les 916 liens Oradéa déjà en base sont conservés
+#                                            (upsert-only + garde anti-scraper-cassé du prune).
+#                                            Réintégrer si un nouvel endpoint DIC listant les ISIN
+#                                            est retrouvé sur oradeavie.fr.)
 # (scrapers/linxea-av-catalog.py SUPPRIMÉ le 21/06 : comparateur Linxea 404, superseded
 #  par av-lux-linxea-catalog.py.)
 #
