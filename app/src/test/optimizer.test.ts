@@ -644,6 +644,33 @@ describe("reweightAllocation", () => {
   });
 });
 
+describe("projectWeights — plafond par fonds", () => {
+  it("déverse l'excédent sur les autres fonds au lieu de dépasser le plafond (régression)", () => {
+    // Bug d'origine : masse concentrée sur 2 fonds, cible de groupe 0,866,
+    // plafond 0,35 → l'écrêtage + renormalisation oscillait et sortait des
+    // poids à 0,433 (> plafond). La projection exacte doit donner 0,35 + 0,35
+    // et répartir le reste sur les autres.
+    const w = projectWeights([0.6, 0.5, 0, 0, 0, 0], [[0, 1, 2, 3, 4, 5]], [0.866], 0.35);
+    expect(w.reduce((s, x) => s + x, 0)).toBeCloseTo(0.866, 6);
+    for (const x of w) expect(x).toBeLessThanOrEqual(0.35 + 1e-9);
+    expect(w[0]).toBeCloseTo(0.35, 6);
+    expect(w[1]).toBeCloseTo(0.35, 6);
+    expect(w[2]).toBeGreaterThan(0); // l'excédent est réparti
+  });
+
+  it("l'allocation finale respecte le plafond par fonds (bout en bout)", () => {
+    const funds = [
+      fund({ isin: "A", expectedReturn: 0.2, volatility: 0.1 }), // écrase les autres au score
+      fund({ isin: "B", expectedReturn: 0.19, volatility: 0.1 }),
+      fund({ isin: "C", expectedReturn: 0.05, volatility: 0.1 }),
+      fund({ isin: "D", expectedReturn: 0.04, volatility: 0.1 }),
+    ];
+    const res = optimizeAllocation(funds, zeroCorr, { minAssets: 4, maxAssets: 4, maxWeightPerFund: 0.35 });
+    for (const l of res.lines) expect(l.weight).toBeLessThanOrEqual(35 + 0.1);
+    expect(res.lines.reduce((s, l) => s + l.weight, 0)).toBeCloseTo(100, 0);
+  });
+});
+
 describe("projectWeights avec contrainte SRI", () => {
   it("projette sur le demi-espace SRI en conservant la somme du groupe", () => {
     // Deux fonds SRI 6 et 2, plafond 4 : le poids du fonds risqué doit

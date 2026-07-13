@@ -4,6 +4,7 @@ import {
   paramsFromQuery,
   shortlist,
   lowCoverageIsins,
+  applyUcRetroShare,
 } from "../lib/allocationService";
 import type { FundInput } from "../lib/optimizer";
 
@@ -113,6 +114,43 @@ describe("shortlist", () => {
     expect(sl.length).toBe(10);
     // la classe obligations doit être représentée malgré son score faible
     expect(sl.some((f) => f.assetClass === "obligations")).toBe(true);
+  });
+});
+
+describe("applyUcRetroShare", () => {
+  const funds: FundInput[] = [
+    { isin: "ACT", name: "ACT", assetClass: "actions", expectedReturn: 0.08, volatility: 0.12, ter: 0.018, retrocession: 0.009 },
+    { isin: "ETF", name: "ETF", assetClass: "actions", expectedReturn: 0.08, volatility: 0.12, ter: 0.002, retrocession: 0 },
+    { isin: "NOTER", name: "NOTER", assetClass: "actions", expectedReturn: 0.08, volatility: 0.12, ter: null, retrocession: null },
+  ];
+  it("applique le taux de convention aux fonds à rétrocession", () => {
+    const out = applyUcRetroShare(funds, 0.6);
+    expect(out[0].retrocession).toBeCloseTo(0.6 * 0.018, 9); // convention remplace l'estimation
+    expect(out[1].retrocession).toBe(0); // indiciel : reste à 0
+    expect(out[2].retrocession).toBeNull(); // frais inconnus : estimation conservée
+  });
+  it("sans taux, renvoie l'univers tel quel", () => {
+    expect(applyUcRetroShare(funds, null)).toBe(funds);
+    expect(applyUcRetroShare(funds, undefined)).toBe(funds);
+  });
+});
+
+describe("paramsFromQuery — ucShare", () => {
+  it("parse le taux de convention en pourcentage (borné 0–100)", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&ucShare=50"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.ucRetroShare).toBeCloseTo(0.5, 9);
+    const over = paramsFromQuery(new URLSearchParams("contract=A::B&ucShare=250"));
+    if ("error" in over) throw new Error("inattendu");
+    expect(over.ucRetroShare).toBe(1);
+  });
+  it("absent ou invalide → null (estimation de place)", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.ucRetroShare).toBeNull();
+    const bad = paramsFromQuery(new URLSearchParams("contract=A::B&ucShare=abc"));
+    if ("error" in bad) throw new Error("inattendu");
+    expect(bad.ucRetroShare).toBeNull();
   });
 });
 
