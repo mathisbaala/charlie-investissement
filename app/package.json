@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "demo:allocation": "DEMO=1 vitest run src/test/allocationDemo.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
@@ -16,6 +17,7 @@
     "@vercel/analytics": "^2.0.1",
     "lucide-react": "^1.17.0",
     "next": "16.2.6",
+    "pptxgenjs": "^4.0.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",

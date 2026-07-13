@@ -91,9 +91,18 @@ def _discover_bassins(html: str) -> list[str]:
 
 
 def _discover_columns(session) -> list[str]:
-    """Lit les noms de colonnes DataTables dans le driver JS (ordre significatif)."""
-    js = session.get(DRIVER_JS, timeout=TIMEOUT).text
-    return re.findall(r'name:"([^"]+)"', js or "")
+    """Lit les noms de colonnes DataTables dans le driver JS (ordre significatif).
+
+    ⚠️ Réparé 2026-07-10 : le driver JS n'est plus minifié (`name: "X"` avec
+    espace → l'ancienne regex `name:"X"` rendait 0 colonne, garde-fou déclenché).
+    On borne au bloc `var columns = [...]` pour ne pas attraper les `name:` des
+    onglets (tabAccueil, tabISR…) qui suivent dans le même fichier.
+    """
+    js = session.get(DRIVER_JS, timeout=TIMEOUT).text or ""
+    block = re.search(r"var\s+columns\s*=\s*\[(.*?)\];", js, re.S)
+    if not block:
+        return []
+    return re.findall(r'name:\s*"([^"]+)"', block.group(1))
 
 
 def _build_payload(columns, bassins, start, length) -> dict:

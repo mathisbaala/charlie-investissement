@@ -58,6 +58,7 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-mma-catalog.py", []),          # MMA Vie / Covéa (Multisupports — cap.mma.fr PDF)
     ("scrapers/av-fr-gmf-catalog.py", []),          # GMF Vie / Covéa (Multéo — miroir cleerly.fr PDF)
     ("scrapers/av-fr-acm-catalog.py", []),          # ACM Vie / Crédit Mutuel-CIC
+    ("scrapers/av-fr-maif-catalog.py", []),         # MAIF Vie (ARS — API JSON gateway maif.fr ; reachability CI à confirmer, cf. gotcha Abeille/MAAF)
     # ── AV Luxembourg ─────────────────────────────────────────────────────────
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis

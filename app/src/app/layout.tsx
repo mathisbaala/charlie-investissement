@@ -65,7 +65,11 @@ export default function RootLayout({
       lang="fr"
       className={`${inter.variable} ${dmMono.variable} h-full`}
     >
-      <body className="h-full">
+      {/* suppressHydrationWarning : les extensions navigateur (Grammarly…)
+          injectent des attributs dans <body> avant l'hydratation React →
+          faux mismatch serveur/client. N'affecte que CETTE balise, pas ses
+          enfants (les vraies erreurs d'hydratation restent visibles). */}
+      <body className="h-full" suppressHydrationWarning>
         {children}
         <Analytics />
       </body>
