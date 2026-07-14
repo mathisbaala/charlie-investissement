@@ -622,7 +622,7 @@ export function ClientProfileForm({
           <SectionCard title="Projets du client">
             {profile.goals.length === 0 && (
               <p className="text-meta text-muted">
-                Ajoutez un objectif chiffré (montant + horizon) : l&apos;allocation
+                Ajoutez un objectif chiffré (montant + horizon) : le portefeuille
                 en calcule la probabilité d&apos;atteinte.
               </p>
             )}
@@ -676,7 +676,7 @@ export function ClientProfileForm({
                     />
                   </FieldGroup>
                 </div>
-                <FieldGroup label="Priorité" hint="Vital = l'échec n'est pas acceptable (allocation à sécuriser en priorité).">
+                <FieldGroup label="Priorité" hint="Vital = l'échec n'est pas acceptable (portefeuille à sécuriser en priorité).">
                   <ChipRow>
                     {GOAL_PRIORITIES.map((pr) => (
                       <Chip key={pr} label={GOAL_PRIORITY_LABELS[pr]} active={g.priority === pr}

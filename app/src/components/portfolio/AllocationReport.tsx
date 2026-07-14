@@ -101,7 +101,7 @@ export function AllocationReport({
 
       {/* Tableau détaillé */}
       <Card className="px-5 py-4 overflow-x-auto">
-        <h3 className="text-label text-ink font-semibold mb-3">Allocation détaillée</h3>
+        <h3 className="text-label text-ink font-semibold mb-3">Portefeuille détaillé</h3>
         <table className="w-full text-meta">
           <thead>
             <tr className="text-muted border-b border-line-soft">
@@ -141,7 +141,7 @@ export function AllocationReport({
                   <td className="py-1.5 pl-2 text-right">
                     <button
                       onClick={() => onRemoveLine(l.isin)}
-                      aria-label={`Retirer ${l.name} de l'allocation`}
+                      aria-label={`Retirer ${l.name} du portefeuille`}
                       title="Retirer ce fonds et réoptimiser"
                       className="text-muted hover:text-danger transition-colors align-middle"
                     >
