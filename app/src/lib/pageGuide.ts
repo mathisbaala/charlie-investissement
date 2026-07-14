@@ -53,7 +53,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Assurances vie",
       intro:
-        "La cartographie du référencement. Retrouvez, assureur par assureur, quels contrats logent quels supports.",
+        "La cartographie du référencement. Retrouvez, assureur par assureur, quels contrats logent quels supports — et ouvrez la fiche de chaque contrat.",
       sections: [
         {
           heading: "Sur cette page",
@@ -66,9 +66,9 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
         {
           heading: "Comment l'utiliser",
           items: [
-            "Cliquez un assureur pour afficher tous ses supports au screener.",
-            "Cliquez un contrat pour ne garder que les supports logeables dans ce contrat précis.",
-            "Le filtre de référencement suit ensuite vos recherches (bandeau « Référencement »).",
+            "Cliquez un contrat pour ouvrir sa fiche : enveloppe, supports référencés, frais moyens et répartition (classes, zones, gestionnaires, risque).",
+            "Depuis la fiche, « Voir les supports » ouvre le screener filtré sur ce contrat.",
+            "Cliquez un assureur pour afficher directement tous ses supports au screener.",
           ],
         },
       ],
@@ -84,7 +84,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
         {
           heading: "Sur cette page",
           items: [
-            "Le profil du client, partagé avec l'accueil et enregistré automatiquement : il pilote les contraintes de l'allocation.",
+            "Le profil du client (étape 1), enregistré automatiquement : il pilote les contraintes de l'allocation.",
             "Les réglages du conseiller : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
             "L'allocation générée : supports et poids, indicateurs attendus (rendement / volatilité / Sharpe, SRI pondéré), plan de Markowitz interactif et matrice de corrélation.",
             "Le back-test historique de l'allocation face à un indice, sur la période choisie.",
@@ -209,26 +209,25 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
   },
 ];
 
-// Accueil (et racine / redirection profil) : guide par défaut, servi aussi en repli.
+// Accueil (et racine / routes non listées) : guide par défaut, servi aussi en repli.
 const HOME_GUIDE: PageGuide = {
   title: "Accueil",
   intro:
-    "Le point de départ. Décrivez le besoin de votre client, en langage naturel ou via le profil, et Charlie construit une sélection de supports adaptée.",
+    "Le point de départ. Décrivez un fonds en langage naturel pour lancer une recherche, et reprenez le travail là où vous l'avez laissé.",
   sections: [
     {
       heading: "Sur cette page",
       items: [
         "Une barre de recherche en langage naturel : décrivez un fonds (« actions européennes ESG, frais bas ») et l'IA traduit votre phrase en filtres.",
-        "Un formulaire de profil client complet : le client, le profil de risque (5 niveaux MIF), les préférences (classes d'actifs, zones, ESG), les frais / fiscalité / enveloppes, et la distribution du cabinet.",
-        "L'import d'un document client (PDF, CSV, Excel) pour pré-remplir automatiquement le profil.",
+        "La reprise d'activité : vos recherches récentes et vos derniers fonds consultés, pour y revenir en un clic.",
+        "Le profil client, lui, se renseigne dans l'onglet Portefeuille (où il pilote l'allocation).",
       ],
     },
     {
       heading: "Comment l'utiliser",
       items: [
-        "Pour une recherche rapide : tapez le besoin et lancez, vous arrivez directement sur les résultats.",
-        "Pour une reco cadrée : renseignez le profil, puis « Trouver le support adapté » — les résultats sont filtrés et classés selon le profil.",
-        "Renseignez vos assureurs dans « Distribution du cabinet » : la sélection reste appliquée à toutes vos recherches.",
+        "Tapez le besoin et lancez : vous arrivez directement sur les résultats.",
+        "Relancez une recherche récente, ou rouvrez un fonds déjà consulté depuis la reprise d'activité.",
       ],
     },
   ],

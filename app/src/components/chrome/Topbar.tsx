@@ -12,6 +12,12 @@ function breadcrumb(pathname: string): { label: string; href: string }[] {
       { label: "Fiche fonds", href: pathname },
     ];
   }
+  if (pathname.startsWith("/assureurs/contrat")) {
+    return [
+      { label: "Assurances vie", href: "/assureurs" },
+      { label: "Fiche contrat", href: pathname },
+    ];
+  }
   return [];
 }
 

@@ -783,37 +783,32 @@ export function AllocationStudio() {
       : null;
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell className="space-y-5">
       <div>
         <h1 className="text-heading text-ink font-semibold">Portefeuille</h1>
-        <p className="text-meta text-muted">
-          Construisez l&apos;allocation d&apos;un client, du profil à la proposition. Le profil saisi à l&apos;accueil
-          est réutilisé ici : générez l&apos;allocation optimisée, ajustez-la, mesurez son back-test face à un
-          indice, puis éditez la proposition d&apos;investissement (PDF / PowerPoint). Chaque réglage recalcule le résultat.
-        </p>
+        <p className="text-meta text-muted">Décrivez le client, puis construisez l&apos;allocation à lui proposer.</p>
       </div>
 
-      {/* Une seule carte : le profil (données CLIENT, partagées avec l'accueil)
-          puis les paramètres du moteur (choix du CONSEILLER pour cette étude) —
-          réunis pour la lisibilité, mais séparés par un intertitre car ils ne
-          décrivent pas la même chose. */}
+      {/* Étape 1 — Profil du client (données CLIENT). Depuis la refonte de nav,
+          le profil ne se saisit plus qu'ici (retiré de l'accueil). */}
       <Card className="px-5 py-5">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-label text-ink font-semibold">Profil du client</h2>
-          <span className="text-meta text-muted">Partagé avec l&apos;accueil · enregistré automatiquement</span>
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brown text-paper text-caption font-semibold shrink-0">1</span>
+          <h2 className="text-body-lg text-ink font-semibold">Profil du client</h2>
+          <span className="ml-auto text-meta text-muted-2">Enregistré automatiquement</span>
         </div>
         <ClientProfileForm showSearchCta={false} onChange={onProfileChange} />
+      </Card>
 
-        <div className="mt-6 pt-5 border-t border-line-soft">
-          <div className="flex items-baseline justify-between mb-1">
-            <h2 className="text-label text-ink font-semibold">Paramètres de l&apos;allocation</h2>
-            <span className="text-meta text-muted">Réglages du conseiller — indépendants du profil client</span>
-          </div>
-          <p className="text-meta text-muted mb-4">
-            Sur quel contrat optimiser, le risque maximal accepté, la concentration maximale
-            par fonds et le nombre de lignes du portefeuille.
-          </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Étape 2 — Portefeuille : réglages du CONSEILLER puis génération. */}
+      <Card className="px-5 py-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brown text-paper text-caption font-semibold shrink-0">2</span>
+          <h2 className="text-body-lg text-ink font-semibold">Portefeuille</h2>
+          <span className="ml-auto text-meta text-muted-2">Réglages du conseiller</span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Field label="Contrat">
               {cabinet.contracts.length > 0 ? (
                 <select
@@ -877,8 +872,7 @@ export function AllocationStudio() {
               </button>
             </div>
             <span className="text-meta text-muted">
-              Max-Sharpe vise le meilleur compromis rendement/risque à partir des performances passées ;
-              HRP répartit le risque par familles de fonds corrélés, sans dépendre des rendements attendus.
+              Max-Sharpe optimise le couple rendement/risque ; HRP répartit le risque par familles corrélées.
             </span>
           </div>
 
@@ -897,9 +891,8 @@ export function AllocationStudio() {
               </span>
             </label>
             <span className="text-meta text-muted">
-              À adéquation client équivalente, retient le fonds à la meilleure rétrocession (estimée :
-              ~50 % des frais courants en gestion active, 0 sur les ETF). Un fonds moins adapté au client
-              n&apos;est jamais préféré ; le choix est tracé dans les notes de l&apos;allocation.
+              À adéquation équivalente, retient la meilleure rétrocession (~50 % des frais en gestion active, 0 sur ETF).
+              Jamais au détriment du client ; tracé dans les notes.
             </span>
           </div>
 
@@ -979,18 +972,17 @@ export function AllocationStudio() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-3">
-            <Btn variant="primary" size="md" loading={busy} onClick={() => void compute()}>
-              Générer l&apos;allocation
-            </Btn>
-            <span className="text-meta text-muted">
-              {source === "api"
-                ? "Fonds réels du contrat (base connectée)."
-                : source === "demo"
-                  ? `Univers de démonstration (${SAMPLE_UNIVERSE.length} fonds) : base non connectée.`
-                  : "Le résultat se met ensuite à jour à chaque réglage."}
-            </span>
-          </div>
+        <div className="mt-5 flex items-center gap-3">
+          <Btn variant="primary" size="md" loading={busy} onClick={() => void compute()}>
+            Générer l&apos;allocation
+          </Btn>
+          <span className="text-meta text-muted">
+            {source === "api"
+              ? "Fonds réels du contrat (base connectée)."
+              : source === "demo"
+                ? `Univers de démonstration (${SAMPLE_UNIVERSE.length} fonds) : base non connectée.`
+                : "Le résultat se met ensuite à jour à chaque réglage."}
+          </span>
         </div>
       </Card>
 

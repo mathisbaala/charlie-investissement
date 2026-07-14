@@ -32,7 +32,7 @@ describe("tour content", () => {
 
 describe("tour storage", () => {
   beforeEach(() => {
-    localStorage.removeItem("charlie_tour_v4_done");
+    localStorage.removeItem("charlie_tour_v5_done");
   });
 
   it("n'est pas terminé par défaut", () => {

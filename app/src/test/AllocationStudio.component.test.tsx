@@ -14,11 +14,13 @@ describe("AllocationStudio", () => {
     if (typeof localStorage !== "undefined") localStorage.clear();
   });
 
-  it("affiche le formulaire de profil (partagé avec l'accueil) et les paramètres", () => {
+  it("affiche l'étape profil puis l'étape portefeuille (réglages conseiller)", () => {
     render(<AllocationStudio />);
+    // Étape 1 — profil client (n'existe plus que dans Portefeuille).
     expect(screen.getByText("Profil du client")).toBeTruthy();
-    expect(screen.getByText(/Partagé avec l'accueil/)).toBeTruthy();
-    expect(screen.getByText("Paramètres de l'allocation")).toBeTruthy();
+    expect(screen.getByText(/Enregistré automatiquement/)).toBeTruthy();
+    // Étape 2 — portefeuille : réglages du conseiller + génération.
+    expect(screen.getByText(/Réglages du conseiller/)).toBeTruthy();
     expect(screen.getByText("Générer l'allocation")).toBeTruthy();
     // Pas de rapport tant qu'on n'a pas généré.
     expect(screen.queryByText("Allocation détaillée")).toBeNull();

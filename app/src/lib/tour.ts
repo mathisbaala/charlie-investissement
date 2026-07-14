@@ -15,7 +15,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "accueil",
     title: "Partez du besoin",
-    body: "Décrivez un fonds en langage naturel, ou renseignez le profil client. Charlie propose une sélection adaptée.",
+    body: "Décrivez un fonds en langage naturel pour lancer une recherche. En dessous, reprenez vos recherches récentes et vos derniers fonds consultés.",
   },
   {
     key: "recherche",
@@ -35,7 +35,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "assureurs",
     title: "Assurances vie",
-    body: "Les contrats et leurs unités de compte référencées, assureur par assureur.",
+    body: "Chaque contrat en fiche : enveloppe, supports référencés, frais moyens et répartition. Assureur par assureur.",
   },
   {
     key: "cabinet",
@@ -57,7 +57,9 @@ export const TOUR_STEPS: TourStep[] = [
 // Versionné : bump le suffixe pour réafficher la visite après une refonte.
 // v3 : fusion Portefeuille + Allocation, cabinet passé en pied de rail.
 // v4 : ajout de l'étape Simulateur de frais.
-const KEY = "charlie_tour_v4_done";
+// v5 : accueil recentré sur recherche + reprise d'activité (profil déplacé dans
+//      Portefeuille), assureurs devenus fiches-contrat.
+const KEY = "charlie_tour_v5_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;

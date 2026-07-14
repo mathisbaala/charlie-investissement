@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { addViewedFund } from "@/lib/viewedFunds";
 import { ArrowLeft, Download } from "@/components/ui/icons";
 import { NavChart } from "@/components/fund/NavChart";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
@@ -39,6 +41,13 @@ export function FundSheetClient({ fund }: Props) {
   // comparable → on neutralise les blocs « cotés » (KPI perf, graphe VL, perf nette,
   // écart de réplication, risque vol/sharpe) au profit d'une carte dédiée.
   const isPE = isPrivateEquity(fund.product_type);
+
+  // Reprise d'activité (accueil) : on note le fonds consulté en local, sans
+  // compte ni suivi serveur. Best-effort, une fois par ouverture de fiche.
+  useEffect(() => {
+    addViewedFund({ isin: fund.isin, name: fund.name });
+  }, [fund.isin, fund.name]);
+
   return (
     <div className="h-full overflow-y-auto bg-cream">
       <div className="max-w-[1100px] mx-auto px-4 py-5 md:px-8 md:py-8">
