@@ -22,6 +22,7 @@ const TAB_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/portefeuille", title: "Portefeuille" },
   { prefix: "/assureurs", title: "Assurances vie" },
   { prefix: "/documents", title: "Documents" },
+  { prefix: "/cabinet", title: "Mon cabinet" },
 ];
 
 function pageTitle(pathname: string): string {

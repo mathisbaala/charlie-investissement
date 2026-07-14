@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "allocation" | "assureurs" | "cabinet" | "documents" | "guide";
+  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "cabinet" | "documents" | "guide";
   title: string;
   body: string;
 };
@@ -25,12 +25,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "portefeuille",
     title: "Portefeuille",
-    body: "Pondérez plusieurs fonds : performance, volatilité, Sharpe, corrélation et back-test face à un indice.",
-  },
-  {
-    key: "allocation",
-    title: "Allocation optimisée",
-    body: "À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP), avec restitution PDF et PowerPoint.",
+    body: "Du profil client à la proposition : allocation optimisée (max-Sharpe ou HRP), Markowitz interactif, back-test face à un indice, restitution PDF et PowerPoint.",
   },
   {
     key: "assureurs",
@@ -55,7 +50,8 @@ export const TOUR_STEPS: TourStep[] = [
 ];
 
 // Versionné : bump le suffixe pour réafficher la visite après une refonte.
-const KEY = "charlie_tour_v2_done";
+// v3 : fusion Portefeuille + Allocation, cabinet passé en pied de rail.
+const KEY = "charlie_tour_v3_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;

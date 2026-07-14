@@ -153,25 +153,20 @@ export function CabinetForm() {
     <div className="space-y-5">
       {/* Identité */}
       <Card className="p-5 space-y-3">
-        <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">Identité</p>
-        <label className="flex flex-col gap-1 max-w-md">
-          <span className="text-meta text-muted">Nom du cabinet / conseiller</span>
-          <input
-            className={inputCls}
-            value={cabinet.cabinetName}
-            onChange={(e) => setCabinet((c) => ({ ...c, cabinetName: e.target.value }))}
-            placeholder="Ex. Métagram Gestion Privée"
-          />
-        </label>
-        <p className="text-caption text-muted-2">
-          Pré-rempli automatiquement dans les études et rapports d&apos;allocation.
-        </p>
+        <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">Nom du cabinet</p>
+        <input
+          className={`${inputCls} max-w-md`}
+          value={cabinet.cabinetName}
+          onChange={(e) => setCabinet((c) => ({ ...c, cabinetName: e.target.value }))}
+          placeholder="Ex. Métagram Gestion Privée"
+          aria-label="Nom du cabinet / conseiller"
+        />
       </Card>
 
       {/* Partenariats */}
       <Card className="p-5 space-y-4">
         <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
-          Partenariats assureurs
+          Assureurs partenaires
         </p>
         <div className="relative max-w-md">
           <input
@@ -208,10 +203,7 @@ export function CabinetForm() {
           )}
         </div>
         {cabinet.insurers.length === 0 && (
-          <p className="text-meta text-muted">
-            Aucun partenariat renseigné. Ajoutez vos assureurs : leurs contrats apparaîtront
-            ci-dessous, et l&apos;onglet Allocation les proposera directement.
-          </p>
+          <p className="text-meta text-muted">Ajoutez vos assureurs partenaires.</p>
         )}
 
         {/* Contrats par assureur + conventions */}
@@ -253,7 +245,7 @@ export function CabinetForm() {
                           <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
                             <label className="flex flex-col gap-1">
                               <span className="text-caption text-muted">
-                                Part des frais de gestion du contrat (/an d&apos;encours)
+                                Frais de gestion du contrat (%/an)
                               </span>
                               <PctInput
                                 value={selected.contractFeeShare}
@@ -265,7 +257,7 @@ export function CabinetForm() {
                             </label>
                             <label className="flex flex-col gap-1">
                               <span className="text-caption text-muted">
-                                Rétrocession UC (part des frais des fonds)
+                                Rétrocession UC (% des frais des fonds)
                               </span>
                               <PctInput
                                 value={selected.ucRetroShare}
@@ -331,11 +323,11 @@ export function CabinetForm() {
             </div>
           );
         })}
-        <p className="text-caption text-muted-2 leading-snug">
-          Cascade appliquée par l&apos;allocation : exception par fonds → taux UC du contrat →
-          estimation de place (~50 % des frais en gestion active, 0 sur les ETF).
-          Les cases vides retombent simplement sur l&apos;estimation.
-        </p>
+        {cabinet.contracts.length > 0 && (
+          <p className="text-caption text-muted-2 leading-snug">
+            Cases vides = estimation de place (~50 % des frais en gestion active, 0 sur les ETF).
+          </p>
+        )}
       </Card>
     </div>
   );

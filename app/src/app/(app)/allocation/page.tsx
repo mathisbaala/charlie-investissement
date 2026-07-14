@@ -1,11 +1,7 @@
-import { AllocationStudio } from "@/components/portfolio/AllocationStudio";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Allocation optimisée · Charlie" };
-
-// Plateforme d'allocation : saisie du profil client → génération automatique de
-// l'allocation optimisée + présentation. Branchée sur /api/portfolio/optimize
-// (fonds réels du contrat, corrélations DB) ; repli sur un univers d'exemple
-// seulement si la base n'est pas joignable (dev local sans secrets).
+// L'onglet Allocation a fusionné avec Portefeuille (un seul atelier). On conserve
+// la route en redirection permanente pour les liens et signets existants.
 export default function AllocationPage() {
-  return <AllocationStudio />;
+  redirect("/portefeuille");
 }
