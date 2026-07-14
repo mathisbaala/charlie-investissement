@@ -23,6 +23,29 @@ type InsurerProfile = {
   limites: string[];
   lux: { ticket?: string; fid?: string; fas?: string; plancher_uc?: string } | null;
 };
+type ContractTerms = {
+  frais_entree_pct: number | null;
+  frais_gestion_uc_pct: number | null;
+  frais_gestion_fonds_euros_pct: number | null;
+  frais_arbitrage_pct: number | null;
+  frais_arbitrage_note: string | null;
+  fonds_euros_nom: string | null;
+  fonds_euros_taux_pct: number | null;
+  fonds_euros_annee: number | null;
+  fonds_euros_bonus: string | null;
+  fonds_euros_contrainte_uc: string | null;
+  garantie_fonds_euros: string | null;
+  univers_classes: string[];
+  gestion_sous_mandat: boolean | null;
+  options_gestion: string[];
+  ticket_entree: string | null;
+  versement_min: string | null;
+  distributeur: string | null;
+  service_extranet: string | null;
+  source_url: string | null;
+  as_of: string | null;
+  confidence: "scraped" | "curated" | "indicative";
+};
 type ContractOverview = {
   key: string;
   company: string;
@@ -36,6 +59,7 @@ type ContractOverview = {
   regions: Breakdown[];
   managers: Breakdown[];
   sri: Record<string, number>;
+  terms: ContractTerms | null;
 };
 
 const ENV_LABEL: Record<string, string> = {
@@ -97,6 +121,104 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
       <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">{label}</p>
       <p className="text-title text-ink font-semibold mt-1 tabular-nums">{value}</p>
       {sub && <p className="text-caption text-muted-2 mt-0.5">{sub}</p>}
+    </Card>
+  );
+}
+
+function fmtPct(v: number | null | undefined): string | null {
+  if (v == null) return null;
+  return `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
+}
+
+// Ligne « libellé : valeur » ; ne s'affiche que si la valeur est renseignée.
+function TermRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-line-soft last:border-0">
+      <span className="text-meta text-muted shrink-0">{label}</span>
+      <span className="text-body text-ink-2 font-medium text-right">{value}</span>
+    </div>
+  );
+}
+
+const CONFIDENCE_LABEL: Record<ContractTerms["confidence"], string> = {
+  scraped: "extrait du DIC",
+  curated: "vérifié à la main",
+  indicative: "indicatif",
+};
+
+// Bloc « Conditions du contrat » quand les T&C sont sourcées (terms présent).
+function TermsCard({ terms }: { terms: ContractTerms }) {
+  const fraisArb = fmtPct(terms.frais_arbitrage_pct) ?? terms.frais_arbitrage_note;
+  const fe = terms.fonds_euros_taux_pct != null
+    ? `${fmtPct(terms.fonds_euros_taux_pct)}${terms.fonds_euros_annee ? ` (${terms.fonds_euros_annee})` : ""}`
+    : null;
+  const sourceHost = terms.source_url ? (() => { try { return new URL(terms.source_url!).hostname.replace(/^www\./, ""); } catch { return null; } })() : null;
+
+  return (
+    <Card className="px-5 py-5">
+      <h2 className="text-body-lg text-ink font-semibold mb-4">Conditions du contrat</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        {/* Frais */}
+        <div>
+          <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Frais</p>
+          <TermRow label="Frais d'entrée (max)" value={fmtPct(terms.frais_entree_pct)} />
+          <TermRow label="Frais de gestion (UC)" value={fmtPct(terms.frais_gestion_uc_pct)} />
+          <TermRow label="Frais de gestion (fonds euros)" value={fmtPct(terms.frais_gestion_fonds_euros_pct)} />
+          <TermRow label="Frais d'arbitrage" value={fraisArb} />
+        </div>
+
+        {/* Fonds euros */}
+        <div>
+          <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Fonds euros</p>
+          <TermRow label="Nom" value={terms.fonds_euros_nom} />
+          <TermRow label="Taux servi" value={fe} />
+          <TermRow label="Bonus de rendement" value={terms.fonds_euros_bonus} />
+          <TermRow label="Contrainte d'UC" value={terms.fonds_euros_contrainte_uc} />
+          <TermRow label="Garantie" value={terms.garantie_fonds_euros} />
+        </div>
+
+        {/* Accès & gestion */}
+        <div>
+          <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Accès & gestion</p>
+          <TermRow label="Ticket d'entrée" value={terms.ticket_entree} />
+          <TermRow label="Versement minimum" value={terms.versement_min} />
+          <TermRow label="Gestion sous mandat" value={terms.gestion_sous_mandat == null ? null : terms.gestion_sous_mandat ? "Disponible" : "Non"} />
+          <TermRow label="Distributeur" value={terms.distributeur} />
+          <TermRow label="Extranet / souscription" value={terms.service_extranet} />
+        </div>
+
+        {/* Univers & options */}
+        <div className="flex flex-col gap-4">
+          {terms.univers_classes?.length > 0 && (
+            <div>
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Univers accessible</p>
+              <div className="flex flex-wrap gap-1.5">
+                {terms.univers_classes.map((c) => (
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {terms.options_gestion?.length > 0 && (
+            <div>
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Options de gestion</p>
+              <div className="flex flex-wrap gap-1.5">
+                {terms.options_gestion.map((c) => (
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="text-caption text-muted-2 mt-4">
+        {CONFIDENCE_LABEL[terms.confidence]}
+        {terms.as_of ? ` · millésime ${new Date(terms.as_of).getFullYear()}` : ""}
+        {sourceHost ? ` · source ${sourceHost}` : ""}
+      </p>
     </Card>
   );
 }
@@ -293,29 +415,33 @@ export default async function ContractPage({
         </Card>
       )}
 
-      {/* Conditions du contrat — non encore sourcées (honnête) */}
-      <Card className="px-5 py-5">
-        <h2 className="text-body-lg text-ink font-semibold">Conditions du contrat</h2>
-        <p className="text-meta text-muted mt-1.5 max-w-[70ch]">
-          Le contexte de l&apos;assureur et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
-          <em> ce </em> contrat ne sont pas encore renseignées dans notre base&nbsp;: nous affichons
-          pour l&apos;instant les supports référencés et leurs caractéristiques. Le détail arrive prochainement.
-        </p>
-        <div className="flex flex-wrap gap-2 mt-4">
-          {[
-            "Frais de gestion réels",
-            "Frais de versement",
-            "Frais d'arbitrage",
-            "Taux du fonds euros",
-            "Options (gestion pilotée, garanties)",
-          ].map((t) => (
-            <span key={t} className="inline-flex items-center gap-1.5 text-caption text-muted-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">
-              {t}
-              <span className="text-muted-2 italic">à venir</span>
-            </span>
-          ))}
-        </div>
-      </Card>
+      {/* Conditions du contrat : T&C réelles si sourcées, sinon « à venir » (honnête) */}
+      {o.terms ? (
+        <TermsCard terms={o.terms} />
+      ) : (
+        <Card className="px-5 py-5">
+          <h2 className="text-body-lg text-ink font-semibold">Conditions du contrat</h2>
+          <p className="text-meta text-muted mt-1.5 max-w-[70ch]">
+            Le contexte de l&apos;assureur et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
+            <em> ce </em> contrat ne sont pas encore renseignées dans notre base&nbsp;: nous affichons
+            pour l&apos;instant les supports référencés et leurs caractéristiques. Le détail arrive prochainement.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            {[
+              "Frais de gestion réels",
+              "Frais de versement",
+              "Frais d'arbitrage",
+              "Taux du fonds euros",
+              "Options (gestion pilotée, garanties)",
+            ].map((t) => (
+              <span key={t} className="inline-flex items-center gap-1.5 text-caption text-muted-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">
+                {t}
+                <span className="text-muted-2 italic">à venir</span>
+              </span>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Répartitions des supports (données réelles) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
