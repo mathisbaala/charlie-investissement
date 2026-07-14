@@ -2,7 +2,7 @@
 
 > Dernier audit : 2026-07-14 (22ᵉ passe — re-vérification post-corrections). **Santé : excellente** — `tsc` clean, **584/584 tests verts** (41 fichiers), working tree propre, **une seule branche `main`**, 0 marqueur TODO/FIXME réel, 0 test désactivé, 0 `console.log` non guardé, 0 issue GitHub ouverte. Les 3 points de la 21ᵉ passe ont été **corrigés, commités (`fbbd5f3`) et poussés** dans la foulée. Rappel des gros livrables 07-13/07 (voir « ✅ Réglés ») : **plateforme /allocation** (max-Sharpe, frontière efficiente Markowitz, HRP, goal-based, rétrocessions via **/cabinet**, export **PPTX Métagram** + PDF), **onglet /cabinet**, **chatbot → guide contextuel**, refonte design Inter/clay, référencement MAIF/Generali, **pipeline data-quality**.
 >
-> **État à la 22ᵉ passe** : backlog de fond **soldé**, aucun chantier bloquant. Le **recompute data-quality est TERMINÉ** (average-perf 12 838, completeness 57,8→66,7). **1 nouveau chantier détecté par l'audit après** : 🟡 **résidu data-quality non couvert par les scripts** (`vol_decimal` 2 383 vol en fraction, `perf_decimal` 998 ambiguës, `asset_class` 245) — à traiter avec corroboration, pas de ×100 aveugle (voir 🐛). **2 surveillances passives** : workflow SFDR à confirmer vert mardi prochain ; drains auto. Reste = décisions tranchées (won't-do / différés).
+> **État à la 22ᵉ passe** : backlog de fond **soldé**, aucun chantier bloquant. Le **recompute data-quality est TERMINÉ** (average-perf 12 838, completeness 57,8→66,7). **`vol_decimal` (2 383 alertes) élucidé = FAUX POSITIF** : ce sont de vraies faibles volatilités / séries plates (0 fraction sur 1 363 testables, sharpe à l'appui) — **détecteur `audit-data-quality.py` corrigé** (corroboration sharpe → 2 383→0), **aucune donnée mutée** (voir « ✅ Réglés »). Reste ⚪ un résidu **ambigu à faible enjeu** (`perf_decimal` ~912, `asset_class` ~245, largement faux positifs). **2 surveillances passives** : workflow SFDR à confirmer vert mardi prochain ; drains auto. Reste = décisions tranchées (won't-do / différés).
 
 > _Bannières et historique des passes 16–20 (25–29/06) conservés ci-dessous._
 
@@ -77,14 +77,13 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🐛 Bugs & fragilités
 
-### Résidu data-quality non couvert par les scripts (vol en fraction, perfs ambiguës)
-- **Priorité** : 🟡 Moyenne
+### Résidu data-quality ambigu (perfs sub-1 %, asset_class fonds euros) — faible enjeu
+- **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-07-14 (audit APRÈS du pipeline data-quality)
-- **Où** : `investissement_funds` (colonnes `volatility_*`, `performance_*`, `asset_class`) ; scripts `scripts/migrations/audit-data-quality.py` (détection) + `fix-*.py` (correction partielle)
-- **Le problème** : après application du pipeline 09/07, l'audit signale encore des anomalies HIGH que **aucun script existant ne corrige** : **`vol_decimal` = 2 383** (volatilités stockées en fraction, 0,15 au lieu de 15 % → vol/Sharpe faux à l'écran) ; **`perf_decimal` = 998** résiduels (le script `fix-perf-decimal` est volontairement prudent et ne touche QUE les cas corroborés — ces 998 ne le sont pas) ; **`asset_class_mismatch` = 245** (surtout fonds euros `euro_garanti`) ; `perf_outliers` 140, `aum_currency` 1.
-- **⚠ Piège (pourquoi ce n'est pas un simple ×100)** : un `vol < 1` peut être une **vraie** volatilité faible (monétaire ~0,2 %, fonds euros ~0, obligataire court) — un ×100 aveugle corromprait ces fonds. Il faut une **corroboration** (asset_class implique une vol plus élevée, Sharpe redevient plausible, cohérence perf/vol), comme la logique prudente déjà utilisée pour `perf_decimal`.
-- **Comment l'aborder** : écrire un `fix-vol-decimal.py` sur le modèle corroboré de `fix-perf-decimal-all-types.py` (ne ×100 que si un autre signal confirme l'encodage fraction), en **dry-run d'abord** ; traiter les 998 perfs résiduelles à la main ou via une règle plus fine ; mapper `asset_class` des fonds euros. **Ne pas** appliquer de correction en masse sans corroboration.
-- **Effort estimé** : moyen
+- **Où** : `investissement_funds` (`performance_1y`, `asset_class`) ; `scripts/migrations/audit-data-quality.py`
+- **Le problème** : l'audit signale encore **`perf_decimal` ≈ 912** (perf_1y entre 0 et 1) et **`asset_class_mismatch` ≈ 245** (surtout fonds euros `euro_garanti`). Contrairement à `vol_decimal` (élucidé, voir « ✅ Réglés »), ces deux-là sont **ambigus ou bénins** : une perf annuelle de +0,5 % est plausible (fonds prudent) autant qu'une fraction de +50 % ; `euro_garanti` est en fait la bonne `asset_class` pour un fonds euros (l'audit attend juste un autre libellé → largement faux positif).
+- **Comment l'aborder** : **basse priorité.** Pour `perf_decimal`, appliquer la même corroboration sharpe que `vol_decimal` (sharpe·perf) avant tout ×100 — ne jamais corriger à l'aveugle. Pour `asset_class`, ajuster plutôt le mapping attendu de l'audit (fonds euros = `euro_garanti` OK) que la donnée. **Aucune correction de masse sans corroboration.**
+- **Effort estimé** : moyen (faible valeur)
 
 ### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (à re-vérifier vert)
 - **Priorité** : 🟡 → **résolu**, sous observation d'un run planifié
@@ -209,6 +208,8 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **`vol_decimal` (2 383 « vol en fraction ») — FAUX POSITIF élucidé, détecteur corrigé** — *Réglé le 2026-07-14* : l'audit après data-quality criait à 2 383 volatilités « en fraction » (0,15 = 15 %). **Investigation** : ce sont en réalité de **vraies faibles volatilités** (oblig courte / monétaire / fonds euros ≈ 0) ou des **séries de prix quasi-plates** (fonds neufs/illiquides), PAS des fractions. **Preuve décisive** : sur **1 363 fonds testables** (vol_1y<1 avec sharpe+perf), le sharpe stocké corrobore la valeur **telle quelle** (`sharpe·vol ≈ perf−rf`) pour **1 363**, et l'hypothèse « fraction » (×100) pour **0**. Un `×100` en masse aurait **corrompu** 1 363+ fonds — d'où le refus de « fixer » l'apparence. **Correctif = le détecteur, pas la donnée** : `check_vol_decimal` (`audit-data-quality.py`) exige désormais une **corroboration sharpe** sur la fenêtre 1 an (perf annuelle ; la 3 ans est cumulée → écartée car elle générait de faux positifs sur séries dégénérées) → `vol_decimal` **2 383 → 0**, total HIGH de l'audit **3 638 → 966**. **Aucune donnée prod mutée.** Cf. [[compute-metrics-stale-window-gotcha]] + [[insane-risk-metrics-gate]].
 
 - **Workflow SFDR/DDA annulé chaque semaine à 2h — corrigé** — *Réglé le 2026-07-14* : l'étape KID (`sfdr-enricher.py`) débordait le `timeout-minutes: 120` et faisait annuler (`cancelled`) le run hebdo chaque semaine, en silence (cancelled ≠ failure → aucune alerte). **Retirée du cron hebdo** (`if: github.event_name != 'schedule'` dans `sfdr-refresh.yml`) : le run planifié n'exécute plus que l'étape **annexe** (utile, rapide) → il repasse vert. Le drain KID reste couvert par `monthly-pipeline` (étape `enrichers/sfdr-enricher.py`) + le manuel (`workflow_dispatch`, sans limite). YAML validé. Cf. [[sustainability-dda]].
 
