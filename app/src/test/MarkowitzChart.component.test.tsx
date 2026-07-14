@@ -70,7 +70,7 @@ describe("MarkowitzChart", () => {
   it("affiche un tiret quand aucun SRI n'est renseigné", () => {
     const noSri = LINES.map((l) => ({ ...l, sri: null }));
     render(<MarkowitzChart lines={noSri} cov={COV} riskFree={0.02} />);
-    expect(screen.getByTestId("simulated-sri").textContent).toContain("—");
+    expect(screen.getByTestId("simulated-sri").textContent).toContain("-");
   });
 
   it("normalise les poids affichés à 100 %", () => {

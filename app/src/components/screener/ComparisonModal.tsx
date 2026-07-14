@@ -31,7 +31,7 @@ const ROWS: { section: string; rows: Row[] }[] = [
     section: "Risque",
     rows: [
       { label: "Volatilité 1A", key: "volatility_1y",    format: (v) => pct(v as number),  best: "low" },
-      { label: "Sharpe 1A",     key: "sharpe_1y",        format: (v) => v == null ? "—" : (v as number).toFixed(2), best: "high" },
+      { label: "Sharpe 1A",     key: "sharpe_1y",        format: (v) => v == null ? "-" : (v as number).toFixed(2), best: "high" },
       { label: "Max DD 3A",     key: "max_drawdown_3y",  format: (v) => pct(v as number),  best: "high" },
     ],
   },
@@ -39,28 +39,28 @@ const ROWS: { section: string; rows: Row[] }[] = [
     section: "Frais & taille",
     rows: [
       { label: "TER",           key: "ongoing_charges",    format: (v) => pct(v as number), best: "low" },
-      { label: "Rétrocession",  key: "retrocession_cgp",   format: (v) => v == null ? "—" : pct((v as number) * 100), best: "high" },
+      { label: "Rétrocession",  key: "retrocession_cgp",   format: (v) => v == null ? "-" : pct((v as number) * 100), best: "high" },
       { label: "Encours",       key: "aum_eur",            format: (v) => fmtAum(v as number) },
-      { label: "Track record",  key: "track_record_years", format: (v) => v == null ? "—" : `${v} ans` },
+      { label: "Track record",  key: "track_record_years", format: (v) => v == null ? "-" : `${v} ans` },
     ],
   },
   {
     section: "Classification",
     rows: [
-      { label: "SFDR",        key: "sfdr_article",       format: (v) => v == null ? "—" : `Art. ${v}` },
-      { label: "SRI",         key: "risk_score",         format: (v) => v == null ? "—" : `${v}/7` },
-      { label: "Morningstar", key: "morningstar_rating", format: (v) => v == null ? "—" : "★".repeat(v as number) },
+      { label: "SFDR",        key: "sfdr_article",       format: (v) => v == null ? "-" : `Art. ${v}` },
+      { label: "SRI",         key: "risk_score",         format: (v) => v == null ? "-" : `${v}/7` },
+      { label: "Morningstar", key: "morningstar_rating", format: (v) => v == null ? "-" : "★".repeat(v as number) },
     ],
   },
   {
     section: "Éligibilités",
     rows: [
-      { label: "PEA",         key: "pea_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
-      { label: "PEA-PME",     key: "pea_pme_eligible", format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
-      { label: "PER",         key: "per_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
-      { label: "AV France",   key: "av_fr_eligible",   format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
-      { label: "AV Lux.",     key: "av_lux_eligible",  format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
-      { label: "CTO",         key: "cto_eligible",     format: (v) => v == null ? "—" : v ? "✓" : "×", bool: true },
+      { label: "PEA",         key: "pea_eligible",     format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
+      { label: "PEA-PME",     key: "pea_pme_eligible", format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
+      { label: "PER",         key: "per_eligible",     format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
+      { label: "AV France",   key: "av_fr_eligible",   format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
+      { label: "AV Lux.",     key: "av_lux_eligible",  format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
+      { label: "CTO",         key: "cto_eligible",     format: (v) => v == null ? "-" : v ? "✓" : "×", bool: true },
     ],
   },
 ];
@@ -179,7 +179,7 @@ function NavChart({ funds }: { funds: SelectedFund[] }) {
         />
         <Tooltip
           formatter={(value: unknown, name: unknown) => [
-            typeof value === "number" ? `${value.toFixed(1)}` : "—",
+            typeof value === "number" ? `${value.toFixed(1)}` : "-",
             String(name),
           ]}
           labelFormatter={(label: unknown) => {

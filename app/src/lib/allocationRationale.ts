@@ -233,7 +233,7 @@ export function buildPresentation(
     `Performance annualisée cible : ~${expectedReturnPct} % (taux sans risque + prime de risque du portefeuille).`,
     `Volatilité attendue : ~${volatilityPct} % annualisée.`,
     result.weightedSri != null
-      ? `SRI moyen pondéré : ~${round1(result.weightedSri)} / 7 — profil ${profileLabel}.`
+      ? `SRI moyen pondéré : ~${round1(result.weightedSri)} / 7, profil ${profileLabel}.`
       : `Profil ${profileLabel}.`,
     opts.universeSize
       ? `Univers d'investissement : ${opts.universeSize} supports du contrat ${opts.contractName}.`
@@ -244,7 +244,7 @@ export function buildPresentation(
   // Convictions = 3 lignes de plus fort poids + une conviction sur le coût moyen.
   const top = [...result.lines].sort((a, b) => b.weight - a.weight).slice(0, 3);
   const convictions = top.map((l) => ({
-    title: `${l.name} — ${l.weight} %`,
+    title: `${l.name} : ${l.weight} %`,
     text: fundRationale(l),
   }));
   const avgTer = weightedTer(result.lines);
@@ -257,7 +257,7 @@ export function buildPresentation(
   }
 
   return {
-    title: `Allocation ${profileLabel} — ${opts.contractName}`,
+    title: `Allocation ${profileLabel}, ${opts.contractName}`,
     subtitle: `${result.lines.length} supports · profil ${profileLabel}`,
     advisor: opts.advisorName ?? null,
     asOf: opts.asOfLabel ?? null,

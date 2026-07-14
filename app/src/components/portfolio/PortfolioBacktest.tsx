@@ -63,7 +63,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
   const bench = analysis?.benchmark ?? null;
   const mergedCurve = analysis ? mergeCurves(analysis.curve ?? [], bench?.curve) : [];
   const ready = !!(ratios && meta && meta.used > 0);
-  const period = meta?.start && meta?.end ? `${frMonth(meta.start)} – ${frMonth(meta.end)}` : "";
+  const period = meta?.start && meta?.end ? `${frMonth(meta.start)} à ${frMonth(meta.end)}` : "";
 
   return (
     <Card className="px-5 py-5">
@@ -103,7 +103,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
           <Kpi label="Perf. annualisée" value={fmtPct(ratios!.annual_return, true)} tone={signTone(ratios!.annual_return)} />
           <Kpi label="Perf. totale" value={fmtPct(ratios!.total_return, true)} tone={signTone(ratios!.total_return)} />
           <Kpi label="Volatilité" value={fmtPct(ratios!.volatility)} />
-          <Kpi label="Sharpe" value={ratios!.sharpe == null ? "—" : ratios!.sharpe.toFixed(2)} tone={signTone(ratios!.sharpe)} />
+          <Kpi label="Sharpe" value={ratios!.sharpe == null ? "-" : ratios!.sharpe.toFixed(2)} tone={signTone(ratios!.sharpe)} />
           <Kpi label="Perte max." value={fmtPct(ratios!.max_drawdown)} tone="bad" />
         </div>
       )}
@@ -127,7 +127,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
               interval="preserveStartEnd" minTickGap={56} />
             <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={40} />
             <Tooltip
-              formatter={(v: unknown, n: unknown) => [typeof v === "number" ? v.toFixed(1) : "—", n === "p" ? "Portefeuille" : (bench?.label ?? "Indice")]}
+              formatter={(v: unknown, n: unknown) => [typeof v === "number" ? v.toFixed(1) : "-", n === "p" ? "Portefeuille" : (bench?.label ?? "Indice")]}
               labelFormatter={(l: unknown) => { const d = new Date(String(l)); return isNaN(d.getTime()) ? String(l) : d.toLocaleDateString("fr-FR"); }}
               contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
             <Legend formatter={(value: string) => <span style={{ fontSize: 11 }}>{value === "p" ? "Portefeuille" : (bench?.label ?? "Indice")}</span>} />
@@ -151,7 +151,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
               { k: "Perf. annualisée", p: fmtPct(ratios!.annual_return, true), b: fmtPct(bench.annual_return, true) },
               { k: "Perf. totale", p: fmtPct(ratios!.total_return, true), b: fmtPct(bench.total_return, true) },
               { k: "Volatilité", p: fmtPct(ratios!.volatility), b: fmtPct(bench.volatility) },
-              { k: "Sharpe", p: ratios!.sharpe?.toFixed(2) ?? "—", b: bench.sharpe?.toFixed(2) ?? "—" },
+              { k: "Sharpe", p: ratios!.sharpe?.toFixed(2) ?? "-", b: bench.sharpe?.toFixed(2) ?? "-" },
               { k: "Perte max.", p: fmtPct(ratios!.max_drawdown), b: fmtPct(bench.max_drawdown) },
             ].map((r) => (
               <tr key={r.k} className="border-b border-line-soft last:border-0">

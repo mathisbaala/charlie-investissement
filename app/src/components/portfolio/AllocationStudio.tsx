@@ -122,7 +122,7 @@ function CorrelationCard({ names, matrix }: { names: string[]; matrix: (number |
               <td className="p-1.5 text-ink-2 whitespace-nowrap pr-3" title={n}>{shortName(n)}</td>
               {matrix[ri]?.map((c, ci) => (
                 <td key={ci} className="p-1.5 text-center rounded w-12" style={corrStyle(c)}>
-                  {c == null ? "—" : c.toFixed(2)}
+                  {c == null ? "-" : c.toFixed(2)}
                 </td>
               ))}
             </tr>
@@ -201,12 +201,12 @@ function GoalsCard({
 
   return (
     <Card className="px-5 py-5">
-      <h2 className="text-label text-ink font-semibold mb-1">Projets du client — une poche par projet</h2>
+      <h2 className="text-label text-ink font-semibold mb-1">Projets du client : une poche par projet</h2>
       <p className="text-meta text-muted mb-4">
         Chaque projet est évalué avec ses seuls moyens (capital affecté + épargne mensuelle)
         et une poche dédiée, calibrée sur son horizon et sa priorité. Les moyens d&apos;un projet
         ne financent jamais un autre. Probabilités par simulation Monte Carlo
-        (2 000 trajectoires) — hors frais et fiscalité, performances non garanties.
+        (2 000 trajectoires), hors frais et fiscalité, performances non garanties.
       </p>
       {overAllocated && (
         <p className="text-meta text-warn mb-3">
@@ -228,7 +228,7 @@ function GoalsCard({
                 </span>
                 {rReq === null ? (
                   <span className="text-meta text-danger">
-                    Hors de portée avec les moyens affectés — augmenter l&apos;épargne ou revoir la cible.
+                    Hors de portée avec les moyens affectés. Augmenter l&apos;épargne ou revoir la cible.
                   </span>
                 ) : (
                   <>
@@ -238,7 +238,7 @@ function GoalsCard({
                     </span>
                     {prob != null && (
                       <span className={`text-meta font-semibold ${probTone(prob).cls}`}>
-                        {(prob * 100).toFixed(0)} % de chances — {probTone(prob).label}
+                        {(prob * 100).toFixed(0)} % de chances, {probTone(prob).label}
                       </span>
                     )}
                   </>
@@ -810,7 +810,7 @@ export function AllocationStudio() {
                 >
                   {cabinet.contracts.map((c) => (
                     <option key={c.key} value={c.key}>
-                      {c.key.replace("::", " — ")}
+                      {c.key.replace("::", ", ")}
                     </option>
                   ))}
                   <option value={SAMPLE_CONTRACT}>Contrat démo (univers d&apos;exemple)</option>
@@ -835,7 +835,6 @@ export function AllocationStudio() {
             <div className="flex flex-col gap-1">
               <span className="text-meta text-muted">
                 Risque maximal (SRI par fonds) : <strong className="text-ink">{effectiveSri} / 7</strong>
-                {sriOverride == null && <span> (déduit du profil)</span>}
               </span>
               <div className="flex items-center gap-3">
                 <input
@@ -970,7 +969,7 @@ export function AllocationStudio() {
                     </span>
                   </label>
                   <span className="text-meta text-muted">
-                    À adéquation équivalente, retient la meilleure rétrocession — jamais au détriment du client.
+                    À adéquation équivalente, retient la meilleure rétrocession, jamais au détriment du client.
                   </span>
                 </div>
               </div>
@@ -986,7 +985,7 @@ export function AllocationStudio() {
               ? "Fonds réels du contrat (base connectée)."
               : source === "demo"
                 ? `Univers de démonstration (${SAMPLE_UNIVERSE.length} fonds) : base non connectée.`
-                : "Le résultat se met ensuite à jour à chaque réglage."}
+                : ""}
           </span>
         </div>
       </Card>
@@ -1002,7 +1001,7 @@ export function AllocationStudio() {
         <>
           {summary && (
             <Card className="px-5 py-3 bg-paper-2">
-              <span className="text-meta text-ink-2">Profil utilisé — {summary}</span>
+              <span className="text-meta text-ink-2">Profil utilisé : {summary}</span>
             </Card>
           )}
 
@@ -1094,8 +1093,8 @@ export function AllocationStudio() {
                     <> ({Math.round(contractAnnual).toLocaleString("fr-FR")} € part contrat
                     {" "}+ {Math.round(ucAnnual).toLocaleString("fr-FR")} € rétrocessions UC)</>
                   )}
-                  {known.length < lines.length ? ` — ${lines.length - known.length} ligne(s) sans donnée` : ""}
-                  {" "}— {hasConvention
+                  {known.length < lines.length ? `, ${lines.length - known.length} ligne(s) sans donnée` : ""}
+                  {" "}: {hasConvention
                     ? "selon vos conventions saisies dans Mon cabinet, non contractuel."
                     : "estimation à défaut des conventions réelles (à saisir dans Mon cabinet), non contractuelle."}
                 </span>

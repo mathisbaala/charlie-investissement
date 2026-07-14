@@ -343,17 +343,17 @@ export default async function ContractPage({
         />
         <StatCard
           label="Frais courants moyens"
-          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "—"}
+          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "-"}
           sub="des supports (hors contrat)"
         />
         <StatCard
           label="Frais de gestion"
-          value={indicativeFee > 0 ? `~${indicativeFee.toLocaleString("fr-FR")} %/an` : "—"}
+          value={indicativeFee > 0 ? `~${indicativeFee.toLocaleString("fr-FR")} %/an` : "-"}
           sub="indicatif enveloppe"
         />
         <StatCard
           label="SRI moyen"
-          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "—"}
+          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "-"}
           sub="des supports"
         />
       </div>

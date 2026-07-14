@@ -76,8 +76,8 @@ describe("AllocationReport", () => {
     render(<AllocationReport presentation={presentation} />);
     expect(screen.getByText("Notation")).toBeTruthy();
     expect(screen.getByText("★★★★★")).toBeTruthy(); // Amundi, rating 5
-    // Les fonds non notés affichent un tiret cadratin dans la colonne.
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    // Les fonds non notés affichent un tiret dans la colonne.
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 
   it("affiche l'en-tête de colonne Frais (et plus TER)", () => {

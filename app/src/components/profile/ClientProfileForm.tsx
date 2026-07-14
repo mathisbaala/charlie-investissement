@@ -633,7 +633,7 @@ export function ClientProfileForm({
                     type="text"
                     value={g.label}
                     onChange={(e) => updateGoal(g.id, { label: e.target.value })}
-                    placeholder={`Projet ${gi + 1} — ex : Apport immobilier`}
+                    placeholder={`Projet ${gi + 1}, ex : Apport immobilier`}
                     aria-label={`Intitulé du projet ${gi + 1}`}
                     className={`${inputCls} flex-1`}
                   />

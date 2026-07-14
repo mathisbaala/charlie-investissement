@@ -251,7 +251,7 @@ export function CabinetForm() {
                                 value={selected.contractFeeShare}
                                 onChange={(v) => updateContract(o.key, { contractFeeShare: v })}
                                 placeholder="ex : 0,50"
-                                ariaLabel={`Part frais de gestion — ${label}`}
+                                ariaLabel={`Part frais de gestion : ${label}`}
                                 max={5}
                               />
                             </label>
@@ -263,7 +263,7 @@ export function CabinetForm() {
                                 value={selected.ucRetroShare}
                                 onChange={(v) => updateContract(o.key, { ucRetroShare: v })}
                                 placeholder="ex : 50"
-                                ariaLabel={`Rétrocession UC — ${label}`}
+                                ariaLabel={`Rétrocession UC : ${label}`}
                               />
                             </label>
                           </div>
@@ -273,7 +273,7 @@ export function CabinetForm() {
                               <input
                                 className={`${inputCls} w-44`}
                                 value={ov.isin}
-                                aria-label={`ISIN exception ${oi + 1} — ${label}`}
+                                aria-label={`ISIN exception ${oi + 1} : ${label}`}
                                 onChange={(e) =>
                                   updateContract(o.key, {
                                     fundOverrides: selected.fundOverrides.map((x, xi) =>
@@ -291,7 +291,7 @@ export function CabinetForm() {
                                   })
                                 }
                                 placeholder="ex : 60"
-                                ariaLabel={`Part exception ${oi + 1} — ${label}`}
+                                ariaLabel={`Part exception ${oi + 1} : ${label}`}
                               />
                               <button type="button"
                                 aria-label={`Supprimer l'exception ${ov.isin || oi + 1}`}

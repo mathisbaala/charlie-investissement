@@ -372,7 +372,7 @@ export function selectFunds(
     for (const cls of Object.keys(targets)) {
       if (targets[cls] > 0 && !(available[cls] > 0)) {
         notes.push(
-          `Aucun fonds disponible pour la classe « ${cls} » (${Math.round(targets[cls] * 10) / 10}% cible) — poids redistribué.`,
+          `Aucun fonds disponible pour la classe « ${cls} » (${Math.round(targets[cls] * 10) / 10}% cible), poids redistribué.`,
         );
       }
     }
@@ -452,7 +452,7 @@ export function selectFunds(
   }
   if (tieTol > 0) {
     notes.push(
-      "Départage rémunération cabinet actif : à adéquation client équivalente, le fonds à la meilleure rétrocession (estimée) est retenu — les critères client restent prioritaires.",
+      "Départage rémunération cabinet actif : à adéquation client équivalente, le fonds à la meilleure rétrocession (estimée) est retenu. Les critères client restent prioritaires.",
     );
   }
   return { selected, notes };
@@ -748,7 +748,7 @@ export function optimizeAllocation(
     weightedSri > constraints.maxWeightedSri + 0.05
   ) {
     notes.push(
-      `SRI moyen pondéré ${weightedSri.toFixed(1)} > plafond ${constraints.maxWeightedSri} malgré la contrainte : insatisfiable avec ces fonds — durcir les cibles vers les classes défensives.`,
+      `SRI moyen pondéré ${weightedSri.toFixed(1)} > plafond ${constraints.maxWeightedSri} malgré la contrainte : insatisfiable avec ces fonds. Durcir les cibles vers les classes défensives.`,
     );
   }
 
@@ -845,7 +845,7 @@ export function reweightAllocation(
     diversification: { ...result.diversification, effectiveHoldings },
     notes: [
       ...result.notes,
-      "Poids ajustés manuellement par le conseiller — statistiques recalculées sur la pondération simulée.",
+      "Poids ajustés manuellement par le conseiller. Statistiques recalculées sur la pondération simulée.",
     ],
   };
 }

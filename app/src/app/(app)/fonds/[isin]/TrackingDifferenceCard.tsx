@@ -18,7 +18,7 @@ function AlphaRow({ label, value }: { label: string; value: number | null }) {
     <tr className="border-b border-line-soft last:border-0">
       <td className="py-2.5 text-meta text-muted pr-4">{label}</td>
       <td className={`py-2.5 text-meta text-right font-mono font-medium ${color}`}>
-        {value == null ? "—" : pct(value, true)}
+        {value == null ? "-" : pct(value, true)}
       </td>
     </tr>
   );

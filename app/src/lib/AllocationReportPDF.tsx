@@ -75,7 +75,7 @@ const s = StyleSheet.create({
 });
 
 function fmtPct1(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toFixed(1)} %`;
+  return n == null ? "-" : `${n.toFixed(1)} %`;
 }
 function sfdrText(a: number | null | undefined): string {
   if (a === 8) return "Art. 8";
@@ -108,7 +108,7 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
 
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 16 }}>
           <HeroStat label="Supports" value={String(p.headline.supports)} tone="neutral" style={{ flex: 1 }} />
-          <HeroStat label="SRI moyen" value={p.headline.weightedSri == null ? "—" : `${p.headline.weightedSri} / 7`} tone="accent" style={{ flex: 1 }} />
+          <HeroStat label="SRI moyen" value={p.headline.weightedSri == null ? "-" : `${p.headline.weightedSri} / 7`} tone="accent" style={{ flex: 1 }} />
           <HeroStat label="Perf. cible / an" value={`~${p.headline.expectedReturnPct} %`} tone="pos" style={{ flex: 1 }} />
           <HeroStat label="Volatilité" value={`~${p.headline.volatilityPct} %`} tone="neutral" style={{ flex: 1 }} />
         </View>
@@ -158,19 +158,19 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
               <Text style={[s.td, s.cNum]}>{i + 1}</Text>
               <Text style={[s.td, s.cName]}>{l.name}</Text>
               <Text style={[s.td, s.cIsin]}>{l.isin}</Text>
-              <Text style={[s.td, s.cCat]}>{l.category ?? "—"}</Text>
+              <Text style={[s.td, s.cCat]}>{l.category ?? "-"}</Text>
               <Text style={[s.td, s.cW]}>{fmtPct1(l.weight)}</Text>
-              <Text style={[s.td, s.cSri]}>{l.sri ?? "—"}</Text>
+              <Text style={[s.td, s.cSri]}>{l.sri ?? "-"}</Text>
               <Text style={[s.td, s.cSfdr]}>{sfdrText(l.sfdr)}</Text>
-              <Text style={[s.td, s.cNote]}>{l.rating == null ? "—" : `${l.rating}/5`}</Text>
-              <Text style={[s.td, s.cTer]}>{l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)}`}</Text>
+              <Text style={[s.td, s.cNote]}>{l.rating == null ? "-" : `${l.rating}/5`}</Text>
+              <Text style={[s.td, s.cTer]}>{l.ter == null ? "-" : `${(l.ter * 100).toFixed(2)}`}</Text>
             </View>
           ))}
         </View>
 
         {/* Profil de risque : distribution SRI pondérée */}
         <View style={s.card}>
-          <SectionIntro eyebrow="04" title="Profil de risque" desc={`SRI moyen pondéré ~${p.riskProfile.weightedSri ?? "—"} / 7 — ${p.riskProfile.profileLabel}`} />
+          <SectionIntro eyebrow="04" title="Profil de risque" desc={`SRI moyen pondéré ~${p.riskProfile.weightedSri ?? "-"} / 7 : ${p.riskProfile.profileLabel}`} />
           {p.riskProfile.sriDistribution.map((b) => (
             <View style={s.sriBarRow} key={b.sri}>
               <Text style={s.sriBarLabel}>SRI {b.sri}</Text>
@@ -183,7 +183,7 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
           <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
             {p.riskProfile.sfdrDistribution.map((d) => (
               <Chip key={String(d.article)} tone={d.article === 9 ? "ok" : d.article === 8 ? "accent" : "neutral"}>
-                {`Art. ${d.article} — ${fmtPct1(d.weight)}`}
+                {`Art. ${d.article} : ${fmtPct1(d.weight)}`}
               </Chip>
             ))}
           </View>

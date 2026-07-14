@@ -317,7 +317,7 @@ Exemples :
 - "fonds actions américaines" → {"asset_class":["action"],"region":["usa"],"chips":["Actions","USA"]}
 - "fonds obligataire ISR à faible risque éligible assurance vie" → {"asset_class":["obligation"],"sfdr":[8,9],"sri_max":3,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire","ISR","Risque faible","Assurance-vie"]}
 - "fonds obligataire daté 2028 éligible assurance vie" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_min":2028,"maturity_year_max":2028,"envelopes":["AV-FR","AV-LUX"],"chips":["Obligataire daté","Échéance 2028","Assurance-vie"]}
-- "fonds à échéance entre 2027 et 2030" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_min":2027,"maturity_year_max":2030,"chips":["Fonds à échéance","2027–2030"]}
+- "fonds à échéance entre 2027 et 2030" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_min":2027,"maturity_year_max":2030,"chips":["Fonds à échéance","2027-2030"]}
 - "obligations de portage qui arrivent à échéance avant 2029" → {"asset_class":["obligation"],"target_maturity":true,"maturity_year_max":2029,"chips":["Fonds à échéance","≤ 2029"]}
 - "fonds diversifié patrimonial prudent" → {"asset_class":["diversifie"],"sri_max":3,"chips":["Diversifié","Prudent"]}
 - "fonds actions monde référencés chez AXA" → {"asset_class":["action"],"region":["world"],"insurers":["AXA France"],"chips":["Actions","Monde","AXA France"]}

@@ -26,7 +26,7 @@ const FONT_LIGHT = "Calibri Light";
 const W = 13.33; // LAYOUT_WIDE
 
 function pct(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toFixed(1)} %`;
+  return n == null ? "-" : `${n.toFixed(1)} %`;
 }
 function sfdrText(a: number | null | undefined): string {
   return a === 8 ? "Art. 8" : a === 9 ? "Art. 9" : "Art. 6";
@@ -68,7 +68,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
 
   const tiles: [string, string][] = [
     [String(p.headline.supports), "Supports"],
-    [p.headline.weightedSri == null ? "—" : `${p.headline.weightedSri} / 7`, "SRI moyen"],
+    [p.headline.weightedSri == null ? "-" : `${p.headline.weightedSri} / 7`, "SRI moyen"],
     [`~${p.headline.expectedReturnPct} %`, "Perf. cible / an"],
     [`~${p.headline.volatilityPct} %`, "Volatilité"],
   ];
@@ -128,12 +128,12 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
         cell(String(i + 1), { color: C.grey }),
         cell(l.name, { color: C.navy, bold: true }),
         cell(l.isin, { color: C.grey, fontFace: "Consolas" }),
-        cell(l.category ?? "—"),
+        cell(l.category ?? "-"),
         cell(pct(l.weight), { color: C.indigo, bold: true, align: "right" }),
-        cell(l.sri == null ? "—" : String(l.sri), { align: "center" }),
+        cell(l.sri == null ? "-" : String(l.sri), { align: "center" }),
         cell(sfdrText(l.sfdr), { color: C.indigo, align: "center" }),
-        cell(l.rating == null ? "—" : `${l.rating}/5`, { align: "center" }),
-        cell(l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)} %`, { align: "right" }),
+        cell(l.rating == null ? "-" : `${l.rating}/5`, { align: "center" }),
+        cell(l.ter == null ? "-" : `${(l.ter * 100).toFixed(2)} %`, { align: "right" }),
       ];
     }),
   ];
@@ -143,7 +143,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   // ─── Slide 5 — profil de risque ─────────────────────────────────────
   const s5 = pptx.addSlide();
   s5.background = { color: C.white };
-  contentHeader(s5, "04", "Profil de risque", `SRI moyen pondéré ~${p.riskProfile.weightedSri ?? "—"} / 7 — ${p.riskProfile.profileLabel}`);
+  contentHeader(s5, "04", "Profil de risque", `SRI moyen pondéré ~${p.riskProfile.weightedSri ?? "-"} / 7 : ${p.riskProfile.profileLabel}`);
   const maxSri = Math.max(1, ...p.riskProfile.sriDistribution.map((b) => b.weight));
   p.riskProfile.sriDistribution.forEach((b, i) => {
     const y = 1.9 + i * 0.52;

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { pct, eur, fmtAum, dt, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS } from '../lib/format'
 
 describe('pct', () => {
-  it('returns em dash for null', () => expect(pct(null)).toBe('—'))
-  it('returns em dash for undefined', () => expect(pct(undefined)).toBe('—'))
+  it('returns dash for null', () => expect(pct(null)).toBe('-'))
+  it('returns dash for undefined', () => expect(pct(undefined)).toBe('-'))
   it('formats positive without sign by default', () => expect(pct(5.5)).toBe('5,5 %'))
   it('adds + sign when requested and positive', () => expect(pct(5.5, true)).toBe('+5,5 %'))
   it('no + for zero even with sign', () => expect(pct(0, true)).toBe('0,0 %'))
@@ -74,7 +74,7 @@ describe('perfNetteClient', () => {
 })
 
 describe('fmtAum', () => {
-  it('returns em dash for null', () => expect(fmtAum(null)).toBe('—'))
+  it('returns dash for null', () => expect(fmtAum(null)).toBe('-'))
   it('converts raw euros to M€', () => {
     // 500 000 000 = 500 M€
     expect(fmtAum(500_000_000)).toContain('M€')
@@ -107,14 +107,14 @@ describe('fmtYears', () => {
 })
 
 describe('fmtSharpe', () => {
-  it('returns em dash for null', () => expect(fmtSharpe(null)).toBe('—'))
+  it('returns dash for null', () => expect(fmtSharpe(null)).toBe('-'))
   it('formats to 2 decimals', () => expect(fmtSharpe(1.234)).toContain('1,23'))
 })
 
 describe('dt', () => {
-  it('returns em dash for null/undefined', () => {
-    expect(dt(null)).toBe('—')
-    expect(dt(undefined)).toBe('—')
+  it('returns dash for null/undefined', () => {
+    expect(dt(null)).toBe('-')
+    expect(dt(undefined)).toBe('-')
   })
   it('formats an ISO date to fr-FR', () => expect(dt('2019-11-07')).toBe('07/11/2019'))
   // Régression DICI : "07/11/2019" (JJ/MM/AAAA) ne doit PAS devenir le 11 juillet

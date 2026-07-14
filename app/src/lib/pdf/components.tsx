@@ -15,11 +15,11 @@ export function normTer(v: number | null | undefined): number | null {
 }
 
 export function fmt(n: number | null | undefined, suffix = "%", d = 2): string {
-  return n == null ? "—" : `${Number(n).toFixed(d)}${suffix}`;
+  return n == null ? "-" : `${Number(n).toFixed(d)}${suffix}`;
 }
 
 export function perf(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null) return "-";
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
@@ -247,7 +247,7 @@ export function PerfBarRow({ label, value, max }: { label: string; value: number
         )}
       </View>
       <Text style={{ fontFamily: FONT.mono, fontWeight: 500, fontSize: 8.5, color: perfColor(value), width: 44, textAlign: "right" }}>
-        {value == null ? "—" : perf(value)}
+        {value == null ? "-" : perf(value)}
       </Text>
     </View>
   );

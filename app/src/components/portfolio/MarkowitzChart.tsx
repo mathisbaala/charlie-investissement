@@ -270,7 +270,7 @@ export function MarkowitzChart({
         <div className="rounded-lg bg-paper-2 px-3 py-2">
           <div className="text-meta text-muted">SRI moyen</div>
           <div className="text-label text-ink font-semibold" style={{ fontVariantNumeric: "tabular-nums" }} data-testid="simulated-sri">
-            {currentSri == null ? "—" : `${currentSri.toFixed(1)} / 7`}
+            {currentSri == null ? "-" : `${currentSri.toFixed(1)} / 7`}
             {edited && optimalSri != null && (
               <span className="text-meta text-muted font-normal"> · optimal {optimalSri.toFixed(1)}</span>
             )}
@@ -284,7 +284,7 @@ export function MarkowitzChart({
           <h3 className="text-meta text-ink font-semibold">Poids simulés</h3>
           <div className="flex items-center gap-3">
             <span className="text-meta text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-              Total saisi {totalPct.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % — normalisé à 100 % pour le calcul
+              Total saisi {totalPct.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %, normalisé à 100 % pour le calcul
             </span>
             {edited && (
               <Btn variant="outline" size="sm" onClick={resetWeights}>

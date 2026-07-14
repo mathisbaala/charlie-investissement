@@ -53,7 +53,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Assurances vie",
       intro:
-        "La cartographie du référencement. Retrouvez, assureur par assureur, quels contrats logent quels supports — et ouvrez la fiche de chaque contrat.",
+        "La cartographie du référencement. Retrouvez, assureur par assureur, quels contrats logent quels supports, et ouvrez la fiche de chaque contrat.",
       sections: [
         {
           heading: "Sur cette page",
@@ -88,7 +88,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
             "Les réglages du conseiller : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
             "L'allocation générée : supports et poids, indicateurs attendus (rendement / volatilité / Sharpe, SRI pondéré), plan de Markowitz interactif et matrice de corrélation.",
             "Le back-test historique de l'allocation face à un indice, sur la période choisie.",
-            "Les projets du client — une poche par objectif — et le pilotage support par support (imposer, écarter, remplacer).",
+            "Les projets du client, une poche par objectif, et le pilotage support par support (imposer, écarter, remplacer).",
           ],
         },
         {

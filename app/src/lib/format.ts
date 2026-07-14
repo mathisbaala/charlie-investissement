@@ -18,7 +18,7 @@ export const nf2 = new Intl.NumberFormat("fr-FR", {
 });
 
 export function pct(v: number | null | undefined, sign = false): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   return (sign && v > 0 ? "+" : "") + nf1.format(v) + " %";
 }
 
@@ -106,12 +106,12 @@ export function perfNetteClient(
 }
 
 export function eur(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   return nf.format(v) + " M€";
 }
 
 export function fmtAum(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   const m = v / 1_000_000;
   if (m >= 1000) return nf.format(Math.round(m / 100) * 100) + " M€";
   return nf1.format(m) + " M€";
@@ -120,12 +120,12 @@ export function fmtAum(v: number | null | undefined): string {
 // Montant unitaire en euros, 2 décimales (ex. prix de part SCPI : « 458,00 € »).
 const nfEur = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function fmtEur(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   return nfEur.format(v) + " €";
 }
 
 export function fmtAumShort(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   const bn = v / 1_000_000_000;
   if (bn >= 10) return `${Math.round(bn)} Md€`;
   if (bn >= 1)  return `${nf1.format(bn)} Md€`;
@@ -136,7 +136,7 @@ export function fmtAumShort(v: number | null | undefined): string {
 }
 
 export function dt(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   // Défensif : une date au format français JJ/MM/AAAA serait interprétée par
   // `new Date()` comme MM/JJ (convention US) → jour et mois inversés. On la
   // convertit en ISO avant parsing. (Cas vu sur l'extraction DICI.)
@@ -148,7 +148,7 @@ export function dt(iso: string | null | undefined): string {
 }
 
 export function fmtSharpe(v: number | null | undefined): string {
-  if (v == null) return "—";
+  if (v == null) return "-";
   return nf2.format(v);
 }
 

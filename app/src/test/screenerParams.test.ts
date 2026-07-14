@@ -283,7 +283,7 @@ describe('params — fonds à échéance (obligataire daté)', () => {
 
   it('décrit le filtre pour le bandeau de contexte', () => {
     expect(describeScreenerFilters({ target_maturity: true, maturity_year_min: 2027, maturity_year_max: 2030 }))
-      .toContain('Échéance 2027–2030')
+      .toContain('Échéance 2027-2030')
     expect(describeScreenerFilters({ target_maturity: true })).toContain('Fonds à échéance')
     expect(describeScreenerFilters({ maturity_year_max: 2029 })).toContain('Échéance ≤ 2029')
   })

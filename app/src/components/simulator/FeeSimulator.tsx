@@ -203,7 +203,7 @@ export function FeeSimulator() {
           <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
           <Kpi label="Coût total de la structure" value={EUR.format(final.totalFrais)} />
           <Kpi label="Frais / gain brut"
-            value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
+            value={partFraisDansGainBrut(final) == null ? "-" : pct(partFraisDansGainBrut(final))} />
         </div>
       )}
 
@@ -338,7 +338,7 @@ export function FeeSimulator() {
                 <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
                   width={56} tickFormatter={(v: number) => EUR.format(v)} domain={["auto", "auto"]} />
                 <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "-",
                     n === "nette" ? "Valeur nette client" : n === "sansFrais" ? "Brut (avant frais)" : "Versements"]}
                   labelFormatter={(l: unknown) => `Année ${l}`}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
@@ -367,7 +367,7 @@ export function FeeSimulator() {
                 <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
                   width={56} tickFormatter={(v: number) => EUR.format(v)} />
                 <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "-",
                     n === "entree" ? "Frais d'entrée" : n === "contrat" ? "Gestion du contrat" : "Gestion des UC (frais courants)"]}
                   labelFormatter={(l: unknown) => `Année ${l}`}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
@@ -438,12 +438,12 @@ export function FeeSimulator() {
                     <tr key={u.isin} className="border-b border-line-soft last:border-0">
                       <td className="py-1.5 text-ink-2 max-w-[220px] truncate" title={u.name}>{u.name}</td>
                       <td className={`py-1.5 text-right font-medium ${u.perf5y == null ? "text-muted" : u.perf5y >= 0 ? "text-ok" : "text-danger"}`}>
-                        {u.perf5y == null ? "—" : `${pct(u.perf5y, true)}/an`}
+                        {u.perf5y == null ? "-" : `${pct(u.perf5y, true)}/an`}
                       </td>
                       <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
                       {[5, 10, 15].map((h) => {
                         const v = projeterUC(u.perf5y, frais.contratGestionUC, 10_000, h);
-                        return <td key={h} className="py-1.5 text-right text-ink">{v == null ? "—" : EUR.format(v)}</td>;
+                        return <td key={h} className="py-1.5 text-right text-ink">{v == null ? "-" : EUR.format(v)}</td>;
                       })}
                     </tr>
                   ))}

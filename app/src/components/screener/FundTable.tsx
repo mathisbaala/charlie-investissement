@@ -84,7 +84,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                 <MaturityBadge year={f.maturity_year} />
               </div>
               <div className="text-label text-muted font-mono mt-0.5 truncate">
-                {f.isin} · {f.gestionnaire ?? "—"}
+                {f.isin} · {f.gestionnaire ?? "-"}
               </div>
               <InsurerChips insurers={f.insurers} className="mt-1" />
             </div>
@@ -196,7 +196,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                     <MaturityBadge year={f.maturity_year} />
                   </div>
                   <div className="text-label text-muted font-mono mt-0.5">
-                    {f.isin} · {f.gestionnaire ?? "—"}
+                    {f.isin} · {f.gestionnaire ?? "-"}
                   </div>
                   <InsurerChips insurers={f.insurers} className="mt-1" />
                 </td>
@@ -227,7 +227,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   }`}
                   title={f.benchmark_index ? `vs ${f.benchmark_index}${f.benchmark_is_category ? " (catégorie)" : ""}` : undefined}
                 >
-                  {f.alpha_3y == null ? "—" : pct(f.alpha_3y, true)}
+                  {f.alpha_3y == null ? "-" : pct(f.alpha_3y, true)}
                 </td>
                 <td className="px-3 py-3 text-right font-mono text-ink-2 whitespace-nowrap">
                   {pct(f.volatility_1y)}

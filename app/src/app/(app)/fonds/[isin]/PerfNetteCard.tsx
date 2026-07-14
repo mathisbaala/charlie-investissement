@@ -26,10 +26,10 @@ function NetRow({ label, gross, fee }: { label: string; gross: number | null; fe
     <tr className="border-b border-line-soft last:border-0">
       <td className="py-2.5 text-meta text-muted pr-4">{label}</td>
       <td className="py-2.5 text-meta text-right font-mono text-muted-2">
-        {gross == null ? "—" : pct(gross, true)}
+        {gross == null ? "-" : pct(gross, true)}
       </td>
       <td className={`py-2.5 text-meta text-right font-mono font-medium ${net == null ? "text-muted-2" : net < 0 ? "text-warn" : "text-ink"}`}>
-        {net == null ? "—" : pct(net, true)}
+        {net == null ? "-" : pct(net, true)}
       </td>
     </tr>
   );

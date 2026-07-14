@@ -62,7 +62,7 @@ describe("AllocationStudio", () => {
     );
     render(<AllocationStudio />);
     fireEvent.click(screen.getByText("Générer l'allocation"));
-    expect(screen.getByText(/Profil utilisé — Profil Dynamique/)).toBeTruthy();
+    expect(screen.getByText(/Profil utilisé : Profil Dynamique/)).toBeTruthy();
   });
 
   it("affiche la matrice de corrélation, la colonne Notation et les liens vers les fiches", () => {
