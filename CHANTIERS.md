@@ -2,7 +2,7 @@
 
 > Dernier audit : 2026-07-14 (22ᵉ passe — re-vérification post-corrections). **Santé : excellente** — `tsc` clean, **584/584 tests verts** (41 fichiers), working tree propre, **une seule branche `main`**, 0 marqueur TODO/FIXME réel, 0 test désactivé, 0 `console.log` non guardé, 0 issue GitHub ouverte. Les 3 points de la 21ᵉ passe ont été **corrigés, commités (`fbbd5f3`) et poussés** dans la foulée. Rappel des gros livrables 07-13/07 (voir « ✅ Réglés ») : **plateforme /allocation** (max-Sharpe, frontière efficiente Markowitz, HRP, goal-based, rétrocessions via **/cabinet**, export **PPTX Métagram** + PDF), **onglet /cabinet**, **chatbot → guide contextuel**, refonte design Inter/clay, référencement MAIF/Generali, **pipeline data-quality**.
 >
-> **État à la 22ᵉ passe** : backlog de fond **soldé**, **aucun chantier ouvert bloquant**. Reste **2 surveillances** (aucune action) : (a) **recompute `completeness v2` en cours** en local (suite au data-quality — idempotent, aussi re-joué par le cron hebdo) ; (b) **workflow SFDR** à confirmer **vert au prochain mardi** (04:00 UTC) après le fix. Le reste = drains auto (passifs) + décisions tranchées (won't-do / différés).
+> **État à la 22ᵉ passe** : backlog de fond **soldé**, aucun chantier bloquant. Le **recompute data-quality est TERMINÉ** (average-perf 12 838, completeness 57,8→66,7). **1 nouveau chantier détecté par l'audit après** : 🟡 **résidu data-quality non couvert par les scripts** (`vol_decimal` 2 383 vol en fraction, `perf_decimal` 998 ambiguës, `asset_class` 245) — à traiter avec corroboration, pas de ×100 aveugle (voir 🐛). **2 surveillances passives** : workflow SFDR à confirmer vert mardi prochain ; drains auto. Reste = décisions tranchées (won't-do / différés).
 
 > _Bannières et historique des passes 16–20 (25–29/06) conservés ci-dessous._
 
@@ -76,6 +76,15 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ---
 
 ## 🐛 Bugs & fragilités
+
+### Résidu data-quality non couvert par les scripts (vol en fraction, perfs ambiguës)
+- **Priorité** : 🟡 Moyenne
+- **Détecté le** : 2026-07-14 (audit APRÈS du pipeline data-quality)
+- **Où** : `investissement_funds` (colonnes `volatility_*`, `performance_*`, `asset_class`) ; scripts `scripts/migrations/audit-data-quality.py` (détection) + `fix-*.py` (correction partielle)
+- **Le problème** : après application du pipeline 09/07, l'audit signale encore des anomalies HIGH que **aucun script existant ne corrige** : **`vol_decimal` = 2 383** (volatilités stockées en fraction, 0,15 au lieu de 15 % → vol/Sharpe faux à l'écran) ; **`perf_decimal` = 998** résiduels (le script `fix-perf-decimal` est volontairement prudent et ne touche QUE les cas corroborés — ces 998 ne le sont pas) ; **`asset_class_mismatch` = 245** (surtout fonds euros `euro_garanti`) ; `perf_outliers` 140, `aum_currency` 1.
+- **⚠ Piège (pourquoi ce n'est pas un simple ×100)** : un `vol < 1` peut être une **vraie** volatilité faible (monétaire ~0,2 %, fonds euros ~0, obligataire court) — un ×100 aveugle corromprait ces fonds. Il faut une **corroboration** (asset_class implique une vol plus élevée, Sharpe redevient plausible, cohérence perf/vol), comme la logique prudente déjà utilisée pour `perf_decimal`.
+- **Comment l'aborder** : écrire un `fix-vol-decimal.py` sur le modèle corroboré de `fix-perf-decimal-all-types.py` (ne ×100 que si un autre signal confirme l'encodage fraction), en **dry-run d'abord** ; traiter les 998 perfs résiduelles à la main ou via une règle plus fine ; mapper `asset_class` des fonds euros. **Ne pas** appliquer de correction en masse sans corroboration.
+- **Effort estimé** : moyen
 
 ### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (à re-vérifier vert)
 - **Priorité** : 🟡 → **résolu**, sous observation d'un run planifié
@@ -203,7 +212,7 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 - **Workflow SFDR/DDA annulé chaque semaine à 2h — corrigé** — *Réglé le 2026-07-14* : l'étape KID (`sfdr-enricher.py`) débordait le `timeout-minutes: 120` et faisait annuler (`cancelled`) le run hebdo chaque semaine, en silence (cancelled ≠ failure → aucune alerte). **Retirée du cron hebdo** (`if: github.event_name != 'schedule'` dans `sfdr-refresh.yml`) : le run planifié n'exécute plus que l'étape **annexe** (utile, rapide) → il repasse vert. Le drain KID reste couvert par `monthly-pipeline` (étape `enrichers/sfdr-enricher.py`) + le manuel (`workflow_dispatch`, sans limite). YAML validé. Cf. [[sustainability-dda]].
 
-- **Pipeline data-quality 09/07 — appliqué en prod** — *Réglé le 2026-07-14* : les 6 correctifs d'unités (versés le 13/07, DRY-RUN par défaut) n'avaient **jamais été appliqués** en base (dry-run du 14/07 : ~600 lignes encore sales). **Appliqués via `run-data-quality-fixes.sh APPLY=1`** (ordre imposé par `docs/data-standards.md`) : **624 perfs** fraction→% (bug visible : fonds affichant 0,62 % au lieu de 61,87 %), **74 ter** alignés sur `ongoing_charges` (KID), **12 entités HTML** décodées (`&amp;`→`&`), **5 volatilités saturées** (>200 %) → NULL ; AUM devise locale et asset_class = 0 (déjà propres). Suivis des recalculs métier (average-perf, track-record) + **completeness v2** (`--per-type`). Audits avant/après `/tmp/audit-{before,after}.json`. Cf. [[completeness-recompute-pipeline]].
+- **Pipeline data-quality 09/07 — appliqué en prod + recompute terminé** — *Réglé le 2026-07-14* : les 6 correctifs d'unités (versés le 13/07, DRY-RUN par défaut) n'avaient **jamais été appliqués** en base. **Appliqués via `run-data-quality-fixes.sh APPLY=1`** (ordre imposé par `docs/data-standards.md`) : **624 perfs** fraction→%, **74 ter** alignés sur `ongoing_charges`, **12 entités HTML** décodées, **5 volatilités saturées** → NULL. Puis **recalculs métier** : `recalc-average-perf` **12 838 fonds** (1 erreur isolée), `recalc-track-record` 51, **`recalc-completeness-v2`** 5 213 scores → complétude moyenne **57,8 → 66,7**, fonds ≥80 **12 751 → 16 498**. **Audit avant→après** (`/tmp/audit-{before,after}.json`) : `perf_avg_drift` **10 272 → 3 354**, `perf_decimal` 1 333 → 998, `ter_mismatch` 82 → 27, `html_entities` 15 → 5, `vol_saturated` 1 → 0. **⚠ Résidu non couvert** (`vol_decimal` 2 383, `perf_decimal` 998, `asset_class` 245) → nouveau chantier « 🐛 Résidu data-quality ». Cf. [[completeness-recompute-pipeline]].
 
 - **Commentaire `allocation/page.tsx` rafraîchi** — *Réglé le 2026-07-14* : le commentaire disait « Version démo (univers d'exemple) » alors que le studio est branché sur `/api/portfolio/optimize` (base réelle, repli démo si injoignable) depuis le 10/07. Réécrit pour refléter le vrai comportement.
 
