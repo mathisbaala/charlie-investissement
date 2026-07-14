@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "assureurs" | "cabinet" | "documents" | "guide";
+  key: "accueil" | "recherche" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "documents" | "guide";
   title: string;
   body: string;
 };
@@ -26,6 +26,11 @@ export const TOUR_STEPS: TourStep[] = [
     key: "portefeuille",
     title: "Portefeuille",
     body: "Du profil client à la proposition : allocation optimisée (max-Sharpe ou HRP), Markowitz interactif, back-test face à un indice, restitution PDF et PowerPoint.",
+  },
+  {
+    key: "simulateur",
+    title: "Simulateur de frais",
+    body: "Frais du contrat et des unités de compte : leur poids sur la performance nette, année par année, avec projections à 5, 10 et 15 ans.",
   },
   {
     key: "assureurs",
@@ -51,7 +56,8 @@ export const TOUR_STEPS: TourStep[] = [
 
 // Versionné : bump le suffixe pour réafficher la visite après une refonte.
 // v3 : fusion Portefeuille + Allocation, cabinet passé en pied de rail.
-const KEY = "charlie_tour_v3_done";
+// v4 : ajout de l'étape Simulateur de frais.
+const KEY = "charlie_tour_v4_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;

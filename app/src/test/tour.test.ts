@@ -7,6 +7,7 @@ describe("tour content", () => {
       "accueil",
       "recherche",
       "portefeuille",
+      "simulateur",
       "assureurs",
       "cabinet",
       "documents",
@@ -31,7 +32,7 @@ describe("tour content", () => {
 
 describe("tour storage", () => {
   beforeEach(() => {
-    localStorage.removeItem("charlie_tour_v3_done");
+    localStorage.removeItem("charlie_tour_v4_done");
   });
 
   it("n'est pas terminé par défaut", () => {
