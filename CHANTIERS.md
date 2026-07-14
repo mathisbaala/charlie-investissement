@@ -1,8 +1,8 @@
 # Chantiers — Charlie Investissement
 
-> Dernier audit : 2026-07-14 (22ᵉ passe — re-vérification post-corrections). **Santé : excellente** — `tsc` clean, **584/584 tests verts** (41 fichiers), working tree propre, **une seule branche `main`**, 0 marqueur TODO/FIXME réel, 0 test désactivé, 0 `console.log` non guardé, 0 issue GitHub ouverte. Les 3 points de la 21ᵉ passe ont été **corrigés, commités (`fbbd5f3`) et poussés** dans la foulée. Rappel des gros livrables 07-13/07 (voir « ✅ Réglés ») : **plateforme /allocation** (max-Sharpe, frontière efficiente Markowitz, HRP, goal-based, rétrocessions via **/cabinet**, export **PPTX Métagram** + PDF), **onglet /cabinet**, **chatbot → guide contextuel**, refonte design Inter/clay, référencement MAIF/Generali, **pipeline data-quality**.
+> Dernier audit : 2026-07-14 (23ᵉ passe — consolidation UI + intégration simulateur). **Santé : excellente** — `tsc` clean, **605/605 tests verts** (41 fichiers), working tree propre, **une seule branche `main`**, 0 marqueur TODO/FIXME réel, 0 test désactivé, 0 `console.log` non guardé, 0 issue GitHub ouverte. **Livrables du jour (14/07, tous EN PROD, vérifiés)** : **fusion Allocation → Portefeuille** (un seul onglet : profil → allocation optimisée + **back-test historique greffé** + proposition PDF/PPTX ; `/allocation` redirige), **Mon cabinet passé en pied de rail** (réglages, icône profil) + textes dégraissés, **nettoyage** de la route PDF portefeuille orpheline, et **intégration du simulateur de frais AV de Joseph** (`/simulateur`, moteur `feeSimulator.ts`) rebranché sur le rail refondu → branche `feat/simulateur-frais-gains` mergée et supprimée. Rappel des gros livrables 07-13/07 (voir « ✅ Réglés ») : **plateforme /allocation** (max-Sharpe, frontière efficiente Markowitz, HRP, goal-based, rétrocessions via **/cabinet**, export **PPTX Métagram** + PDF), **onglet /cabinet**, **chatbot → guide contextuel**, refonte design Inter/clay, référencement MAIF/Generali, **pipeline data-quality**.
 >
-> **État à la 22ᵉ passe** : backlog de fond **soldé**, aucun chantier bloquant. Le **recompute data-quality est TERMINÉ** (average-perf 12 838, completeness 57,8→66,7). **`vol_decimal` (2 383 alertes) élucidé = FAUX POSITIF** : ce sont de vraies faibles volatilités / séries plates (0 fraction sur 1 363 testables, sharpe à l'appui) — **détecteur `audit-data-quality.py` corrigé** (corroboration sharpe → 2 383→0), **aucune donnée mutée** (voir « ✅ Réglés »). Reste ⚪ un résidu **ambigu à faible enjeu** (`perf_decimal` ~912, `asset_class` ~245, largement faux positifs). **2 surveillances passives** : workflow SFDR à confirmer vert mardi prochain ; drains auto. Reste = décisions tranchées (won't-do / différés).
+> **État à la 22ᵉ passe** : backlog de fond **soldé**, aucun chantier bloquant. Le **recompute data-quality est TERMINÉ** (average-perf 12 838, completeness 57,8→66,7). **`vol_decimal` (2 383 alertes) élucidé = FAUX POSITIF** : ce sont de vraies faibles volatilités / séries plates (0 fraction sur 1 363 testables, sharpe à l'appui) — **détecteur `audit-data-quality.py` corrigé** (corroboration sharpe → 2 383→0), **aucune donnée mutée** (voir « ✅ Réglés »). Le **résidu ambigu est réglé le 14/07** : détecteurs `perf_decimal` (corroboration sharpe → 998→4) et `asset_class` (`euro_garanti` légitime → 245→0) affinés, total HIGH de l'audit **966→5**, aucune donnée mutée (voir « ✅ Réglés »). **1 surveillance passive** : run SFDR planifié à confirmer vert le mardi 21/07 (fix posé, non forçable). Reste = décisions tranchées (won't-do / différés) + drains auto.
 
 > _Bannières et historique des passes 16–20 (25–29/06) conservés ci-dessous._
 
@@ -76,14 +76,6 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ---
 
 ## 🐛 Bugs & fragilités
-
-### Résidu data-quality ambigu (perfs sub-1 %, asset_class fonds euros) — faible enjeu
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-07-14 (audit APRÈS du pipeline data-quality)
-- **Où** : `investissement_funds` (`performance_1y`, `asset_class`) ; `scripts/migrations/audit-data-quality.py`
-- **Le problème** : l'audit signale encore **`perf_decimal` ≈ 912** (perf_1y entre 0 et 1) et **`asset_class_mismatch` ≈ 245** (surtout fonds euros `euro_garanti`). Contrairement à `vol_decimal` (élucidé, voir « ✅ Réglés »), ces deux-là sont **ambigus ou bénins** : une perf annuelle de +0,5 % est plausible (fonds prudent) autant qu'une fraction de +50 % ; `euro_garanti` est en fait la bonne `asset_class` pour un fonds euros (l'audit attend juste un autre libellé → largement faux positif).
-- **Comment l'aborder** : **basse priorité.** Pour `perf_decimal`, appliquer la même corroboration sharpe que `vol_decimal` (sharpe·perf) avant tout ×100 — ne jamais corriger à l'aveugle. Pour `asset_class`, ajuster plutôt le mapping attendu de l'audit (fonds euros = `euro_garanti` OK) que la donnée. **Aucune correction de masse sans corroboration.**
-- **Effort estimé** : moyen (faible valeur)
 
 ### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (à re-vérifier vert)
 - **Priorité** : 🟡 → **résolu**, sous observation d'un run planifié
@@ -171,7 +163,7 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ## ✨ Features & améliorations
 
 ### (aucun chantier ouvert)
-Les deux grandes réponses au retour CGP sont **livrées** : moteur **portefeuille** (25/06) et **plateforme d'allocation** `/allocation` + onglet **/cabinet** (07–13/07, voir « ✅ Réglés »). L'ajout inline de fonds depuis le portefeuille est livré (25/06). La transparence du score d'adéquation reste un **won't-do ferme** (voir ⏸️).
+> Les grandes réponses au retour CGP sont **livrées** : moteur **portefeuille** (25/06), **plateforme d'allocation** fusionnée dans l'onglet **Portefeuille** + onglet **/cabinet** (07–14/07), **simulateur de frais** `/simulateur` (14/07). La transparence du score d'adéquation reste un **won't-do ferme** (voir ⏸️).
 
 ---
 
@@ -190,24 +182,24 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### Commentaire périmé dans `allocation/page.tsx` (« Version démo »)
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-07-14
-- **Où** : `app/src/app/(app)/allocation/page.tsx:5-7`
-- **L'écart** : l'en-tête dit « Version démo (univers d'exemple) ; branchable sur /api/portfolio/optimize » — or depuis le commit `db85175` (10/07) le studio **est** branché sur `/api/portfolio/optimize` (fonds réels du contrat, corrélations DB), avec repli démo seulement si la base n'est pas joignable. Le commentaire du composant `AllocationStudio.tsx:48-49` est, lui, correct.
-- **Proposition** : réécrire le commentaire de `page.tsx` pour dire « branché sur la base réelle, repli démo si base injoignable ».
-
-### `SESSION_HANDOFF.md` et `CHANTIERS.md` ont pris ~3 semaines de retard (CHANTIERS rattrapé ce jour)
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-07-14
-- **L'écart** : `CHANTIERS.md` était figé au 29/06 alors que 3 semaines de gros livrables (allocation, cabinet, refonte design, référencement) n'y figuraient pas → **rattrapé dans cette 21ᵉ passe**. `SESSION_HANDOFF.md` (dernière entrée ~23/06) reste en retard.
-- **Proposition** : veux-tu que je mette aussi `SESSION_HANDOFF.md` à jour (journal 07–13/07) ? Reste en mode « proposer sans modifier » tant que tu ne valides pas.
+### (aucun écart ouvert)
+`CHANTIERS.md` et `SESSION_HANDOFF.md` sont à jour au 14/07 (23ᵉ passe : journal du soir ajouté, livrables du jour reflétés). Voir « ✅ Réglés ».
 
 ---
 
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Résidu data-quality ambigu (`perf_decimal`, `asset_class`) — détecteur affiné** — *Réglé le 2026-07-14* : mêmes faux positifs que `vol_decimal`. **`check_perf_decimal`** rendu robuste par **corroboration sharpe** (comme `vol_decimal`) et restreint à `performance_1y` (les 3y/5y sont cumulées) → **998 → 4** (les 4 restants = vraies fractions corroborées). **`check_asset_class_mismatch`** : `euro_garanti` ajouté au mapping attendu des fonds euros/livrets (c'est la bonne `asset_class`, pas un défaut) → **245 → 0**. Total HIGH de l'audit **966 → 5**. Vérifié contre la vraie base (read-only), **aucune donnée mutée** (correctif = le détecteur, `scripts/migrations/audit-data-quality.py`). Cf. [[compute-metrics-stale-window-gotcha]].
+
+- **`/simulateur` ajouté à la visite guidée (v4)** — *Réglé le 2026-07-14* : l'onglet Simulateur avait son guide de page mais pas d'étape dans la visite de bienvenue. Étape ajoutée (icône `Calculator`, entre Portefeuille et Assurances vie), clé bumpée `charlie_tour_v3_done` → **`v4`**, `WelcomeTour` + `tour.test.ts` alignés. 605 tests verts.
+
+- **`SESSION_HANDOFF.md` rattrapé (journal 14/07 soir)** — *Réglé le 2026-07-14* : ajout en tête du journal 07-14/07 du bloc « consolidation UI + intégration simulateur + affinage audit » (PR #13, `8c26084`, détecteurs data-quality). Doc alignée sur l'état réel.
+
+- **Intégration du simulateur de frais AV (travail de Joseph Betolaud)** — *Réglé le 2026-07-14* (prod `8c26084`) : la branche `feat/simulateur-frais-gains` (page `/simulateur`, `FeeSimulator.tsx`, moteur pur `lib/feeSimulator.ts` + 23 tests, tuile `ui/Kpi` partagée) avait été créée AVANT la fusion Portefeuille/Allocation → elle **modifiait `PortfolioBuilder.tsx` (supprimé) et l'ancien rail**. Intégrée par résolution de conflits : onglet Simulateur (icône `Calculator`) **rebranché sur le rail refondu** (nav sans Allocation, cabinet en pied), titre topbar + **entrée `pageGuide` /simulateur** ajoutés (évite le repli « Accueil », même correctif que /allocation & /cabinet), sa modif du `PortfolioBuilder` abandonnée, extraction `ui/Kpi` **conservée et réutilisée** par `PortfolioBacktest` (fini le doublon). Joseph crédité co-auteur. **605 tests verts**, prod vérifiée (`/simulateur` 200, rail 6 items). Branche mergée dans main **et supprimée** → repo = `main` seule branche. Cf. [[nav-merge-portefeuille-allocation-cabinet-footer]].
+
+- **Fusion Allocation → Portefeuille (un seul onglet) + Cabinet en réglages + nettoyage** — *Réglé le 2026-07-14* (PR #13, prod `01a1c17`) : retour utilisateur = trop d'onglets qui font double emploi. **Allocation et Portefeuille fusionnés** en un onglet **Portefeuille** unique (socle = `AllocationStudio` conservé + **back-test historique greffé** `PortfolioBacktest` rendu si `source==="api"` ; `/allocation` → `redirect("/portefeuille")` ; `PortfolioBuilder` supprimé). **Mon cabinet** quitte la nav principale → **pied de rail** comme un réglage (icône profil `UserCircle`), page + `CabinetForm` **dégraissés** (moins de sous-titres décoratifs). Guides (`pageGuide`), visite guidée (`tour.ts`, clé **v3**), topbar et tests alignés. Parcours vérifié : /design-review (A-, 2 fixes : titre topbar /cabinet + note de cascade prématurée) → /qa (0 bug) → ship → finito. **Back-test réel vu en prod** (contrat Abeille Vie::Lucya Abeille, courbe vs MSCI World, Sharpe 2.85). Nettoyage inclus : route `/api/portfolio/pdf` + `lib/PortefeuillePDF.tsx` orphelines supprimées (PortfolioBuilder était leur seul appelant). Cf. [[nav-merge-portefeuille-allocation-cabinet-footer]].
 
 - **`vol_decimal` (2 383 « vol en fraction ») — FAUX POSITIF élucidé, détecteur corrigé** — *Réglé le 2026-07-14* : l'audit après data-quality criait à 2 383 volatilités « en fraction » (0,15 = 15 %). **Investigation** : ce sont en réalité de **vraies faibles volatilités** (oblig courte / monétaire / fonds euros ≈ 0) ou des **séries de prix quasi-plates** (fonds neufs/illiquides), PAS des fractions. **Preuve décisive** : sur **1 363 fonds testables** (vol_1y<1 avec sharpe+perf), le sharpe stocké corrobore la valeur **telle quelle** (`sharpe·vol ≈ perf−rf`) pour **1 363**, et l'hypothèse « fraction » (×100) pour **0**. Un `×100` en masse aurait **corrompu** 1 363+ fonds — d'où le refus de « fixer » l'apparence. **Correctif = le détecteur, pas la donnée** : `check_vol_decimal` (`audit-data-quality.py`) exige désormais une **corroboration sharpe** sur la fenêtre 1 an (perf annuelle ; la 3 ans est cumulée → écartée car elle générait de faux positifs sur séries dégénérées) → `vol_decimal` **2 383 → 0**, total HIGH de l'audit **3 638 → 966**. **Aucune donnée prod mutée.** Cf. [[compute-metrics-stale-window-gotcha]] + [[insane-risk-metrics-gate]].
 

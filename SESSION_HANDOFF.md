@@ -13,6 +13,16 @@
 
 ## 🔄 Journal 07-14/07 — Allocation, cabinet, référencement & data-quality
 
+**14/07 (soir) — Consolidation UI + intégration simulateur + affinage audit (tout EN PROD, vérifié).**
+- **Fusion Allocation → Portefeuille** (PR #13, prod `01a1c17`) : un seul onglet **Portefeuille** = socle `AllocationStudio` (profil → allocation optimisée) + **back-test historique greffé** (`PortfolioBacktest`, rendu si `source==="api"`) + proposition PDF/PPTX. `/allocation` → `redirect("/portefeuille")`. `PortfolioBuilder` supprimé.
+- **Mon cabinet en pied de rail** (réglages, icône profil `UserCircle`), page + `CabinetForm` dégraissés. Guides (`pageGuide`), visite guidée (`tour.ts`) et topbar alignés. Vérifié : /design-review (A-, 2 fixes) → /qa (0 bug) → back-test réel vu en prod (Abeille Vie::Lucya Abeille, vs MSCI World, Sharpe 2.85).
+- **Nettoyage** : route `/api/portfolio/pdf` + `lib/PortefeuillePDF.tsx` orphelines supprimées.
+- **Intégration du simulateur de frais AV de Joseph** (prod `8c26084`) : page `/simulateur` + moteur `feeSimulator.ts` (23 tests) + `ui/Kpi` partagé, rebranché sur le rail refondu (conflits résolus : sa modif du `PortfolioBuilder` supprimé abandonnée). Branche `feat/simulateur-frais-gains` mergée **et supprimée** → repo = `main` seule branche. `/simulateur` ajouté à la visite guidée (clé tour **v4**).
+- **Affinage détecteur data-quality** (`audit-data-quality.py`, read-only, aucune donnée mutée) : `check_perf_decimal` durci par corroboration sharpe comme `vol_decimal` (**998 → 4** vrais cas) ; mapping `asset_class` : `euro_garanti` reconnu pour fonds euros/livrets (**245 → 0**). Total HIGH de l'audit **966 → 5**.
+- **605 tests verts**, `main` seule branche, working tree propre.
+
+---
+
 **Plateforme d'allocation `/allocation` (07-13/07)** : réponse au retour CGP « générer une
 allocation à partir d'un profil client ». Studio interactif (`AllocationStudio.tsx`,
 `lib/allocationService.ts` + `optimizer.ts`) branché sur `/api/portfolio/optimize` (fonds réels
