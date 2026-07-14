@@ -66,6 +66,12 @@ jobs:
       # (utile, rapide) → il repasse vert.
       - name: SFDR enricher — KID (fill-only, manuel uniquement)
         if: github.event_name != 'schedule'
+        # Ceinture + bretelles : l'étape KID a son PROPRE timeout (< le timeout du job)
+        # et n'échoue pas le run. Ainsi même un run manuel/mensuel où KID est long se
+        # termine VERT (l'annexe ci-dessus, elle, doit passer) au lieu d'être « cancelled »
+        # par le timeout global. Le drain KID est fill-only → repris au run suivant.
+        timeout-minutes: 90
+        continue-on-error: true
         run: |
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
