@@ -96,12 +96,24 @@ def check_perf_decimal(funds: list[dict]) -> dict:
         p, s, v = _f(f.get("performance_1y")), _f(f.get("sharpe_1y")), _f(f.get("volatility_1y"))
         if p is None or p == 0 or not (abs(p) < 1):
             continue
-        if s is None or v is None or v <= 0:
-            continue  # non corroborable → on s'abstient
-        target = s * v  # excès de rendement annualisé impliqué par le sharpe (%)
-        err_real = abs((p - RF) - target)
-        err_frac = abs((p * 100.0 - RF) - target)
-        if err_frac < err_real:  # le ×100 colle mieux au sharpe → vraie fraction
+        # Plancher de vol : quand vol ≈ 0 (stablecoin, fonds plat), le sharpe est du
+        # bruit. On exige une vol d'au moins 1 % (en %) et un sharpe non nul.
+        if s is None or v is None or v < 1.0 or s == 0:
+            continue  # non corroborable de façon fiable → on s'abstient
+        # Double corroboration (signe ET magnitude), sinon ambigu → s'abstenir :
+        #  (a) SIGNE : le sharpe contredit l'hypothèse réelle mais colle au ×100
+        #      (ex. sharpe > 0 impose perf > rf, or perf réelle < rf) ;
+        #  (b) MAGNITUDE : le ×100 tombe QUANTITATIVEMENT près de l'excès impliqué
+        #      par le sharpe (sharpe·vol), à moins de MAG_TOL points — ça écarte les
+        #      cas où le signe colle mais où le ×100 serait aberrant (oblig/court terme
+        #      à +32/+50 % alors que le sharpe n'implique que ~4 %).
+        MAG_TOL = 5.0
+        target = s * v
+        excess_real = p - RF
+        excess_frac = p * 100.0 - RF
+        if (s * excess_real < 0
+                and abs(excess_frac - target) < MAG_TOL
+                and abs(excess_frac - target) < abs(excess_real - target)):
             hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
                          "field": "performance_1y", "value": p})
     return {
@@ -249,10 +261,17 @@ def check_ter_mismatch(funds: list[dict]) -> dict:
 
 
 def check_aum_currency(funds: list[dict]) -> dict:
-    """AUM en devise locale (val > 1000 Mrd€)."""
+    """AUM en devise locale (val > 1000 Mrd€).
+
+    ⚠ Exclut les cryptos : leur capitalisation dépasse LÉGITIMEMENT 1000 Mrd€
+    (Bitcoin ≈ 1,1 T€, Ethereum plusieurs centaines de Mrd€) — ce n'est pas un
+    problème de devise mais une vraie market cap.
+    """
     hits = []
     for f in funds:
         v = f.get("aum_eur")
+        if f.get("product_type") == "crypto":
+            continue
         if v is not None and int(v) > 1_000_000_000_000:
             hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
                          "aum_eur": int(v), "currency": f.get("currency")})
