@@ -101,22 +101,50 @@ def check_perf_decimal(funds: list[dict]) -> dict:
 
 
 def check_vol_decimal(funds: list[dict]) -> dict:
-    """Volatilité 0 < val < 1 = probablement en fraction."""
+    """Volatilité VRAIMENT encodée en fraction (0.15 = 15%), corroborée par le sharpe.
+
+    ⚠ PIÈGE (audité le 14/07/2026) : une vol 0<v<1 est le plus souvent une **vraie**
+    faible volatilité (oblig courte, monétaire, fonds euros ≈ 0) ou le produit d'une
+    série de prix quasi-plate (fonds neuf/illiquide) — PAS une fraction. Un ×100 en
+    masse corromprait ces fonds. Preuve : sur 1 363 fonds vol<1 testables, 1 363
+    collaient à l'hypothèse « réelle » (sharpe*vol ≈ perf−rf) et 0 à « fraction ».
+
+    On ne flague donc QUE si le sharpe stocké corrobore un facteur ×100 :
+    sharpe·vol doit ≈ (perf − rf) ; si c'est sharpe·vol·100 qui colle mieux, alors la
+    vol est réellement encodée en fraction. Les cas non corroborables (sharpe/perf
+    absents) ne sont PAS flagués (défaut sûr — ne jamais ×100 à l'aveugle).
+
+    ⚠ Test limité à la fenêtre **1 an** : performance_1y est annuelle (comparable à un
+    sharpe/vol annualisés). performance_3y/5y sont CUMULÉES (cf. conventions), donc les
+    mêler à un sharpe annualisé produit de faux positifs (vérifié : les « hits » 3y
+    étaient des séries dégénérées, pas des fractions propres).
+    """
+    RF = 3.0  # taux sans risque approximatif (%), suffisant pour départager ×100
     hits = []
     for f in funds:
-        for field in ("volatility_1y", "volatility_3y"):
-            v = _f(f.get(field))
-            if v is not None and 0 < v < 1:
-                hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
-                             "field": field, "value": v})
+        v, s, p = _f(f.get("volatility_1y")), _f(f.get("sharpe_1y")), _f(f.get("performance_1y"))
+        if v is None or not (0 < v < 1):
+            continue
+        if s is None or p is None or s == 0:
+            continue  # non corroborable → on s'abstient (la plupart sont de vraies faibles vol)
+        excess = p - RF
+        err_real = abs(s * v - excess)
+        err_frac = abs(s * v * 100.0 - excess)
+        if err_frac < err_real:  # le ×100 colle mieux au sharpe → vraie fraction
+            hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
+                         "field": "volatility_1y", "value": v})
     return {
         "check": "vol_decimal",
         "severity": "high",
-        "description": "Volatilité en fraction (0.15 = 15%) au lieu de %.",
+        "description": "Volatilité RÉELLEMENT en fraction (corroborée par le sharpe : sharpe·vol·100 ≈ perf−rf).",
         "count": len(hits),
         "by_type": dict(Counter(h["product_type"] for h in hits)),
         "samples": hits[:10],
-        "fix_recommendation": "Multiplier par 100 si vol < 1 (le seuil est sûr car même un livret est >= 0).",
+        "fix_recommendation": (
+            "Multiplier UNIQUEMENT cette fenêtre par 100, puis recomputer le sharpe. "
+            "NE JAMAIS ×100 en masse tous les vol<1 : la grande majorité sont de VRAIES "
+            "faibles volatilités (oblig/monétaire/fonds euros) ou des séries quasi-plates."
+        ),
     }
 
 
