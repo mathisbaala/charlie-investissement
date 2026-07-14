@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
+import { Kpi } from "@/components/ui/Kpi";
 import { pct } from "@/lib/format";
 import {
   normalizeWeights, serializePortfolioParams, mergeCurves,
@@ -30,20 +31,6 @@ function frMonth(d: string | null | undefined): string {
   if (isNaN(x.getTime())) return "";
   const s = x.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "ok" | "bad" | null }) {
-  return (
-    <div className="md:flex-1 rounded-xl border border-line bg-paper px-3 py-3 md:px-5 md:py-4 text-center min-w-0">
-      <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1.5 truncate">{label}</p>
-      <p
-        className={`text-title md:text-title-lg leading-none ${tone === "ok" ? "text-ok" : tone === "bad" ? "text-danger" : "text-ink"}`}
-        style={{ fontFamily: "var(--font-sans)" }}
-      >
-        {value}
-      </p>
-    </div>
-  );
 }
 
 export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
@@ -81,7 +68,10 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
   return (
     <Card className="px-5 py-5">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-        <h2 className="text-label text-ink font-semibold">Back-test historique</h2>
+        <h2 className="text-label text-ink font-semibold">
+          Back-test historique
+          {loading && ready && <span className="ml-2 text-meta text-muted font-normal">recalcul…</span>}
+        </h2>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-line overflow-hidden">
             {PERIODS.map((p) => (
@@ -110,7 +100,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
       </p>
 
       {ready && (
-        <div className="grid grid-cols-2 md:flex md:gap-3 gap-2.5 mb-5">
+        <div className={`grid grid-cols-2 md:flex md:gap-3 gap-2.5 mb-5 transition-opacity ${loading ? "opacity-40" : ""}`}>
           <Kpi label="Perf. annualisée" value={fmtPct(ratios!.annual_return, true)} tone={signTone(ratios!.annual_return)} />
           <Kpi label="Perf. totale" value={fmtPct(ratios!.total_return, true)} tone={signTone(ratios!.total_return)} />
           <Kpi label="Volatilité" value={fmtPct(ratios!.volatility)} />

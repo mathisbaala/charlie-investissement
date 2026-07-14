@@ -20,6 +20,7 @@ function breadcrumb(pathname: string): { label: string; href: string }[] {
 const TAB_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/recherche", title: "Recherche" },
   { prefix: "/portefeuille", title: "Portefeuille" },
+  { prefix: "/simulateur", title: "Simulateur de frais" },
   { prefix: "/assureurs", title: "Assurances vie" },
   { prefix: "/documents", title: "Documents" },
   { prefix: "/cabinet", title: "Mon cabinet" },

@@ -3,7 +3,7 @@ export {
   Search, FileText, Download, Upload, X, Plus, RefreshCw,
   SlidersHorizontal, Check, ChevronRight, ChevronDown, ArrowLeft,
   ArrowRight, ArrowDown, ArrowUp, LayoutGrid, AlertTriangle,
-  ArrowUpDown, TrendingUp, Shield, Loader2, Target, Wallet, UserCircle
+  ArrowUpDown, TrendingUp, Shield, Loader2, Target, Wallet, UserCircle, Calculator
 } from "lucide-react";
 
 // Charlie brand logo — uses the official mark PNG

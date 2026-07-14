@@ -103,6 +103,31 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     },
   },
   {
+    prefixes: ["/simulateur"],
+    guide: {
+      title: "Simulateur de frais",
+      intro:
+        "Le simulateur de frais et de gains d'une assurance vie. Montre les deux étages de frais que porte le client final (contrat + unités de compte) et leur effet sur la performance nette, année par année.",
+      sections: [
+        {
+          heading: "Sur cette page",
+          items: [
+            "Les paramètres du contrat (frais d'entrée / gestion / sortie) et des UC, pré-remplis par des valeurs de place, surchargeables.",
+            "Des UC réelles ajoutées depuis la base (performance 5 ans et frais réels), pondérées.",
+            "Les résultats : valeur nette vs brute, coût de structure, part des frais dans le gain, courbe des frais cumulés par poste, projections 5 / 10 / 15 ans, détail par UC.",
+          ],
+        },
+        {
+          heading: "Comment l'utiliser",
+          items: [
+            "Renseignez le contrat et le montant, ajoutez les UC du client, ajustez les frais si besoin.",
+            "Lisez les frais en regard des gains (transparence DDA) et comparez les projections par horizon.",
+          ],
+        },
+      ],
+    },
+  },
+  {
     prefixes: ["/cabinet"],
     guide: {
       title: "Mon cabinet",

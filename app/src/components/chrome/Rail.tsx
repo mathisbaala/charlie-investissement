@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Logo, FileText, LayoutGrid, Shield, TrendingUp, UserCircle } from "@/components/ui/icons";
+import { Logo, FileText, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
 
 // La recherche n'a pas d'onglet dédié : c'est le prolongement de l'accueil, qu'on
 // atteint en lançant une requête / un profil client (ou en partant d'un assureur).
@@ -13,6 +13,7 @@ const NAV = [
   { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
   { href: "/assureurs",    icon: Shield,     label: "Assurances vie" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
+  { href: "/simulateur",   icon: Calculator, label: "Simulateur de frais" },
   { href: "/documents",    icon: FileText,   label: "Documents" },
 ];
 
