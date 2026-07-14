@@ -45,6 +45,7 @@ type ContractTerms = {
   source_url: string | null;
   as_of: string | null;
   confidence: "scraped" | "curated" | "indicative";
+  notes: string | null;
 };
 type ContractOverview = {
   key: string;
@@ -214,8 +215,21 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
         </div>
       </div>
 
-      <p className="text-caption text-muted-2 mt-4">
-        {CONFIDENCE_LABEL[terms.confidence]}
+      {terms.notes && (
+        <p className="text-caption text-muted mt-4 max-w-[80ch] leading-relaxed">
+          <span className="text-muted-2 font-semibold uppercase tracking-widest">Précisions&nbsp;: </span>
+          {terms.notes}
+        </p>
+      )}
+
+      <p className="text-caption text-muted-2 mt-3">
+        {terms.source_url ? (
+          <a href={terms.source_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-ink-2">
+            {CONFIDENCE_LABEL[terms.confidence]}
+          </a>
+        ) : (
+          CONFIDENCE_LABEL[terms.confidence]
+        )}
         {terms.as_of ? ` · millésime ${new Date(terms.as_of).getFullYear()}` : ""}
         {sourceHost ? ` · source ${sourceHost}` : ""}
       </p>
