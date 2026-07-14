@@ -1,5 +1,11 @@
 # Chantiers — Charlie Investissement
 
+> Dernier audit : 2026-07-14 (21ᵉ passe — première réconciliation depuis le 29/06). **Santé : excellente** — `tsc` clean, **584/584 tests verts** (41 fichiers), working tree propre, **une seule branche `main`**, 0 marqueur TODO/FIXME réel, 0 test désactivé. **Trois semaines de gros livrables** enfin reflétés (voir « ✅ Réglés ») : **plateforme /allocation** (max-Sharpe, frontière efficiente Markowitz, HRP, goal-based, préférences client, **rétrocessions** via **/cabinet**, export **PPTX Métagram** + PDF), **onglet /cabinet** (partenariats / contrats / conventions de rétrocession), **chatbot → guide contextuel de page**, refonte design (Inter + accent clay désaturé), référencement **MAIF Vie / Generali Vie France / Generali Lux**, **pipeline data-quality 09/07**. Backlog de fond **soldé** ; chantiers ouverts = surveillance passive (drains auto) ou décisions tranchées. **2 signaux mineurs** : workflow **SFDR/DDA annulé chaque semaine à 2h** (étape KID déborde le timeout, silencieux) et **refresh AV non-navigateur en échec** (blocage IP connu, variante navigateur OK).
+>
+> **Les 3 points signalés le 14/07 ont été traités le jour même** (voir « ✅ Réglés ») : (1) 🟡 étape KID du workflow SFDR **retirée du cron hebdo** (gardée en manuel + monthly-pipeline) → le run planifié repasse vert ; (2) ⚪ commentaire `allocation/page.tsx` **rafraîchi** ; (3) ⚪ pipeline data-quality 09/07 **appliqué en prod** (624 perfs fraction→%, 74 ter, 12 entités HTML, 5 vol saturées + recalculs). Reste ouvert : les drains auto (surveillance) et le workflow SFDR à re-vérifier vert au prochain mardi.
+
+> _Bannières et historique des passes 16–20 (25–29/06) conservés ci-dessous._
+
 > 🚀 **25/06 — Moteur PORTEFEUILLE livré (Partie 2, retour client CGP)** : pondération →
 > ratios (perf annualisée/vol/Sharpe/max DD) → **matrice de corrélation** → **back-test vs
 > benchmark** (overlay + sur/sous-perf) → **projection en euros** → **lien partageable** (sans
@@ -69,6 +75,17 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ---
 
+## 🐛 Bugs & fragilités
+
+### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (à re-vérifier vert)
+- **Priorité** : 🟡 → **résolu**, sous observation d'un run planifié
+- **Détecté le** : 2026-07-14 · **Corrigé le** : 2026-07-14 (voir « ✅ Réglés »)
+- **Ce qui était cassé** : le run hebdo (mardi 04:00 UTC) était **`cancelled` à ~2h chaque semaine** (30/06, 07/07, 14/07) — l'étape KID `--limit 4000` débordait le `timeout-minutes: 120`. Silencieux car `cancelled` ≠ `failure` (aucune alerte).
+- **Fix** : étape KID **retirée du cron hebdo** (`if: github.event_name != 'schedule'`), gardée en manuel + `monthly-pipeline`. Le run planifié = étape annexe seule (utile, rapide).
+- **Reste à faire** : **confirmer 1 run planifié vert** au prochain mardi (04:00 UTC).
+
+---
+
 ## 🚧 Chantiers en cours
 
 ### Drain composition look-through (OPCVM)
@@ -79,22 +96,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 - **Comment l'aborder** : **ne rien faire** — le cron quotidien (02:00 UTC, anti-throttle) draine ~24 % du pool non-tenté en fond sur ~15 jours puis se tarit (recyclage TTL 30j). Surveillance passive : alerte issue si échec. Ne pas lancer de runs dos à dos (throttle Morningstar).
 - **Effort estimé** : rapide (surveillance only)
 
-### Drain durabilité MiFID (annexe SFDR) — câblé 29/06, AU PLAFOND (correction d'estimation)
-- **Priorité** : ⚪ Mineure (révisée à la baisse)
+### Drain durabilité MiFID (annexe SFDR) — AU PLAFOND, surveillance passive
+- **Priorité** : ⚪ Mineure
 - **Détecté le** : 2026-06-29
 - **Où** : `scripts/enrichers/sfdr-annex-enricher.py` + `.github/workflows/sfdr-refresh.yml` (hebdo) + `scripts/cron/monthly-pipeline.py`
-- **🔴 CORRECTION (surveillance /recul 29/06)** : l'estimation initiale « ~6 650 fonds à drainer sur 3 semaines » était **fausse**. L'enricher n'adresse que les `kid_url` **Morningstar avec `documenttype=299`** (swap →398) = **831 fonds**, et ils sont **TOUS déjà traités** (186 remplis MiFID, ~640 sans annexe publiée = plafond structurel). Les ~8 300 autres Art.8/9 ont un `kid_url` d'une autre forme, **non adressable** par cet enricher. → **pas de backlog**, couverture MiFID plafonnée à ~186. J'avais confondu « a un kid_url » (7 481) avec « a le kid_url adressable » (831).
-- **Ce qui est fait (29/06)** : enricher annexe **câblé** (hebdo + mensuel + manuel). Défaut d'intégration corrigé (commit `e3b91a8`) : étape annexe **en premier**, étapes **bornées** sur cadence planifiée (l'étape KID sans limite monopolisait le run → timeout). Le câblage sert désormais de **filet** (rattrape les nouveaux fonds adressables) + **draine le backlog KID** par lots.
-- **Comment l'aborder** : **surveillance passive**, rien de plus à attendre côté MiFID (plafond atteint). Aller au-delà de ~186 = **autre source** (sites émetteurs / registre AMF SFDR) = chantier données séparé, aujourd'hui won't-do (amfinesoft testé KO). Cf. [[sustainability-dda]].
+- **Le problème** : couverture MiFID plafonnée à ~186 (l'enricher n'adresse que les `kid_url` Morningstar `documenttype=299`→398 = 831 fonds, **tous déjà traités**). L'étape annexe **passe bien** chaque semaine. Aller au-delà = **autre source** (sites émetteurs / registre AMF SFDR) = chantier données séparé, aujourd'hui won't-do (amfinesoft testé KO). Cf. [[sustainability-dda]].
+- **⚠ Note (14/07)** : l'étape KID du **même workflow** déborde le timeout de 2h et fait annuler le run → voir « 🐛 Workflow SFDR/DDA annulé chaque semaine à 2h ». L'étape MiFID (annexe) n'en pâtit pas (elle tourne en premier).
+- **Comment l'aborder** : surveillance passive côté MiFID (plafond atteint).
 - **Effort estimé** : rapide (surveillance only)
-
-### Drain composition look-through — échec 29/06 diagnostiqué = contention de verrous (one-off probable)
-- **Priorité** : 🟡 Moyenne — **sous surveillance** (refermer issue #7 après 1 run vert)
-- **Détecté le** : 2026-06-29
-- **Où** : `holdings-drain-auto.yml`, étape « Dériver allocation_profile » → RPC `inv_fill_allocation_profile_from_composition()`
-- **Le problème** : run `28353947778` échoué sur `57014 statement timeout` à 08:54. **Diagnostic (surveillance 29/06)** : ce n'est PAS une lenteur de requête — l'agrégation mesurée = **1,9 s** (`EXPLAIN ANALYZE`, ~330k holdings, seq scan), le RPC réexécuté à la main = **OK, 4 lignes remplies** (résidu du run échoué rattrapé). Cause la plus probable = **contention de verrous** : les migrations sécu du jour (`REVOKE ALL ON ALL TABLES`, 08:48-09:00) prenaient un ACCESS EXCLUSIVE bref sur `investissement_funds`/`_holdings` pile pendant l'UPDATE du drain → l'UPDATE a attendu et dépassé le `statement_timeout` du client postgrest. → **collatéral des migrations, pas un défaut du pipeline ; one-off attendu** (succès 26/27/28, migrations terminées).
-- **Comment l'aborder** : **surveiller le run de demain** (auto 02:00 UTC) — il devrait repasser vert. Si récidive (≠ migration concurrente) : alléger/paginer la requête ou monter le `statement_timeout` de l'étape. **Refermer l'issue #7 après 1 run vert.**
-- **Effort estimé** : rapide (surveillance) ; moyen seulement si récidive
 
 ---
 
@@ -154,11 +163,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ## ✨ Features & améliorations
 
 ### (aucun chantier ouvert)
-L'ajout inline de fonds depuis la page Portefeuille est **livré le 25/06** (voir « ✅ Réglés »). La transparence du score d'adéquation est un **won't-do ferme** (voir ⏸️).
+Les deux grandes réponses au retour CGP sont **livrées** : moteur **portefeuille** (25/06) et **plateforme d'allocation** `/allocation` + onglet **/cabinet** (07–13/07, voir « ✅ Réglés »). L'ajout inline de fonds depuis le portefeuille est livré (25/06). La transparence du score d'adéquation reste un **won't-do ferme** (voir ⏸️).
 
 ---
 
 ## 🧹 Dette technique
+
+### (pipeline data-quality — réglé le 14/07)
+Les 6 correctifs d'unités étaient bien **non appliqués** en prod (dry-run du 14/07 : ~600 lignes sales restantes). **Appliqués via `run-data-quality-fixes.sh APPLY=1`** — voir « ✅ Réglés ».
 
 ### (élagage branches — réglé le 29/06)
 Les 4 branches locales mergées du sprint 28/06 sont **supprimées le 29/06** (voir « ✅ Réglés »). Il ne reste que `main` (local et remote). *Historique* : 22 branches locales élaguées le 25/06, 3 remote le 27/06.
@@ -170,16 +182,48 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### (aucun écart ouvert)
-L'écart signalé en 5ᵉ passe (titre `SESSION_HANDOFF.md` périmé) est **corrigé** : le
-fichier est désormais titré « Session Handoff — 23 juin 2026 » et son journal va jusqu'au
-23/06. Aucun autre écart doc↔code détecté à cette passe.
+### Commentaire périmé dans `allocation/page.tsx` (« Version démo »)
+- **Priorité** : ⚪ Mineure
+- **Détecté le** : 2026-07-14
+- **Où** : `app/src/app/(app)/allocation/page.tsx:5-7`
+- **L'écart** : l'en-tête dit « Version démo (univers d'exemple) ; branchable sur /api/portfolio/optimize » — or depuis le commit `db85175` (10/07) le studio **est** branché sur `/api/portfolio/optimize` (fonds réels du contrat, corrélations DB), avec repli démo seulement si la base n'est pas joignable. Le commentaire du composant `AllocationStudio.tsx:48-49` est, lui, correct.
+- **Proposition** : réécrire le commentaire de `page.tsx` pour dire « branché sur la base réelle, repli démo si base injoignable ».
+
+### `SESSION_HANDOFF.md` et `CHANTIERS.md` ont pris ~3 semaines de retard (CHANTIERS rattrapé ce jour)
+- **Priorité** : ⚪ Mineure
+- **Détecté le** : 2026-07-14
+- **L'écart** : `CHANTIERS.md` était figé au 29/06 alors que 3 semaines de gros livrables (allocation, cabinet, refonte design, référencement) n'y figuraient pas → **rattrapé dans cette 21ᵉ passe**. `SESSION_HANDOFF.md` (dernière entrée ~23/06) reste en retard.
+- **Proposition** : veux-tu que je mette aussi `SESSION_HANDOFF.md` à jour (journal 07–13/07) ? Reste en mode « proposer sans modifier » tant que tu ne valides pas.
 
 ---
 
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Workflow SFDR/DDA annulé chaque semaine à 2h — corrigé** — *Réglé le 2026-07-14* : l'étape KID (`sfdr-enricher.py`) débordait le `timeout-minutes: 120` et faisait annuler (`cancelled`) le run hebdo chaque semaine, en silence (cancelled ≠ failure → aucune alerte). **Retirée du cron hebdo** (`if: github.event_name != 'schedule'` dans `sfdr-refresh.yml`) : le run planifié n'exécute plus que l'étape **annexe** (utile, rapide) → il repasse vert. Le drain KID reste couvert par `monthly-pipeline` (étape `enrichers/sfdr-enricher.py`) + le manuel (`workflow_dispatch`, sans limite). YAML validé. Cf. [[sustainability-dda]].
+
+- **Pipeline data-quality 09/07 — appliqué en prod** — *Réglé le 2026-07-14* : les 6 correctifs d'unités (versés le 13/07, DRY-RUN par défaut) n'avaient **jamais été appliqués** en base (dry-run du 14/07 : ~600 lignes encore sales). **Appliqués via `run-data-quality-fixes.sh APPLY=1`** (ordre imposé par `docs/data-standards.md`) : **624 perfs** fraction→% (bug visible : fonds affichant 0,62 % au lieu de 61,87 %), **74 ter** alignés sur `ongoing_charges` (KID), **12 entités HTML** décodées (`&amp;`→`&`), **5 volatilités saturées** (>200 %) → NULL ; AUM devise locale et asset_class = 0 (déjà propres). Suivis des recalculs métier (average-perf, track-record) + **completeness v2** (`--per-type`). Audits avant/après `/tmp/audit-{before,after}.json`. Cf. [[completeness-recompute-pipeline]].
+
+- **Commentaire `allocation/page.tsx` rafraîchi** — *Réglé le 2026-07-14* : le commentaire disait « Version démo (univers d'exemple) » alors que le studio est branché sur `/api/portfolio/optimize` (base réelle, repli démo si injoignable) depuis le 10/07. Réécrit pour refléter le vrai comportement.
+
+- **Plateforme d'allocation optimisée `/allocation`** — *Réglé le 2026-07-13* : réponse au retour CGP « générer une allocation à partir d'un profil client ». Studio interactif (`AllocationStudio.tsx`, `lib/allocationService.ts` + `optimizer.ts`) branché sur `/api/portfolio/optimize` (fonds réels du contrat, corrélations DB, repli démo si base injoignable) : **max-Sharpe par contrat**, **frontière efficiente Markowitz interactive** (plan risque/rendement), **HRP** (corrélations robustes), **goal-based**, **préférences client** + poches par SRI, **rétrocessions réelles** (via l'onglet /cabinet). Restitutions : **export PowerPoint `.pptx` éditable au format Métagram** (`allocationPptx.ts`), **PDF** (`allocationReportPdf`), rationale généré (`allocationRationale.ts`). Démo autonome `npm run demo:allocation`. Profil client réutilisé depuis l'accueil (plus de re-saisie). Couvert par de nombreux tests (`allocation*.test.ts`, `cabinet.test.ts`). Guide `docs/allocation-optimizer.md`. Cf. [[portfolio-chantier-direction]].
+
+- **Onglet « Mon cabinet » `/cabinet`** — *Réglé le 2026-07-13* : données STRUCTURELLES du cabinet (partenariats assureurs, contrats distribués, **conventions de rétrocession** en cascade : exception par fonds → taux UC du contrat → estimation de place) saisies une fois (`CabinetForm.tsx`, `lib/cabinet.ts`), réutilisées par l'allocation (rémunération estimée sur les vrais taux, plus de saisie libre du contrat). Fix mode strict React (chargement infini du référencement, `cf8188a`).
+
+- **Chatbot remplacé par un guide contextuel de page** — *Réglé le 2026-07-13* : le chatbot IA cède la place à un **guide contextuel par page** (`a33f9b0`) ; visite guidée + guide couvrent désormais `/allocation` et `/cabinet` (`90232ef`).
+
+- **Référencement assureurs — MAIF Vie, Generali Vie France, Generali Lux, AG2R** — *Réglé le 2026-07-13* (PR #12) : scraper **MAIF Vie (ARS)** via l'API JSON publique maif.fr, **Generali Vie France** (contrats directs Himalia + e-Xaélidia), **Generali Lux** nommé distinctement (716 fonds navigables), réparation colonnes **LMEP Easypack (AG2R)**, **Oradéa Vie retirée** du refresh trimestriel (source décommissionnée, issue #11). Seed catalogue AV depuis annexes PDF (CNP…) + cycle de vie des fonds semés (enrichir ciblé puis purger les morts). Cf. [[insurer-referencing]] + [[catalog-expansion-av-seed]].
+
+- **Pipeline de corrections data-quality 09/07** — *Réglé le 2026-07-13 (versé)* : 6 correctifs d'unités one-off (perfs fraction→%, vol saturées→NULL, AUM devise locale, ter↔ongoing_charges, asset_class, entités HTML) + `run-data-quality-fixes.sh` (ordre imposé par `docs/data-standards.md`). DRY-RUN par défaut. ⚠ Application prod à confirmer — voir « 🧹 Dette technique ».
+
+- **Enricher frais courants (TER) via Morningstar EMEA** — *Réglé le 2026-07-10* : `ms-fees` (OngoingCharge/ExpenseRatioNet uniquement), écriture incrémentale + fail-fast au throttle, mode BULK (pagination univers) puis **défaut per-fonds** (bulk = opt-in, footgun retiré), câblé en **shard de rotation mensuel** (drain doux du TER). Cf. [[completeness-recompute-pipeline]].
+
+- **Nettoyage classification — structurés + titres vifs mal classés + management_style SCPI** — *Réglé le 2026-07-10* : détection permanente des **produits structurés** et **titres vifs** mal rangés `opcvm` → reclassés ; SCPI/non-coté ne sont plus étiquetés `management_style='alternatif'` (`f95be09`, backup `..._mgmtstyle_backup_20260708`). Cf. [[mgmt-style-asset-class-collision]] + [[product-type-etf-classification]].
+
+- **Refonte design — registre institutionnel (Inter + clay désaturé)** — *Réglé le 2026-07-10* : police **Inter partout**, **accent clay désaturé**, italiques éditoriaux redressés, grands titres poids 500 + halos terracotta atténués, fil d'Ariane masqué sous mobile. Plusieurs passes de nettoyage (Toast inerte retiré, `--font-hand` retiré, rôle serif redondant collapsé, chemin de recherche `.or()` retiré). Cf. [[design-system]] + [[charte-prospection-alignment]].
+
+- **Remédiations sécu (RLS backup exposé + search_path)** — *Réglé le 2026-07-08* : `af1f642` — correctif RLS sur backup exposé + `search_path` figé + flush incrémental. Cf. [[supabase-security-hardening]].
 
 - **P2 anti-scraping — Vercel WAF posé & validé en prod** — *Réglé le 2026-06-29* : la couche **infra** (au-dessus des couches applicatives) est en place. Mathis a créé **2 règles WAF** dans Vercel → Firewall → Custom Rules (« changes apply without redeployment »), guidé pas à pas : **Règle A** (rate-limit edge) — `path starts with /api/funds OR /api/fonds` → Fixed Window 120 req / 60 s par IP → **429** ; **Règle B** (« Block scraping tools on /api/ ») — `path starts with /api/` AND `User-Agent matches` la regex outils → **Deny** (403). **Gotcha regex résolu** : le moteur RE2 du WAF Vercel **rejette le flag en ligne `(?i)`** (cadre rouge) → remplacé par des classes de caractères sur les initiales : `([Pp]ython-requests|[Cc]url|[Ss]crapy|[Ww]get|[Gg]o-http-client|[Hh]ttpx|okhttp)` (insensibilité à la casse sans flag). **Validé en direct sur `www.charliewealth.fr/api/funds`** : UA Chrome → **200** (vrai trafic passe, 0 faux positif), `python-requests` → **403**, `Scrapy` (S majuscule) → **403** (confirme l'insensibilité à la casse). `Deny` direct jugé sûr ici car le `botGuard` applicatif bloque déjà ces UA en prod + produit web-only (pas d'app mobile/okhttp légitime). Ne cible que `/api/*` → SEO/aperçus de liens intacts. Frein d'urgence **Attack Challenge Mode** laissé OFF (à n'activer qu'en attaque active). Suivi conseillé : Firewall → Observability sous 1-2 j. Guide complet `docs/anti-scraping-p2-vercel-waf.md`. Cf. [[ai-rate-limit]] + [[supabase-security-hardening]].
 

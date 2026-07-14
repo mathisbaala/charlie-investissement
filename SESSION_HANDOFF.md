@@ -1,11 +1,52 @@
-# 📋 Session Handoff — 29 juin 2026
+# 📋 Session Handoff — 14 juillet 2026
 
 > Base du document : journée dense du **19 juin** (26 commits, sprints DDA), réconciliée
 > le **22 juin**, auditée le **23 juin**, **gros chantier PORTEFEUILLE le 25 juin**
-> (retour client CGP — Partie 2), **sprint complétude + sécurité/conformité 28-29 juin**.
-> Voir journal 28-29/06 ci-dessous, puis journal 25/06, + `CHANTIERS.md`.
+> (retour client CGP — Partie 2), **sprint complétude + sécurité/conformité 28-29 juin**,
+> puis **plateforme ALLOCATION + onglet CABINET (07-13 juillet)** et **audit chantier +
+> data-quality (14 juillet)**. Voir journal 07-14/07 ci-dessous, puis 28-29/06, puis
+> 25/06, + `CHANTIERS.md`.
 >
 > Doc précédente (19 mai) archivée dans `docs/bilans/`.
+
+---
+
+## 🔄 Journal 07-14/07 — Allocation, cabinet, référencement & data-quality
+
+**Plateforme d'allocation `/allocation` (07-13/07)** : réponse au retour CGP « générer une
+allocation à partir d'un profil client ». Studio interactif (`AllocationStudio.tsx`,
+`lib/allocationService.ts` + `optimizer.ts`) branché sur `/api/portfolio/optimize` (fonds réels
+du contrat, corrélations DB ; repli démo si base injoignable) : **max-Sharpe par contrat**,
+**frontière efficiente Markowitz** interactive, **HRP** (corrélations robustes), **goal-based**,
+**préférences client** + poches par SRI, **rétrocessions réelles** (via l'onglet cabinet).
+Restitutions : **export PowerPoint `.pptx` éditable au format Métagram**, **PDF**, rationale
+généré. Démo autonome `npm run demo:allocation`. Guide `docs/allocation-optimizer.md`.
+
+**Onglet « Mon cabinet » `/cabinet`** : données structurelles du cabinet (partenariats assureurs,
+contrats distribués, **conventions de rétrocession** en cascade : exception par fonds → taux UC du
+contrat → estimation de place), saisies une fois et réutilisées par l'allocation. Fix mode strict
+React (chargement infini du référencement).
+
+**Chatbot → guide contextuel de page** : le chatbot IA cède la place à un guide contextuel par
+page ; visite guidée + guide couvrent désormais `/allocation` et `/cabinet`.
+
+**Référencement assureurs (PR #12)** : scraper **MAIF Vie (ARS)** via l'API JSON maif.fr,
+**Generali Vie France** (Himalia + e-Xaélidia), **Generali Lux** nommé distinctement (716 fonds),
+réparation colonnes **LMEP Easypack (AG2R)**, **Oradéa Vie retirée** (source décommissionnée).
+Seed catalogue AV depuis annexes PDF (CNP…) + cycle de vie des fonds semés.
+
+**Enricher frais TER (Morningstar EMEA)** : `ms-fees` (OngoingCharge/ExpenseRatioNet), écriture
+incrémentale + fail-fast, câblé en shard de rotation mensuel. **Refonte design** : Inter partout +
+accent clay désaturé, italiques redressés, titres poids 500. **Classif** : structurés + titres
+vifs mal classés reclassés ; SCPI/non-coté ne sont plus `management_style='alternatif'`.
+
+**Audit chantier + data-quality (14/07)** : `CHANTIERS.md` rattrapé (dernier audit 29/06).
+`tsc` clean, **584/584 tests verts**. Fixes du jour : **workflow SFDR/DDA** (étape KID retirée
+du cron hebdo — elle débordait le timeout de 2h et faisait annuler le run en silence ; gardée en
+manuel + monthly-pipeline) ; **commentaire `allocation/page.tsx`** rafraîchi ; **pipeline
+data-quality 09/07 appliqué en prod** (`run-data-quality-fixes.sh APPLY=1` : ~506 perfs
+fraction→%, 75 ter alignés, 9 entités HTML, 5 vol saturées → NULL, + recalculs average-perf /
+track-record / completeness v2). Cf. `CHANTIERS.md` (21ᵉ passe).
 
 ---
 

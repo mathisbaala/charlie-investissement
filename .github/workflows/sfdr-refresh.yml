@@ -58,16 +58,17 @@ jobs:
           fi
 
       # Étape KID best-effort (sfdr_article fill-only ; cul-de-sac pour les 3 % MiFID).
-      # BORNÉE sur cadence planifiée : sans limite, son gros backlog monopolise le
-      # run (>120 min) et provoque un timeout + fausse alerte, en privant l'étape
-      # annexe ci-dessus. Le reliquat est repris au run suivant (déjà aussi dans
-      # monthly-pipeline). Manuel sans limite = drain complet volontaire.
-      - name: SFDR enricher — KID (fill-only, borné)
+      # RETIRÉE du cron hebdo (14/07) : même bornée à 4000, son gros backlog débordait
+      # le timeout de 120 min → le job était « cancelled » CHAQUE semaine (silencieux,
+      # car cancelled ≠ failure → aucune alerte). Le drain KID de fond est déjà couvert
+      # par monthly-pipeline ; on ne la lance donc plus qu'en manuel (workflow_dispatch),
+      # où elle draine tout l'univers sans limite. Le run planifié = étape annexe seule
+      # (utile, rapide) → il repasse vert.
+      - name: SFDR enricher — KID (fill-only, manuel uniquement)
+        if: github.event_name != 'schedule'
         run: |
           if [ -n "${{ github.event.inputs.limit }}" ]; then
             python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-            python3 scripts/enrichers/sfdr-enricher.py --apply --limit 4000
           else
             python3 scripts/enrichers/sfdr-enricher.py --apply
           fi
