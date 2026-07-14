@@ -1,11 +1,11 @@
-import { AllocationStudio } from "@/components/portfolio/AllocationStudio";
+import { StudioInputs } from "@/components/portfolio/StudioInputs";
 
 export const metadata = { title: "Portefeuille · Charlie" };
 
-// Atelier Portefeuille : profil client → allocation optimisée (max-Sharpe / HRP /
-// Markowitz interactif) → back-test historique vs indice → proposition PDF /
-// PowerPoint. Fusionne l'ancien onglet Allocation et l'ancien back-test
-// Portefeuille en un seul parcours, du profil à la proposition d'investissement.
+// Atelier Portefeuille — page 1 : profil client + réglages du conseiller.
+// « Générer le portefeuille » calcule l'allocation optimisée puis redirige vers
+// /portefeuille/resultat, la page entièrement dédiée au portefeuille et à ses
+// métriques (max-Sharpe / HRP / Markowitz interactif, back-test, exports).
 export default function PortefeuillePage() {
-  return <AllocationStudio />;
+  return <StudioInputs />;
 }

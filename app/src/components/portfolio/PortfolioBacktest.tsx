@@ -111,10 +111,10 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
       {!ready && !loading && (
         <p className="text-meta text-muted-2 py-4">
           {analysis?.error
-            ? "Back-test indisponible pour cette allocation."
+            ? "Back-test indisponible pour ce portefeuille."
             : meta && meta.used === 0
               ? "Aucun support retenu n'a d'historique de prix suffisant : back-test indisponible."
-              : "Générez une allocation pour lancer le back-test."}
+              : "Générez un portefeuille pour lancer le back-test."}
         </p>
       )}
 

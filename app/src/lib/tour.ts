@@ -25,7 +25,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "portefeuille",
     title: "Portefeuille",
-    body: "Du profil client à la proposition : allocation optimisée (max-Sharpe ou HRP), Markowitz interactif, back-test face à un indice, restitution PDF et PowerPoint.",
+    body: "Du profil client à la proposition : portefeuille optimisé (max-Sharpe ou HRP), Markowitz interactif, back-test face à un indice, restitution PDF et PowerPoint.",
   },
   {
     key: "simulateur",

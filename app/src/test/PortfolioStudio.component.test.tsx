@@ -1,34 +1,47 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-// AllocationStudio embarque ClientProfileForm, qui utilise useRouter → on le neutralise.
+// L'atelier utilise useRouter (ClientProfileForm, navigation vers la page dédiée,
+// garde de redirection de la vue résultat) → on le neutralise.
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-import { AllocationStudio } from "@/components/portfolio/AllocationStudio";
+import { PortfolioStudioProvider } from "@/components/portfolio/PortfolioStudioContext";
+import { StudioInputs } from "@/components/portfolio/StudioInputs";
+import { StudioResults } from "@/components/portfolio/StudioResults";
 
-describe("AllocationStudio", () => {
+// Les deux vues partagent le contexte du layout ; les monter ensemble reproduit
+// le parcours complet (réglages → portefeuille dédié) sans navigation réelle :
+// « Générer le portefeuille » remplit le contexte et la vue résultat s'affiche.
+function renderStudio() {
+  return render(
+    <PortfolioStudioProvider>
+      <StudioInputs />
+      <StudioResults />
+    </PortfolioStudioProvider>,
+  );
+}
+
+describe("PortfolioStudio", () => {
   beforeEach(() => {
     // Profil vierge → l'outil retombe sur « équilibré » par défaut.
     if (typeof localStorage !== "undefined") localStorage.clear();
   });
 
   it("affiche l'étape profil puis l'étape portefeuille (réglages conseiller)", () => {
-    render(<AllocationStudio />);
+    renderStudio();
     // Étape 1 — profil client (n'existe plus que dans Portefeuille).
     expect(screen.getByText("Profil du client")).toBeTruthy();
     // Étape 2 — portefeuille : réglages du conseiller + génération.
-    // Un seul titre « Portefeuille » (étape 2) : le titre de page a été retiré,
-    // il faisait doublon avec le libellé de la barre du haut.
     expect(screen.getByText("Portefeuille")).toBeTruthy();
-    expect(screen.getByText("Générer l'allocation")).toBeTruthy();
-    // Pas de rapport tant qu'on n'a pas généré.
-    expect(screen.queryByText("Allocation détaillée")).toBeNull();
+    expect(screen.getByText("Générer le portefeuille")).toBeTruthy();
+    // Pas de rapport tant qu'on n'a pas généré (la vue résultat reste vide).
+    expect(screen.queryByText("Portefeuille détaillé")).toBeNull();
   });
 
   it("replie les réglages avancés (moteur/rétrocessions) par défaut, dévoilés au clic", () => {
-    render(<AllocationStudio />);
+    renderStudio();
     // Repliés au départ : ni le moteur ni le départage rétrocessions ne sont montés.
     expect(screen.queryByText("Max-Sharpe")).toBeNull();
     expect(screen.queryByText(/Départage rémunération cabinet/)).toBeNull();
@@ -42,12 +55,12 @@ describe("AllocationStudio", () => {
     expect(screen.getByText(/Départage rémunération cabinet/)).toBeTruthy();
   });
 
-  it("génère l'allocation depuis le profil au clic", () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+  it("génère le portefeuille depuis le profil au clic", async () => {
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
 
+    expect(await screen.findByText("Portefeuille détaillé")).toBeTruthy();
     expect(screen.getByText("Contexte et objectifs")).toBeTruthy();
-    expect(screen.getByText("Allocation détaillée")).toBeTruthy();
     expect(screen.getByText("Analyse et justification par support")).toBeTruthy();
     // Résumé du profil utilisé + boutons d'export.
     expect(screen.getByText(/Profil utilisé/)).toBeTruthy();
@@ -55,21 +68,21 @@ describe("AllocationStudio", () => {
     expect(screen.getByText(/Télécharger \(PDF\)/)).toBeTruthy();
   });
 
-  it("réutilise le profil enregistré (stockage local) pour le résumé", () => {
+  it("réutilise le profil enregistré (stockage local) pour le résumé", async () => {
     localStorage.setItem(
       "charlie_client_profile",
       JSON.stringify({ risk_profile: "dynamique", asset_classes: ["actions"], esg: "art8", max_ter: null, perte_max: null, envelopes: [], exclusions: [], geographies: [], insurers: [] }),
     );
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
-    expect(screen.getByText(/Profil utilisé : Profil Dynamique/)).toBeTruthy();
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
+    expect(await screen.findByText(/Profil utilisé : Profil Dynamique/)).toBeTruthy();
   });
 
-  it("affiche la matrice de corrélation, la colonne Notation et les liens vers les fiches", () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+  it("affiche la matrice de corrélation, la colonne Notation et les liens vers les fiches", async () => {
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
 
-    expect(screen.getByText("Corrélation des supports retenus")).toBeTruthy();
+    expect(await screen.findByText("Corrélation des supports retenus")).toBeTruthy();
     expect(screen.getByText("Notation")).toBeTruthy();
     expect(screen.getByText("Frais")).toBeTruthy();
     // Chaque ligne du tableau pointe vers la fiche du fonds.
@@ -77,16 +90,17 @@ describe("AllocationStudio", () => {
     expect(links.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("retire un fonds de l'allocation, propose un similaire et recalcule sans lui", async () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+  it("retire un fonds du portefeuille, propose un similaire et recalcule sans lui", async () => {
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
+    await screen.findByText("Portefeuille détaillé");
 
     const firstRemove = screen.getAllByLabelText(/^Retirer /)[0];
-    const label = firstRemove.getAttribute("aria-label")!; // « Retirer NOM de l'allocation »
+    const label = firstRemove.getAttribute("aria-label")!; // « Retirer NOM du portefeuille »
     fireEvent.click(firstRemove);
 
     // Bandeau de retrait + suggestion de remplacement similaire.
-    expect(screen.getByText(/retiré de l'allocation/)).toBeTruthy();
+    expect(screen.getByText(/retiré du portefeuille/)).toBeTruthy();
     expect(screen.getByText(/Fonds écartés/)).toBeTruthy();
 
     // Après le recalcul automatique (débouncé), le fonds a quitté le tableau.
@@ -96,8 +110,9 @@ describe("AllocationStudio", () => {
   });
 
   it("le retrait est annulable : le fonds réintègre l'univers", async () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
+    await screen.findByText("Portefeuille détaillé");
 
     const firstRemove = screen.getAllByLabelText(/^Retirer /)[0];
     const label = firstRemove.getAttribute("aria-label")!;
@@ -111,8 +126,9 @@ describe("AllocationStudio", () => {
   });
 
   it("baisser le plafond SRI relance le calcul (filtre trop strict → note d'assouplissement)", async () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
+    await screen.findByText("Portefeuille détaillé");
 
     fireEvent.change(screen.getByLabelText("Plafond SRI par fonds"), { target: { value: "2" } });
 
@@ -122,8 +138,9 @@ describe("AllocationStudio", () => {
   });
 
   it("impose un fonds choisi dans l'univers d'exemple (mode démo)", async () => {
-    render(<AllocationStudio />);
-    fireEvent.click(screen.getByText("Générer l'allocation"));
+    renderStudio();
+    fireEvent.click(screen.getByText("Générer le portefeuille"));
+    await screen.findByText("Portefeuille détaillé");
 
     const select = screen.getByLabelText("Imposer un fonds (univers d'exemple)") as HTMLSelectElement;
     const isin = (select.querySelectorAll("option")[1] as HTMLOptionElement).value;

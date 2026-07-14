@@ -140,7 +140,7 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
 
       {/* Page 2 — tableau détaillé des supports */}
       <Page size="A4" style={s.page}>
-        <SectionIntro eyebrow="03" title="Allocation détaillée" desc={`${p.table.length} supports retenus`} />
+        <SectionIntro eyebrow="03" title="Portefeuille détaillé" desc={`${p.table.length} supports retenus`} />
         <View style={s.card}>
           <View style={s.thead}>
             <Text style={[s.th, s.cNum]}>#</Text>

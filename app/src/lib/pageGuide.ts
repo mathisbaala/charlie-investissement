@@ -79,23 +79,22 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Portefeuille",
       intro:
-        "L'atelier de construction de portefeuille. À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP), la met à l'épreuve d'un back-test historique, et produit la proposition d'investissement (PDF / PowerPoint).",
+        "L'atelier de construction de portefeuille. À partir du profil client et d'un contrat, Charlie construit un portefeuille optimisé (max-Sharpe ou HRP), le met à l'épreuve d'un back-test historique, et produit la proposition d'investissement (PDF / PowerPoint).",
       sections: [
         {
           heading: "Sur cette page",
           items: [
-            "Le profil du client (étape 1), enregistré automatiquement : il pilote les contraintes de l'allocation.",
+            "Le profil du client (étape 1), enregistré automatiquement : il pilote les contraintes du portefeuille.",
             "Les réglages du conseiller : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
-            "L'allocation générée : supports et poids, indicateurs attendus (rendement / volatilité / Sharpe, SRI pondéré), plan de Markowitz interactif et matrice de corrélation.",
-            "Le back-test historique de l'allocation face à un indice, sur la période choisie.",
-            "Les projets du client, une poche par objectif, et le pilotage support par support (imposer, écarter, remplacer).",
+            "« Générer le portefeuille » ouvre une page entièrement dédiée : supports et poids, indicateurs attendus (rendement / volatilité / Sharpe, SRI pondéré), plan de Markowitz interactif, matrice de corrélation et back-test historique.",
+            "Sur cette page dédiée, les projets du client (une poche par objectif) et le pilotage support par support (imposer, écarter, remplacer).",
           ],
         },
         {
           heading: "Comment l'utiliser",
           items: [
-            "Renseignez ou réutilisez le profil, choisissez un contrat, puis générez l'allocation.",
-            "Ajustez les réglages ou les poids (curseurs de Markowitz) : le résultat et le back-test se recalculent.",
+            "Renseignez ou réutilisez le profil, choisissez un contrat, puis générez le portefeuille.",
+            "Sur la page dédiée, ajustez les poids (curseurs de Markowitz) ou écartez un support : le portefeuille et le back-test se recalculent.",
             "Affinez support par support, puis téléchargez la proposition d'investissement en PDF ou PowerPoint.",
           ],
         },
@@ -220,7 +219,7 @@ const HOME_GUIDE: PageGuide = {
       items: [
         "Une barre de recherche en langage naturel : décrivez un fonds (« actions européennes ESG, frais bas ») et l'IA traduit votre phrase en filtres.",
         "La reprise d'activité : vos recherches récentes et vos derniers fonds consultés, pour y revenir en un clic.",
-        "Le profil client, lui, se renseigne dans l'onglet Portefeuille (où il pilote l'allocation).",
+        "Le profil client, lui, se renseigne dans l'onglet Portefeuille (où il pilote le portefeuille).",
       ],
     },
     {

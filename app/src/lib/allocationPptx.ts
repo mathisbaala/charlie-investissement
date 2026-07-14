@@ -62,7 +62,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   s1.addShape("rect", { x: 0, y: 0, w: W, h: 0.16, fill: { color: C.red } }); // barre haute
   s1.addShape("rect", { x: 0, y: 7.34, w: W, h: 0.16, fill: { color: C.red } }); // barre basse
   s1.addText((p.advisor || "CHARLIE INVESTISSEMENT").toUpperCase(), { x: 0.6, y: 0.7, w: 12, h: 0.4, fontFace: FONT, fontSize: 13, color: C.red, bold: true, charSpacing: 2 });
-  s1.addText("Proposition d'allocation d'actifs", { x: 0.6, y: 1.05, w: 12, h: 0.4, fontFace: FONT, fontSize: 13, color: C.lavender });
+  s1.addText("Proposition de portefeuille", { x: 0.6, y: 1.05, w: 12, h: 0.4, fontFace: FONT, fontSize: 13, color: C.lavender });
   s1.addText(p.title, { x: 0.6, y: 2.4, w: 12, h: 1.1, fontFace: FONT_LIGHT, fontSize: 40, color: C.white, bold: true });
   s1.addText(p.subtitle + (p.asOf ? `   ·   ${p.asOf}` : ""), { x: 0.6, y: 3.55, w: 12, h: 0.5, fontFace: FONT, fontSize: 15, color: C.lavender });
 
@@ -113,7 +113,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   // ─── Slide 4 — allocation détaillée ─────────────────────────────────
   const s4 = pptx.addSlide();
   s4.background = { color: C.white };
-  contentHeader(s4, "03", "Allocation détaillée", `${p.table.length} supports retenus`);
+  contentHeader(s4, "03", "Portefeuille détaillé", `${p.table.length} supports retenus`);
   const H = (t: string, align: "left" | "right" | "center" = "left"): pptxgen.TableCell => ({
     text: t, options: { bold: true, color: C.white, fill: { color: C.navy }, fontSize: 9, align, valign: "middle" },
   });

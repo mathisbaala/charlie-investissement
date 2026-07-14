@@ -169,7 +169,7 @@ function roleSentence(line: AllocationLine): string {
 
 function weightSentence(line: AllocationLine): string {
   if (line.weight >= 15)
-    return `Position de conviction (${line.weight} %), pilier de l'allocation.`;
+    return `Position de conviction (${line.weight} %), pilier du portefeuille.`;
   if (line.weight >= 7)
     return `Pondération significative (${line.weight} %) au service du couple rendement/risque.`;
   return `Pondération mesurée (${line.weight} %) pour diversifier sans concentrer le risque.`;
@@ -238,7 +238,7 @@ export function buildPresentation(
     opts.universeSize
       ? `Univers d'investissement : ${opts.universeSize} supports du contrat ${opts.contractName}.`
       : `Univers d'investissement : supports du contrat ${opts.contractName}.`,
-    `Nombre de supports retenus : ${result.lines.length} (allocation resserrée, 4 à 7 lignes).`,
+    `Nombre de supports retenus : ${result.lines.length} (portefeuille resserré, 4 à 7 lignes).`,
   ];
 
   // Convictions = 3 lignes de plus fort poids + une conviction sur le coût moyen.
@@ -257,7 +257,7 @@ export function buildPresentation(
   }
 
   return {
-    title: `Allocation ${profileLabel}, ${opts.contractName}`,
+    title: `Portefeuille ${profileLabel}, ${opts.contractName}`,
     subtitle: `${result.lines.length} supports · profil ${profileLabel}`,
     advisor: opts.advisorName ?? null,
     asOf: opts.asOfLabel ?? null,
