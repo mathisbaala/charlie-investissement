@@ -6,7 +6,7 @@
 
 import type { FundInput, AssetClass } from "./optimizer";
 
-export const SAMPLE_CONTRACT = "Contrat démo::Cardif Elite Lux (exemple)";
+export const SAMPLE_CONTRACT = "Charlie Elite Luxembourg (exemple)";
 
 export const SAMPLE_UNIVERSE: FundInput[] = [
   // Actions
