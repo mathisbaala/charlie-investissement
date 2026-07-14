@@ -74,28 +74,48 @@ def _f(v):
 # ─── Checks ───────────────────────────────────────────────────────────────────
 
 def check_perf_decimal(funds: list[dict]) -> dict:
-    """Performance probablement en fraction (|val|<1, ≠0) → devrait être en %."""
+    """Performance 1 an RÉELLEMENT en fraction (0.05 = 5%), corroborée par le sharpe.
+
+    ⚠ PIÈGE (audité le 14/07/2026 — même logique que check_vol_decimal) : une
+    performance_1y 0<|v|<1 est le plus souvent une VRAIE petite perf annuelle
+    (+0,5 % d'un fonds prudent), PAS une fraction. Un ×100 en masse corromprait
+    ces fonds (le résidu ~900 « perf_decimal » de l'audit était très majoritairement
+    de vraies petites perfs). On ne flague donc QUE si le sharpe stocké corrobore
+    le ×100 : sharpe·vol (annualisés, en %) doit ≈ (perf − rf) ; si c'est
+    (perf·100 − rf) qui colle mieux, la perf est réellement en fraction. Les cas
+    non corroborables (sharpe/vol absents ou nuls) ne sont PAS flagués (défaut sûr,
+    jamais de ×100 à l'aveugle).
+
+    Restreint à performance_1y : performance_3y/5y sont CUMULÉES (cf. conventions),
+    donc non comparables à un sharpe/vol annualisés — les mêler produit de faux
+    positifs (même raison que pour vol_decimal).
+    """
+    RF = 3.0  # taux sans risque approximatif (%), suffisant pour départager ×100
     hits = []
     for f in funds:
-        for field in ("performance_1y", "performance_3y", "performance_5y"):
-            v = _f(f.get(field))
-            if v is not None and v != 0 and abs(v) < 1:
-                hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
-                             "field": field, "value": v})
-    by_type = Counter(h["product_type"] for h in hits)
-    by_field = Counter(h["field"] for h in hits)
+        p, s, v = _f(f.get("performance_1y")), _f(f.get("sharpe_1y")), _f(f.get("volatility_1y"))
+        if p is None or p == 0 or not (abs(p) < 1):
+            continue
+        if s is None or v is None or v <= 0:
+            continue  # non corroborable → on s'abstient
+        target = s * v  # excès de rendement annualisé impliqué par le sharpe (%)
+        err_real = abs((p - RF) - target)
+        err_frac = abs((p * 100.0 - RF) - target)
+        if err_frac < err_real:  # le ×100 colle mieux au sharpe → vraie fraction
+            hits.append({"isin": f["isin"], "product_type": f.get("product_type"),
+                         "field": "performance_1y", "value": p})
     return {
         "check": "perf_decimal",
         "severity": "high",
-        "description": "Performances stockées en fraction (0.05 = 5%) alors que la convention est %.",
+        "description": "Performance 1 an RÉELLEMENT en fraction (corroborée : perf·100−rf ≈ sharpe·vol).",
         "count": len(hits),
-        "by_type": dict(by_type),
-        "by_field": dict(by_field),
+        "by_type": dict(Counter(h["product_type"] for h in hits)),
+        "by_field": {"performance_1y": len(hits)},
         "samples": hits[:10],
         "fix_recommendation": (
-            "Étendre fix-decimal-metrics.py pour couvrir tous les types "
-            "(actuellement filtre sur vol_1y). Multiplier les valeurs par 100. "
-            "Cap à 9999.9999 (numeric(8,4))."
+            "Multiplier UNIQUEMENT performance_1y de ces fonds corroborés par 100, "
+            "puis recomputer le sharpe. NE JAMAIS ×100 en masse tous les perf<1 : la "
+            "majorité sont de VRAIES petites perfs annuelles. 3y/5y (cumulées) non testables ici."
         ),
     }
 
@@ -366,8 +386,11 @@ def check_asset_class_mismatch(funds: list[dict]) -> dict:
     """Cohérence basique asset_class vs product_type."""
     expected = {
         "crypto":      {"crypto"},
-        "livret":      {"monetaire"},
-        "fonds_euros": {"monetaire", "obligations", "diversifie"},
+        "livret":      {"monetaire", "euro_garanti"},
+        # euro_garanti = asset_class LÉGITIME d'un fonds euros (capital garanti) : la
+        # majorité du résidu « asset_class_mismatch » (~245, audit 14/07) venait de son
+        # absence ici → faux positifs, pas des données à corriger.
+        "fonds_euros": {"monetaire", "obligations", "diversifie", "euro_garanti"},
         "scpi":        {"immobilier"},
         "opci":        {"immobilier"},
         "obligation":  {"obligations"},
