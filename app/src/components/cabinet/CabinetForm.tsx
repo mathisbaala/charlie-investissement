@@ -323,9 +323,11 @@ export function CabinetForm() {
             </div>
           );
         })}
-        <p className="text-caption text-muted-2 leading-snug">
-          Cases vides = estimation de place (~50 % des frais en gestion active, 0 sur les ETF).
-        </p>
+        {cabinet.contracts.length > 0 && (
+          <p className="text-caption text-muted-2 leading-snug">
+            Cases vides = estimation de place (~50 % des frais en gestion active, 0 sur les ETF).
+          </p>
+        )}
       </Card>
     </div>
   );
