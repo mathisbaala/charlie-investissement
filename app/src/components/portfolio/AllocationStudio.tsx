@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
-import { X } from "@/components/ui/icons";
+import { X, ChevronDown, ChevronRight } from "@/components/ui/icons";
 import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
@@ -104,10 +104,7 @@ function CorrelationCard({ names, matrix }: { names: string[]; matrix: (number |
   if (names.length < 2) return null;
   return (
     <Card className="px-5 py-5 overflow-x-auto">
-      <h2 className="text-label text-ink font-semibold mb-1">Corrélation des supports retenus</h2>
-      <p className="text-meta text-muted mb-3">
-        Plus la corrélation entre deux fonds est faible, plus leur combinaison diversifie le portefeuille.
-      </p>
+      <h2 className="text-label text-ink font-semibold mb-3">Corrélation des supports retenus</h2>
       <table className="border-collapse text-caption tabular-nums">
         <thead>
           <tr>
@@ -334,6 +331,7 @@ export function AllocationStudio() {
   // Méthode de pondération : max-Sharpe (compromis rendement/risque) ou HRP
   // (budgets de risque hiérarchiques — robuste quand les données sont bruitées).
   const [method, setMethod] = useState<AllocationMethod>("sharpe");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   // Départage rémunération cabinet : à adéquation client équivalente, préférer
   // le fonds à la meilleure rétrocession (estimée). Choix du CONSEILLER.
   const [retroTilt, setRetroTilt] = useState(false);
@@ -784,10 +782,7 @@ export function AllocationStudio() {
 
   return (
     <PageShell className="space-y-5">
-      <div>
-        <h1 className="text-heading text-ink font-semibold">Portefeuille</h1>
-        <p className="text-meta text-muted">Décrivez le client, puis construisez l&apos;allocation à lui proposer.</p>
-      </div>
+      <h1 className="text-heading text-ink font-semibold">Portefeuille</h1>
 
       {/* Étape 1 — Profil du client (données CLIENT). Depuis la refonte de nav,
           le profil ne se saisit plus qu'ici (retiré de l'accueil). */}
@@ -795,7 +790,6 @@ export function AllocationStudio() {
         <div className="flex items-center gap-2.5 mb-4">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brown text-paper text-caption font-semibold shrink-0">1</span>
           <h2 className="text-body-lg text-ink font-semibold">Profil du client</h2>
-          <span className="ml-auto text-meta text-muted-2">Enregistré automatiquement</span>
         </div>
         <ClientProfileForm showSearchCta={false} onChange={onProfileChange} />
       </Card>
@@ -805,7 +799,6 @@ export function AllocationStudio() {
         <div className="flex items-center gap-2.5 mb-4">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brown text-paper text-caption font-semibold shrink-0">2</span>
           <h2 className="text-body-lg text-ink font-semibold">Portefeuille</h2>
-          <span className="ml-auto text-meta text-muted-2">Réglages du conseiller</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -844,58 +837,6 @@ export function AllocationStudio() {
             </Field>
           </div>
 
-          {/* Méthode de pondération : deux moteurs, mêmes contraintes. */}
-          <div className="mt-4 flex flex-col gap-1">
-            <span className="text-meta text-muted">Moteur de pondération</span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMethod("sharpe")}
-                className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
-                  method === "sharpe"
-                    ? "bg-brown text-paper border-brown shadow-sm"
-                    : "bg-paper text-ink-2 border-line hover:border-brown/30"
-                }`}
-              >
-                Max-Sharpe (rendement / risque)
-              </button>
-              <button
-                type="button"
-                onClick={() => setMethod("hrp")}
-                className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
-                  method === "hrp"
-                    ? "bg-brown text-paper border-brown shadow-sm"
-                    : "bg-paper text-ink-2 border-line hover:border-brown/30"
-                }`}
-              >
-                HRP (diversification par budgets de risque)
-              </button>
-            </div>
-            <span className="text-meta text-muted">
-              Max-Sharpe optimise le couple rendement/risque ; HRP répartit le risque par familles corrélées.
-            </span>
-          </div>
-
-          {/* Départage rémunération cabinet : l'adéquation client reste première,
-              la rétrocession ne départage que des fonds quasi équivalents. */}
-          <div className="mt-4 flex flex-col gap-1">
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={retroTilt}
-                onChange={(e) => setRetroTilt(e.target.checked)}
-                style={{ accentColor: "var(--color-accent)" }}
-              />
-              <span className="text-meta text-ink font-medium">
-                Départage rémunération cabinet (rétrocessions)
-              </span>
-            </label>
-            <span className="text-meta text-muted">
-              À adéquation équivalente, retient la meilleure rétrocession (~50 % des frais en gestion active, 0 sur ETF).
-              Jamais au détriment du client ; tracé dans les notes.
-            </span>
-          </div>
-
           {/* Risque : plafond SRI jouable par le conseiller */}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
@@ -924,9 +865,6 @@ export function AllocationStudio() {
                   </button>
                 )}
               </div>
-              <span className="text-meta text-muted">
-                Aucun fonds plus risqué que ce plafond n&apos;entre dans l&apos;allocation (adéquation MIF).
-              </span>
             </div>
 
             {/* Ajout d'un fonds imposé, dès le départ */}
@@ -970,6 +908,80 @@ export function AllocationStudio() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Réglages avancés : moteur de pondération + départage rétrocessions,
+              repliés par défaut pour ne montrer d'emblée que l'essentiel. */}
+          <div className="mt-4 border-t border-line pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-expanded={showAdvanced}
+              className="inline-flex items-center gap-1.5 text-meta text-ink-2 font-medium hover:text-ink transition-colors"
+            >
+              {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              Réglages avancés
+              {!showAdvanced && (method !== "sharpe" || retroTilt) && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-accent" aria-label="réglages personnalisés actifs" />
+              )}
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-3 space-y-4">
+                {/* Méthode de pondération : deux moteurs, mêmes contraintes. */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-meta text-muted">Moteur de pondération</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMethod("sharpe")}
+                      className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
+                        method === "sharpe"
+                          ? "bg-brown text-paper border-brown shadow-sm"
+                          : "bg-paper text-ink-2 border-line hover:border-brown/30"
+                      }`}
+                    >
+                      Max-Sharpe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMethod("hrp")}
+                      className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
+                        method === "hrp"
+                          ? "bg-brown text-paper border-brown shadow-sm"
+                          : "bg-paper text-ink-2 border-line hover:border-brown/30"
+                      }`}
+                    >
+                      HRP
+                    </button>
+                  </div>
+                  <span className="text-meta text-muted">
+                    {method === "sharpe"
+                      ? "Optimise le couple rendement/risque."
+                      : "Répartit le risque par familles corrélées."}
+                  </span>
+                </div>
+
+                {/* Départage rémunération cabinet : l'adéquation client reste première,
+                    la rétrocession ne départage que des fonds quasi équivalents. */}
+                <div className="flex flex-col gap-1">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={retroTilt}
+                      onChange={(e) => setRetroTilt(e.target.checked)}
+                      style={{ accentColor: "var(--color-accent)" }}
+                    />
+                    <span className="text-meta text-ink font-medium">
+                      Départage rémunération cabinet (rétrocessions)
+                    </span>
+                  </label>
+                  <span className="text-meta text-muted">
+                    À adéquation équivalente, retient la meilleure rétrocession — jamais au détriment du client.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
         <div className="mt-5 flex items-center gap-3">

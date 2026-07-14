@@ -135,8 +135,7 @@ export function MarkowitzChart({
         <span className="text-meta text-muted">Frontière efficiente de l&apos;univers retenu (Markowitz)</span>
       </div>
       <p className="text-meta text-muted mb-3">
-        Ajustez les poids ci-dessous : le portefeuille simulé se déplace dans le plan.
-        Plus il colle à la frontière, meilleur est le compromis risque/rendement.
+        Ajustez les poids ci-dessous : plus le point colle à la frontière, meilleur est le compromis risque/rendement.
       </p>
 
       {/* Légende — identité par point coloré, texte en encre neutre */}

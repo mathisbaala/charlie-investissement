@@ -18,12 +18,27 @@ describe("AllocationStudio", () => {
     render(<AllocationStudio />);
     // Étape 1 — profil client (n'existe plus que dans Portefeuille).
     expect(screen.getByText("Profil du client")).toBeTruthy();
-    expect(screen.getByText(/Enregistré automatiquement/)).toBeTruthy();
     // Étape 2 — portefeuille : réglages du conseiller + génération.
-    expect(screen.getByText(/Réglages du conseiller/)).toBeTruthy();
+    // Deux titres « Portefeuille » (page + étape 2) après épuration des sous-titres.
+    expect(screen.getAllByText("Portefeuille").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Générer l'allocation")).toBeTruthy();
     // Pas de rapport tant qu'on n'a pas généré.
     expect(screen.queryByText("Allocation détaillée")).toBeNull();
+  });
+
+  it("replie les réglages avancés (moteur/rétrocessions) par défaut, dévoilés au clic", () => {
+    render(<AllocationStudio />);
+    // Repliés au départ : ni le moteur ni le départage rétrocessions ne sont montés.
+    expect(screen.queryByText("Max-Sharpe")).toBeNull();
+    expect(screen.queryByText(/Départage rémunération cabinet/)).toBeNull();
+    // Le bouton de repli est bien présent et fermé.
+    const toggle = screen.getByText("Réglages avancés");
+    expect(toggle).toBeTruthy();
+    // Au clic, les réglages avancés apparaissent.
+    fireEvent.click(toggle);
+    expect(screen.getByText("Max-Sharpe")).toBeTruthy();
+    expect(screen.getByText("HRP")).toBeTruthy();
+    expect(screen.getByText(/Départage rémunération cabinet/)).toBeTruthy();
   });
 
   it("génère l'allocation depuis le profil au clic", () => {

@@ -95,8 +95,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
         </div>
       </div>
       <p className="text-meta text-muted mb-3">
-        Performance réelle des supports retenus, aux poids courants, face à l&apos;indice
-        {period ? ` · ${period}` : ""}. Rétroactif, hors frais du contrat — ne préjuge pas des performances futures.
+        Performance réelle aux poids courants, face à l&apos;indice{period ? ` · ${period}` : ""}. Hors frais du contrat.
       </p>
 
       {ready && (
