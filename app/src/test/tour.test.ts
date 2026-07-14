@@ -2,12 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { TOUR_STEPS, isTourDone, markTourDone } from "@/lib/tour";
 
 describe("tour content", () => {
-  it("couvre les 7 onglets + le guide, dans l'ordre", () => {
+  it("couvre les onglets + le guide, dans l'ordre", () => {
     expect(TOUR_STEPS.map((s) => s.key)).toEqual([
       "accueil",
       "recherche",
       "portefeuille",
-      "allocation",
       "assureurs",
       "cabinet",
       "documents",
@@ -32,7 +31,7 @@ describe("tour content", () => {
 
 describe("tour storage", () => {
   beforeEach(() => {
-    localStorage.removeItem("charlie_tour_v2_done");
+    localStorage.removeItem("charlie_tour_v3_done");
   });
 
   it("n'est pas terminé par défaut", () => {

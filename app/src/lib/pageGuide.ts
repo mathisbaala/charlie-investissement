@@ -79,52 +79,24 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Portefeuille",
       intro:
-        "L'atelier d'allocation. Composez un portefeuille de fonds et mesurez son comportement d'ensemble.",
-      sections: [
-        {
-          heading: "Sur cette page",
-          items: [
-            "L'ajout de fonds un par un, avec le poids de chaque position (normalisé automatiquement).",
-            "Le choix d'un indice de référence, d'une période et d'un montant simulé.",
-            "Les indicateurs agrégés : performance vs indice, alpha, volatilité, Sharpe, Calmar, exposition géographique et par classe d'actifs.",
-            "Une matrice de corrélation entre les fonds et une courbe de performance face à l'indice.",
-            "Des scénarios de projection : stress, défavorable, intermédiaire, favorable.",
-          ],
-        },
-        {
-          heading: "Comment l'utiliser",
-          items: [
-            "Ajoutez plusieurs fonds, ajustez les poids, puis lisez la corrélation pour vérifier la diversification.",
-            "Changez l'indice et la période pour tester la robustesse de l'allocation.",
-            "L'URL est partageable : envoyez le portefeuille sans créer de compte.",
-          ],
-        },
-      ],
-    },
-  },
-  {
-    prefixes: ["/allocation"],
-    guide: {
-      title: "Allocation optimisée",
-      intro:
-        "Le studio d'allocation. À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP) sous vos contraintes, avec restitution PDF / PowerPoint.",
+        "L'atelier de construction de portefeuille. À partir du profil client et d'un contrat, Charlie construit une allocation optimisée (max-Sharpe ou HRP), la met à l'épreuve d'un back-test historique, et produit la proposition d'investissement (PDF / PowerPoint).",
       sections: [
         {
           heading: "Sur cette page",
           items: [
             "Le profil du client, partagé avec l'accueil et enregistré automatiquement : il pilote les contraintes de l'allocation.",
-            "Les réglages du conseiller, indépendants du profil : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
-            "Les projets du client — une poche par objectif — pour une allocation orientée buts.",
-            "L'allocation générée : supports et poids, indicateurs (rendement / volatilité / Sharpe attendus, SRI pondéré) et la matrice de corrélation des supports retenus.",
-            "Le pilotage fin : imposer un fonds, en écarter un (réoptimisation) et le remplacer par un similaire.",
+            "Les réglages du conseiller : contrat visé, moteur de pondération (max-Sharpe ou HRP), nombre de supports, plafond de risque (SRI), zones, ESG, frais maximum.",
+            "L'allocation générée : supports et poids, indicateurs attendus (rendement / volatilité / Sharpe, SRI pondéré), plan de Markowitz interactif et matrice de corrélation.",
+            "Le back-test historique de l'allocation face à un indice, sur la période choisie.",
+            "Les projets du client — une poche par objectif — et le pilotage support par support (imposer, écarter, remplacer).",
           ],
         },
         {
           heading: "Comment l'utiliser",
           items: [
             "Renseignez ou réutilisez le profil, choisissez un contrat, puis générez l'allocation.",
-            "Ajustez les réglages (risque, zones, frais, moteur) : chaque changement recalcule l'allocation.",
-            "Affinez support par support (imposer / écarter / remplacer), puis téléchargez la restitution en PDF ou PowerPoint.",
+            "Ajustez les réglages ou les poids (curseurs de Markowitz) : le résultat et le back-test se recalculent.",
+            "Affinez support par support, puis téléchargez la proposition d'investissement en PDF ou PowerPoint.",
           ],
         },
       ],
@@ -135,20 +107,20 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Mon cabinet",
       intro:
-        "Votre cabinet, renseigné une fois et réutilisé par toute la plateforme (allocation, rapports) : partenariats assureurs, contrats et conventions de rétrocession.",
+        "Les réglages de votre cabinet, renseignés une fois et réutilisés par toute la plateforme (portefeuille, rapports) : nom du cabinet, assureurs partenaires et conventions de rétrocession.",
       sections: [
         {
           heading: "Sur cette page",
           items: [
-            "L'identité : nom du cabinet / conseiller, repris automatiquement dans les études et les rapports.",
-            "Vos partenariats assureurs : recherchez et ajoutez les assureurs avec lesquels vous travaillez.",
+            "Le nom du cabinet / conseiller, repris automatiquement dans les études et les rapports.",
+            "Vos assureurs partenaires : recherchez et ajoutez les assureurs avec lesquels vous travaillez.",
             "Pour chaque assureur, les contrats référencés et vos conventions de rétrocession.",
           ],
         },
         {
           heading: "Comment l'utiliser",
           items: [
-            "Ajoutez vos assureurs partenaires : la sélection alimente le référencement et l'allocation.",
+            "Ajoutez vos assureurs partenaires : la sélection alimente le référencement et le portefeuille.",
             "Renseignez les rétrocessions par contrat pour qu'elles remontent dans les restitutions.",
             "Une fois rempli, tout le reste de la plateforme réutilise ces informations sans re-saisie.",
           ],

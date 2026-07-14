@@ -6,16 +6,15 @@ describe("guideForPath", () => {
     expect(guideForPath("/recherche").title).toBe("Recherche");
     expect(guideForPath("/assureurs").title).toBe("Assurances vie");
     expect(guideForPath("/portefeuille").title).toBe("Portefeuille");
-    expect(guideForPath("/allocation").title).toBe("Allocation optimisée");
     expect(guideForPath("/cabinet").title).toBe("Mon cabinet");
     expect(guideForPath("/documents").title).toBe("Documents");
     expect(guideForPath("/accueil").title).toBe("Accueil");
   });
 
-  // Régression : /allocation et /cabinet (plateforme PR #12) ont été ajoutés
-  // après pageGuide ; sans entrée dédiée ils retombaient sur le guide « Accueil ».
-  it("ne retombe PAS sur l'accueil sur les pages allocation et cabinet", () => {
-    expect(guideForPath("/allocation").title).not.toBe("Accueil");
+  // Régression : le portefeuille (fusion de l'ancienne allocation) et le cabinet
+  // ont un guide dédié et ne retombent pas sur le guide « Accueil ».
+  it("ne retombe PAS sur l'accueil sur les pages portefeuille et cabinet", () => {
+    expect(guideForPath("/portefeuille").title).not.toBe("Accueil");
     expect(guideForPath("/cabinet").title).not.toBe("Accueil");
   });
 
@@ -31,7 +30,7 @@ describe("guideForPath", () => {
   });
 
   it("chaque guide a un intro et des sections non vides avec des puces", () => {
-    const paths = ["/recherche", "/assureurs", "/portefeuille", "/allocation", "/cabinet", "/documents", "/fonds/X", "/accueil"];
+    const paths = ["/recherche", "/assureurs", "/portefeuille", "/cabinet", "/documents", "/fonds/X", "/accueil"];
     for (const p of paths) {
       const g = guideForPath(p);
       expect(g.intro.trim().length).toBeGreaterThan(0);

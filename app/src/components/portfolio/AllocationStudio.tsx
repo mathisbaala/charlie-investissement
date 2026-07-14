@@ -8,6 +8,7 @@ import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { MarkowitzChart } from "@/components/portfolio/MarkowitzChart";
+import { PortfolioBacktest } from "@/components/portfolio/PortfolioBacktest";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { covarianceMatrix, classCorrelation } from "@/lib/correlation";
 import {
@@ -784,10 +785,11 @@ export function AllocationStudio() {
   return (
     <PageShell className="space-y-6">
       <div>
-        <h1 className="text-heading text-ink font-semibold">Allocation optimisée</h1>
+        <h1 className="text-heading text-ink font-semibold">Portefeuille</h1>
         <p className="text-meta text-muted">
-          Le profil client saisi à l&apos;accueil est réutilisé ici : renseignez le (ou laissez celui déjà rempli),
-          puis générez l&apos;allocation. Chaque réglage (risque, zones, frais, composition) recalcule le résultat.
+          Construisez l&apos;allocation d&apos;un client, du profil à la proposition. Le profil saisi à l&apos;accueil
+          est réutilisé ici : générez l&apos;allocation optimisée, ajustez-la, mesurez son back-test face à un
+          indice, puis éditez la proposition d&apos;investissement (PDF / PowerPoint). Chaque réglage recalcule le résultat.
         </p>
       </div>
 
@@ -1135,6 +1137,15 @@ export function AllocationStudio() {
             />
           )}
           {corr && <CorrelationCard names={corr.names} matrix={corr.matrix} />}
+          {/* Back-test historique : rejoue la performance réelle des supports
+              retenus (aux poids courants, curseurs Markowitz compris) face à un
+              indice. Réservé aux données réelles du contrat — l'univers de
+              démonstration n'a pas de séries de prix. */}
+          {source === "api" && (
+            <PortfolioBacktest
+              holdings={(effectiveResult ?? result).lines.map((l) => ({ isin: l.isin, weight: l.weight }))}
+            />
+          )}
           <AllocationReport presentation={effectivePresentation ?? presentation} onRemoveLine={removeFund} />
         </>
       )}

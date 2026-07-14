@@ -1,20 +1,11 @@
-import { PortfolioBuilder } from "@/components/portfolio/PortfolioBuilder";
+import { AllocationStudio } from "@/components/portfolio/AllocationStudio";
 
 export const metadata = { title: "Portefeuille · Charlie" };
 
-// Tout l'état du portefeuille vient de l'URL (lien partageable, sans compte).
-export default async function PortefeuillePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ isins?: string; weights?: string; benchmark?: string; years?: string }>;
-}) {
-  const sp = await searchParams;
-  return (
-    <PortfolioBuilder
-      initialIsins={sp.isins ?? ""}
-      initialWeights={sp.weights ?? ""}
-      initialBenchmark={sp.benchmark ?? ""}
-      initialYears={sp.years ?? ""}
-    />
-  );
+// Atelier Portefeuille : profil client → allocation optimisée (max-Sharpe / HRP /
+// Markowitz interactif) → back-test historique vs indice → proposition PDF /
+// PowerPoint. Fusionne l'ancien onglet Allocation et l'ancien back-test
+// Portefeuille en un seul parcours, du profil à la proposition d'investissement.
+export default function PortefeuillePage() {
+  return <AllocationStudio />;
 }

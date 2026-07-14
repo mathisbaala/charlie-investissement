@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   X, ArrowLeft, ArrowRight, Check,
-  LayoutGrid, Search, TrendingUp, Shield, FileText, Logo, Target, Wallet,
+  LayoutGrid, Search, TrendingUp, Shield, FileText, Logo, UserCircle,
 } from "@/components/ui/icons";
 import { TOUR_STEPS, isTourDone, markTourDone, type TourStep } from "@/lib/tour";
 
@@ -15,9 +15,8 @@ function StepIcon({ stepKey, size = 20 }: { stepKey: TourStep["key"]; size?: num
     case "accueil":   return <LayoutGrid size={size} strokeWidth={1.7} />;
     case "recherche": return <Search size={size} strokeWidth={1.7} />;
     case "portefeuille": return <TrendingUp size={size} strokeWidth={1.7} />;
-    case "allocation": return <Target size={size} strokeWidth={1.7} />;
     case "assureurs": return <Shield size={size} strokeWidth={1.7} />;
-    case "cabinet":   return <Wallet size={size} strokeWidth={1.7} />;
+    case "cabinet":   return <UserCircle size={size} strokeWidth={1.7} />;
     case "documents": return <FileText size={size} strokeWidth={1.7} />;
     case "guide":     return <Logo size={size + 4} />;
   }
