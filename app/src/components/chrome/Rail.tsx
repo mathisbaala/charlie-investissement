@@ -11,7 +11,7 @@ import { Logo, FileText, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator 
 // optimisée + back-test + proposition (un seul atelier, un seul onglet).
 const NAV = [
   { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
-  { href: "/assureurs",    icon: Shield,     label: "Assurances vie" },
+  { href: "/assureurs",    icon: Shield,     label: "Partenaires" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
   { href: "/simulateur",   icon: Calculator, label: "Simulateur de frais" },
   { href: "/documents",    icon: FileText,   label: "Documents" },

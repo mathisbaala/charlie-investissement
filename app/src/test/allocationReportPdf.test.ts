@@ -42,7 +42,7 @@ describe("AllocationReportPDF", () => {
       contractName: "Cardif ELITE",
       universeSize: 1400,
       asOfLabel: "Juillet 2026",
-      advisorName: "Métagram Gestion Privée",
+      advisorName: "Charlie Gestion Privée",
     });
     const buf = await render(React.createElement(AllocationReportPDF, { presentation }));
     expect(buf.length).toBeGreaterThan(1000);

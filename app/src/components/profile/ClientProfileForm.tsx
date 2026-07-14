@@ -30,6 +30,7 @@ import {
   isProfileActive,
   profileToScreenerFilters,
 } from "@/lib/clientProfile";
+import { loadStoredCabinet } from "@/lib/cabinet";
 
 // ─── Petits composants de formulaire ──────────────────────────────────────────
 
@@ -247,7 +248,15 @@ export function ClientProfileForm({
   useEffect(() => {
     if (initialized) return;
     setInitialized(true);
-    setProfile(loadStoredProfile());
+    const stored = loadStoredProfile();
+    // La distribution du cabinet est déjà connue (onglet « Mon cabinet ») : on
+    // pré-remplit les assureurs partenaires quand le client n'en a encore aucun,
+    // pour ne pas re-saisir. Le CGP reste libre d'en ajouter d'autres (comparaison).
+    if (stored.insurers.length === 0) {
+      const partners = loadStoredCabinet().insurers;
+      if (partners.length > 0) stored.insurers = [...partners];
+    }
+    setProfile(stored);
   }, [initialized]);
 
   // Chargement de la liste des assureurs, avec réessai. Un échec passager
@@ -613,9 +622,8 @@ export function ClientProfileForm({
           <SectionCard title="Projets du client">
             {profile.goals.length === 0 && (
               <p className="text-meta text-muted">
-                Aucun projet renseigné. Ajoutez les objectifs chiffrés du client
-                (apport immobilier, études, retraite…) : l&apos;allocation affichera la
-                probabilité de les atteindre.
+                Ajoutez un objectif chiffré (montant + horizon) : l&apos;allocation
+                en calcule la probabilité d&apos;atteinte.
               </p>
             )}
             {profile.goals.map((g, gi) => (

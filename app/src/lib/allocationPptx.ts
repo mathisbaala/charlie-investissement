@@ -2,7 +2,7 @@ import pptxgen from "pptxgenjs";
 import type { AllocationPresentation } from "./allocationRationale";
 
 // Génère un vrai fichier PowerPoint (.pptx) éditable à partir de la présentation
-// d'allocation. Direction artistique reprise du modèle « Métagram / Cardif ELITE » :
+// d'allocation. Direction artistique reprise du modèle « proposition / Cardif ELITE » :
 // couverture bleu nuit + accent rouge corail, slides de contenu claires à titre
 // bleu nuit, tableaux à en-tête sombre / lignes zébrées / chiffres indigo.
 // 100 % déterministe. Marche navigateur (writeFile) et node (write nodebuffer).

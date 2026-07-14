@@ -33,7 +33,7 @@ describe("buildAllocationDeck", () => {
       contractName: "Cardif Elite Lux",
       universeSize: 1400,
       asOfLabel: "Juillet 2026",
-      advisorName: "Métagram Gestion Privée",
+      advisorName: "Charlie Gestion Privée",
     });
     const pptx = buildAllocationDeck(presentation);
     const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;

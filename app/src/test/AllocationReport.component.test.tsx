@@ -29,7 +29,7 @@ describe("AllocationReport", () => {
   const presentation = buildPresentation(RESULT, {
     contractName: "Cardif ELITE",
     universeSize: 1400,
-    advisorName: "Métagram",
+    advisorName: "Charlie Gestion Privée",
   });
 
   it("affiche l'en-tête, les KPI et toutes les sections", () => {

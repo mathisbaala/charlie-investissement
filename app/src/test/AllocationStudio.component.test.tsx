@@ -19,8 +19,9 @@ describe("AllocationStudio", () => {
     // Étape 1 — profil client (n'existe plus que dans Portefeuille).
     expect(screen.getByText("Profil du client")).toBeTruthy();
     // Étape 2 — portefeuille : réglages du conseiller + génération.
-    // Deux titres « Portefeuille » (page + étape 2) après épuration des sous-titres.
-    expect(screen.getAllByText("Portefeuille").length).toBeGreaterThanOrEqual(2);
+    // Un seul titre « Portefeuille » (étape 2) : le titre de page a été retiré,
+    // il faisait doublon avec le libellé de la barre du haut.
+    expect(screen.getByText("Portefeuille")).toBeTruthy();
     expect(screen.getByText("Générer l'allocation")).toBeTruthy();
     // Pas de rapport tant qu'on n'a pas généré.
     expect(screen.queryByText("Allocation détaillée")).toBeNull();

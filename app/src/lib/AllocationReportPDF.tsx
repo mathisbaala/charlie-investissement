@@ -5,8 +5,8 @@ import type { AllocationPresentation } from "./allocationRationale";
 
 registerCharlieFonts();
 
-// Présentation d'allocation au format « proposition client » (modèle Métagram /
-// Cardif ELITE) : couverture + objectifs, répartition par classe, tableau détaillé
+// Présentation d'allocation au format « proposition client » (modèle de
+// proposition / Cardif ELITE) : couverture + objectifs, répartition par classe, tableau détaillé
 // des supports, justification par fonds, profil de risque (SRI/SFDR), convictions,
 // avertissements MIF II. Rendu via le design system PDF partagé (pdf/theme+components).
 // 100 % déterministe : consomme la structure produite par buildPresentation().

@@ -782,8 +782,6 @@ export function AllocationStudio() {
 
   return (
     <PageShell className="space-y-5">
-      <h1 className="text-heading text-ink font-semibold">Portefeuille</h1>
-
       {/* Étape 1 — Profil du client (données CLIENT). Depuis la refonte de nav,
           le profil ne se saisit plus qu'ici (retiré de l'accueil). */}
       <Card className="px-5 py-5">
@@ -818,12 +816,7 @@ export function AllocationStudio() {
                   <option value={SAMPLE_CONTRACT}>Contrat démo (univers d&apos;exemple)</option>
                 </select>
               ) : (
-                <>
-                  <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
-                  <span className="text-caption text-muted-2">
-                    Renseignez vos contrats dans l&apos;onglet <a href="/cabinet" className="underline underline-offset-2 hover:text-ink">Mon cabinet</a> pour les retrouver ici.
-                  </span>
-                </>
+                <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
               )}
             </Field>
             <Field label="Poids max. par fonds (%)">
@@ -833,7 +826,7 @@ export function AllocationStudio() {
               <input className={inputCls} type="number" min={4} max={10} value={maxAssets} onChange={(e) => setMaxAssets(e.target.value)} />
             </Field>
             <Field label="Cabinet / conseiller (optionnel)">
-              <input className={inputCls} value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Ex. Métagram Gestion Privée" />
+              <input className={inputCls} value={advisor} onChange={(e) => setAdvisor(e.target.value)} placeholder="Ex. Charlie Gestion Privée" />
             </Field>
           </div>
 

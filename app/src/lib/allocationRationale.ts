@@ -2,7 +2,7 @@
 // résultat d'optimisation. 100 % DÉTERMINISTE (aucun appel LLM/API payante) :
 // le texte est produit par un banc de phrases piloté par les données du fonds
 // (classe d'actifs, catégorie, style, SFDR, SRI, poids). La structure reprend le
-// modèle « Métagram / Cardif ELITE » fourni : contexte & objectifs, répartition
+// modèle « proposition / Cardif ELITE » fourni : contexte & objectifs, répartition
 // par classe, tableau détaillé, justification par support, profil de risque
 // (SRI + SFDR), convictions de gestion, avertissements MIF II.
 

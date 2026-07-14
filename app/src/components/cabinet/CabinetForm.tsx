@@ -158,7 +158,7 @@ export function CabinetForm() {
           className={`${inputCls} max-w-md`}
           value={cabinet.cabinetName}
           onChange={(e) => setCabinet((c) => ({ ...c, cabinetName: e.target.value }))}
-          placeholder="Ex. Métagram Gestion Privée"
+          placeholder="Ex. Charlie Gestion Privée"
           aria-label="Nom du cabinet / conseiller"
         />
       </Card>
