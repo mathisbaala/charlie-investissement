@@ -5,6 +5,28 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-15 (soir) — tranche 2, politique « 5 M tokens / tranche »
+
+Décision Mathis : on avance par **tranches de ~5 M tokens** étalées sur plusieurs
+semaines ; à ~5 M on **arrête proprement** et on n'y revient plus (les contrats déjà
+écrits sont exclus de la requête liste → reprise sans doublon ni re-traitement).
+
+- **Reprise faite** : salvage des 152 collectés du 14/07 appliqué en base (migration
+  `20260714170000`, 3 lots) → 157 contrats. Puis sweep tranche 2.
+- **Sweep tranche 2** : workflow **`av-contract-terms-sweep-v2`** (script archivé en
+  session, run `wf_08aa9de6-823`). Design **1 agent/contrat** = source + recoupe + écrit
+  en base immédiatement (incrémental, idempotent `ON CONFLICT (key)`, budget web serré,
+  éviter les PDF). ⚠️ NE PAS reprendre le design pipeline 2-étages (v1 `wf_1600ef35-420`) :
+  il enfilait tous les `source` avant les écritures → 0 écriture + 3,5 M tokens gaspillés.
+- **Résultat tranche 2** (arrêt à ~5,85 M tokens neufs cumulés v1+v2, dont 3,55 M perdus
+  par v1) : **192 contrats en base** (85 curated / 107 indicative), **+35 écrits**.
+- **Reste à faire** (prochaines tranches) : **133 contrats ≥100 UC** puis **114 <100 UC**.
+  Requête de reprise (déjà idempotente) : `funds >= 100` (puis `>= 1`) `AND NOT EXISTS`
+  dans `av_contract_terms`, `ORDER BY funds DESC`.
+- Mesure du coût (proxy) : sommer, sur les `agent-*.jsonl` du transcript workflow,
+  `cache_creation + input + output` (EXCLURE `cache_read` qui gonfle le brut). ~5,85 M à
+  l'arrêt. Proxy plus simple pour caler une tranche : ~5 M ≈ ~80 contrats traités.
+
 ## État au moment de la pause
 
 - **Déjà LIVE en prod (base + fiche)** : **21 contrats** entièrement documentés
