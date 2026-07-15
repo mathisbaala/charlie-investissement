@@ -1,6 +1,3 @@
-# À DÉPLACER vers .github/workflows/referencing-apply.yml
-# (le jeton git local n'a pas le scope « workflow » : déplacement à faire
-# depuis l'interface GitHub ou par un push avec les bons droits).
 name: Référencement — appliquer une récolte
 
 # Applique en base un JSON de récolte de référencement assureur (crawl
