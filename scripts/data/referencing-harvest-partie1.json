@@ -6,10 +6,18 @@
  },
  "companies": {
   "Sogécap": {
-   "status": "ok",
-   "note": "11 ISIN seulement : les annexes financières par contrat sont derrière l'app JS de particuliers.sg.fr : à compléter au navigateur",
-   "nb_isins": 11,
+   "status": "ok (partiel)",
+   "note": "pages publiques + navigateur local (45 pages rendues, 49 PDF) : les annexes par contrat (Séquoia, Érable) sont derrière l'espace client, pas publiques",
+   "nb_isins": 30,
    "isins": [
+    {
+     "isin": "FR0000000085",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/06-735988A_247464_SGRF_Brochure_SG_IS_Multi_actifs_Dynamique_CLH.pdf"
+    },
+    {
+     "isin": "FR0000444275",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsEuropeEnvironnement-LIGHT.pdf"
+    },
     {
      "isin": "FR0007468830",
      "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
@@ -43,6 +51,10 @@
      "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
     },
     {
+     "isin": "FR0010431015",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsFranceISR-LIGHT.pdf"
+    },
+    {
      "isin": "FR0012881753",
      "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
     },
@@ -53,6 +65,70 @@
     {
      "isin": "FR0012892172",
      "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0013152980",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsEuropeEnvironnement-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013521218",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiObligEntreprisesEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013526134",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/722084D_247041_SGRF_Brochure_SG_Amundi_Obligation_Vertes_2025.pdf"
+    },
+    {
+     "isin": "FR0013526191",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsFranceISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013535390",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGDNCAActionsEuropeClimat-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013535481",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/Brochure_4_SG_DNCA_Actions_Europe_ISR_EIP-LIGHT.pdf"
+    },
+    {
+     "isin": "FR00140009Z9",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/06-735893A_247409_SGRF_Brochure_SG_IS_Multi_actifs_Equilibre_CLH.pdf"
+    },
+    {
+     "isin": "FR0014000QG7",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG-CPR-Actions-Monde-Enjeu-Climat-VF-lite.pdf"
+    },
+    {
+     "isin": "FR00140097C3",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG_BlackRock_Actions_Emergents_ISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000100",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/Brochure_SG_BlackRock_Actions_US_ISR_LD.pdf"
+    },
+    {
+     "isin": "FR0050000423",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGBlackrockObligationsEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000431",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGMirovaActionsMondeDurableISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000688",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGBlackrockActionsEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000829",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/722084D_247041_SGRF_Brochure_SG_Amundi_Obligation_Vertes_2025.pdf"
+    },
+    {
+     "isin": "FR0050000837",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiObligEntreprisesEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "LU2617370940",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG-CPR-Actions-Monde-Enjeu-Climat-VF-lite.pdf"
     }
    ]
   },
@@ -1828,10 +1904,15 @@
    ]
   },
   "MIF": {
-   "status": "vide",
-   "note": "site 100 % JavaScript (soft 404 côté HTTP) : nécessite navigateur réel",
-   "nb_isins": 0,
-   "isins": []
+   "status": "vide (mur de publication)",
+   "note": "vrai domaine = mifassur.com (mif.fr est un service d'emails sans rapport). Supports listés par NOM sans ISIN, dépliant PDF sans ISIN : reprise possible par rapprochement de noms, semi manuel. 1 seul ISIN public (DIC du structuré), sous le seuil de 5.",
+   "nb_isins": 1,
+   "isins": [
+    {
+     "isin": "DE000SL0QZ62",
+     "source_url": "https://f0c7e7ba.delivery.rocketcdn.me/wp-content/uploads/2026/04/Dic_Brochure_MIFStructureRendement6.pdf"
+    }
+   ]
   },
   "SMAvie BTP": {
    "status": "vide",
