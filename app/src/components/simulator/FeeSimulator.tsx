@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
@@ -11,9 +12,10 @@ import { PageShell } from "@/components/ui/Page";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { X } from "@/components/ui/icons";
 import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
+import { parsePortfolioParams } from "@/lib/portfolio";
 import {
-  simulate, rendementPondere, projeterUC, partFraisDansGainBrut, HORIZONS_DEFAUT,
-  type FeeParams, type SimulationInput,
+  simulate, rendementPondere, projeterUC, partFraisDansGainBrut, repartitionFrais,
+  HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -40,7 +42,34 @@ interface UcRow {
   ter: number | null;          // % (frais courants)
   entryFee: number | null;     // % (converti depuis la fraction en base)
   exitFee: number | null;      // %
+  retro: number | null;        // %/an — rétrocession CGP (part du TER reversée au cabinet)
 }
+
+// Fiche minimale renvoyée par /api/funds, telle qu'on la consomme ici.
+interface ApiFund {
+  isin: string; name?: string | null; product_type?: string | null;
+  performance_5y?: number | null; ter?: number | null; ongoing_charges?: number | null;
+  entry_fee_max?: number | null; exit_fee_max?: number | null; retrocession_cgp?: number | null;
+}
+
+const fetchFund = async (isin: string): Promise<ApiFund | null> => {
+  try {
+    const res = await fetch(`/api/funds?search=${encodeURIComponent(isin)}&per_page=1`);
+    const json = await res.json();
+    return json?.data?.[0] ?? null;
+  } catch { return null; }
+};
+
+const toUcRow = (isin: string, name: string, poids: number, f: ApiFund | null): UcRow => ({
+  isin,
+  name: f?.name ?? name,
+  poids,
+  perf5y: f?.performance_5y ?? null,
+  ter: f?.ongoing_charges ?? f?.ter ?? null,
+  entryFee: feeFracToPct(f?.entry_fee_max ?? null),
+  exitFee: feeFracToPct(f?.exit_fee_max ?? null),
+  retro: feeFracToPct(f?.retrocession_cgp ?? null),
+});
 
 // Un champ vidé ou invalide vaut 0 (jamais NaN : Number("") = 0 mais
 // Number("-") = NaN, qui contaminerait toute la simulation).
@@ -106,33 +135,54 @@ export function FeeSimulator() {
   // null = automatique : frais d'entrée/sortie réels pondérés des UC choisies.
   const [ucEntreeManuel, setUcEntreeManuel] = useState<number | null>(null);
   const [ucSortieManuel, setUcSortieManuel] = useState<number | null>(null);
+  // null = automatique : rétrocession réelle pondérée des UC choisies.
+  const [retroManuel, setRetroManuel] = useState<number | null>(null);
   const [ucs, setUcs] = useState<UcRow[]>([]);
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
   // Ajout d'une UC : le nom vient du FundAdder, le détail (perf 5 ans réelle,
-  // frais) est rechargé depuis /api/funds (raccourci ISIN exact).
+  // frais, rétrocession) est rechargé depuis /api/funds (raccourci ISIN exact).
   const addUC = async (isin: string, name: string) => {
     setUcs((prev) => {
       if (prev.length >= MAX_UC || prev.some((u) => u.isin === isin)) return prev;
       const poids = prev.length ? prev.reduce((a, u) => a + u.poids, 0) / prev.length : 100;
-      return [...prev, { isin, name, poids, perf5y: null, ter: null, entryFee: null, exitFee: null }];
+      return [...prev, toUcRow(isin, name, poids, null)];
     });
-    try {
-      const res = await fetch(`/api/funds?search=${encodeURIComponent(isin)}&per_page=1`);
-      const json = await res.json();
-      const f = json?.data?.[0];
-      if (!f) return;
-      setUcs((prev) => prev.map((u) => u.isin !== isin ? u : {
-        ...u,
-        name: f.name ?? u.name,
-        perf5y: f.performance_5y ?? null,
-        ter: f.ongoing_charges ?? f.ter ?? null,
-        entryFee: feeFracToPct(f.entry_fee_max),
-        exitFee: feeFracToPct(f.exit_fee_max),
-      }));
-    } catch { /* fiche indisponible : l'UC reste utilisable en manuel */ }
+    const f = await fetchFund(isin);
+    if (!f) return; // fiche indisponible : l'UC reste utilisable en manuel
+    setUcs((prev) => prev.map((u) => (u.isin !== isin ? u : toUcRow(isin, u.name, u.poids, f))));
   };
+
+  // ── Préremplissage depuis un portefeuille (/simulateur?isins=&weights=&montant=) ──
+  // Les fonds euros du portefeuille ne deviennent pas des UC : leur poids bascule
+  // vers le compartiment euros (curseur « part UC »), les autres lignes sont
+  // renormalisées à 100 % du compartiment UC.
+  const searchParams = useSearchParams();
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    prefilled.current = true;
+    const holdings = parsePortfolioParams(searchParams.get("isins"), searchParams.get("weights"));
+    if (holdings.length === 0) return;
+    const montant = Number(searchParams.get("montant"));
+    if (Number.isFinite(montant) && montant > 0) setVersementInitial(Math.round(montant));
+    (async () => {
+      const fetched = await Promise.all(
+        holdings.map(async (h) => ({ h, f: await fetchFund(h.isin) })),
+      );
+      const total = fetched.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
+      if (!(total > 0)) return;
+      const enUC = fetched.filter((x) => x.f?.product_type !== "fonds_euros");
+      const totalUC = enUC.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
+      setPartUC(Math.round((totalUC / total) * 100));
+      setUcs(
+        enUC.slice(0, MAX_UC).map(({ h, f }) =>
+          toUcRow(h.isin, f?.name ?? h.isin, totalUC > 0 ? Math.round((h.weight / totalUC) * 1000) / 10 : 0, f),
+        ),
+      );
+    })();
+  }, [searchParams]);
 
   const removeUC = (isin: string) => setUcs((prev) => prev.filter((u) => u.isin !== isin));
   const setPoids = (isin: string, poids: number) =>
@@ -163,11 +213,24 @@ export function FeeSimulator() {
   const ucEntree = ucEntreeManuel ?? entreePonderee ?? FRAIS_DEFAUT.ucEntree;
   const ucSortie = ucSortieManuel ?? sortiePonderee ?? FRAIS_DEFAUT.ucSortie;
 
+  // Rétrocession CGP : réelle pondérée des UC choisies, surchargeable à la
+  // main. Sans donnée (aucune UC, ou UC sans rétro en base), on retombe sur
+  // l'estimation de place : ~50 % des frais courants reversés au cabinet
+  // (même convention que l'onglet cabinet / applyUcRetroShare). Une pondérée
+  // à 0 (fonds indiciels) reste 0 : les ETF ne rétrocèdent pas.
+  const retroPonderee = useMemo(
+    () => rendementPondere(ucs.map((u) => ({ perf: u.retro, poids: u.poids }))),
+    [ucs],
+  );
+  const retroEstimee = Math.round(ucGestion * 0.5 * 100) / 100;
+  const retroCgp = retroManuel ?? retroPonderee ?? retroEstimee;
+
   const input: SimulationInput = useMemo(() => ({
     versementInitial, versementAnnuel, dureeAnnees: duree, partUC,
     rendementUC, rendementFE,
     frais: { ...frais, ucGestion, ucEntree, ucSortie },
-  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie]);
+    retroCgp,
+  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp]);
 
   const horizons = useMemo(
     () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b),
@@ -175,6 +238,11 @@ export function FeeSimulator() {
   );
   const sim = useMemo(() => simulate(input, horizons), [input, horizons]);
   const final = sim.horizons[sim.horizons.length - 1];
+  // Répartition du coût de la structure par destinataire, à l'horizon simulé.
+  const finalPoint = final ? sim.points[final.annees] : null;
+  const repart = final && finalPoint
+    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee)
+    : null;
 
   // Courbe des frais : cumulés, regroupés en 3 postes lisibles.
   const fraisCurve = useMemo(() => sim.points.map((p) => ({
@@ -202,8 +270,9 @@ export function FeeSimulator() {
           <Kpi label={`Valeur nette à ${final.annees} ans`} value={EUR.format(final.valeurNette)} />
           <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
           <Kpi label="Coût total de la structure" value={EUR.format(final.totalFrais)} />
+          <Kpi label="Rémunération du cabinet" value={EUR.format(final.retroCgpCumulee)} tone="ok" />
           <Kpi label="Frais / gain brut"
-            value={partFraisDansGainBrut(final) == null ? "-" : pct(partFraisDansGainBrut(final))} />
+            value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
         </div>
       )}
 
@@ -278,6 +347,12 @@ export function FeeSimulator() {
               note={terManuel == null && terPondere != null ? "TER pondéré des UC choisies" : undefined} />
             <FieldPct label="Sortie" value={ucSortie} onChange={setUcSortieManuel}
               note={ucSortieManuel == null && sortiePonderee != null ? "frais réels pondérés des UC choisies" : undefined} />
+            <FieldPct label="Rétrocession cabinet (par an)" value={retroCgp} onChange={setRetroManuel}
+              note={retroManuel != null
+                ? "part des frais courants reversée à votre cabinet"
+                : retroPonderee != null
+                  ? "taux réel pondéré des UC choisies"
+                  : "estimation de place : 50 % des frais courants"} />
             <p className="text-caption text-muted pt-1 border-t border-line-soft">
               Les frais courants sont déjà reflétés dans la valeur liquidative : ils
               n&apos;abaissent pas la trajectoire nette mais sont détaillés dans la courbe
@@ -304,7 +379,7 @@ export function FeeSimulator() {
                   </div>
                   <p className="text-caption text-muted-2 mt-1 font-mono">
                     {u.isin}
-                    <span className="font-sans text-muted"> · perf 5 ans {pct(u.perf5y, true)}/an · frais courants {pct(u.ter)}</span>
+                    <span className="font-sans text-muted"> · perf 5 ans {pct(u.perf5y, true)}/an · frais courants {pct(u.ter)}{u.retro != null && <> · rétro {pct(u.retro)}</>}</span>
                   </p>
                 </div>
               ))}
@@ -323,6 +398,54 @@ export function FeeSimulator() {
 
         {/* ── Résultats ── */}
         <div className="space-y-5 min-w-0">
+          {/* Lecture CGP du KPI « coût de la structure » : ce que c'est, qui
+              encaisse quoi, et ce que le cabinet gagne — en euros, à l'horizon. */}
+          {repart && final && (
+            <Card className="px-5 py-5">
+              <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>
+                Où va le coût de la structure ?
+              </h2>
+              <p className="text-caption text-muted mb-4">
+                Le « coût de la structure », c&apos;est tout ce que le contrat prélève
+                au&nbsp;delà de la performance brute des supports : il rémunère les trois
+                acteurs de la chaîne. Montants cumulés sur {final.annees} ans, sortie incluse.
+              </p>
+              <div className="space-y-3">
+                {[
+                  {
+                    nom: "Assureur",
+                    detail: "Frais du contrat : entrée sur chaque versement, gestion de l'enveloppe (UC et fonds euros), sortie. C'est le prix de l'assurance vie elle même : cadre fiscal, garantie, gestion administrative.",
+                    montant: repart.assureur,
+                  },
+                  {
+                    nom: "Société de gestion",
+                    detail: "Frais des UC : frais courants prélevés dans la valeur liquidative, entrée et sortie éventuelles — nets de ce qu'elle reverse à votre cabinet. C'est le prix de la gestion des fonds.",
+                    montant: repart.societeGestion,
+                  },
+                  {
+                    nom: "Votre cabinet (CGP)",
+                    detail: `Rétrocessions : la part des frais courants des UC que la société de gestion vous reverse (${pct(retroCgp)}/an de l'encours UC${retroManuel != null ? "" : retroPonderee != null ? ", taux réel pondéré des UC choisies" : ", estimation de place"}). C'est votre rémunération sur ce contrat — sans frais supplémentaire pour le client.`,
+                    montant: repart.cabinet,
+                  },
+                ].map(({ nom, detail, montant }) => {
+                  const part = final.totalFrais > 0 ? (montant / final.totalFrais) * 100 : 0;
+                  return (
+                    <div key={nom} className="flex items-start justify-between gap-4 border-b border-line-soft last:border-0 pb-3 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="text-meta text-ink font-medium">{nom}</p>
+                        <p className="text-caption text-muted mt-0.5 leading-snug">{detail}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-meta text-ink font-medium tabular-nums">{EUR.format(montant)}</p>
+                        <p className="text-caption text-muted tabular-nums">{pct(part)} du total</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           <Card className="px-5 py-5">
             <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>Valeur du contrat</h2>
             <p className="text-caption text-muted mb-3">
@@ -338,7 +461,7 @@ export function FeeSimulator() {
                 <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
                   width={56} tickFormatter={(v: number) => EUR.format(v)} domain={["auto", "auto"]} />
                 <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "-",
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
                     n === "nette" ? "Valeur nette client" : n === "sansFrais" ? "Brut (avant frais)" : "Versements"]}
                   labelFormatter={(l: unknown) => `Année ${l}`}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
@@ -367,7 +490,7 @@ export function FeeSimulator() {
                 <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
                   width={56} tickFormatter={(v: number) => EUR.format(v)} />
                 <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "-",
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
                     n === "entree" ? "Frais d'entrée" : n === "contrat" ? "Gestion du contrat" : "Gestion des UC (frais courants)"]}
                   labelFormatter={(l: unknown) => `Année ${l}`}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
@@ -438,12 +561,12 @@ export function FeeSimulator() {
                     <tr key={u.isin} className="border-b border-line-soft last:border-0">
                       <td className="py-1.5 text-ink-2 max-w-[220px] truncate" title={u.name}>{u.name}</td>
                       <td className={`py-1.5 text-right font-medium ${u.perf5y == null ? "text-muted" : u.perf5y >= 0 ? "text-ok" : "text-danger"}`}>
-                        {u.perf5y == null ? "-" : `${pct(u.perf5y, true)}/an`}
+                        {u.perf5y == null ? "—" : `${pct(u.perf5y, true)}/an`}
                       </td>
                       <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
                       {[5, 10, 15].map((h) => {
                         const v = projeterUC(u.perf5y, frais.contratGestionUC, 10_000, h);
-                        return <td key={h} className="py-1.5 text-right text-ink">{v == null ? "-" : EUR.format(v)}</td>;
+                        return <td key={h} className="py-1.5 text-right text-ink">{v == null ? "—" : EUR.format(v)}</td>;
                       })}
                     </tr>
                   ))}

@@ -46,6 +46,14 @@ export interface SimulationInput {
   rendementUC: number;      // %/an, net des frais courants (perf VL annualisée)
   rendementFE: number;      // %/an, taux servi net (publié)
   frais: FeeParams;
+  /**
+   * Rétrocession CGP (%/an sur l'encours UC) : la part des frais courants des
+   * UC que la société de gestion reverse au cabinet. Ce n'est PAS un frais en
+   * plus pour le client — c'est une tranche de `ucGestion`, déjà comptée dans
+   * la courbe des frais. On la suit à part pour répondre à « qu'est-ce que le
+   * CGP gagne ? » sans double comptage. 0 ou absent = non suivie.
+   */
+  retroCgp?: number;
 }
 
 export interface FeeBreakdown {
@@ -68,18 +76,22 @@ export interface YearPoint {
   fraisAnnee: FeeBreakdown;
   fraisCumules: FeeBreakdown;
   totalFraisCumules: number; // somme des 7 postes cumulés
+  retroCgpCumulee: number;   // rémunération CGP cumulée (tranche de gestionUC, 0 si non suivie)
 }
 
 export interface HorizonProjection {
   annees: number;
   valeurAvantSortie: number;
   fraisSortie: number;       // contrat + UC, appliqués au rachat
+  fraisSortieContrat: number; // détail du précédent (part assureur)
+  fraisSortieUC: number;      // détail du précédent (part société de gestion)
   valeurNette: number;       // ce que touche le client
   gainNet: number;           // valeurNette − versements cumulés
   totalFrais: number;        // tous postes, sortie incluse
   valeurSansFrais: number;   // trajectoire brute de tous frais
   manqueAGagner: number;     // valeurSansFrais − valeurAvantSortie (coût composé des frais)
   versementsCumules: number; // pour les ratios côté UI (frais / gain brut, etc.)
+  retroCgpCumulee: number;   // rémunération CGP cumulée à cet horizon (0 si non suivie)
 }
 
 export interface SimulationResult {
@@ -155,6 +167,9 @@ export function simulate(
   const f = sanitizeFrais(input.frais);
   const rUC = clampRendement(input.rendementUC);
   const rFE = clampRendement(input.rendementFE);
+  // La rétrocession est une tranche des frais courants : elle ne peut pas
+  // dépasser ce que la société de gestion prélève (assiette identique).
+  const retroCgp = Math.min(clampFrais(input.retroCgp ?? 0), f.ucGestion);
 
   // Facteurs annuels. Net UC = VL (nette de TER) dégradée du frais contrat UC.
   const factNetUC = (1 + rUC / 100) * (1 - f.contratGestionUC / 100);
@@ -166,7 +181,7 @@ export function simulate(
   const factBrutUC = (1 + rUC / 100) / (1 - gUC);
   const factBrutFE = (1 + rFE / 100) / (1 - gFE);
 
-  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0;
+  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0;
   const cumul = zeroBreakdown();
   const points: YearPoint[] = [];
 
@@ -200,6 +215,7 @@ export function simulate(
       fraisAnnee: roundBreakdown(an),
       fraisCumules: roundBreakdown(cumul),
       totalFraisCumules: r2(totalBreakdown(cumul)),
+      retroCgpCumulee: r2(retroCumulee),
     });
   };
 
@@ -219,6 +235,9 @@ export function simulate(
     an.gestionUC += uc * factBrutUC * gUC;
     an.gestionContratUC += uc * (1 + rUC / 100) * (f.contratGestionUC / 100);
     an.gestionContratFE += fe * factBrutFE * gFE;
+    // Rétrocession CGP : même assiette et même convention que gestionUC (elle
+    // en est une tranche), donc strictement ≤ gestionUC de l'année.
+    retroCumulee += uc * factBrutUC * (retroCgp / 100);
 
     uc *= factNetUC;
     fe *= factNetFE;
@@ -240,16 +259,57 @@ export function simulate(
       annees: h,
       valeurAvantSortie: p.valeurNette,
       fraisSortie,
+      fraisSortieContrat: r2(sortieContrat),
+      fraisSortieUC: r2(sortieUC),
       valeurNette,
       gainNet: r2(valeurNette - p.versementsCumules),
       totalFrais: r2(p.totalFraisCumules + fraisSortie),
       valeurSansFrais: p.valeurSansFrais,
       manqueAGagner: r2(p.valeurSansFrais - p.valeurNette),
       versementsCumules: p.versementsCumules,
+      retroCgpCumulee: p.retroCgpCumulee,
     });
   }
 
   return { points, horizons: projections };
+}
+
+/**
+ * Répartition du coût total de la structure par DESTINATAIRE à un horizon :
+ * qui encaisse quoi. Répond à « le coût de la structure, c'est quoi ? » :
+ *   • assureur          — frais du contrat (entrée, gestion des 2 compartiments,
+ *                          sortie) : il rémunère l'enveloppe assurance vie ;
+ *   • société de gestion — frais des UC (entrée, frais courants, sortie),
+ *                          NETS de ce qu'elle reverse au cabinet ;
+ *   • cabinet (CGP)      — rétrocessions : la part des frais courants des UC
+ *                          reversée au conseiller. C'est ce que le CGP gagne.
+ * Total des trois = totalFrais de l'horizon (aucun frais caché, pas de double
+ * comptage : la rétro est soustraite de la part société de gestion).
+ */
+export interface FraisParDestinataire {
+  assureur: number;
+  societeGestion: number;
+  cabinet: number;
+}
+
+export function repartitionFrais(
+  fraisCumules: FeeBreakdown,
+  h: HorizonProjection,
+  retroCgpCumulee: number,
+): FraisParDestinataire {
+  const cabinet = Math.min(retroCgpCumulee, fraisCumules.gestionUC);
+  return {
+    assureur: r2(
+      fraisCumules.entreeContrat + fraisCumules.gestionContratUC +
+      fraisCumules.gestionContratFE + fraisCumules.sortieContrat +
+      h.fraisSortieContrat,
+    ),
+    societeGestion: r2(
+      fraisCumules.entreeUC + fraisCumules.gestionUC + fraisCumules.sortieUC +
+      h.fraisSortieUC - cabinet,
+    ),
+    cabinet: r2(cabinet),
+  };
 }
 
 /**

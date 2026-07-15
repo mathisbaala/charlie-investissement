@@ -4,6 +4,7 @@ import {
   rendementPondere,
   projeterUC,
   partFraisDansGainBrut,
+  repartitionFrais,
   HORIZONS_DEFAUT,
   type SimulationInput,
   type FeeParams,
@@ -243,6 +244,51 @@ describe('partFraisDansGainBrut', () => {
       frais: { ...SANS_FRAIS, contratEntree: 3 },
     })
     expect(partFraisDansGainBrut(perte.horizons[0])).toBeNull()
+  })
+})
+
+describe('rétrocession CGP & répartition des frais', () => {
+  it('la rétro suit la même convention que gestionUC et en reste une tranche', () => {
+    // TER 1,8 dont 0,9 reversé au cabinet : la rétro cumulée = la moitié
+    // exacte des frais courants cumulés, à l'arrondi près.
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9 })
+    const p = sim.points[15]
+    expect(p.retroCgpCumulee).toBeGreaterThan(0)
+    expect(p.retroCgpCumulee).toBeCloseTo(p.fraisCumules.gestionUC / 2, 0)
+    // reportée sur les horizons
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.retroCgpCumulee).toBe(p.retroCgpCumulee)
+  })
+
+  it('bornée aux frais courants (une rétro > TER est plafonnée)', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 99 })
+    const p = sim.points[15]
+    expect(p.retroCgpCumulee).toBeLessThanOrEqual(p.fraisCumules.gestionUC + 0.01)
+  })
+
+  it('absente ou nulle → 0, sans toucher au reste de la simulation', () => {
+    const avec = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9 })
+    const sans = simulate({ ...base, frais: FRAIS_TYPES })
+    expect(sans.points[15].retroCgpCumulee).toBe(0)
+    // la rétro est une tranche des frais existants, jamais un frais en plus
+    expect(avec.points[15].valeurNette).toBe(sans.points[15].valeurNette)
+    expect(avec.points[15].totalFraisCumules).toBe(sans.points[15].totalFraisCumules)
+  })
+
+  it('répartition par destinataire : assureur + société de gestion + cabinet = total frais', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const p = sim.points[15]
+    const r = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee)
+    expect(r.assureur).toBeGreaterThan(0)
+    expect(r.societeGestion).toBeGreaterThan(0)
+    expect(r.cabinet).toBeGreaterThan(0)
+    expect(r.assureur + r.societeGestion + r.cabinet).toBeCloseTo(h.totalFrais, 0)
+    // la rétro sort de la poche société de gestion, pas de celle du client
+    const sansRetro = repartitionFrais(p.fraisCumules, h, 0)
+    expect(sansRetro.cabinet).toBe(0)
+    expect(sansRetro.societeGestion).toBeCloseTo(r.societeGestion + r.cabinet, 1)
+    expect(sansRetro.assureur).toBe(r.assureur)
   })
 })
 

@@ -651,19 +651,31 @@ export function FilterPanel({
         {/* Univers */}
         <Section title="Univers (type de produit)">
           <div className="flex gap-2 flex-wrap">
-            {["opcvm", "etf", "scpi", "fps", "fonds_euros",
-              "fcpr", "fcpi", "fip", "fpci"].map((u) => (
+            {[
+              { val: "opcvm",       label: "OPCVM" },
+              { val: "etf",         label: "ETF" },
+              { val: "scpi",        label: "SCPI" },
+              { val: "fps",         label: "FPS" },
+              { val: "fonds_euros", label: "FONDS EUROS" },
+              { val: "action",      label: "ACTIONS" },
+              { val: "crypto",      label: "CRYPTO" },
+              { val: "structuré",   label: "STRUCTURÉS" },
+              { val: "fcpr",        label: "FCPR" },
+              { val: "fcpi",        label: "FCPI" },
+              { val: "fip",         label: "FIP" },
+              { val: "fpci",        label: "FPCI" },
+            ].map(({ val, label }) => (
               <SfdrPill
-                key={u}
-                label={u.toUpperCase()}
-                active={(f.universe ?? []).includes(u)}
-                onToggle={() => set("universe", toggleArr(f.universe, u))}
+                key={val}
+                label={label}
+                active={(f.universe ?? []).includes(val)}
+                onToggle={() => set("universe", toggleArr(f.universe, val))}
               />
             ))}
           </div>
           <p className="text-caption text-muted-2 mt-2 leading-snug">
-            FCPR / FCPI / FIP / FPCI = private equity (non coté), hors navigation par
-            défaut. Éligibilité assurance-vie via l&apos;enveloppe AV Luxembourg.
+            FCPR / FCPI / FIP / FPCI = private equity (non coté). Éligibilité
+            assurance-vie via l&apos;enveloppe AV Luxembourg.
           </p>
         </Section>
 
