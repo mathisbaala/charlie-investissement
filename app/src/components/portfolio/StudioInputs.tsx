@@ -7,7 +7,8 @@ import { X, ChevronDown, ChevronRight } from "@/components/ui/icons";
 import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { FundAdder } from "@/components/portfolio/FundAdder";
-import { SAMPLE_UNIVERSE, SAMPLE_CONTRACT } from "@/lib/sampleUniverse";
+import { ContractPicker } from "@/components/portfolio/ContractPicker";
+import { SAMPLE_UNIVERSE } from "@/lib/sampleUniverse";
 import { usePortfolioStudio, shortName } from "@/components/portfolio/PortfolioStudioContext";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -30,8 +31,14 @@ export function StudioInputs() {
     contract, setContract, method, setMethod, showAdvanced, setShowAdvanced,
     retroTilt, setRetroTilt, cabinet, sriOverride, setSriOverride, effectiveSri,
     included, setIncluded, includeFund, source, linesIsins,
-    onProfileChange, busy, errorMsg, compute,
+    profile, onProfileChange, busy, errorMsg, compute,
   } = usePortfolioStudio();
+
+  // Périmètre du sélecteur de contrat : les assureurs renseignés (distribution
+  // du profil, pré-remplie depuis Mon cabinet) + les partenaires du cabinet.
+  // Vide → recherche dans tous les contrats de la base.
+  const scopeInsurers = [...new Set([...profile.insurers, ...cabinet.insurers])];
+  const cabinetKeys = new Set(cabinet.contracts.map((c) => c.key));
 
   async function generate() {
     const ok = await compute();
@@ -59,23 +66,12 @@ export function StudioInputs() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Field label="Contrat">
-              {cabinet.contracts.length > 0 ? (
-                <select
-                  className={inputCls}
-                  value={contract}
-                  aria-label="Contrat du cabinet"
-                  onChange={(e) => setContract(e.target.value)}
-                >
-                  {cabinet.contracts.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.key.replace("::", ", ")}
-                    </option>
-                  ))}
-                  <option value={SAMPLE_CONTRACT}>Contrat démo (univers d&apos;exemple)</option>
-                </select>
-              ) : (
-                <input className={inputCls} value={contract} onChange={(e) => setContract(e.target.value)} />
-              )}
+              <ContractPicker
+                value={contract}
+                onChange={setContract}
+                scopeInsurers={scopeInsurers}
+                cabinetKeys={cabinetKeys}
+              />
             </Field>
             <Field label="Poids max. par fonds (%)">
               <input className={inputCls} type="number" min={10} max={100} value={maxPerFund} onChange={(e) => setMaxPerFund(e.target.value)} />
