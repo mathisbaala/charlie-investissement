@@ -22,6 +22,14 @@ export interface FundRetroOverride {
   share: number;
 }
 
+/** Rétrocession libre : tout type de frais non couvert par les champs dédiés. */
+export interface CustomRetroFee {
+  /** Intitulé libre (ex. « Commission sur encours SCPI »). */
+  label: string;
+  /** Taux en fraction (0.01 = 1 %) ; null tant que non renseigné. */
+  rate: number | null;
+}
+
 export interface CabinetContract {
   /** Clé composite « Assureur::Contrat » (référencement de la base). */
   key: string;
@@ -29,6 +37,14 @@ export interface CabinetContract {
   contractFeeShare: number | null;
   /** Part des frais courants des fonds (UC) rétrocédée (0.5 = 50 %). */
   ucRetroShare: number | null;
+  /** Frais d'entrée reversés au cabinet (fraction des versements, une fois, 0.01 = 1 %). */
+  entryFeeShare: number | null;
+  /** Frais d'arbitrage reversés (fraction des montants arbitrés, 0.002 = 0,20 %). */
+  arbitrageFeeShare: number | null;
+  /** Rétrocession sur le fonds en euros (fraction d'encours euros/an). */
+  eurosRetroShare: number | null;
+  /** Autres rétrocessions, en saisie libre (intitulé + taux). */
+  customFees: CustomRetroFee[];
   /** Exceptions par fonds (prioritaires sur ucRetroShare). */
   fundOverrides: FundRetroOverride[];
 }
@@ -49,19 +65,51 @@ export const EMPTY_CABINET: CabinetSettings = {
 };
 
 export function emptyContract(key: string): CabinetContract {
-  return { key, contractFeeShare: null, ucRetroShare: null, fundOverrides: [] };
+  return {
+    key,
+    contractFeeShare: null,
+    ucRetroShare: null,
+    entryFeeShare: null,
+    arbitrageFeeShare: null,
+    eurosRetroShare: null,
+    customFees: [],
+    fundOverrides: [],
+  };
+}
+
+/**
+ * Complète un contrat stocké avant l'ajout des nouveaux types de rétrocession
+ * (frais d'entrée, arbitrage, fonds euros, saisie libre) : les champs absents
+ * du localStorage reçoivent leur valeur vide au lieu de rester `undefined`.
+ */
+export function normalizeContract(c: Partial<CabinetContract> & { key: string }): CabinetContract {
+  return { ...emptyContract(c.key), ...c, fundOverrides: c.fundOverrides ?? [], customFees: c.customFees ?? [] };
 }
 
 // ─── localStorage (même pattern que le profil client) ────────────────────────
 
 const STORAGE_KEY = "charlie_cabinet_settings";
+// v2 : les contrats sont ajoutés un à un via la recherche — fin du rattachement
+// d'office de tout le catalogue d'un assureur partenaire.
+const STORAGE_VERSION = 2;
 
 export function loadStoredCabinet(): CabinetSettings {
   if (typeof window === "undefined") return EMPTY_CABINET;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_CABINET;
-    return { ...EMPTY_CABINET, ...(JSON.parse(raw) as Partial<CabinetSettings>) };
+    const { v, ...parsed } = JSON.parse(raw) as Partial<CabinetSettings> & { v?: number };
+    // Contrats saisis avant l'ajout des nouveaux types de rétrocession.
+    const contracts = (parsed.contracts ?? []).map(normalizeContract);
+    return {
+      ...EMPTY_CABINET,
+      ...parsed,
+      // Avant v2, TOUS les contrats d'un assureur partenaire étaient rattachés
+      // d'office (convention vierge) : on ne garde que ceux réellement
+      // renseignés. À partir de v2, chaque contrat listé a été choisi par le
+      // CGP — on les conserve tels quels, même vierges.
+      contracts: v == null ? contracts.filter(hasAnyConvention) : contracts,
+    };
   } catch {
     return EMPTY_CABINET;
   }
@@ -69,7 +117,7 @@ export function loadStoredCabinet(): CabinetSettings {
 
 export function saveStoredCabinet(c: CabinetSettings): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...c, v: STORAGE_VERSION }));
 }
 
 // ─── Résolution de la cascade ─────────────────────────────────────────────────
@@ -106,6 +154,44 @@ export function resolveUcRetroShare(
  * (`contractFeeShare`) n'est PAS incluse ici : elle est uniforme sur le
  * contrat et s'ajoute au niveau du portefeuille.
  */
+const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * Contrats d'un assureur proposables à l'ajout dans l'onglet Cabinet :
+ * référencés chez `company`, pas encore rattachés au cabinet, filtrés par la
+ * recherche (casse et accents ignorés), tronqués à `limit`. Les contrats sont
+ * ajoutés un à un — certains assureurs en référencent soixante, tout afficher
+ * d'office rendait la page illisible. Exportée pour être testée isolément.
+ */
+export function searchInsurerContracts<T extends { company: string; key: string }>(
+  referenced: T[],
+  company: string,
+  existingKeys: Set<string>,
+  query: string,
+  limit = 8,
+): T[] {
+  const q = norm(query.trim());
+  return referenced
+    .filter((o) => o.company === company && !existingKeys.has(o.key))
+    .filter((o) => q === "" || norm(o.key).includes(q))
+    .sort((a, b) => a.key.localeCompare(b.key, "fr"))
+    .slice(0, limit);
+}
+
+/** Vrai si au moins un taux (ou une exception) est renseigné sur la convention. */
+export function hasAnyConvention(contract: CabinetContract | null): boolean {
+  if (!contract) return false;
+  return (
+    contract.contractFeeShare != null ||
+    contract.ucRetroShare != null ||
+    contract.entryFeeShare != null ||
+    contract.arbitrageFeeShare != null ||
+    contract.eurosRetroShare != null ||
+    contract.customFees.some((f) => f.rate != null) ||
+    contract.fundOverrides.length > 0
+  );
+}
+
 export function resolveFundRetrocession(
   contract: CabinetContract | null,
   isin: string,
