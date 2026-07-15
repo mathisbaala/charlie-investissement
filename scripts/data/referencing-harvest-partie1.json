@@ -1370,10 +1370,175 @@
    "isins": []
   },
   "Mutavie": {
-   "status": "vide",
-   "note": "WAF 403 sur tout le site : nécessite navigateur réel (av-refresh-browser)",
-   "nb_isins": 0,
-   "isins": []
+   "status": "ok",
+   "note": "récolté via curl (le WAF bloque l'empreinte TLS python, pas curl) : gamme UC volontairement réduite chez Mutavie",
+   "nb_isins": 41,
+   "isins": [
+    {
+     "isin": "FR0000284689",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000292278",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000427437",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000427452",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000971186",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0007051040",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0007078589",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010111732",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010177899",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010245944",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010286013",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010321810",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010475848",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010485524",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010508333",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010564351",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010592022",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010601906",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010611293",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010642280",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010689141",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010903674",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010917658",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010971721",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011066802",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011153014",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011170182",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979250",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979268",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979276",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013238961",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013275120",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013308921",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013414414",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU0185497350",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU0251127410",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1161527038",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1301026388",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1317710371",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1481505755",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1983381689",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    }
+   ]
   },
   "Le Conservateur": {
    "status": "ok",
