@@ -28,7 +28,7 @@ export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
 const ENUMS = {
   envelopes: ["PEA", "PEA-PME", "PER", "AV-FR", "AV-LUX", "CTO"],
-  universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto", "fcpr", "fcpi", "fip", "fpci"],
+  universe: ["opcvm", "etf", "scpi", "fonds_euros", "fps", "action", "crypto", "structuré", "fcpr", "fcpi", "fip", "fpci"],
   asset_class: ["action", "obligation", "diversifie", "monetaire", "immobilier", "matieres_premieres", "alternatif", "fonds_euros"],
   allocation_profile: ["prudent", "equilibre", "dynamique", "flexible"],
   region: ["world", "europe", "eurozone", "usa", "france", "emerging", "japan", "asia", "china", "uk", "germany", "switzerland", "india", "brazil"],

@@ -25,6 +25,10 @@ let eqHead: Array<[string, any]>;
 let gteData: Array<[string, any]>;
 let lteData: Array<[string, any]>;
 let orData: string[];
+// Capture des .in(col, vals) et .not(col, op, vals) de la requête de données, pour
+// vérifier l'univers produit (navigation neutre = AUCUNE exclusion de product_type).
+let inData: Array<[string, any]>;
+let notData: Array<[string, string, any]>;
 
 // Le builder est chaînable ET thenable. Il sert à la fois pour supabase.from(...)
 // et pour supabase.rpc("inv_funds_search", ...) (recherche classée par pertinence,
@@ -45,9 +49,12 @@ function makeBuilder({ head = false, fuzzy = false }: { head?: boolean; fuzzy?: 
       ).then(resolve),
   };
   // Méthodes de filtre/tri sans capture (renvoient le builder).
-  for (const m of ["in", "not", "overlaps", "ilike", "order", "limit", "filter"]) {
+  for (const m of ["overlaps", "ilike", "order", "limit", "filter"]) {
     builder[m] = () => builder;
   }
+  // in / not : on enregistre les arguments (requête de données uniquement).
+  builder.in = (col: string, vals: any) => { if (!isHead) inData.push([col, vals]); return builder; };
+  builder.not = (col: string, op: string, vals: any) => { if (!isHead) notData.push([col, op, vals]); return builder; };
   // gte / lte / or : on enregistre les arguments (requête de données uniquement).
   builder.gte = (col: string, val: any) => { if (!isHead) gteData.push([col, val]); return builder; };
   builder.lte = (col: string, val: any) => { if (!isHead) lteData.push([col, val]); return builder; };
@@ -106,9 +113,34 @@ describe("GET /api/funds — robustesse pagination", () => {
     gteData = [];
     lteData = [];
     orData = [];
+    inData = [];
+    notData = [];
     dataQueue = [];
     rpcResult = { data: null, error: null };
     rpcCalls = [];
+  });
+
+  // Univers complet par défaut (décision 15/07/2026) : la navigation neutre expose
+  // TOUS les types de produit — plus aucune exclusion product_type (action, crypto,
+  // fps, structuré, private equity compris). Régression garde le comptage honnête :
+  // « on est à combien de fonds ? » = tout le catalogue.
+  it("navigation neutre : aucune exclusion de product_type", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    const res = await GET(req(""));
+    expect(res.status).toBe(200);
+    expect(notData.filter(([col]) => col === "product_type")).toHaveLength(0);
+    expect(inData.filter(([col]) => col === "product_type")).toHaveLength(0);
+  });
+
+  // Le filtre univers reste opérant : universe=action,crypto → .in("product_type", …).
+  it("filtre universe : restreint bien product_type aux types demandés", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    const res = await GET(req("?universe=action,crypto,structuré"));
+    expect(res.status).toBe(200);
+    const inPt = inData.filter(([col]) => col === "product_type");
+    expect(inPt).toHaveLength(1);
+    expect(inPt[0][1]).toEqual(["action", "crypto", "structuré"]);
+    expect(notData.filter(([col]) => col === "product_type")).toHaveLength(0);
   });
 
   // Garde anti-scraping : la pagination PROFONDE (énumération de l'univers) est
