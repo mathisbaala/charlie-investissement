@@ -148,13 +148,20 @@ export function CompositionDonut({
   size = 92,
   topN = 5,
   centerLabel,
+  keepOrder = false,
+  showLegend = true,
 }: {
   slices: Slice[];
   size?: number;
   topN?: number;
   centerLabel?: string;
+  /** Respecte l'ordre fourni (ex. « Autres » déjà regroupé en dernier) au lieu de retrier. */
+  keepOrder?: boolean;
+  /** Masque la légende quand la liste des parts est déjà affichée à côté. */
+  showLegend?: boolean;
 }) {
-  const sorted = slices.filter((x) => x.weight > 0).sort((a, b) => b.weight - a.weight);
+  const positive = slices.filter((x) => x.weight > 0);
+  const sorted = keepOrder ? positive : [...positive].sort((a, b) => b.weight - a.weight);
   const top = sorted.slice(0, topN);
   const restW = sorted.slice(topN).reduce((a, x) => a + x.weight, 0);
   const display = restW > 0 ? [...top, { label: "Autres", weight: restW }] : top;
@@ -181,17 +188,19 @@ export function CompositionDonut({
           </View>
         )}
       </View>
-      <View style={{ flex: 1 }}>
-        {display.map((d, i) => (
-          <View key={i} style={[s.legendItem, { justifyContent: "space-between", marginBottom: 3 }]}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colorOf(i) }} />
-              <Text style={s.legendText}>{d.label.length > 22 ? d.label.slice(0, 21) + "…" : d.label}</Text>
+      {showLegend && (
+        <View style={{ flex: 1 }}>
+          {display.map((d, i) => (
+            <View key={i} style={[s.legendItem, { justifyContent: "space-between", marginBottom: 3 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colorOf(i) }} />
+                <Text style={s.legendText}>{d.label.length > 22 ? d.label.slice(0, 21) + "…" : d.label}</Text>
+              </View>
+              <Text style={s.legendVal}>{((d.weight / total) * 100).toFixed(0)}%</Text>
             </View>
-            <Text style={s.legendVal}>{((d.weight / total) * 100).toFixed(0)}%</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }

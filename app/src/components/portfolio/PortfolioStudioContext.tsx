@@ -565,15 +565,50 @@ function useStudioState() {
       ? amountEur * Math.pow(1 + effectiveResult.expectedReturn, Math.max(1, horizon))
       : null;
 
-  async function downloadPdf() {
+  // Présentation ENRICHIE pour les documents remis au client : tout ce que
+  // l'atelier affiche (répartitions look-through, projets, corrélation,
+  // projection, back-test) suit dans le PDF et le PowerPoint. Chaque brique est
+  // optionnelle : une collecte partielle produit un document partiel, jamais
+  // d'échec du téléchargement.
+  async function presentationForExport(): Promise<AllocationPresentation | null> {
     const pres = effectivePresentation ?? presentation;
-    if (!pres) return;
+    const shown = effectiveResult ?? result;
+    if (!pres || !shown) return pres;
+    try {
+      const [{ collectPresentationExtras }, { weightedTer }] = await Promise.all([
+        import("@/lib/presentationExtras"),
+        import("@/lib/allocationRationale"),
+      ]);
+      const extras = await collectPresentationExtras({
+        lines: shown.lines,
+        goals: profile.goals ?? [],
+        pockets,
+        globalMu: shown.expectedReturn,
+        globalSigma: shown.volatility,
+        correlation: corr,
+        amountEur,
+        horizonYears: Math.max(1, horizon),
+        projectedEur: projected,
+        effectiveHoldings: shown.diversification?.effectiveHoldings ?? null,
+        avgTer: weightedTer(shown.lines),
+        includeBacktest: source === "api",
+      });
+      return { ...pres, extras };
+    } catch {
+      return pres; // extras indisponibles : document de base quand même
+    }
+  }
+
+  async function downloadPdf() {
+    if (!(effectivePresentation ?? presentation)) return;
     setPdfBusy(true);
     try {
-      const [{ pdf }, { default: AllocationReportPDF }] = await Promise.all([
+      const [{ pdf }, { default: AllocationReportPDF }, pres] = await Promise.all([
         import("@react-pdf/renderer"),
         import("@/lib/AllocationReportPDF"),
+        presentationForExport(),
       ]);
+      if (!pres) return;
       const blob = await pdf(<AllocationReportPDF presentation={pres} />).toBlob();
       triggerDownload(blob, `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pdf`);
     } catch {
@@ -584,11 +619,14 @@ function useStudioState() {
   }
 
   async function downloadPptx() {
-    const pres = effectivePresentation ?? presentation;
-    if (!pres) return;
+    if (!(effectivePresentation ?? presentation)) return;
     setPptBusy(true);
     try {
-      const { buildAllocationDeck } = await import("@/lib/allocationPptx");
+      const [{ buildAllocationDeck }, pres] = await Promise.all([
+        import("@/lib/allocationPptx"),
+        presentationForExport(),
+      ]);
+      if (!pres) return;
       await buildAllocationDeck(pres).writeFile({
         fileName: `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pptx`,
       });

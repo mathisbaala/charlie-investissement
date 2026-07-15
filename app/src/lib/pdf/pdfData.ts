@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from "@/lib/supabase";
-import { canonicalSector, type ExpoRow } from "@/lib/lookthrough";
+import { canonicalSector } from "@/lib/lookthrough";
 import type { Pt, Slice } from "@/lib/pdf/chartMath";
 
 export type { Slice };
@@ -103,34 +103,5 @@ export async function fetchCompositionByFund(isins: string[]): Promise<Record<st
   return out;
 }
 
-/**
- * Lignes ExpoRow (clé = code pays) pour l'exposition géographique agrégée d'un
- * portefeuille. Réutilise la même canonicalisation que la composition par fonds.
- */
-export async function fetchGeoRows(isins: string[]): Promise<ExpoRow[]> {
-  const { data } = await supabase
-    .from("investissement_fund_geos")
-    .select("isin, country_label, country_code, weight")
-    .in("isin", isins);
-  const rows = (data ?? []) as { isin: string; country_label: string; country_code: string; weight: number }[];
-  const codeLabel = new Map<string, string>();
-  for (const g of rows) {
-    const code = ((g.country_code || "").trim() || g.country_label || "").toUpperCase();
-    if (code && !codeLabel.has(code)) codeLabel.set(code, g.country_label || g.country_code);
-  }
-  return rows.map((g) => {
-    const code = ((g.country_code || "").trim() || g.country_label || "").toUpperCase();
-    return { isin: g.isin, key: code, label: codeLabel.get(code) || g.country_label || g.country_code, weight: Number(g.weight) };
-  });
-}
-
-/** Lignes ExpoRow (secteurs canoniques FR) pour l'exposition agrégée. */
-export async function fetchSectorRows(isins: string[]): Promise<ExpoRow[]> {
-  const { data } = await supabase
-    .from("investissement_fund_sectors")
-    .select("isin, sector_name, weight")
-    .in("isin", isins);
-  return ((data ?? []) as { isin: string; sector_name: string; weight: number }[])
-    .map((srow) => ({ isin: srow.isin, label: canonicalSector(srow.sector_name) as string, weight: Number(srow.weight) }))
-    .filter((srow) => srow.label != null);
-}
+// Les lignes ExpoRow géo / secteurs (exposition agrégée d'un portefeuille)
+// vivent dans @/lib/fundExposure — partagées avec /api/portfolio/exposure.

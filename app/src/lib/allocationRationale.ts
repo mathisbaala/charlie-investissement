@@ -7,6 +7,7 @@
 // (SRI + SFDR), convictions de gestion, avertissements MIF II.
 
 import type { AllocationResult, AllocationLine, AssetClass } from "./optimizer";
+import type { PresentationExtras } from "./presentationExtras";
 
 export interface PresentationOptions {
   contractName: string;
@@ -62,6 +63,10 @@ export interface AllocationPresentation {
   };
   convictions: { title: string; text: string }[];
   disclaimers: string[];
+  /** Blocs additionnels de l'atelier (expo géo/secteurs, projets, corrélation,
+      projection, back-test), collectés au téléchargement. Absents = sections
+      simplement omises des documents. */
+  extras?: PresentationExtras;
 }
 
 const CLASS_LABEL: Record<AssetClass, string> = {
@@ -146,7 +151,9 @@ export function fundRationale(line: AllocationLine): string {
   return parts.join(" ");
 }
 
-function roleSentence(line: AllocationLine): string {
+/** Rôle qualitatif d'un support dans le portefeuille, en une phrase (réutilisé
+    par les cartes du deck PowerPoint : version courte de la justification). */
+export function roleSentence(line: AllocationLine): string {
   switch (line.assetClass) {
     case "fonds_euros":
       return "Socle défensif du portefeuille : garantie en capital et amortisseur des chocs de marché.";
@@ -292,7 +299,7 @@ export function buildPresentation(
   };
 }
 
-function weightedTer(lines: AllocationLine[]): number | null {
+export function weightedTer(lines: AllocationLine[]): number | null {
   let acc = 0;
   let wsum = 0;
   for (const l of lines) {

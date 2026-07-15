@@ -9,11 +9,12 @@ import { ArrowLeft } from "@/components/ui/icons";
 import { PageShell } from "@/components/ui/Page";
 import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { MarkowitzChart } from "@/components/portfolio/MarkowitzChart";
+import { PortfolioExposure } from "@/components/portfolio/PortfolioExposure";
 import { PortfolioBacktest } from "@/components/portfolio/PortfolioBacktest";
 import { DEFAULT_CONSTRAINTS } from "@/lib/optimizer";
 import { GOAL_PRIORITY_LABELS, type ClientGoal } from "@/lib/clientProfile";
 import { goalToPlan, requiredAnnualReturn, goalSuccessProbabilityMC } from "@/lib/goalPlanning";
-import { resolveFundRetrocession } from "@/lib/cabinet";
+import { resolveFundRetrocession, hasAnyConvention } from "@/lib/cabinet";
 import { usePortfolioStudio, shortName, type PocketStats } from "@/components/portfolio/PortfolioStudioContext";
 
 // ─── Matrice de corrélation des lignes retenues ───────────────────────────────
@@ -289,15 +290,17 @@ export function StudioResults() {
       {retroTilt && amountEur != null && amountEur > 0 && (() => {
         const lines = shown.lines;
         const known = lines.filter((l) => l.retrocession != null);
-        if (known.length === 0 && convention?.contractFeeShare == null) return null;
+        if (known.length === 0 && convention?.contractFeeShare == null && convention?.entryFeeShare == null) return null;
         const ucAnnual = lines.reduce((s, l) => {
           const retro = resolveFundRetrocession(convention, l.isin, l.ter ?? null, l.retrocession ?? null);
           return s + (l.weight / 100) * (retro ?? 0) * amountEur;
         }, 0);
         const contractAnnual = (convention?.contractFeeShare ?? 0) * amountEur;
         const total = ucAnnual + contractAnnual;
-        const hasConvention = convention != null &&
-          (convention.ucRetroShare != null || convention.contractFeeShare != null || convention.fundOverrides.length > 0);
+        // Frais d'entrée reversés : montant UNE FOIS, à la souscription (pas
+        // annualisé — il ne s'additionne donc pas au récurrent).
+        const entryOnce = (convention?.entryFeeShare ?? 0) * amountEur;
+        const hasConvention = hasAnyConvention(convention);
         return (
           <Card className="px-5 py-4 bg-paper-2">
             <span className="text-meta text-ink-2">
@@ -306,6 +309,9 @@ export function StudioResults() {
               {contractAnnual > 0 && (
                 <> ({Math.round(contractAnnual).toLocaleString("fr-FR")} € part contrat
                 {" "}+ {Math.round(ucAnnual).toLocaleString("fr-FR")} € rétrocessions UC)</>
+              )}
+              {entryOnce > 0 && (
+                <>, + {Math.round(entryOnce).toLocaleString("fr-FR")} € à la souscription (frais d&apos;entrée reversés)</>
               )}
               {known.length < lines.length ? `, ${lines.length - known.length} ligne(s) sans donnée` : ""}
               {" "}: {hasConvention
@@ -349,6 +355,12 @@ export function StudioResults() {
           onWeightsChange={setSimWeights}
         />
       )}
+
+      {/* Répartitions géo / secteurs de l'allocation courante, recalculées en
+          direct quand le conseiller ajuste les poids simulés ci-dessus
+          (shown.lines reflète déjà la pondération simulée). */}
+      <PortfolioExposure lines={shown.lines} />
+
       {corr && <CorrelationCard names={corr.names} matrix={corr.matrix} />}
 
       {/* Back-test historique : réservé aux données réelles du contrat —
