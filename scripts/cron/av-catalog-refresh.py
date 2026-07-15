@@ -42,6 +42,12 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-cardif-catalog.py", []),
     ("scrapers/av-fr-generali-catalog.py", []),     # Generali Vie FR (Himalia + e-Xaélidia, annexes PDF ~2,3k liens)
     ("scrapers/av-fr-mutualistes-catalog.py", []),  # OK (vérifié 22/06 : 8 PDF live, ~280 ISIN en base)
+    ("scrapers/av-fr-garance-catalog.py", []),      # Garance (mutuelle, 5 contrats — vérifié 15/07)
+    ("scrapers/av-fr-monceau-catalog.py", []),      # Monceau Assurances (2 contrats — vérifié 15/07)
+    ("scrapers/av-fr-asac-fapes-catalog.py", []),   # Asac Fapes (3 contrats — vérifié 15/07)
+    ("scrapers/av-fr-bpce-catalog.py", []),         # BPCE Vie / Natixis Assurances (portail HTML priips, 7 réseaux, 38 contrats — vérifié 15/07)
+    ("scrapers/av-fr-prepar-vie-catalog.py", []),   # Prépar Vie (portail AJAX priips.prepar-vie.com, 11 réseaux, 36 contrats — vérifié 15/07)
+    ("scrapers/av-fr-afi-esca-catalog.py", []),     # Afi Esca (Sélection Premium, liste mensuelle — vérifié 15/07)
     # av-fr-oradea-catalog.py RETIRÉ 13/07 : portail source décommissionné (cf. quarantaine ci-dessous).
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
@@ -86,6 +92,22 @@ AV_CATALOG_STEPS = [
 #       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent ;
 #                                            la gamme AG2R LMEP Lux est désormais couverte
 #                                            par av-lux-lmep-easypack ci-dessus)
+#       - Matmut Vie (Complice Vie)          (aucun PDF/API exploitable trouvé le 15/07 : les
+#                                            annexes/CG publiques (MATMUT_PAVNI.pdf, notice-
+#                                            complice-vie.pdf, tableau-frais-complice-vie.pdf)
+#                                            ne contiennent aucun ISIN — liste de supports
+#                                            réservée à l'espace client/portail. À couvrir via
+#                                            Playwright si l'espace public change de structure.)
+#       - Sogelife                           (le site public ne référence que la plateforme
+#                                            PREMIUM réservée aux partenaires (login requis) ;
+#                                            aucune annexe financière publique trouvée le 15/07.
+#                                            À recontacter côté partenariat Sogelife pour un accès
+#                                            API/export, ou Playwright si PREMIUM devient accessible.)
+#       - Neuflize Vie (Hoche Patrimoine…)   (banque privée : /contrats/ redirige vers la page
+#                                            d'accueil générique neuflizeobc.fr, aucune annexe
+#                                            financière publique trouvée le 15/07. Distribution
+#                                            probablement conseiller-only ; à recontacter côté
+#                                            partenariat ou vérifier un accès CGP dédié.)
 #   • sources DÉCOMMISSIONNÉES (hôte source disparu, à re-sourcer avant réintégration) :
 #       - scrapers/av-fr-oradea-catalog.py   (RETIRÉ 13/07 : le portail statique
 #                                            priips.oradea-vie.com — HTML à attributs cdisine="ISIN" —
