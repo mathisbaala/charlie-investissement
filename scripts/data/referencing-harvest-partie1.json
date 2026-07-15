@@ -1,0 +1,2614 @@
+{
+ "meta": {
+  "harvested_at": "2026-07-15T08:56:01.478554+00:00",
+  "method": "crawl déterministe local (HTML+PDF pypdf), ISIN valides clé ISO 6166, IP résidentielle, 2 passes",
+  "scope": "Partie 1 : assureurs absents de investissement_av_lux_eligibility au 2026-07-15"
+ },
+ "companies": {
+  "Sogécap": {
+   "status": "ok (partiel)",
+   "note": "pages publiques + navigateur local (45 pages rendues, 49 PDF) : les annexes par contrat (Séquoia, Érable) sont derrière l'espace client, pas publiques",
+   "nb_isins": 30,
+   "isins": [
+    {
+     "isin": "FR0000000085",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/06-735988A_247464_SGRF_Brochure_SG_IS_Multi_actifs_Dynamique_CLH.pdf"
+    },
+    {
+     "isin": "FR0000444275",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsEuropeEnvironnement-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0007468830",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010145185",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010259994",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010260018",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010278408",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010283853",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010286765",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010407247",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0010431015",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsFranceISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0012881753",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0012892156",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0012892172",
+     "source_url": "https://particuliers.sg.fr/epargner-placer-son-argent/nos-offres/investissements-placements-financiers/les-solutions-complementaires"
+    },
+    {
+     "isin": "FR0013152980",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsEuropeEnvironnement-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013521218",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiObligEntreprisesEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013526134",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/722084D_247041_SGRF_Brochure_SG_Amundi_Obligation_Vertes_2025.pdf"
+    },
+    {
+     "isin": "FR0013526191",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiActionsFranceISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013535390",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGDNCAActionsEuropeClimat-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0013535481",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/Brochure_4_SG_DNCA_Actions_Europe_ISR_EIP-LIGHT.pdf"
+    },
+    {
+     "isin": "FR00140009Z9",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/06-735893A_247409_SGRF_Brochure_SG_IS_Multi_actifs_Equilibre_CLH.pdf"
+    },
+    {
+     "isin": "FR0014000QG7",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG-CPR-Actions-Monde-Enjeu-Climat-VF-lite.pdf"
+    },
+    {
+     "isin": "FR00140097C3",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG_BlackRock_Actions_Emergents_ISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000100",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/Brochure_SG_BlackRock_Actions_US_ISR_LD.pdf"
+    },
+    {
+     "isin": "FR0050000423",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGBlackrockObligationsEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000431",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGMirovaActionsMondeDurableISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000688",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGBlackrockActionsEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "FR0050000829",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/722084D_247041_SGRF_Brochure_SG_Amundi_Obligation_Vertes_2025.pdf"
+    },
+    {
+     "isin": "FR0050000837",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/BROSGAmundiObligEntreprisesEuroISR-LIGHT.pdf"
+    },
+    {
+     "isin": "LU2617370940",
+     "source_url": "https://particuliers.sg.fr/static/Particuliers/Home/Epargner/pdf/light/SG-CPR-Actions-Monde-Enjeu-Climat-VF-lite.pdf"
+    }
+   ]
+  },
+  "Lombard International": {
+   "status": "vide",
+   "note": "pas de liste publique (B2B, racheté par Utmost) : passer par les catalogues distributeurs",
+   "nb_isins": 0,
+   "isins": []
+  },
+  "CALIE": {
+   "status": "vide",
+   "note": "sites calie.lu/.fr injoignables : pas de liste publique connue",
+   "nb_isins": 0,
+   "isins": []
+  },
+  "Milleis Vie": {
+   "status": "ok",
+   "note": "",
+   "nb_isins": 322,
+   "isins": [
+    {
+     "isin": "BE0974293251",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "CH0012005267",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "CH0012032048",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "CH0038863350",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "CH0210483332",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0005200000",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0005552004",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0005557508",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0005785604",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0006231004",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0007030009",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0007100000",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0007164600",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0007236101",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0007664039",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE0008404005",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE000A161408",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE000BASF111",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE000BAY0017",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE000ENER6Y0",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DE000PAG9113",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "DK0062498333",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "ES0113211835",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "ES0113900J37",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "ES0148396007",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000031577",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000031775",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000035164",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000035370",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000039091",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000039109",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000039299",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000039620",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000044448",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000045072",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000050809",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000051807",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000052292",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000054470",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000054900",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000062671",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000073272",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000073298",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120073",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120172",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120271",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120321",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120404",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120503",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120578",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120628",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120644",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120693",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000120859",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121014",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121121",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121204",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121220",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121329",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121485",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121667",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121709",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121964",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000121972",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000124141",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000125007",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000125338",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000125486",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000127771",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000130213",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000130395",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000130452",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000130577",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000130809",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000131104",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000131757",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000131906",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000133308",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0000172041",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0000295230",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0004007813",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0004024222",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0004040608",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0004125920",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0005691656",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0006174348",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0007028543",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010040865",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010105882",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010112524",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010149120",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010149179",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010166140",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010174144",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010208488",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010219501",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010220475",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010230490",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010249664",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010249672",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010250068",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010250084",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010259150",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010282822",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010307819",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010313833",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010340141",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010375600",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010451203",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010632364",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010657122",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010667147",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010702084",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010830240",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010863688",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0010908533",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0010956912",
+     "source_url": "https://www.milleis.fr/files/media/PROSPECTUS_SWISSLIFE.pdf"
+    },
+    {
+     "isin": "FR0011066091",
+     "source_url": "https://www.milleis.fr/files/media/Prospectus_OPCIMMO_P.pdf"
+    },
+    {
+     "isin": "FR0011066760",
+     "source_url": "https://www.milleis.fr/files/media/DIC_OPCIMMO_P_20201117.pdf"
+    },
+    {
+     "isin": "FR0011066778",
+     "source_url": "https://www.milleis.fr/files/media/Prospectus_OPCIMMO_P.pdf"
+    },
+    {
+     "isin": "FR0011066794",
+     "source_url": "https://www.milleis.fr/files/media/Prospectus_OPCIMMO_P.pdf"
+    },
+    {
+     "isin": "FR0011066802",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement"
+    },
+    {
+     "isin": "FR0011169341",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0011476928",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0011513563",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement"
+    },
+    {
+     "isin": "FR0011665280",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0011726835",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0011891506",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0011981968",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0011995588",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0012316180",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0012435121",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0012757854",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0012882389",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0012993186",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013030152",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013079761",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013083680",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013154002",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013189081",
+     "source_url": "https://www.milleis.fr/files/media/PROSPECTUS_SWISSLIFE.pdf"
+    },
+    {
+     "isin": "FR0013210531",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement"
+    },
+    {
+     "isin": "FR0013219722",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement"
+    },
+    {
+     "isin": "FR0013227113",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013228715",
+     "source_url": "https://www.milleis.fr/files/media/DIC-PROSPECTUS-PREIMIUM-MAJ-202111.pdf"
+    },
+    {
+     "isin": "FR0013228723",
+     "source_url": "https://www.milleis.fr/files/media/DIC-PROSPECTUS-PREIMIUM-MAJ-202111.pdf"
+    },
+    {
+     "isin": "FR0013258662",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013269123",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013280286",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013301553",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013311396",
+     "source_url": "https://www.milleis.fr/files/media/Prospectus_OPCIMMO_P.pdf"
+    },
+    {
+     "isin": "FR0013326246",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013333432",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013357621",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013380607",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013384336",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013384591",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013384963",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013384997",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013392065",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013392073",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013400546",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013412822",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013418027",
+     "source_url": "https://www.milleis.fr/files/media/PROSPECTUS_SWISSLIFE.pdf"
+    },
+    {
+     "isin": "FR0013419801",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013451333",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013506730",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0013506987",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0013511474",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0014000MR3",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0014000OP3",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement/emtn"
+    },
+    {
+     "isin": "FR0014003TT8",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0014004AW0",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR0014004L86",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0014005HJ9",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR0014006AK0",
+     "source_url": "https://www.milleis.fr/epargner-investir/supports-investissement/emtn"
+    },
+    {
+     "isin": "FR00140081Y1",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR001400AJ45",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR001400LQQ8",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR001400PVN6",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "FR001400Q2T1",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR001400S1J2",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FR1459AB4136",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "FRSG00013ZM5",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "GB0009895292",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "GB00B63H8491",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "GB00BP6MXD84",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "IE000KXCEXR3",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00B4BNMY34",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "IE00B53L3W79",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BD0DT792",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BD5VYW86",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BH4G7D40",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BMVHLQ61",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BMVX2J49",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IE00BZ1G3N53",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "IT0003128367",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "IT0004965148",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "LU0012119607",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0106235293",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0115098948",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0118255248",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0119216553",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0127786431",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0149084633",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0157182857",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0171305526",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0171307068",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0175571735",
+     "source_url": "https://www.milleis.fr/files/media/Milleis-Rapport-DPEF-2019.pdf"
+    },
+    {
+     "isin": "LU0180781048",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0186875935",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0187077218",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0217402501",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0218171717",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0218912151",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0232464734",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0234681749",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0243957239",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0248184466",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0260869739",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0289470113",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0302446645",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0329355670",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0406674076",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0432616570",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0520233601",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0602539867",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0658026603",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0757427116",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0772958012",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0772959259",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0914731947",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0961755823",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU0993115095",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1044932975",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1191877379",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1213836080",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1279334210",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1287023185",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1299303229",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1305478932",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1341142237",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1362999564",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1437018168",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1554455995",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1578889864",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1598757687",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "LU1602144575",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1644441120",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1670631289",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1681046931",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1681048804",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1694790202",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1717118274",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1819480192",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1819523264",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1832174962",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1883303635",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1910163515",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1920211973",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU1969742029",
+     "source_url": "https://www.milleis.fr/files/media/Milleis-Rapport-DPEF-2021.pdf"
+    },
+    {
+     "isin": "LU1988108350",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2003419707",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2016899614",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2037748774",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2080993616",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2081629425",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2109787635",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2145461757",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2146190835",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2257980289",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2349917364",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2482630832",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "LU2819788964",
+     "source_url": "https://www.milleis.fr/epargner-investir/assurance-vie/priips"
+    },
+    {
+     "isin": "NL0000226223",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0000235190",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0010273215",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0011585146",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0011821202",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0012969182",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0013654783",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL0014559478",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "NL00150001Q9",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0079031078",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0090661010",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US01609W1027",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US02079K3059",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0231351067",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0378331005",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US05606L1008",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0567521085",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US0970231058",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US11135F1012",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US1491231015",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US1912161007",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US23804L1035",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US30231G1022",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US30303M1027",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US31428X1063",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US38141G1040",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US4062161017",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US4330001060",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US4370761029",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US4581401001",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US5324571083",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US5801351017",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US58733R1023",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US5949181045",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US5951121038",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US64110L1061",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US6541061031",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US67066G1040",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US68389X1054",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US69608A1088",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US6974351057",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US70450Y1038",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US7170811035",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US79466L3024",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US86800U3023",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US88160R1014",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US90353T1007",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US92826C8394",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    },
+    {
+     "isin": "US9311421039",
+     "source_url": "https://www.milleis.fr/files/media/liste-titres-suivis-milleis.pdf"
+    }
+   ]
+  },
+  "Ageas France": {
+   "status": "vide",
+   "note": "www.ageas.fr injoignable (timeout TLS) au moment de la récolte : re-tenter",
+   "nb_isins": 0,
+   "isins": []
+  },
+  "Mutavie": {
+   "status": "ok",
+   "note": "récolté via curl (le WAF bloque l'empreinte TLS python, pas curl) : gamme UC volontairement réduite chez Mutavie",
+   "nb_isins": 41,
+   "isins": [
+    {
+     "isin": "FR0000284689",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000292278",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000427437",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000427452",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0000971186",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0007051040",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0007078589",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010111732",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010177899",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010245944",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010286013",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010321810",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010475848",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010485524",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010508333",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010564351",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010592022",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010601906",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010611293",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010642280",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010689141",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010903674",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010917658",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0010971721",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011066802",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011153014",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0011170182",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979250",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979268",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0012979276",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013238961",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013275120",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013308921",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "FR0013414414",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU0185497350",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU0251127410",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1161527038",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1301026388",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1317710371",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1481505755",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    },
+    {
+     "isin": "LU1983381689",
+     "source_url": "https://www.mutavie.fr/portal/skins/1.5.6-exo-20250407225401/rpm-skin-css/skin/css/rpm-min-lt.css"
+    }
+   ]
+  },
+  "Le Conservateur": {
+   "status": "ok",
+   "note": "",
+   "nb_isins": 70,
+   "isins": [
+    {
+     "isin": "FR0000292278",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000295230",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000930471",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000974149",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000978439",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000983819",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000989899",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0000989915",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0007051040",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0007076930",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0007497813",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0007499470",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010038257",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010057711",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010058008",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010097683",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010106500",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010135103",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010286013",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010298596",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010321810",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010479931",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010489542",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010510370",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010564229",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010564328",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010564336",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010574434",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010649079",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010863688",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0010915314",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0011253624",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0011461326",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0011461334",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0012844140",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013087152",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013108982",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013256922",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013256930",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013287315",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013342318",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013367265",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0013505450",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0014008EI2",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0014008EJ0",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR001400K2B5",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "FR0014017TB6",
+     "source_url": "https://www.conservateur.fr/nos-produits/placements-financiers/liste-des-fonds/finance-taux-fixe-callable-juillet-2029/"
+    },
+    {
+     "isin": "LU0115768185",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0217139020",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0280435388",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0366534344",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0512124107",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0528228074",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU0592699093",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1103305709",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1120766388",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1160365091",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1244893696",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1261432659",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1490785091",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1585265066",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1653748860",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1694790202",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1744646933",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1752460292",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1819480192",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1892829828",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU1902443420",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU2147879543",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    },
+    {
+     "isin": "LU2344314120",
+     "source_url": "https://www.conservateur.fr/finance-durable-assurances/"
+    }
+   ]
+  },
+  "MIF": {
+   "status": "vide (mur de publication)",
+   "note": "vrai domaine = mifassur.com (mif.fr est un service d'emails sans rapport). Supports listés par NOM sans ISIN, dépliant PDF sans ISIN : reprise possible par rapprochement de noms, semi manuel. 1 seul ISIN public (DIC du structuré), sous le seuil de 5.",
+   "nb_isins": 1,
+   "isins": [
+    {
+     "isin": "DE000SL0QZ62",
+     "source_url": "https://f0c7e7ba.delivery.rocketcdn.me/wp-content/uploads/2026/04/Dic_Brochure_MIFStructureRendement6.pdf"
+    }
+   ]
+  },
+  "SMAvie BTP": {
+   "status": "vide",
+   "note": "aucun ISIN public trouvé sur smabtp.fr / groupe-sma.fr (80 pages) : documents probablement en espace client",
+   "nb_isins": 0,
+   "isins": []
+  },
+  "Gaipare": {
+   "status": "ok",
+   "note": "",
+   "nb_isins": 160,
+   "isins": [
+    {
+     "isin": "AT0000383864",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "AT0000A2EJ08",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0000291972",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0000320292",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0000340498",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0000343526",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002432079",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002595735",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002681626",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002709906",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002717982",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002754357",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002779602",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE0002871524",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6248644013",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6276040431",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6313647149",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6322991462",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6325493268",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "BE6334363692",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "CH0007292201",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "CH0009980894",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A169NC2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A194DE7",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A19HCX8",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A28VQD2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A2GSCW3",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A2LQJ75",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A2RYD91",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A3514F3",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A3E5MK0",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A3LT423",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000A3LWGF9",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000BLB6JZ6",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000CZ40M39",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000NRW0KM0",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000NRW0LA3",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "DE000NRW0LC9",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES00000127A2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES00000128E2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000012B47",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000012G00",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000012H58",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000012K46",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000090896",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0000101909",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0243307016",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "ES0317046003",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0000187635",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0000571150",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0000571218",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0007015151",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010070060",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010322867",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010371401",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010850628",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010900068",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010916924",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0010972620",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0011004506",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0011242700",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0011580588",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0012893477",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0012969129",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013018090",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013053329",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013054897",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013144003",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013154028",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013181906",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013195633",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013213683",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013220258",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013234986",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013235199",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013260551",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013262698",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013264439",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013266368",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013324357",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013327988",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013334695",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013343175",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013358124",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013367638",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013368172",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013384047",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013390846",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013404969",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013409612",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013415692",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013421815",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013428513",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013431715",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013445152",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013448859",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013455821",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013463676",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013480613",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013483914",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013506532",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013512449",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0013522141",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR00140005R4",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014000C08",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014000UL9",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014001JM8",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014001NN8",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014002BJ9",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014003CJ5",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014004J31",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014006OB0",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR0014006VH2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400A3H2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400AJY0",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400CKB2",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400DN12",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400G0V3",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400IIS7",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400IWZ3",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400J150",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400KHX5",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400KI02",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400KL23",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400MIG4",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400NEE6",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400Q4A7",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400QZ47",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400SG71",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400SJS4",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400SMM1",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400TT42",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400U595",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "FR001400U686",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "GB0001383545",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00B0V9TG48",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00B2QL3783",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00B39J2X56",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00B39J2Z70",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00BCRY6557",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00BH3SQB22",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IE00BJ38CR43",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0001086567",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0001174611",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0001444378",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0004513641",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0005246415",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0005397036",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0005408098",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "IT0005611063",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU0235638946",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU1728559201",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU1936190294",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU1940065789",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU1992156635",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU2350866039",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU2444084276",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU2459532169",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "LU2475494477",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    },
+    {
+     "isin": "US78378X1072",
+     "source_url": "https://gaipare.com/wp-content/uploads/2025/06/GAI-Mailing-AG-2024-Rapport-moral-2025-PDF-HD.pdf"
+    }
+   ]
+  },
+  "Ampli Mutuelle": {
+   "status": "ok",
+   "note": "",
+   "nb_isins": 9,
+   "isins": [
+    {
+     "isin": "FR0007052782",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0010429068",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0011871136",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0011882364",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0013229523",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0013229549",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR0013380607",
+     "source_url": "https://www.ampli.fr/pdf/divers/PER-infos-fond.pdf"
+    },
+    {
+     "isin": "FR0013382231",
+     "source_url": "https://www.ampli.fr/pdf/Frais-de-gestion-AMPLI-PER-Liberté.pdf"
+    },
+    {
+     "isin": "FR001400SHZ3",
+     "source_url": "https://www.ampli.fr/pdf/divers/PER-infos-fond.pdf"
+    }
+   ]
+  }
+ }
+}
