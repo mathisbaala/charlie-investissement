@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Le badge de dev Next.js se place par défaut en bas à gauche, pile sur
+  // l'icône « Mon cabinet » du rail (introuvable en dev). On le déporte.
+  devIndicators: { position: "bottom-right" },
 };
 
 export default nextConfig;

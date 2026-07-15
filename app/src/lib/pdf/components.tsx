@@ -14,12 +14,14 @@ export function normTer(v: number | null | undefined): number | null {
   return Math.round(v * 1e6) / 1e4;
 }
 
+// Valeur absente : « n.c. » (non communiqué), jamais un tiret (bannis des
+// documents remis au client).
 export function fmt(n: number | null | undefined, suffix = "%", d = 2): string {
-  return n == null ? "-" : `${Number(n).toFixed(d)}${suffix}`;
+  return n == null ? "n.c." : `${Number(n).toFixed(d)}${suffix}`;
 }
 
 export function perf(n: number | null | undefined): string {
-  if (n == null) return "-";
+  if (n == null) return "n.c.";
   return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
@@ -247,7 +249,7 @@ export function PerfBarRow({ label, value, max }: { label: string; value: number
         )}
       </View>
       <Text style={{ fontFamily: FONT.mono, fontWeight: 500, fontSize: 8.5, color: perfColor(value), width: 44, textAlign: "right" }}>
-        {value == null ? "-" : perf(value)}
+        {value == null ? "n.c." : perf(value)}
       </Text>
     </View>
   );

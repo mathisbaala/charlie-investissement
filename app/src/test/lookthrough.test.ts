@@ -1,5 +1,31 @@
 import { describe, it, expect } from 'vitest'
-import { weightedExposure, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
+import { weightedExposure, topSlices, findOverlaps, holdingKey, canonicalSector } from '../lib/lookthrough'
+
+describe('topSlices (troncature camembert : top n + « Autres »)', () => {
+  const expo = [
+    { label: 'États-Unis', weight: 40 },
+    { label: 'France', weight: 25 },
+    { label: 'Japon', weight: 15 },
+    { label: 'Allemagne', weight: 10 },
+    { label: 'Suisse', weight: 6 },
+    { label: 'Italie', weight: 3 },
+    { label: 'Espagne', weight: 1 },
+  ]
+  it('regroupe le reliquat au-delà de n en « Autres »', () => {
+    const out = topSlices(expo, 5)
+    expect(out).toHaveLength(6)
+    expect(out[5]).toEqual({ label: 'Autres', weight: 4 })
+    expect(out.slice(0, 5).map((e) => e.label)).toEqual(['États-Unis', 'France', 'Japon', 'Allemagne', 'Suisse'])
+  })
+  it("rend l'exposition telle quelle quand elle tient déjà dans n parts", () => {
+    expect(topSlices(expo.slice(0, 3), 5)).toEqual(expo.slice(0, 3))
+    expect(topSlices([], 5)).toEqual([])
+  })
+  it("n'ajoute pas d'« Autres » à zéro (reliquat nul après arrondi)", () => {
+    const flat = [...expo.slice(0, 5), { label: 'Poussière', weight: 0.01 }]
+    expect(topSlices(flat, 5)).toHaveLength(5)
+  })
+})
 
 describe('canonicalSector', () => {
   it('rabat les 3 taxonomies du même secteur sur un libellé FR', () => {

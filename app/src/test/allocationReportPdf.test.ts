@@ -55,4 +55,53 @@ describe("AllocationReportPDF", () => {
     const buf = await render(React.createElement(AllocationReportPDF, { presentation }));
     expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
   }, 30_000);
+
+  it("rend le PDF complet avec les extras de l'atelier (répartitions, projets, corrélation, back-test)", async () => {
+    const { buildGoalRows } = await import("@/lib/presentationExtras");
+    const presentation = {
+      ...buildPresentation(RESULT, { contractName: "Cardif ELITE", asOfLabel: "Juillet 2026", advisorName: "Charlie Gestion Privée" }),
+      extras: {
+        exposure: {
+          geo: [
+            { label: "États-Unis", weight: 40 },
+            { label: "France", weight: 35 },
+            { label: "Autres", weight: 25 },
+          ],
+          sectors: [
+            { label: "Technologie", weight: 30 },
+            { label: "Industrie", weight: 25 },
+            { label: "Autres", weight: 45 },
+          ],
+        },
+        goals: buildGoalRows(
+          [{ id: "g1", label: "Retraite", target_eur: 100000, horizon_years: 10, initial_eur: 50000, monthly_eur: 200, priority: "vital" as const }],
+          {},
+          0.06,
+          0.11,
+        ),
+        correlation: {
+          names: RESULT.lines.map((l) => l.name),
+          matrix: RESULT.lines.map((_, i) => RESULT.lines.map((_, j) => (i === j ? 1 : 0.2))),
+        },
+        projection: { amountEur: 100000, horizonYears: 8, projectedEur: 145000 },
+        backtest: {
+          periodLabel: "Juin 2021 à Juin 2026",
+          benchmarkLabel: "MSCI World",
+          curve: Array.from({ length: 60 }, (_, i) => ({
+            d: `${2021 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-01`,
+            p: 100 + i * 0.8,
+            b: 100 + i * 0.6,
+          })),
+          portfolio: { total_return: 0.48, annual_return: 0.081, volatility: 0.11, sharpe: 0.7, max_drawdown: -0.18 },
+          benchmark: { total_return: 0.36, annual_return: 0.063, volatility: 0.13, sharpe: 0.5, max_drawdown: -0.22 },
+        },
+        effectiveHoldings: 3.4,
+        avgTer: 0.009,
+      },
+    };
+    const buf = await render(React.createElement(AllocationReportPDF, { presentation }));
+    expect(buf.length).toBeGreaterThan(1000);
+    expect(buf.subarray(0, 5).toString()).toBe("%PDF-");
+    if (process.env.PDF_DUMP) writeFileSync("/tmp/allocation-charlie-extras.pdf", buf);
+  }, 30_000);
 });

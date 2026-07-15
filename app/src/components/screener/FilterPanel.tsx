@@ -5,6 +5,7 @@ import { X, SlidersHorizontal, ChevronDown } from "@/components/ui/icons";
 import { Btn } from "@/components/ui/Btn";
 import type { ParsedFilters } from "@/lib/types";
 import { OFFICIAL_LABELS } from "@/lib/sustainability";
+import { loadStoredCabinet } from "@/lib/cabinet";
 
 interface FilterPanelProps {
   filters: ParsedFilters;
@@ -153,6 +154,26 @@ function toggleArr<T>(arr: T[] | undefined, val: T): T[] {
 // 2024→2036 ; on étend jusqu'à 2040 pour absorber les nouveaux lancements.
 const MATURITY_YEARS = Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2024 + i);
 
+const normalizeName = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * Ordonne la liste « Référencé chez » : les assureurs partenaires du cabinet
+ * (onglet Mon cabinet) d'abord — pastille « Partenaire » —, les autres ensuite
+ * sous un intitulé dédié. Contrairement à l'allocation (périmètre strict), la
+ * RECHERCHE garde tout l'univers consultable. Exportée pour les tests.
+ */
+export function orderInsurersByPartners<T extends { company: string }>(
+  options: T[],
+  partners: string[],
+): { partnerRows: T[]; otherRows: T[] } {
+  const set = new Set(partners.map(normalizeName));
+  return {
+    partnerRows: options.filter((o) => set.has(normalizeName(o.company))),
+    otherRows: options.filter((o) => !set.has(normalizeName(o.company))),
+  };
+}
+
 export function FilterPanel({
   filters, onChange, onApply, onReset, onClose,
 }: FilterPanelProps) {
@@ -187,11 +208,21 @@ export function FilterPanel({
 
   // Recherche texte pour filtrer la longue liste d'assureurs (évite de scroller).
   const [insurerQuery, setInsurerQuery] = useState("");
-  const normalize = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const filteredInsurers = insurerQuery.trim()
-    ? insurerOptions.filter((o) => normalize(o.company).includes(normalize(insurerQuery)))
+    ? insurerOptions.filter((o) => normalizeName(o.company).includes(normalizeName(insurerQuery)))
     : insurerOptions;
+
+  // Assureurs partenaires (onglet Mon cabinet, localStorage) : remontés en tête
+  // de la liste avec la pastille « Partenaire ». Lus au montage (client only).
+  const [partnerInsurers, setPartnerInsurers] = useState<string[]>([]);
+  useEffect(() => { setPartnerInsurers(loadStoredCabinet().insurers); }, []);
+  const { partnerRows, otherRows } = orderInsurersByPartners(filteredInsurers, partnerInsurers);
+  // Une seule liste à rendre : partenaires puis autres, avec l'intitulé
+  // « Autres assureurs » accroché à la première ligne non partenaire.
+  const orderedInsurers = [
+    ...partnerRows.map((o) => ({ ...o, partner: true, firstOther: false })),
+    ...otherRows.map((o, i) => ({ ...o, partner: false, firstOther: partnerRows.length > 0 && i === 0 })),
+  ];
 
   return (
     <div className="c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto md:w-[300px] md:rounded-xl">
@@ -408,24 +439,39 @@ export function FilterPanel({
                 {filteredInsurers.length === 0 && (
                   <p className="text-meta text-muted py-1">Aucun assureur ne correspond.</p>
                 )}
-                {filteredInsurers.map(({ company, funds }) => {
+                {orderedInsurers.map(({ company, funds, partner, firstOther }) => {
                   const contracts = contractOptions.filter((c) => c.company === company);
                   const expanded = expandedInsurer === company;
                   const selContracts = (f.contracts ?? []).filter((k) => k.startsWith(`${company}::`));
                   const showAll = showAllContracts[company];
                   const shown = showAll ? contracts : contracts.slice(0, CONTRACTS_PREVIEW);
+                  const active = (f.insurers ?? []).includes(company);
                   return (
                     <div key={company}>
+                      {firstOther && (
+                        <p className="text-caption uppercase tracking-[0.08em] text-muted-2 font-semibold pt-2 pb-1">
+                          Autres assureurs
+                        </p>
+                      )}
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => set("insurers", toggleArr(f.insurers, company))}
                           className={`px-3 py-1.5 rounded-full text-meta font-medium border transition-colors ${
-                            (f.insurers ?? []).includes(company)
+                            active
                               ? "bg-brown text-paper border-brown"
                               : "bg-paper-2 text-ink-2 border-line hover:border-accent/30"
                           }`}
                         >
                           {company} ({funds})
+                          {partner && (
+                            <span
+                              className={`ml-1.5 text-caption border rounded-full px-1.5 py-px ${
+                                active ? "border-paper/40 text-paper/80" : "border-brown/30 text-brown"
+                              }`}
+                            >
+                              Partenaire
+                            </span>
+                          )}
                           {selContracts.length > 0 && (
                             <span className="ml-1 opacity-70">
                               · {selContracts.length} contrat{selContracts.length > 1 ? "s" : ""}
