@@ -39,8 +39,8 @@ chevauchement). Décalé du refresh SCPI (le 5).
 
 ## 4. Inventaire des scrapers
 
-**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,generali,mutualistes,garance,monceau,asac-fapes,bpce,prepar-vie,afi-esca,spirica,suravenir,swisslife}`
-(oradea RETIRÉ 13/07 : portail décommissionné, cf. quarantaine dans l'orchestrateur),
+**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,generali,mutualistes,garance,monceau,asac-fapes,bpce,prepar-vie,afi-esca,oradea,sogecap,conservateur,spirica,suravenir,swisslife}`
+(oradea RESSUSCITÉ 16/07 : le portail a déménagé sur `priips.sogecap.com/priips/oradea.html`, granulaire par contrat),
 `av-lux-{afi-esca,allianz,apicil-onelife,axa-wealtheurope,baloise,cnp,generali,sogelife,swisslife,utmost,vitislife,wealins}`,
 `av-lux-opcvm360 --all` + `--dynamic`. *(Tier 3 : bancassureurs FR ajoutés en parallèle — cf. §8.)*
 
@@ -200,3 +200,25 @@ couvre nativement.
 - **Seed compagnies corrigé** : l'entrée CALI_EUROPE confondait CALI Europe
   (Crédit Agricole) et Cardif Lux Vie (BNP) — scindée en deux ; ajout
   AFI_ESCA_LUX ; noms Utmost/CNP mis à jour.
+
+## 8ter. Extension AV France (16/07/2026) — Sogécap, Le Conservateur, Oradéa
+
+- **Sogécap** (`av-fr-sogecap-catalog`) : portail PRIIPS statique
+  `priips.sogecap.com/priips/sogecap.html` — 1 requête = tout l'arbre contrat →
+  supports (`cdproduit`/`cdisine`), 10 contrats (~415 ISIN : Séquoia, Ébène ±capi,
+  Érable Essentiel, Sogécapi, gamme SG Gestion Privée). Sans anti-bot, régénéré
+  quotidiennement. DIS/KID par support via l'API AMFINE `epr.amfinesoft.com`
+  (clé embarquée dans la page).
+- **Oradéa Vie ressuscité** : la « décommission » du 13/07 était en fait un
+  déménagement sur la même infra Sogécap (`…/priips/oradea.html`, repéré via la
+  CSP du portail). Désormais **granulaire par contrat** (8 produits, ~1 119
+  ISIN dont Oradéa Multisupport). L'ancien agrégat « Oradéa Vie (gamme
+  courtage) » (916 lignes) a été purgé au profit du per-contrat.
+- **Le Conservateur** (`av-fr-conservateur-catalog`) : PDF « Tableau
+  d'information UC » loi PACTE par code produit (M40 = Hélios Patrimoine/Capi,
+  M41 = Épargne Retraite PER, M42 = Privilège/Capi Privilège), ~54 ISIN.
+  ⚠ millésime : URL résolue via `wp-json/wp/v2/media?search=Tableau-d-information`
+  en triant sur le suffixe `-MMAA.pdf` du nom de fichier (PAS sur la date
+  d'upload WP — une vieille édition peut être re-téléversée après la neuve).
+- **Restes FR documentés** : Matmut Vie & Neuflize Vie (aucune source publique,
+  quarantaine 15/07 maintenue) ; Mutavie/MIF/SMAvie/Milleis (marginaux en UC).

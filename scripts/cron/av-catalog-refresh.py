@@ -48,7 +48,9 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-bpce-catalog.py", []),         # BPCE Vie / Natixis Assurances (portail HTML priips, 7 réseaux, 38 contrats — vérifié 15/07)
     ("scrapers/av-fr-prepar-vie-catalog.py", []),   # Prépar Vie (portail AJAX priips.prepar-vie.com, 11 réseaux, 36 contrats — vérifié 15/07)
     ("scrapers/av-fr-afi-esca-catalog.py", []),     # Afi Esca FR (Sélection Premium, liste mensuelle — vérifié 15/07 ; ≠ AFI ESCA Luxembourg ci-dessous)
-    # av-fr-oradea-catalog.py RETIRÉ 13/07 : portail source décommissionné (cf. quarantaine ci-dessous).
+    ("scrapers/av-fr-oradea-catalog.py", []),       # RESSUSCITÉ 16/07 : portail déménagé sur priips.sogecap.com/priips/oradea.html (8 contrats granulaires)
+    ("scrapers/av-fr-sogecap-catalog.py", []),      # Sogécap / SG Assurances (portail PRIIPS statique, 10 contrats — ajouté 16/07)
+    ("scrapers/av-fr-conservateur-catalog.py", []), # Le Conservateur (PDF loi PACTE M40/M41/M42, millésime découvert via wp-json — ajouté 16/07)
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
@@ -110,16 +112,12 @@ AV_CATALOG_STEPS = [
 #     (Sogelife : quarantaine du 15/07 LEVÉE le 16/07 — les ZIP PRIIPS publics
 #      doc.sogelife.com/priips/<code>.zip listent les UC par contrat →
 #      av-lux-sogelife-catalog câblé dans la liste ci-dessus.)
-#   • sources DÉCOMMISSIONNÉES (hôte source disparu, à re-sourcer avant réintégration) :
-#       - scrapers/av-fr-oradea-catalog.py   (RETIRÉ 13/07 : le portail statique
-#                                            priips.oradea-vie.com — HTML à attributs cdisine="ISIN" —
-#                                            est mort (NXDOMAIN, tout le domaine oradea-vie.com).
-#                                            Le groupe a migré vers oradeavie.fr (Imperva/Incapsula,
-#                                            landing marketing sans catalogue machine-lisible).
-#                                            Les 916 liens Oradéa déjà en base sont conservés
-#                                            (upsert-only + garde anti-scraper-cassé du prune).
-#                                            Réintégrer si un nouvel endpoint DIC listant les ISIN
-#                                            est retrouvé sur oradeavie.fr.)
+#     (Oradéa : décommission du 13/07 ANNULÉE le 16/07 — le portail statique n'est
+#      pas mort, il a DÉMÉNAGÉ sur l'infra de la maison mère :
+#      priips.sogecap.com/priips/oradea.html (même format cdisine, désormais
+#      granulaire par contrat, 8 produits). av-fr-oradea-catalog réintégré
+#      ci-dessus ; l'ancien agrégat « Oradéa Vie (gamme courtage) » (916 lignes)
+#      a été purgé au profit du per-contrat le 16/07.)
 # (scrapers/linxea-av-catalog.py SUPPRIMÉ le 21/06 : comparateur Linxea 404, superseded
 #  par av-lux-linxea-catalog.py.)
 #

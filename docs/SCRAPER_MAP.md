@@ -314,6 +314,14 @@ trimestrielle `av-refresh.yml`/`av-refresh-browser.yml`, conventions
 | `av-lux-afi-esca-catalog.py` | PDF loi PACTE afi-esca.lu (URL découverte) | 2 contrats / ~129 ISIN |
 | `av-lux-utmost-catalog.py` | API REST utmostgroup.com (ex-Lombard → Utmost Luxembourg S.A.) | 1 contrat / 66 ISIN |
 
+Ajouts 2026-07-16 (AV France) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-fr-sogecap-catalog.py` | Portail PRIIPS statique priips.sogecap.com (arbre cdproduit/cdisine) | 10 contrats / ~415 ISIN |
+| `av-fr-oradea-catalog.py` (ressuscité) | Même portail, page oradea.html — l'ex-priips.oradea-vie.com a déménagé | 8 contrats / ~1 119 ISIN |
+| `av-fr-conservateur-catalog.py` | PDF loi PACTE M40/M41/M42 (millésime via wp-json media) | 5 contrats / ~54 ISIN |
+
 ---
 
 ### 10. Sources testées et abandonnées
