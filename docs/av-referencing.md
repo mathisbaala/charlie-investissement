@@ -1,7 +1,7 @@
 # Référencement Assurance-Vie — système & runbook
 
 > Doc de référence du système de référencement UC↔contrat d'assurance-vie.
-> Dernière mise à jour : 2026-06-21. Complète `docs/data-collection-playbook.md`
+> Dernière mise à jour : 2026-07-16. Complète `docs/data-collection-playbook.md`
 > (collecte de fonds) et `docs/tier3-missing-insurers-spec.md` (extension assureurs).
 
 ## 1. À quoi ça sert
@@ -40,11 +40,24 @@ chevauchement). Décalé du refresh SCPI (le 5).
 ## 4. Inventaire des scrapers
 
 **Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,mutualistes,oradea,spirica,suravenir,swisslife}`,
-`av-lux-{apicil-onelife,axa-wealtheurope,baloise,generali,swisslife,utmost,vitislife,wealins}`,
+`av-lux-{afi-esca,allianz,apicil-onelife,axa-wealtheurope,baloise,cnp,generali,sogelife,swisslife,utmost,vitislife,wealins}`,
 `av-lux-opcvm360 --all` + `--dynamic`. *(Tier 3 : bancassureurs FR ajoutés en parallèle — cf. §8.)*
 
 **Actifs (job navigateur)** : `av-lux-linxea-catalog` (JWT Morningstar via navigateur),
-`av-lux-cardif-lux-vie-catalog` (APIs SPA en session).
+`av-lux-cardif-lux-vie-catalog` (APIs SPA en session),
+`av-lux-cali-europe-catalog` (grid DevExpress my-calie.com, API cliente `ExpandAll`/`GotoPage`).
+
+**Extension AV Lux LPS France (16/07/2026)** — sources par assureur :
+
+| Assureur (`company_name`) | Scraper | Source | Contrats |
+|---|---|---|---|
+| CNP Luxembourg | `av-lux-cnp-catalog` | Quantalys Easypack `cnplux-ezp.quantalys.com` (porte JS + DataTables, listes PAR contrat, `agrement=FR`) | 9 (CNP One Lux/Capi, Saint Honoré Innovation, Aster One, Vertuo, Alyses) — ~2 277 ISIN |
+| Sogelife | `av-lux-sogelife-catalog` | ZIP PRIIPS `doc.sogelife.com/priips/<code>.zip` — ISIN lus dans les NOMS de fichiers DIS (`S_<ISIN>_…pdf`) via le répertoire central du ZIP (requêtes Range, ~100 Ko au lieu de 230 Mo) | 5 (Personal Multisupports ×2, Private Selection, Target FR ×2) — ~1 001 ISIN |
+| CALI Europe | `av-lux-cali-europe-catalog` 🖥 | Portail PRIIPS `my-calie.com/FO.PRIIPS` (jeton `pct` de session via l'iframe SearchKid ; navigateur requis) | 4 (CALIE Life Excellence/Patrimony 2+ (F), vie+capi) — ~286 ISIN |
+| Allianz Life Luxembourg | `av-lux-allianz-catalog` | Portail PRIIPS `life.allianz.lu/priips/` — POST `p=<code>&lang=fr`, page ~16 Mo régexée sur `data-isin` | 2 (Exclusive Invest France `085`, Global Invest Evolution France `092`) — ~172 ISIN |
+| AFI ESCA Luxembourg | `av-lux-afi-esca-catalog` | PDF « Liste-QLCQ-FRANCE loi PACTE » (annuel, URL découverte sur `afi-esca.lu/infos-tarification-france/`) | Quality Life + Cap Quality — ~129 ISIN. ≠ « Afi Esca » (entité FR) |
+| Utmost Luxembourg S.A. | `av-lux-utmost-catalog` | **Migré PDF → API REST WP** `utmostgroup.com/wp-json/wp/v2/fund?fund-list-code=<id>` (slug 2626 = Liberté). Ex-Lombard International (renommé 11/2025) | Liberté — 66 ISIN externes (les « ~800 UC » incluent FID/FAS non publiés) |
+| Zurich Eurolife | — | **Hors périmètre** : uniquement retraite/prévoyance collective B2B en France ; le portefeuille patrimonial a été cédé à Lombard en 2016 | — |
 
 **Hors job (redondants/inopérants, données seedées)** :
 - `linxea-av-catalog` — URLs comparateur Linxea mortes ; **redondant** (Linxea couvert par `av-lux-linxea-catalog`).
@@ -93,6 +106,16 @@ pour un CGP) :
   Détail + procédure dans `docs/tier3-missing-insurers-spec.md` §0.bis.
 - ⚠️ **Noms d'assureur** : prendre le nom autoritaire de la source → évite « Assureur
   inconnu » et les doublons d'accent.
+- 🔴 **`contract_name` DOIT différer de `company_name`** : la matview
+  `investissement_fund_insurers_mv` construit `contracts[]` avec
+  `FILTER (contract_name <> company_name)`. Un scraper qui écrit le nom de
+  l'assureur comme nom de contrat rend l'offre INVISIBLE dans
+  `get_contracts_list`/`/assureurs` alors que l'assureur apparaît dans
+  `get_insurers_list` et que le run CI est `success` (le compteur
+  `records_processed` ne couvre que l'upsert des fonds). Deux fois le même bug :
+  Generali Lux (migration `20260710120000`) et Swiss Life Lux (`20260715120000`,
+  1 242 liens invisibles pendant ~2 mois). Convention : suffixer
+  « … Univers Global » quand la source n'a pas de per-contrat public.
 - **Valider sans DB** : `--apply` absent = dry-run (ne touche pas `get_client`) ; sonder
   d'abord avec `curl_cffi`. Creds réels = secrets CI → run `workflow_dispatch` pour le bout-en-bout.
 
@@ -158,3 +181,21 @@ couvre nativement.
   cf. `docs/tier3-missing-insurers-spec.md`. **Validé bout-en-bout en CI le 21/06** : 7/7 assureurs
   live (~2 504 fonds, 65 contrats) ; 5/7 écrits par le job, Abeille+MAAF seedés manuellement
   (IP CI bloquée → re-seed manuel trimestriel, cf. gotcha §7).
+
+## 8bis. Extension AV Lux LPS France (juillet 2026)
+
+- **Bugfix Swiss Life Luxembourg** : 1 242 liens présents en base mais contrat
+  invisible (`contract_name = company_name`, cf. gotcha §7). Scraper corrigé
+  (`Swiss Life Luxembourg Univers Global`) + migration `20260715120000`.
+- **5 nouveaux assureurs LPS France** (détail §4) : CNP Luxembourg, Sogelife,
+  CALI Europe 🖥, Allianz Life Luxembourg, AFI ESCA Luxembourg — sources
+  vérifiées par sondes le 16/07, dry-runs OK (~3 900 ISIN bruts cumulés).
+- **Utmost** : entité ex-Lombard renommée Utmost Luxembourg S.A. (rachat Utmost
+  clôturé 30/12/2024, rebrand 11/2025) ; scraper migré du PDF fonds-externes
+  vers l'API REST WordPress d'utmostgroup.com (taxonomie `fund-list-code`).
+  Les FID/FAS sur mesure ne sont pas énumérables publiquement (« ~800 UC »
+  marketing → 66 ISIN externes référençables).
+- **Zurich Eurolife : hors périmètre** (B2B collectif only en France ; SFCR 2025).
+- **Seed compagnies corrigé** : l'entrée CALI_EUROPE confondait CALI Europe
+  (Crédit Agricole) et Cardif Lux Vie (BNP) — scindée en deux ; ajout
+  AFI_ESCA_LUX ; noms Utmost/CNP mis à jour.

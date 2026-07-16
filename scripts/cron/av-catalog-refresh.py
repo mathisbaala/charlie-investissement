@@ -60,15 +60,19 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-acm-catalog.py", []),          # ACM Vie / Crédit Mutuel-CIC
     ("scrapers/av-fr-maif-catalog.py", []),         # MAIF Vie (ARS — API JSON gateway maif.fr ; reachability CI à confirmer, cf. gotcha Abeille/MAAF)
     # ── AV Luxembourg ─────────────────────────────────────────────────────────
+    ("scrapers/av-lux-afi-esca-catalog.py", []),          # AFI ESCA Lux — PDF loi PACTE, URL découverte (ajouté 16/07)
+    ("scrapers/av-lux-allianz-catalog.py", []),           # Allianz Life Lux — portail PRIIPS, POST par produit (ajouté 16/07)
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis
     ("scrapers/av-lux-baloise-catalog.py", []),           # PDF → poppler-utils requis
+    ("scrapers/av-lux-cnp-catalog.py", []),               # CNP Lux — quantalys Easypack, listes par contrat (ajouté 16/07)
     ("scrapers/av-lux-generali-catalog.py", []),
     ("scrapers/av-lux-lmep-easypack.py", []),               # AG2R LMEP (quantalys Easypack, réparé 21/06 : porte JS + payload DataTables)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),      # contrats KNOWN_CONTRACTS (IDs figés)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--dynamic"]),  # contrats /licontracts (noms assureur autoritaires : Generali Vie, AG2R, Spirica…)
+    ("scrapers/av-lux-sogelife-catalog.py", []),          # Sogelife — ZIP PRIIPS, répertoire central lu via Range (ajouté 16/07)
     ("scrapers/av-lux-swisslife-catalog.py", []),
-    ("scrapers/av-lux-utmost-catalog.py", []),            # PDF → poppler-utils requis
+    ("scrapers/av-lux-utmost-catalog.py", []),            # migré PDF → API REST utmostgroup.com le 16/07 (ex-Lombard, renommé Utmost Luxembourg S.A.)
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis
     ("scrapers/av-lux-wealins-catalog.py", []),           # migré scrapling→curl_cffi+parsel (21/06)
     # ── Délistage : purge les liens confirmés périmés (UC retirées d'un contrat) ──

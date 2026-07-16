@@ -29,7 +29,11 @@ from db import get_client, upsert_funds_bulk, log_run
 
 SOURCE_URL = "https://swisslife-lux.fund-screener.net/"
 COMPANY    = "Swiss Life Luxembourg"
-CONTRACT   = "Swiss Life Luxembourg"
+# ⚠ contract_name DOIT différer de company_name : la matview
+# investissement_fund_insurers_mv construit contracts[] avec
+# FILTER (contract_name <> company_name) — un contrat homonyme de l'assureur
+# est invisible dans get_contracts_list (cf. migration 20260710120000 Generali).
+CONTRACT   = "Swiss Life Luxembourg Univers Global"
 
 HEADERS = {
     "User-Agent":      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",

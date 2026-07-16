@@ -298,7 +298,25 @@ limites structurelles (SRI graphique, kid_url N/A pour SCPI).
 
 ---
 
-### 9. Sources testées et abandonnées
+### 9. Référencement assurance-vie (UC ↔ contrat)
+
+Système documenté dans `docs/av-referencing.md` (modèle de données, orchestration
+trimestrielle `av-refresh.yml`/`av-refresh-browser.yml`, conventions
+éligibilité-only, gotcha `contract_name ≠ company_name`). Scrapers
+`scripts/scrapers/av-fr-*` et `av-lux-*`. Ajouts 2026-07-16 (AV Lux LPS France) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-lux-cnp-catalog.py` | Quantalys Easypack CNP Lux (JSON DataTables par contrat) | 9 contrats / ~2 277 ISIN |
+| `av-lux-sogelife-catalog.py` | ZIP PRIIPS doc.sogelife.com (ISIN dans les noms de fichiers, lus via Range) | 5 contrats / ~1 001 ISIN |
+| `av-lux-cali-europe-catalog.py` | Portail PRIIPS my-calie.com (DevExpress, navigateur) | 4 contrats / ~286 ISIN |
+| `av-lux-allianz-catalog.py` | Portail PRIIPS life.allianz.lu (POST par produit) | 2 contrats / ~172 ISIN |
+| `av-lux-afi-esca-catalog.py` | PDF loi PACTE afi-esca.lu (URL découverte) | 2 contrats / ~129 ISIN |
+| `av-lux-utmost-catalog.py` | API REST utmostgroup.com (ex-Lombard → Utmost Luxembourg S.A.) | 1 contrat / 66 ISIN |
+
+---
+
+### 10. Sources testées et abandonnées
 
 | Source | Script | Raison d'échec |
 |--------|--------|----------------|
