@@ -5,6 +5,23 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 (soir) — tranche 4 (longue traîne <100 UC), ~3,91 M tokens
+
+Même design v2 (`av-contract-terms-sweep-v2`, 1 agent Sonnet/contrat, écriture immédiate).
+Run `wf_197dbcd3-12a` sur **126 contrats <100 UC** (funds DESC, 98→2) : **123/126 écrits**
+(50 curated / 73 indicative), ~3,91 M tokens. La queue s'est mieux sourcée que prévu
+(mutualistes/bancassureurs bien documentés ; seuls 3 « none » : Le Conservateur Privilège,
+Natixis Life Lux Liberalys Essentiel, Spirica MustEpargne).
+
+- **Base : 321 → 444 contrats** (188 curated / 256 indicative). +123 nets.
+- **Reste <100 UC : 3** (les 3 « none » ci-dessus — pas de conditions publiques).
+- **Reste ≥100 UC : 26** — ⚠️ a AUGMENTÉ (17 → 26) car la matview
+  `investissement_contract_groups_mv` a été **rafraîchie** entre-temps (nouveaux contrats
+  passés au-dessus de 100 UC / recomptage). Ce sont surtout des Lux + quelques nouveautés.
+  Prochaine tranche : reprendre `funds >= 100 AND NOT EXISTS(...)` (26) puis c'est bouclé.
+- **Cumul chantier (tranches 3+4) : ~8,37 M tokens** pour passer de 192 → 444 contrats
+  (+252). Qualité vérifiée par échantillon (frais en %, taux fonds euros plausibles, sources HTML).
+
 ## MàJ 2026-07-16 — tranche 3 (fin des ≥100 UC), ~4,46 M tokens
 
 Reprise du sweep (politique 5 M/tranche). Design **v2 inchangé** = workflow
