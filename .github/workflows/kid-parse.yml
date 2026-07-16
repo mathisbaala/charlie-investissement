@@ -1,0 +1,74 @@
+name: Parsing KID (frais/SRI)
+
+# Parse les KID/DICI PRIIPs pour combler frais courants (TER), frais d'entrée/
+# sortie, SRI, SFDR, période de détention — le KID fait AUTORITÉ légale sur ces
+# champs. Fill-only + tracé dans field_sources ; idempotent.
+#
+# Le parser (kid-bulk-parser.py) télécharge le PDF via curl_cffi en CI (shim
+# drop-in de scrapling.FetcherSession, absent du requirements CI) puis extrait par
+# regex, avec fallback LLM (Claude Haiku) quand la confiance regex < 60%.
+#
+# mode=ter-null : cible les fonds SANS TER (comble le trou de frais). L'essentiel
+#   des kid_url sont des endpoints PDF directs (epr.amfinesoft.com, GECO).
+# mode=unparsed : cible les KID jamais examinés (kid_parsed_at NULL).
+#
+# ⚠ Yield partiel attendu : certains KID sont des PDF scannés (pas de couche
+# texte → non extractibles sans OCR) et certains supports sont des produits
+# structurés à frais embarqués (0%). Lancer d'abord un canary (limit bas) pour
+# mesurer le rendement réel avant un run complet.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "ter-null = cibler les TER manquants ; unparsed = KID jamais lus"
+        type: choice
+        options: [ter-null, unparsed]
+        default: ter-null
+      min_aum:
+        description: "AUM minimum en euros (0 = tous)"
+        type: string
+        default: "0"
+      limit:
+        description: "Nombre max de fonds (vide = tous les éligibles) — mettre 50-60 pour un canary"
+        type: string
+        default: "60"
+      llm:
+        description: "Fallback LLM (Claude Haiku) quand la regex est peu sûre"
+        type: boolean
+        default: true
+
+concurrency:
+  # Sérialise avec les autres refresh (écritures investissement_funds concurrentes).
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  kid-parse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Parser les KID
+        run: |
+          set -euo pipefail
+          SEL=""
+          if [ "${{ inputs.mode }}" = "ter-null" ]; then SEL="--ter-null"; fi
+          LLM=""
+          if [ "${{ inputs.llm }}" = "true" ]; then LLM="--llm"; fi
+          LIM=""
+          if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
+          python3 scripts/scrapers/kid-bulk-parser.py \
+            --apply $SEL $LLM $LIM --min-aum "${{ inputs.min_aum }}" --workers 10

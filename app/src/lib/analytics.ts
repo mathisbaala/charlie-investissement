@@ -46,7 +46,7 @@ export function activeFilters(
 }
 
 type AnalyticsEvent = {
-  event_type: "search" | "search_nl" | "fund_view" | "matching" | "chat" | "dici";
+  event_type: "search" | "search_nl" | "fund_view" | "matching" | "dici";
   path?: string | null;
   isin?: string | null;
   query?: string | null;

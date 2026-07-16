@@ -1,0 +1,56 @@
+name: Backfill séries manquantes (one-shot)
+
+# Rattrapage CIBLÉ des fonds OPCVM/ETF qui ont une perf (souvent via source
+# externe Morningstar EMEA) mais AUCUNE série de prix locale → non back-testables.
+# Le fill-only hebdomadaire les ignore (perf_3y non-NULL). Ce workflow va chercher
+# leur historique NAV via Financial Times (additif, jamais d'écrasement), puis
+# recalcule les métriques. Déclenchement MANUEL uniquement.
+on:
+  workflow_dispatch:
+    inputs:
+      lu_only:
+        description: "Restreindre aux ISIN luxembourgeois (rattrapage assurance-vie)"
+        type: boolean
+        default: true
+      limit:
+        description: "Nombre max de fonds à traiter (vide = tous les éligibles)"
+        type: string
+        default: ""
+      delay:
+        description: "Pause par requête en secondes (politesse FT)"
+        type: string
+        default: "0.4"
+
+concurrency:
+  group: data-refresh # partage le verrou avec le refresh hebdo (pas de collision d'écriture)
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Backfill séries NAV manquantes (Financial Times)
+        run: |
+          ARGS="--apply --missing-series --no-holdings --workers 4 --delay ${{ inputs.delay }}"
+          if [ "${{ inputs.lu_only }}" = "true" ]; then ARGS="$ARGS --lu-only"; fi
+          if [ -n "${{ inputs.limit }}" ]; then ARGS="$ARGS --limit ${{ inputs.limit }}"; fi
+          echo "ft-enricher.py $ARGS"
+          python3 scripts/scrapers/ft-enricher.py $ARGS
+
+      - name: Recalcul des métriques (perf/vol/Sharpe/drawdown)
+        run: python3 scripts/enrichers/compute-metrics.py --apply

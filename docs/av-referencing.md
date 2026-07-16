@@ -39,7 +39,8 @@ chevauchement). Décalé du refresh SCPI (le 5).
 
 ## 4. Inventaire des scrapers
 
-**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,mutualistes,oradea,spirica,suravenir,swisslife}`,
+**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,generali,mutualistes,garance,monceau,asac-fapes,bpce,prepar-vie,afi-esca,spirica,suravenir,swisslife}`
+(oradea RETIRÉ 13/07 : portail décommissionné, cf. quarantaine dans l'orchestrateur),
 `av-lux-{afi-esca,allianz,apicil-onelife,axa-wealtheurope,baloise,cnp,generali,sogelife,swisslife,utmost,vitislife,wealins}`,
 `av-lux-opcvm360 --all` + `--dynamic`. *(Tier 3 : bancassureurs FR ajoutés en parallèle — cf. §8.)*
 

@@ -26,7 +26,3 @@ export function addSearch(entry: Omit<SearchEntry, "searched_at">): void {
   list.unshift({ ...entry, searched_at: new Date().toISOString() });
   localStorage.setItem(KEY, JSON.stringify(list.slice(0, 20)));
 }
-
-export function clearSearches(): void {
-  localStorage.removeItem(KEY);
-}

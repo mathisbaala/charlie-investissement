@@ -1,0 +1,61 @@
+name: Rafraîchissement annuel
+
+# Données à cadence ANNUELLE : les taux servis des fonds en euros sont publiés
+# en janvier-février (année N-1). On rafraîchit début février pour récupérer la
+# dernière année pleine. Refresh = écrase les perf existantes (≠ fill-only).
+on:
+  schedule:
+    # 10 février, 05:00 UTC — laisse le temps aux assureurs/GVFM de publier N-1.
+    - cron: "0 5 10 2 *"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  annual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      # Taux servis des fonds en euros (goodvalueformoney.eu) → perf 1y/3y/5y.
+      # --refresh : écrase les perf de l'an dernier par la nouvelle fenêtre
+      # (années dynamiques finissant sur la dernière année publiée).
+      - name: Fonds euros — taux servis (refresh)
+        run: python3 scripts/scrapers/fonds-euros-enricher.py --apply --refresh
+
+      # Alerte persistante si l'étape ci-dessus a échoué : commente l'issue
+      # ouverte existante (pas de spam) ou en crée une.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-pipeline-annuel]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement annuel (fonds euros) a échoué." \
+              "Run : $RUN_URL" \
+              "À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement annuel en échec" --body-file -
+          fi

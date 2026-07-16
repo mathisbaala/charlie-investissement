@@ -21,7 +21,7 @@ function FeeRow({
           ? "text-accent"
           : "text-ink-2"
       }`}>
-        {value == null ? "—" : pct(value * 100)}
+        {value == null ? "-" : pct(value * 100)}
       </td>
     </tr>
   );

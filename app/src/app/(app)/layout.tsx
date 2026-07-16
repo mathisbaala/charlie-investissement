@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { Rail } from "@/components/chrome/Rail";
 import { Topbar } from "@/components/chrome/Topbar";
-import { ChatPanel } from "@/components/chrome/ChatPanel";
+import { GuidePanel } from "@/components/chrome/GuidePanel";
 import { SelectionProvider } from "@/components/SelectionProvider";
 import { RateLimitDialog } from "@/components/ui/RateLimitDialog";
 import { WelcomeTour } from "@/components/chrome/WelcomeTour";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [chatOpen, setChatOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
     <SelectionProvider>
@@ -22,8 +22,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             déborde de ~60px à droite sur mobile (sidebar fixe + marginLeft). */}
         <div className="flex-1 min-w-0 flex flex-col" style={{ marginLeft: "60px" }}>
           <Topbar
-            onChatToggle={() => setChatOpen((v) => !v)}
-            chatOpen={chatOpen}
+            onGuideToggle={() => setGuideOpen((v) => !v)}
+            guideOpen={guideOpen}
           />
           {/* Content below topbar */}
           <main className="flex-1 mt-14 overflow-hidden">
@@ -31,8 +31,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
 
-        {/* Chat panel (floating) */}
-        <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+        {/* Panneau Charlie (flottant) — explication de la page courante */}
+        <GuidePanel open={guideOpen} onClose={() => setGuideOpen(false)} />
 
         {/* Modal « crédits du jour épuisés » (déclenché sur 429 des routes IA) */}
         <RateLimitDialog />

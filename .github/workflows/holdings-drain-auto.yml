@@ -1,0 +1,80 @@
+name: Drain composition auto (look-through)
+
+# Drain AUTOMATIQUE de la ventilation manquante (géo/secteur/holdings) via
+# Morningstar EMEA, en fond, sur plusieurs semaines. Cadence VOLONTAIREMENT
+# lente (1 run/jour) : la sal-service throttle sous charge soutenue (cf. mémoire
+# morningstar-emea-holdings-enricher) → JAMAIS de runs dos à dos.
+#
+# Pas de gestion d'offset : le scraper saute les fonds déjà ventilés ET les
+# « non tentés <30j » (table investissement_fund_holdings_attempts), donc chaque
+# run à offset 0 attaque automatiquement la tranche suivante du gisement
+# non-tenté. Le pool (~15k OPCVM/ETF sans ventilation) se draine en ~15 runs ;
+# ensuite chaque run ne retrouve que les ré-essais TTL (Morningstar s'enrichit).
+# Rendement réel observé ~24 % (le reste = no_sec_id / données vides).
+#
+# Fill-only + idempotent : relancer ne casse jamais rien. Partage le groupe de
+# concurrence data-refresh → sérialisé avec les refresh hebdo/mensuel (aucune
+# écriture concurrente ni double charge Morningstar).
+on:
+  schedule:
+    - cron: "0 2 * * *"   # tous les jours 02:00 UTC (creux ; hebdo=dim, mensuel=05:00)
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Nombre de fonds à traiter (tranche)"
+        required: false
+        type: string
+        default: "1000"
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  drain-auto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Drainer une tranche (Morningstar, non-notés inclus)
+        run: |
+          python3 scripts/scrapers/populate-holdings-morningstar.py \
+            --apply --include-unrated --offset 0 \
+            --limit "${{ inputs.limit || '1000' }}"
+
+      # Dérive allocation_profile des diversifiés depuis la compo FRAÎCHEMENT
+      # drainée ci-dessus (fill-only). La couverture grandit avec le drain.
+      - name: Dériver allocation_profile depuis la composition
+        run: python3 scripts/enrichers/derive-allocation-profile.py
+
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-drain-auto]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n' "Le drain composition auto a échoué." "Run : $RUN_URL" \
+              | gh issue create --title "$MARKER Drain composition auto en échec" --body-file -
+          fi

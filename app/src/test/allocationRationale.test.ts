@@ -113,7 +113,7 @@ describe("buildPresentation", () => {
       contractName: "Cardif ELITE",
       universeSize: 1400,
       asOfLabel: "Février 2026",
-      advisorName: "Métagram Gestion Privée",
+      advisorName: "Charlie Gestion Privée",
     });
     expect(p.title).toContain("Cardif ELITE");
     expect(p.headline.supports).toBe(4);

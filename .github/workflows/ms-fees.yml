@@ -1,0 +1,58 @@
+name: Frais courants (Morningstar EMEA)
+
+# Comble ter/ongoing_charges des OPCVM/ETF sans frais via le screener Morningstar
+# EMEA (même requête que la résolution secId du holdings enricher + data point
+# frais). Fill-only (safe_fill_funds), trace source=morningstar dans field_sources.
+#
+# Lancer d'abord un CANARY : apply=false + debug=true + limit bas → les logs
+# impriment les data points frais BRUTS des 1ers fonds (confirme le nom exact du
+# champ Morningstar) et le taux de résolution, AVANT le run complet.
+on:
+  workflow_dispatch:
+    inputs:
+      min_aum:
+        description: "AUM minimum en euros (10000000 = >10M€ prioritaires ; 0 = tous)"
+        type: string
+        default: "10000000"
+      limit:
+        description: "Nombre max de fonds (vide = tous ; 40 pour un canary)"
+        type: string
+        default: "40"
+      apply:
+        description: "Écrire en base (false = dry-run/canary)"
+        type: boolean
+        default: false
+      debug:
+        description: "Imprimer les data points frais bruts (échantillon)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  ms-fees:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+      - name: Enrichir les frais (Morningstar)
+        run: |
+          set -euo pipefail
+          APPLY=""; if [ "${{ inputs.apply }}" = "true" ]; then APPLY="--apply"; fi
+          DEBUG=""; if [ "${{ inputs.debug }}" = "true" ]; then DEBUG="--debug"; fi
+          LIM="";   if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
+          python3 scripts/scrapers/ms-emea-fees-enricher.py \
+            $APPLY $DEBUG $LIM --min-aum "${{ inputs.min_aum }}"

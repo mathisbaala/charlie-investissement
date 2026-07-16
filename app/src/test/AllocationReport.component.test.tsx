@@ -29,7 +29,7 @@ describe("AllocationReport", () => {
   const presentation = buildPresentation(RESULT, {
     contractName: "Cardif ELITE",
     universeSize: 1400,
-    advisorName: "Métagram",
+    advisorName: "Charlie Gestion Privée",
   });
 
   it("affiche l'en-tête, les KPI et toutes les sections", () => {
@@ -37,7 +37,7 @@ describe("AllocationReport", () => {
     expect(screen.getByRole("heading", { level: 2 }).textContent).toContain("Cardif ELITE");
     expect(screen.getByText("Contexte et objectifs")).toBeTruthy();
     expect(screen.getByText("Répartition par classe d'actifs")).toBeTruthy();
-    expect(screen.getByText("Allocation détaillée")).toBeTruthy();
+    expect(screen.getByText("Portefeuille détaillé")).toBeTruthy();
     expect(screen.getByText("Profil de risque")).toBeTruthy();
     expect(screen.getByText("Analyse et justification par support")).toBeTruthy();
     expect(screen.getByText("Nos convictions de gestion")).toBeTruthy();
@@ -76,8 +76,8 @@ describe("AllocationReport", () => {
     render(<AllocationReport presentation={presentation} />);
     expect(screen.getByText("Notation")).toBeTruthy();
     expect(screen.getByText("★★★★★")).toBeTruthy(); // Amundi, rating 5
-    // Les fonds non notés affichent un tiret cadratin dans la colonne.
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    // Les fonds non notés affichent un tiret dans la colonne.
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 
   it("affiche l'en-tête de colonne Frais (et plus TER)", () => {
@@ -91,7 +91,7 @@ describe("AllocationReport", () => {
     const { rerender } = render(<AllocationReport presentation={presentation} />);
     expect(screen.queryByLabelText(/Retirer Amundi/)).toBeNull();
     rerender(<AllocationReport presentation={presentation} onRemoveLine={onRemove} />);
-    fireEvent.click(screen.getByLabelText("Retirer Amundi S&P 500 ETF de l'allocation"));
+    fireEvent.click(screen.getByLabelText("Retirer Amundi S&P 500 ETF du portefeuille"));
     expect(onRemove).toHaveBeenCalledWith("LU1135865084");
   });
 });

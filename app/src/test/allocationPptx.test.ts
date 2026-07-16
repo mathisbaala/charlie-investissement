@@ -33,7 +33,7 @@ describe("buildAllocationDeck", () => {
       contractName: "Cardif Elite Lux",
       universeSize: 1400,
       asOfLabel: "Juillet 2026",
-      advisorName: "Métagram Gestion Privée",
+      advisorName: "Charlie Gestion Privée",
     });
     const pptx = buildAllocationDeck(presentation);
     const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
@@ -57,5 +57,103 @@ describe("buildAllocationDeck", () => {
     const pptx = buildAllocationDeck(presentation);
     const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
     expect(buf[0]).toBe(0x50);
+  }, 30_000);
+});
+
+// ─── Extras de l'atelier : toutes les sections optionnelles présentes ─────────
+
+import JSZip from "jszip";
+import type { PresentationExtras } from "@/lib/presentationExtras";
+
+const EXTRAS: PresentationExtras = {
+  exposure: {
+    geo: [
+      { label: "États-Unis", weight: 40 },
+      { label: "France", weight: 35 },
+      { label: "Autres", weight: 25 },
+    ],
+    sectors: [
+      { label: "Technologie", weight: 30 },
+      { label: "Industrie", weight: 25 },
+      { label: "Autres", weight: 45 },
+    ],
+  },
+  goals: [
+    {
+      label: "Retraite", targetEur: 100_000, years: 10, initialEur: 50_000,
+      monthlyEur: 200, priorityLabel: "Vital", requiredReturn: 0.031, successProb: 0.82,
+    },
+    {
+      label: "Études des enfants", targetEur: 60_000, years: 6, initialEur: 5_000,
+      monthlyEur: 100, priorityLabel: "Important", requiredReturn: null, successProb: null,
+    },
+  ],
+  correlation: {
+    names: ["Amundi S&P 500 UCITS ETF", "AXA WF Euro Credit TR", "Hugau Moneterme"],
+    matrix: [
+      [1, 0.24, null],
+      [0.24, 1, -0.05],
+      [null, -0.05, 1],
+    ],
+  },
+  projection: { amountEur: 100_000, horizonYears: 8, projectedEur: 145_000 },
+  backtest: {
+    periodLabel: "Juin 2021 à Juin 2026",
+    benchmarkLabel: "MSCI World",
+    curve: Array.from({ length: 60 }, (_, i) => ({
+      d: `${2021 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-01`,
+      p: 100 + i * 0.8,
+      b: 100 + i * 0.6,
+    })),
+    portfolio: { total_return: 0.48, annual_return: 0.081, volatility: 0.11, sharpe: 0.7, max_drawdown: -0.18 },
+    benchmark: { total_return: 0.36, annual_return: 0.063, volatility: 0.13, sharpe: 0.5, max_drawdown: -0.22 },
+  },
+  effectiveHoldings: 3.4,
+  avgTer: 0.009,
+};
+
+describe("buildAllocationDeck avec extras (sections de l'atelier)", () => {
+  it("intègre répartitions, projets, corrélation et back-test, sans aucun tiret de ponctuation", async () => {
+    const presentation = {
+      ...buildPresentation(RESULT, {
+        contractName: "Cardif Elite Lux",
+        asOfLabel: "Juillet 2026",
+        advisorName: "Charlie Gestion Privée",
+      }),
+      extras: EXTRAS,
+    };
+    const pptx = buildAllocationDeck(presentation);
+    const buf = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
+    expect(buf[0]).toBe(0x50);
+
+    // Textes de toutes les slides (balises <a:t>).
+    const zip = await JSZip.loadAsync(buf);
+    const slideNames = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f));
+    const texts: string[] = [];
+    for (const name of slideNames) {
+      const xml = await zip.files[name].async("string");
+      for (const m of xml.matchAll(/<a:t>([^<]*)<\/a:t>/g)) texts.push(m[1]);
+    }
+    const all = texts.join("\n");
+
+    // Les nouvelles sections sont là.
+    expect(all).toContain("Répartition géographique");
+    expect(all).toContain("Répartition sectorielle");
+    expect(all).toContain("Retraite");
+    expect(all).toContain("hors de portée");
+    expect(all).toContain("lignes effectives");
+    expect(all).toContain("MSCI World");
+    expect(all).toContain("performances passées");
+    expect(all).toContain("SOMMAIRE");
+
+    // Aucun tiret de ponctuation dans les textes : ni cadratin, ni demi-cadratin,
+    // ni « - » isolé (les traits d'union de mots composés restent permis).
+    expect(all).not.toMatch(/[—–]/);
+    expect(all).not.toMatch(/(^|\s)-(\s|$)/m);
+
+    if (process.env.DEMO) {
+      const outDir = resolve(process.cwd(), "..", "..");
+      writeFileSync(resolve(outDir, "Demo_Allocation_Charlie_Extras.pptx"), buf);
+    }
   }, 30_000);
 });

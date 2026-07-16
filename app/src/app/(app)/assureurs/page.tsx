@@ -42,8 +42,10 @@ const ENV_LABEL: Record<Envelope, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
+// Assureur : on ouvre tous ses supports dans le screener (pas de fiche assureur).
 const insurerHref  = (company: string) => `/recherche?insurer=${encodeURIComponent(company)}`;
-const contractHref = (key: string)     => `/recherche?contracts=${encodeURIComponent(key)}`;
+// Contrat : on ouvre la FICHE-contrat (spécificités), plus la recherche filtrée.
+const contractHref = (key: string)     => `/assureurs/contrat?key=${encodeURIComponent(key)}`;
 
 // Hauteur fixe de carte : toutes les cartes s'alignent en une grille régulière
 // (plus de trous ni de cartes inégales). Le surplus de contrats défile à

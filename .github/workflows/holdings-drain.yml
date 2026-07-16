@@ -1,0 +1,106 @@
+name: Drain composition (sous-jacents)
+
+# Run de masse, à la demande, pour DRAINER la ventilation manquante
+# (géo / secteur / holdings) plus vite que la cadence mensuelle.
+# Chaque déclenchement lance UN enricher sur UNE tranche (offset/limit) :
+# on tire plusieurs runs en parallèle/séquence (offset 0, 500, 1000…) pour
+# couvrir tout le gisement. Tous les enrichers ici sont FILL-ONLY (ils
+# sautent les fonds déjà ventilés) — relancer est idempotent, jamais destructif.
+#
+# Exemples (onglet Actions → Run workflow) :
+#   morningstar      offset=0    limit=1000                 → OPCVM notés, top AUM
+#   morningstar      offset=0    limit=1000  unrated=true   → probe/drain non-notés
+#   justetf          offset=0    limit=1000                 → traîne ETF générique
+#   issuer-amundi    (offset/limit ignorés)                → re-balaye un émetteur
+
+on:
+  workflow_dispatch:
+    inputs:
+      enricher:
+        description: "Enricher à lancer"
+        required: true
+        type: choice
+        default: morningstar
+        options:
+          - morningstar          # OPCVM/ETF via Morningstar EMEA (sal-service)
+          - justetf              # ETF via JustETF (générique, tous émetteurs)
+          - issuer-ishares       # ETF iShares (compo intégrale émetteur)
+          - issuer-amundi        # ETF Amundi
+          - issuer-xtrackers     # ETF Xtrackers (DWS)
+          - issuer-invesco       # ETF Invesco (dng-api, index = expo réelle)
+      limit:
+        description: "Nombre de fonds à traiter (tranche)"
+        required: false
+        type: string
+        default: "1000"
+      offset:
+        description: "Décalage AUM (shard) — Morningstar uniquement"
+        required: false
+        type: string
+        default: "0"
+      include_unrated:
+        description: "Morningstar : viser AUSSI les non-notés (mur OPCVM)"
+        required: false
+        type: boolean
+        default: false
+      probe:
+        description: "Dry-run (n'écrit rien — imprime le résumé résolus/sans-secId/sans-portfolio)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  # Partage le verrou des refresh de données pour éviter les écritures concurrentes.
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Drainer la composition
+        run: |
+          set -euo pipefail
+          ENRICHER="${{ inputs.enricher }}"
+          LIMIT="${{ inputs.limit }}"
+          OFFSET="${{ inputs.offset }}"
+          # probe=true → dry-run : pas de --apply, le script imprime le résumé
+          # résolus/sans-secId/sans-portfolio sans rien écrire (fill-only mesuré).
+          APPLY="--apply"
+          if [ "${{ inputs.probe }}" = "true" ]; then APPLY=""; fi
+
+          case "$ENRICHER" in
+            morningstar)
+              EXTRA=""
+              if [ "${{ inputs.include_unrated }}" = "true" ]; then EXTRA="--include-unrated"; fi
+              python3 scripts/scrapers/populate-holdings-morningstar.py \
+                $APPLY --limit "$LIMIT" --offset "$OFFSET" $EXTRA
+              ;;
+            justetf)
+              # justetf-holdings n'a pas d'offset (fill-only priorité AUM interne).
+              python3 scripts/scrapers/justetf-holdings-scraper.py $APPLY --limit "$LIMIT"
+              ;;
+            issuer-ishares|issuer-amundi|issuer-xtrackers|issuer-invesco)
+              ISSUER="${ENRICHER#issuer-}"
+              python3 scripts/scrapers/issuer-holdings.py --issuer "$ISSUER" $APPLY --limit "$LIMIT"
+              ;;
+            *)
+              echo "Enricher inconnu : $ENRICHER" >&2; exit 1
+              ;;
+          esac

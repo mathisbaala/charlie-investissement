@@ -1,0 +1,71 @@
+name: Rafraîchissement catalogues AV (navigateur)
+
+# Pendant navigateur de `av-refresh.yml` : les 2 catalogues d'AV qui exigent
+# Playwright (JWT Morningstar généré côté navigateur pour Linxea ; APIs SPA
+# only-en-session pour Cardif Lux Vie). ~1729 + ~682 UC.
+#
+# Séparé du job HTTP car il installe chromium (lourd, ~300 Mo). Même cadence
+# TRIMESTRIELLE, le 12 à 06:00 UTC (après le job HTTP de 05:00, ~20 min) — même
+# groupe de concurrence `data-refresh` (file d'attente, pas d'annulation) pour
+# ne pas se chevaucher.
+#
+# Éligibilité-only / fill-only / idempotent (cf. av-catalog-refresh-browser.py).
+# Alerte issue si un scraper casse.
+on:
+  schedule:
+    # 12 jan / avr / juil / oct, 06:00 UTC.
+    - cron: "0 6 12 1,4,7,10 *"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  av-refresh-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60 # 2 scrapers Playwright + démarrage navigateur
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      # Playwright + navigateur chromium (uniquement ce workflow en a besoin —
+      # on ne l'ajoute pas à requirements.txt pour ne pas alourdir les autres jobs).
+      - name: Installer Playwright + chromium
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Refresh catalogues UC (navigateur)
+        run: python3 scripts/cron/av-catalog-refresh-browser.py
+
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-catalogues-av-navigateur]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement des catalogues UC d'AV (navigateur : Linxea + Cardif Lux Vie) a échoué." \
+              "Run : $RUN_URL" \
+              "Cause probable : JWT/SPA changé, ou chromium. À investiguer puis refermer (l'issue sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement catalogues AV navigateur en échec" --body-file -
+          fi

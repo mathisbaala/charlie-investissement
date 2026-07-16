@@ -1,0 +1,41 @@
+name: Référencement — appliquer une récolte
+
+# Applique en base un JSON de récolte de référencement assureur (crawl
+# déterministe fait en LOCAL sur IP résidentielle, committé dans scripts/data/).
+# Déclenchement MANUEL uniquement : on relit le dry-run avant d'écrire.
+# Fill-only référencement (investissement_av_lux_eligibility), idempotent,
+# jamais d'écriture sur investissement_funds. Aucune clé IA requise.
+on:
+  workflow_dispatch:
+    inputs:
+      json_path:
+        description: "Chemin du JSON de récolte"
+        required: true
+        default: "scripts/data/referencing-harvest-partie1.json"
+      apply:
+        description: "true = écrire en base, false = dry-run"
+        required: true
+        default: "false"
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  referencing-apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - name: Appliquer la récolte
+        run: |
+          FLAG=""
+          if [ "${{ inputs.apply }}" = "true" ]; then FLAG="--apply"; fi
+          python3 scripts/migrations/apply-referencing-from-harvest.py --json "${{ inputs.json_path }}" $FLAG

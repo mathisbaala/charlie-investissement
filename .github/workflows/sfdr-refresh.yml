@@ -1,0 +1,99 @@
+name: Durabilité SFDR (DDA)
+
+# Extrait les données de durabilité DDA (taxonomie, investissement durable, PAI)
+# en fill-only, depuis DEUX sources :
+#   1. sfdr-enricher.py       — le KID (best-effort ; beaucoup de KID renvoient à
+#                               une annexe SFDR séparée → cul-de-sac partiel).
+#   2. sfdr-annex-enricher.py — l'ANNEXE précontractuelle SFDR (documenttype=398),
+#                               là où vivent réellement les 3 indicateurs MiFID.
+# Drain hebdo de l'annexe sur l'univers Art.8/9 (~9 100 fonds), par lots cappés,
+# jusqu'à épuisement (le script ne reprend que les fonds pas encore examinés).
+on:
+  schedule:
+    # Hebdo, mardi 04:00 UTC. Pas de piège dom/dow ici : seul le jour-de-semaine
+    # est restreint (jour-du-mois = *), donc ce cron ne se déclenche QUE le mardi.
+    - cron: "0 4 * * 2"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Nombre max de fonds à traiter par enricher (vide = tous)"
+        required: false
+        default: ""
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  sfdr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      # Étape CIBLÉE en premier (indicateurs MiFID) : elle doit toujours passer,
+      # même si l'étape KID ci-dessous est longue. Bornée sur cadence planifiée.
+      - name: SFDR-annex enricher — annexe précontractuelle MiFID (fill-only)
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit ${{ github.event.inputs.limit }}
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply --limit 3000
+          else
+            python3 scripts/enrichers/sfdr-annex-enricher.py --apply
+          fi
+
+      # Étape KID best-effort (sfdr_article fill-only ; cul-de-sac pour les 3 % MiFID).
+      # RETIRÉE du cron hebdo (14/07) : même bornée à 4000, son gros backlog débordait
+      # le timeout de 120 min → le job était « cancelled » CHAQUE semaine (silencieux,
+      # car cancelled ≠ failure → aucune alerte). Le drain KID de fond est déjà couvert
+      # par monthly-pipeline ; on ne la lance donc plus qu'en manuel (workflow_dispatch),
+      # où elle draine tout l'univers sans limite. Le run planifié = étape annexe seule
+      # (utile, rapide) → il repasse vert.
+      - name: SFDR enricher — KID (fill-only, manuel uniquement)
+        if: github.event_name != 'schedule'
+        # Ceinture + bretelles : l'étape KID a son PROPRE timeout (< le timeout du job)
+        # et n'échoue pas le run. Ainsi même un run manuel/mensuel où KID est long se
+        # termine VERT (l'annexe ci-dessus, elle, doit passer) au lieu d'être « cancelled »
+        # par le timeout global. Le drain KID est fill-only → repris au run suivant.
+        timeout-minutes: 90
+        continue-on-error: true
+        run: |
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            python3 scripts/enrichers/sfdr-enricher.py --apply --limit ${{ github.event.inputs.limit }}
+          else
+            python3 scripts/enrichers/sfdr-enricher.py --apply
+          fi
+
+      # Alerte persistante si une étape ci-dessus a échoué (réutilise une issue
+      # ouverte plutôt que d'en spammer). GITHUB_TOKEN intégré, aucun secret externe.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-sfdr]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n' \
+              "Le rafraîchissement durabilité SFDR a échoué." \
+              "Run : $RUN_URL" \
+              | gh issue create --title "$MARKER Durabilité SFDR en échec" --body-file -
+          fi

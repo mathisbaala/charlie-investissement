@@ -460,7 +460,7 @@ export function DiciReport({ fiche, onReset }: { fiche: DiciFiche; onReset: () =
                       p.v == null ? "text-muted" : p.v >= 0 ? "text-ok" : "text-danger"
                     }`}
                   >
-                    {p.v == null ? "—" : pct(p.v, true)}
+                    {p.v == null ? "-" : pct(p.v, true)}
                   </p>
                 </div>
               ))}

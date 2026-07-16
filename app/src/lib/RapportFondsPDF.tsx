@@ -227,11 +227,11 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
             <Text style={S.fundName}>{String(f.name).slice(0, 42)}</Text>
             <Text style={S.fundIsin}>{f.isin}</Text>
           </View>
-          <Text style={S.colSm}>{f.sfdr_article ? `Art.${f.sfdr_article}` : "—"}</Text>
-          <Text style={S.colSm}>{(f.sri ?? f.risk_score) ? `${f.sri ?? f.risk_score}/7` : "—"}</Text>
+          <Text style={S.colSm}>{f.sfdr_article ? `Art.${f.sfdr_article}` : "-"}</Text>
+          <Text style={S.colSm}>{(f.sri ?? f.risk_score) ? `${f.sri ?? f.risk_score}/7` : "-"}</Text>
           <Text style={[S.colMd, { color: C.ink }]}>{fmt(normTer(f.ongoing_charges ?? f.ter))}</Text>
           <Text style={[S.colMd, { color: f.retrocession_cgp > 0 ? C.gold : C.ink2 }]}>
-            {f.retrocession_cgp != null ? fmt(f.retrocession_cgp * 100) : "—"}
+            {f.retrocession_cgp != null ? fmt(f.retrocession_cgp * 100) : "-"}
           </Text>
           <View style={S.colPerf}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
@@ -398,13 +398,13 @@ function FundPage({
         <View style={S.col}>
           <SectionIntro eyebrow="Frais & structure" title="Le coût réel." />
           <Row label="Frais courants (TER)" value={fmt(ter)} />
-          <Row label="Frais d'entrée max" value={fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "—"} />
-          <Row label="Commission de sortie max" value={fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "—"} />
+          <Row label="Frais d'entrée max" value={fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "-"} />
+          <Row label="Commission de sortie max" value={fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "-"} />
           {/* Perf nette client : VL (déjà nette du fonds) moins frais de gestion du
               contrat AV (hypothèse standard). Pas de double comptage du TER/rétro. */}
           <Row
             label="Perf. nette 3 ans (AV, est.)"
-            value={fund.performance_3y != null ? perf(perfNetteClient(fund.performance_3y, CONTRACT_FEE_DEFAULTS["AV-FR"])) : "—"}
+            value={fund.performance_3y != null ? perf(perfNetteClient(fund.performance_3y, CONTRACT_FEE_DEFAULTS["AV-FR"])) : "-"}
           />
           {fund.sustainable_investment_pct != null && (
             <Row label="Investissement durable" value={fmt(fund.sustainable_investment_pct)} />
@@ -412,9 +412,9 @@ function FundPage({
           {fund.taxonomy_alignment_pct != null && (
             <Row label="Aligné taxonomie UE" value={fmt(fund.taxonomy_alignment_pct)} />
           )}
-          <Row label="Encours (AUM)" value={fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "—"} />
-          <Row label="Création" value={fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "—"} />
-          <Row label="Ancienneté" value={trackRecord ? `${trackRecord} ans` : "—"} />
+          <Row label="Encours (AUM)" value={fund.aum_eur ? `${(fund.aum_eur / 1_000_000).toFixed(0)} M€` : "-"} />
+          <Row label="Création" value={fund.inception_date ? new Date(fund.inception_date).toLocaleDateString("fr-FR") : "-"} />
+          <Row label="Ancienneté" value={trackRecord ? `${trackRecord} ans` : "-"} />
 
           {fund.morningstar_rating ? (
             <View style={S.ratingRow}>
@@ -434,8 +434,8 @@ function FundPage({
                 {fund.benchmark_is_category ? "Alpha vs indice de catégorie" : "Performance vs indice"}
               </Text>
               <Row label="Indice" value={String(fund.benchmark_index).slice(0, 28)} />
-              <Row label="Alpha 1 an" value={fund.alpha_1y != null ? perf(fund.alpha_1y) : "—"} tone={fund.alpha_1y} />
-              <Row label="Alpha 3 ans (ann.)" value={fund.alpha_3y != null ? perf(fund.alpha_3y) : "—"} tone={fund.alpha_3y} />
+              <Row label="Alpha 1 an" value={fund.alpha_1y != null ? perf(fund.alpha_1y) : "-"} tone={fund.alpha_1y} />
+              <Row label="Alpha 3 ans (ann.)" value={fund.alpha_3y != null ? perf(fund.alpha_3y) : "-"} tone={fund.alpha_3y} />
             </View>
           )}
         </View>

@@ -2,11 +2,12 @@
 // résultat d'optimisation. 100 % DÉTERMINISTE (aucun appel LLM/API payante) :
 // le texte est produit par un banc de phrases piloté par les données du fonds
 // (classe d'actifs, catégorie, style, SFDR, SRI, poids). La structure reprend le
-// modèle « Métagram / Cardif ELITE » fourni : contexte & objectifs, répartition
+// modèle « proposition / Cardif ELITE » fourni : contexte & objectifs, répartition
 // par classe, tableau détaillé, justification par support, profil de risque
 // (SRI + SFDR), convictions de gestion, avertissements MIF II.
 
 import type { AllocationResult, AllocationLine, AssetClass } from "./optimizer";
+import type { PresentationExtras } from "./presentationExtras";
 
 export interface PresentationOptions {
   contractName: string;
@@ -62,6 +63,10 @@ export interface AllocationPresentation {
   };
   convictions: { title: string; text: string }[];
   disclaimers: string[];
+  /** Blocs additionnels de l'atelier (expo géo/secteurs, projets, corrélation,
+      projection, back-test), collectés au téléchargement. Absents = sections
+      simplement omises des documents. */
+  extras?: PresentationExtras;
 }
 
 const CLASS_LABEL: Record<AssetClass, string> = {
@@ -146,7 +151,9 @@ export function fundRationale(line: AllocationLine): string {
   return parts.join(" ");
 }
 
-function roleSentence(line: AllocationLine): string {
+/** Rôle qualitatif d'un support dans le portefeuille, en une phrase (réutilisé
+    par les cartes du deck PowerPoint : version courte de la justification). */
+export function roleSentence(line: AllocationLine): string {
   switch (line.assetClass) {
     case "fonds_euros":
       return "Socle défensif du portefeuille : garantie en capital et amortisseur des chocs de marché.";
@@ -169,7 +176,7 @@ function roleSentence(line: AllocationLine): string {
 
 function weightSentence(line: AllocationLine): string {
   if (line.weight >= 15)
-    return `Position de conviction (${line.weight} %), pilier de l'allocation.`;
+    return `Position de conviction (${line.weight} %), pilier du portefeuille.`;
   if (line.weight >= 7)
     return `Pondération significative (${line.weight} %) au service du couple rendement/risque.`;
   return `Pondération mesurée (${line.weight} %) pour diversifier sans concentrer le risque.`;
@@ -233,18 +240,18 @@ export function buildPresentation(
     `Performance annualisée cible : ~${expectedReturnPct} % (taux sans risque + prime de risque du portefeuille).`,
     `Volatilité attendue : ~${volatilityPct} % annualisée.`,
     result.weightedSri != null
-      ? `SRI moyen pondéré : ~${round1(result.weightedSri)} / 7 — profil ${profileLabel}.`
+      ? `SRI moyen pondéré : ~${round1(result.weightedSri)} / 7, profil ${profileLabel}.`
       : `Profil ${profileLabel}.`,
     opts.universeSize
       ? `Univers d'investissement : ${opts.universeSize} supports du contrat ${opts.contractName}.`
       : `Univers d'investissement : supports du contrat ${opts.contractName}.`,
-    `Nombre de supports retenus : ${result.lines.length} (allocation resserrée, 4 à 7 lignes).`,
+    `Nombre de supports retenus : ${result.lines.length} (portefeuille resserré, 4 à 7 lignes).`,
   ];
 
   // Convictions = 3 lignes de plus fort poids + une conviction sur le coût moyen.
   const top = [...result.lines].sort((a, b) => b.weight - a.weight).slice(0, 3);
   const convictions = top.map((l) => ({
-    title: `${l.name} — ${l.weight} %`,
+    title: `${l.name} : ${l.weight} %`,
     text: fundRationale(l),
   }));
   const avgTer = weightedTer(result.lines);
@@ -257,7 +264,7 @@ export function buildPresentation(
   }
 
   return {
-    title: `Allocation ${profileLabel} — ${opts.contractName}`,
+    title: `Portefeuille ${profileLabel}, ${opts.contractName}`,
     subtitle: `${result.lines.length} supports · profil ${profileLabel}`,
     advisor: opts.advisorName ?? null,
     asOf: opts.asOfLabel ?? null,
@@ -292,7 +299,7 @@ export function buildPresentation(
   };
 }
 
-function weightedTer(lines: AllocationLine[]): number | null {
+export function weightedTer(lines: AllocationLine[]): number | null {
   let acc = 0;
   let wsum = 0;
   for (const l of lines) {

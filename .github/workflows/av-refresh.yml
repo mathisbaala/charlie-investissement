@@ -1,0 +1,81 @@
+name: Rafraîchissement catalogues AV
+
+# Catalogues d'unités de compte des contrats d'assurance-vie (~29 assureurs
+# FR + LUX → table investissement_av_lux_eligibility). Inclut les bancassureurs
+# majeurs (Tier 3 juin 2026 : CNP, Predica/CA, Abeille, Groupama/Gan, MACSF,
+# MAAF/Covéa, ACM/Crédit Mutuel) via annexes PDF.
+# Ces catalogues changent lentement (les assureurs ajoutent/retirent des UC) :
+# une cadence TRIMESTRIELLE suffit. Décalé au 12 (≠ le 5 du refresh SCPI) pour
+# ne pas se chevaucher avec l'autre job du groupe `data-refresh`.
+#
+# Tout est ÉLIGIBILITÉ-ONLY / fill-only et idempotent (cf. av-catalog-refresh.py) :
+# rejouer ne touche jamais aux perfs/frais des fonds. Chaque scraper est non-fatal ;
+# l'alerte ci-dessous ouvre une issue si une étape casse (péremption visible).
+on:
+  schedule:
+    # 12 jan / avr / juil / oct, 05:00 UTC.
+    - cron: "0 5 12 1,4,7,10 *"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  av-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180 # ~22 scrapers de sites assureurs (PDF/HTML), séquentiels
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Proxy résidentiel OPTIONNEL : contourne le blocage des IP datacenter GitHub
+      # par certains hôtes assureurs FR (maaf.fr, abeille, mma/gmf, quantalys). Si
+      # le secret AV_PROXY_URL n'est pas posé, la variable est vide → les scrapers
+      # tombent en connexion directe (comportement actuel inchangé). Seuls les
+      # scrapers à use_proxy=True l'utilisent. Format : http://user:pass@host:port.
+      # Cf. docs/av-referencing.md §Proxy.
+      AV_PROXY_URL: ${{ secrets.AV_PROXY_URL }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # pdftotext : requis par les scrapers qui lisent les annexes financières
+      # PDF des contrats (Baloise/Utmost/Vitislife + bancassureurs FR Tier 3 :
+      # CNP, Predica, Abeille, Groupama/Gan, MACSF, MAAF, ACM via _av_pdf_common).
+      - name: Installer poppler-utils (pdftotext)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      # Rejoue tous les catalogues UC (éligibilité-only) + refresh de la matview
+      # de référencement. Chaque scraper est non-fatal ; le code de sortie est
+      # non-nul si au moins un a échoué → déclenche l'alerte ci-dessous.
+      - name: Refresh catalogues UC d'assurance-vie
+        run: python3 scripts/cron/av-catalog-refresh.py
+
+      # Alerte persistante si l'étape ci-dessus a échoué (un ou plusieurs scrapers).
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-catalogues-av]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement des catalogues UC d'assurance-vie a échoué (≥1 scraper)." \
+              "Run : $RUN_URL" \
+              "Un site assureur a probablement changé de structure. À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement catalogues AV en échec" --body-file -
+          fi

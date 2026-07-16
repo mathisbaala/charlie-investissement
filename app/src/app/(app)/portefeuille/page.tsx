@@ -1,20 +1,11 @@
-import { PortfolioBuilder } from "@/components/portfolio/PortfolioBuilder";
+import { StudioInputs } from "@/components/portfolio/StudioInputs";
 
 export const metadata = { title: "Portefeuille · Charlie" };
 
-// Tout l'état du portefeuille vient de l'URL (lien partageable, sans compte).
-export default async function PortefeuillePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ isins?: string; weights?: string; benchmark?: string; years?: string }>;
-}) {
-  const sp = await searchParams;
-  return (
-    <PortfolioBuilder
-      initialIsins={sp.isins ?? ""}
-      initialWeights={sp.weights ?? ""}
-      initialBenchmark={sp.benchmark ?? ""}
-      initialYears={sp.years ?? ""}
-    />
-  );
+// Atelier Portefeuille — page 1 : profil client + réglages du conseiller.
+// « Générer le portefeuille » calcule l'allocation optimisée puis redirige vers
+// /portefeuille/resultat, la page entièrement dédiée au portefeuille et à ses
+// métriques (max-Sharpe / HRP / Markowitz interactif, back-test, exports).
+export default function PortefeuillePage() {
+  return <StudioInputs />;
 }

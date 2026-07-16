@@ -232,7 +232,7 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   if (f.target_maturity || f.maturity_year_min != null || f.maturity_year_max != null) {
     const a = f.maturity_year_min, b = f.maturity_year_max;
     out.push(
-      a != null && b != null ? `Échéance ${a}–${b}`
+      a != null && b != null ? `Échéance ${a}-${b}`
       : a != null ? `Échéance ≥ ${a}`
       : b != null ? `Échéance ≤ ${b}`
       : "Fonds à échéance",

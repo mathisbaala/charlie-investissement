@@ -76,7 +76,6 @@ export function botGuard(req: NextRequest): NextResponse | null {
 export const AI_COST = {
   parse: 1,         // recherche en langage naturel
   profile: 1,       // parsing d'un profil client
-  chat: 2,          // message de chat
   dici: 3,          // extraction d'un DICI (vision + gros prompt)
 } as const;
 

@@ -11,7 +11,7 @@ import type { AllocationPresentation } from "@/lib/allocationRationale";
 // de /api/portfolio/optimize.
 
 function fmtPct(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toFixed(1)} %`;
+  return n == null ? "-" : `${n.toFixed(1)} %`;
 }
 function sfdrText(a: number | null | undefined): string {
   return a === 8 ? "Art. 8" : a === 9 ? "Art. 9" : "Art. 6";
@@ -66,7 +66,7 @@ export function AllocationReport({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         <Stat label="Supports" value={String(p.headline.supports)} />
-        <Stat label="SRI moyen" value={p.headline.weightedSri == null ? "—" : `${p.headline.weightedSri} / 7`} />
+        <Stat label="SRI moyen" value={p.headline.weightedSri == null ? "-" : `${p.headline.weightedSri} / 7`} />
         <Stat label="Perf. cible / an" value={`~${p.headline.expectedReturnPct} %`} />
         <Stat label="Volatilité" value={`~${p.headline.volatilityPct} %`} />
       </div>
@@ -101,7 +101,7 @@ export function AllocationReport({
 
       {/* Tableau détaillé */}
       <Card className="px-5 py-4 overflow-x-auto">
-        <h3 className="text-label text-ink font-semibold mb-3">Allocation détaillée</h3>
+        <h3 className="text-label text-ink font-semibold mb-3">Portefeuille détaillé</h3>
         <table className="w-full text-meta">
           <thead>
             <tr className="text-muted border-b border-line-soft">
@@ -131,17 +131,17 @@ export function AllocationReport({
                   </Link>
                 </td>
                 <td className="py-1.5 pr-2 font-mono text-[11px] text-muted">{l.isin}</td>
-                <td className="py-1.5 pr-2 text-ink-2">{l.category ?? "—"}</td>
+                <td className="py-1.5 pr-2 text-ink-2">{l.category ?? "-"}</td>
                 <td className="py-1.5 pr-2 text-right text-ink font-semibold">{fmtPct(l.weight)}</td>
-                <td className="py-1.5 pr-2 text-center text-ink-2">{l.sri ?? "—"}</td>
+                <td className="py-1.5 pr-2 text-center text-ink-2">{l.sri ?? "-"}</td>
                 <td className="py-1.5 pr-2 text-center text-ink-2">{sfdrText(l.sfdr)}</td>
                 <td className="py-1.5 pr-2 text-center whitespace-nowrap"><MorningstarBadge rating={l.rating} /></td>
-                <td className="py-1.5 text-right text-ink-2">{l.ter == null ? "—" : `${(l.ter * 100).toFixed(2)} %`}</td>
+                <td className="py-1.5 text-right text-ink-2">{l.ter == null ? "-" : `${(l.ter * 100).toFixed(2)} %`}</td>
                 {onRemoveLine && (
                   <td className="py-1.5 pl-2 text-right">
                     <button
                       onClick={() => onRemoveLine(l.isin)}
-                      aria-label={`Retirer ${l.name} de l'allocation`}
+                      aria-label={`Retirer ${l.name} du portefeuille`}
                       title="Retirer ce fonds et réoptimiser"
                       className="text-muted hover:text-danger transition-colors align-middle"
                     >
@@ -159,7 +159,7 @@ export function AllocationReport({
       <Card className="px-5 py-4">
         <h3 className="text-label text-ink font-semibold mb-1">Profil de risque</h3>
         <p className="text-meta text-muted mb-3">
-          SRI moyen pondéré ~{p.riskProfile.weightedSri ?? "—"} / 7 — {p.riskProfile.profileLabel}
+          SRI moyen pondéré ~{p.riskProfile.weightedSri ?? "-"} / 7 : {p.riskProfile.profileLabel}
         </p>
         <div className="space-y-1.5">
           {p.riskProfile.sriDistribution.map((b) => (
@@ -175,7 +175,7 @@ export function AllocationReport({
         <div className="flex flex-wrap gap-2 mt-3">
           {p.riskProfile.sfdrDistribution.map((d) => (
             <span key={String(d.article)} className="text-[11px] px-2 py-0.5 rounded-full border border-line text-ink-2 bg-paper-2">
-              Art. {d.article} — {fmtPct(d.weight)}
+              Art. {d.article} : {fmtPct(d.weight)}
             </span>
           ))}
         </div>

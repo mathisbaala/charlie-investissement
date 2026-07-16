@@ -1,0 +1,47 @@
+name: Conditions de contrats AV (vague 2)
+
+# Conditions PROPRES aux contrats d'assurance-vie (frais gestion/versement/arbitrage,
+# fonds euros, options, univers, ticket…) → table investissement_av_contract_terms.
+# Source = documents officiels (DIC PRIIPs / annexes tarifaires / pages produit),
+# extraction structurée via Claude Haiku (accuracy + traçabilité source_url/as_of).
+#
+# Change lentement (les tarifs de contrat évoluent ~1×/an) → cadence MENSUELLE
+# suffit, sur le groupe data-refresh (pas de chevauchement). N'écrit QUE
+# av_contract_terms (jamais les fonds ni l'éligibilité) et est idempotent (upsert
+# on_conflict=key). Non-fatal : une source morte est ignorée.
+on:
+  schedule:
+    # Le 18 de chaque mois, 05:30 UTC (≠ 12 du refresh catalogues AV).
+    - cron: "30 5 18 * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  av-contract-terms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      AV_PROXY_URL: ${{ secrets.AV_PROXY_URL }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # pdftotext : requis pour lire les DIC / annexes tarifaires en PDF.
+      - name: Installer poppler-utils (pdftotext)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Collecter les conditions de contrats
+        run: python3 scripts/scrapers/av-contract-terms.py --apply

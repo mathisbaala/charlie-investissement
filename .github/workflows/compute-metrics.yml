@@ -1,0 +1,39 @@
+name: Recompute métriques (perf/vol/Sharpe/SRRI)
+
+# Recalcule perf 1Y/3Y/5Y, volatilité, Sharpe, drawdown et SRRI sur TOUT
+# l'univers ayant un historique de prix, à partir des séries VL.
+# Fill/recompute non destructif : écrit None quand une métrique n'est pas fiable
+# (série trop courte/aberrante) — c'est le mécanisme qui PURGE les valeurs
+# impossibles écrites par les scrapers, dont le garde de plausibilité par classe
+# d'actifs (PERF_BOUNDS : monétaire/obligataire bornés, actions/crypto libres).
+#
+# Déjà inclus dans le sweep mensuel (1er lundi) et l'hebdo (top-4000 encours).
+# Ce workflow est le déclencheur À LA DEMANDE pour appliquer le garde à tout
+# l'univers sans attendre le prochain run planifié — pendant de td-refresh.yml.
+on:
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  compute-metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Recompute métriques (univers complet, garde de plausibilité actif)
+        run: python3 scripts/enrichers/compute-metrics.py --apply

@@ -1,0 +1,37 @@
+name: Tracking difference ETF
+
+# Calcule la tracking difference des ETF (coût réel vs indice TR) :
+# rafraîchit les séries d'indices (Yahoo pour S&P 500/DAX ; MSCI net TR pour
+# World/EM/USA/Europe/Japan) puis recalcule la TD 1Y/3Y/5Y.
+# Fill/recompute, non destructif. Déclenchable à la main pour peupler la donnée
+# sans relancer tout le sweep mensuel (qui l'inclut déjà en dernière étape).
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  tracking-difference:
+    runs-on: ubuntu-latest
+    # 120 min : le recalcul couvre tout l'univers primaire (~33k fonds, ~25k à
+    # charger). Depuis l'ajout des composites diversifiés, il dépasse 60 min.
+    # L'écriture est incrémentale (flush au fil de l'eau) → résistant au timeout.
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: TD enricher (refresh indices + calcul)
+        run: python3 scripts/enrichers/td-enricher.py --refresh-indices --apply

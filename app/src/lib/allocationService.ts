@@ -237,7 +237,7 @@ export async function optimizeContract(
       filtered = bare;
       geoActive = false;
       filterNotes.push(
-        "Préférences du profil trop restrictives sur ce contrat : allocation calculée sur l'univers complet.",
+        "Préférences du profil trop restrictives sur ce contrat : portefeuille calculé sur l'univers complet.",
       );
     } else {
       return {
@@ -299,7 +299,7 @@ export async function optimizeContract(
   allocation.notes.unshift(...filterNotes);
   if (corrUnavailable) {
     allocation.notes.push(
-      "Corrélations historiques indisponibles sur la base (fonction de calcul absente ou en erreur) : corrélations prudentes par classe d'actifs utilisées pour toute l'allocation.",
+      "Corrélations historiques indisponibles sur la base (fonction de calcul absente ou en erreur) : corrélations prudentes par classe d'actifs utilisées pour tout le portefeuille.",
     );
   }
 

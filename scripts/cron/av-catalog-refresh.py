@@ -42,7 +42,13 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-cardif-catalog.py", []),
     ("scrapers/av-fr-generali-catalog.py", []),     # Generali Vie FR (Himalia + e-Xaélidia, annexes PDF ~2,3k liens)
     ("scrapers/av-fr-mutualistes-catalog.py", []),  # OK (vérifié 22/06 : 8 PDF live, ~280 ISIN en base)
-    ("scrapers/av-fr-oradea-catalog.py", []),
+    ("scrapers/av-fr-garance-catalog.py", []),      # Garance (mutuelle, 5 contrats — vérifié 15/07)
+    ("scrapers/av-fr-monceau-catalog.py", []),      # Monceau Assurances (2 contrats — vérifié 15/07)
+    ("scrapers/av-fr-asac-fapes-catalog.py", []),   # Asac Fapes (3 contrats — vérifié 15/07)
+    ("scrapers/av-fr-bpce-catalog.py", []),         # BPCE Vie / Natixis Assurances (portail HTML priips, 7 réseaux, 38 contrats — vérifié 15/07)
+    ("scrapers/av-fr-prepar-vie-catalog.py", []),   # Prépar Vie (portail AJAX priips.prepar-vie.com, 11 réseaux, 36 contrats — vérifié 15/07)
+    ("scrapers/av-fr-afi-esca-catalog.py", []),     # Afi Esca FR (Sélection Premium, liste mensuelle — vérifié 15/07 ; ≠ AFI ESCA Luxembourg ci-dessous)
+    # av-fr-oradea-catalog.py RETIRÉ 13/07 : portail source décommissionné (cf. quarantaine ci-dessous).
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
@@ -90,6 +96,30 @@ AV_CATALOG_STEPS = [
 #       - scrapers/av-lux-ag2r-catalog.py    (opcvm360 403 → fallback Playwright absent ;
 #                                            la gamme AG2R LMEP Lux est désormais couverte
 #                                            par av-lux-lmep-easypack ci-dessus)
+#       - Matmut Vie (Complice Vie)          (aucun PDF/API exploitable trouvé le 15/07 : les
+#                                            annexes/CG publiques (MATMUT_PAVNI.pdf, notice-
+#                                            complice-vie.pdf, tableau-frais-complice-vie.pdf)
+#                                            ne contiennent aucun ISIN — liste de supports
+#                                            réservée à l'espace client/portail. À couvrir via
+#                                            Playwright si l'espace public change de structure.)
+#       - Neuflize Vie (Hoche Patrimoine…)   (banque privée : /contrats/ redirige vers la page
+#                                            d'accueil générique neuflizeobc.fr, aucune annexe
+#                                            financière publique trouvée le 15/07. Distribution
+#                                            probablement conseiller-only ; à recontacter côté
+#                                            partenariat ou vérifier un accès CGP dédié.)
+#     (Sogelife : quarantaine du 15/07 LEVÉE le 16/07 — les ZIP PRIIPS publics
+#      doc.sogelife.com/priips/<code>.zip listent les UC par contrat →
+#      av-lux-sogelife-catalog câblé dans la liste ci-dessus.)
+#   • sources DÉCOMMISSIONNÉES (hôte source disparu, à re-sourcer avant réintégration) :
+#       - scrapers/av-fr-oradea-catalog.py   (RETIRÉ 13/07 : le portail statique
+#                                            priips.oradea-vie.com — HTML à attributs cdisine="ISIN" —
+#                                            est mort (NXDOMAIN, tout le domaine oradea-vie.com).
+#                                            Le groupe a migré vers oradeavie.fr (Imperva/Incapsula,
+#                                            landing marketing sans catalogue machine-lisible).
+#                                            Les 916 liens Oradéa déjà en base sont conservés
+#                                            (upsert-only + garde anti-scraper-cassé du prune).
+#                                            Réintégrer si un nouvel endpoint DIC listant les ISIN
+#                                            est retrouvé sur oradeavie.fr.)
 # (scrapers/linxea-av-catalog.py SUPPRIMÉ le 21/06 : comparateur Linxea 404, superseded
 #  par av-lux-linxea-catalog.py.)
 #

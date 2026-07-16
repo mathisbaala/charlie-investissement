@@ -1,0 +1,69 @@
+name: Perfs OPCVM étrangers (Morningstar EMEA)
+
+# Rafraîchit mensuellement les performances des OPCVM ÉTRANGERS (LU/IE) sans
+# série de prix — Morningstar EMEA est leur seule source. Sorti du pipeline
+# mensuel (qui frôlait le plafond de 6 h des runners). Cible des fonds disjoints
+# (non-FR sans prix) → indépendant des autres jobs, groupe de concurrence dédié.
+on:
+  schedule:
+    # Cible : 1er lundi, 06:00 UTC (après le mensuel de 05:00). Cron OU
+    # (jour-mois/jour-semaine) → se déclenche tous les lundis ; le filtrage
+    # « 1er lundi » est fait par une garde dans le step (anti-throttle Morningstar).
+    - cron: "0 6 1-7 * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: emea-refresh
+  cancel-in-progress: false
+
+jobs:
+  emea:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      MS_EMEA_USER: ${{ secrets.MS_EMEA_USER }}
+      MS_EMEA_PASS: ${{ secrets.MS_EMEA_PASS }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Morningstar EMEA — perfs OPCVM étrangers (refresh)
+        # Garde « 1er lundi » : neutralise le OU jour-du-mois/jour-de-semaine du
+        # cron pour ne solliciter Morningstar (throttle) qu'une fois par mois sur
+        # déclenchement planifié ; le manuel (workflow_dispatch) passe toujours.
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DOW=$(date -u +%u); DOM=$(date -u +%-d)
+            if [ "$DOW" != "1" ] || [ "$DOM" -gt 7 ]; then
+              echo "Planifié hors 1er lundi (jour-semaine=$DOW, jour-mois=$DOM) — skip."
+              exit 0
+            fi
+          fi
+          python3 scripts/scrapers/ms-emea-perf-enricher.py --apply --refresh
+
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-emea]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n' "Le refresh EMEA (OPCVM étrangers) a échoué." "Run : $RUN_URL" \
+              | gh issue create --title "$MARKER Refresh EMEA en échec" --body-file -
+          fi

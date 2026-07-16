@@ -98,6 +98,18 @@ export function weightedExposure(
     .slice(0, limit);
 }
 
+/**
+ * Tronque une exposition (déjà triée décroissante, poids en %) aux `n` premières
+ * parts et regroupe le reliquat en « Autres » : un camembert reste lisible à
+ * ≤ 6 parts, et le total continue de refléter ~100 % de la ventilation.
+ */
+export function topSlices(expo: Expo[], n = 5, otherLabel = "Autres"): Expo[] {
+  if (expo.length <= n) return expo;
+  const rest = Math.round(expo.slice(n).reduce((s, e) => s + e.weight, 0) * 10) / 10;
+  const top = expo.slice(0, n);
+  return rest > 0 ? [...top, { label: otherLabel, weight: rest }] : top;
+}
+
 type HoldingRow = { isin: string; position_name: string | null; ticker: string | null; weight: number | null };
 type Overlap = {
   name: string; ticker: string | null; count: number;

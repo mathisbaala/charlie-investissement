@@ -65,7 +65,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             <div className="h-5 w-3/4 bg-paper-2 rounded animate-pulse" />
           ) : (
             <p className="text-body-lg font-medium text-ink leading-tight truncate" style={{ fontFamily: "var(--font-sans)" }}>
-              {fund?.name ?? "—"}
+              {fund?.name ?? "-"}
             </p>
           )}
         </div>
@@ -143,7 +143,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
             <KpiTile label="TER" value={pct(fund.ongoing_charges ?? fund.ter)} />
             {(fund.track_record_years ?? 0) >= 3
               ? <KpiTile label="Vol 1A" value={pct(fund.volatility_1y)} />
-              : <KpiTile label="Sharpe 1A" value={fund.sharpe_1y?.toFixed(2) ?? "—"} />
+              : <KpiTile label="Sharpe 1A" value={fund.sharpe_1y?.toFixed(2) ?? "-"} />
             }
           </div>
 
@@ -190,9 +190,9 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
               <tbody>
                 {[
                   ["AUM", fmtAum(fund.aum_eur)],
-                  ["Track record", fund.track_record_years ? `${fund.track_record_years} ans` : "—"],
-                  ["Devise", fund.currency ?? "—"],
-                  ["Sharpe 1A", fund.sharpe_1y?.toFixed(2) ?? "—"],
+                  ["Track record", fund.track_record_years ? `${fund.track_record_years} ans` : "-"],
+                  ["Devise", fund.currency ?? "-"],
+                  ["Sharpe 1A", fund.sharpe_1y?.toFixed(2) ?? "-"],
                   ["Max DD 3A", pct(fund.max_drawdown_3y)],
                 ].map(([l, v]) => (
                   <tr key={l} className="border-b border-line-soft">

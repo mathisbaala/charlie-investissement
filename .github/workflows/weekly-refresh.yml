@@ -1,0 +1,62 @@
+name: Rafraîchissement hebdomadaire
+
+# Données fraîches chaque lundi matin (prix + métriques perf/vol/Sharpe).
+# Cadence pensée pour des CGP : hebdomadaire, sans suivi quotidien.
+on:
+  schedule:
+    # Lundi 04:17 UTC (≈ 06:17 Paris) — données prêtes avant la semaine.
+    # ⚠️ Minute volontairement DÉCALÉE de l'heure ronde : GitHub exécute les
+    # schedules en best-effort et diffère/abandonne ceux calés sur « :00 » (file
+    # congestionnée). Le run du 22/06 (cron « 0 4 ») a été droppé — cf. playbook §7.3.
+    - cron: "17 4 * * 1"
+  workflow_dispatch: {} # déclenchement manuel depuis l'onglet Actions
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # rotation FT (~2h45) + filets JustETF (~45min) & GECO OPCVM FR (~45min, ~1h30 au 1er backfill) + métriques
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+
+      - name: Pipeline hebdomadaire
+        run: python3 scripts/cron/weekly-pipeline.py
+
+      # Alerte persistante si une étape ci-dessus a échoué : commente l'issue
+      # ouverte existante (pas de spam) ou en crée une. GITHUB_TOKEN intégré,
+      # aucun secret externe requis.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-pipeline-hebdo]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le rafraîchissement hebdomadaire a échoué." \
+              "Run : $RUN_URL" \
+              "À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Rafraîchissement hebdomadaire en échec" --body-file -
+          fi

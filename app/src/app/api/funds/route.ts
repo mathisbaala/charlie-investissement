@@ -284,16 +284,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   );
   if (productTypes.length) {
     q = q.in("product_type", productTypes);
-  } else {
-    // Défaut CGP : univers collectif. Restent en opt-in via le filtre univers :
-    // les titres vifs (action), crypto, les FPS (Fonds Professionnels Spécialisés,
-    // réservés aux pros et sans métriques retail), les produits structurés
-    // (autocalls/EMTN/fonds à formule — pas de VL retail exploitable), et le
-    // Private Equity (fcpr/fcpi/fip/fpci : non coté, illiquide, pas de VL
-    // quotidienne — on ne le sur-annonce pas dans la navigation neutre). Une
-    // recherche large remonte ainsi des fonds exploitables, pas des coquilles.
-    q = (q as any).not("product_type", "in", "(action,crypto,fps,structuré,fcpr,fcpi,fip,fpci)");
   }
+  // Sinon : navigation neutre = TOUT l'univers (opcvm, etf, scpi, fonds euros,
+  // mais aussi actions, crypto, FPS, structurés et private equity). Décision du
+  // 15/07/2026 : les CGP doivent voir l'intégralité du catalogue ; le tri par
+  // data_completeness et le plancher de complétude relèguent naturellement les
+  // supports peu renseignés en fin de classement sans les cacher.
 
   // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
   // Distinct de l'univers produit (product_type) : un OPCVM peut être actions ou obligataire.
@@ -484,7 +480,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // tie-break secondaire. Sinon, choisir un tri non-défaut (ex. TER) ferait remonter un
     // match faible (relevance=1) devant le nom exact (relevance=3) — perte de pertinence.
     // À pertinence ÉGALE, on départage par l'ENCOURS (aum_eur desc) AVANT le tri par
-    // défaut/intention — aligné sur le chat (chatTools.ts) : entre plusieurs « MSCI World »
+    // défaut/intention : entre plusieurs « MSCI World »
     // également pertinents, le flagship (gros encours) prime sur une coquille / une variante
     // de niche. Quand un tri explicite non-défaut est choisi (clic colonne), il reste
     // prioritaire sur l'AUM (cf. tri appliqué juste après).
