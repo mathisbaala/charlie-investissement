@@ -42,12 +42,28 @@ CONTRACTS = [
 ]
 
 
+# PER — porté par Generali Retraite (FRPS, ex-Generali Vie). Annexe financière
+# gestion libre officielle (~1 091 ISIN), hébergée par un distributeur
+# (meilleursper.com — generali.fr ne publie pas l'annexe UC du PER) ; en cas de
+# 404 futur, repli connu : moniwan.fr « liste-des-supports-disponibles-en-
+# gestion-libre » (sous-univers, ~429 ISIN). Ajouté 16/07 (mapping PER).
+COMPANY_RETRAITE = "Generali Retraite"
+CONTRACTS_RETRAITE = [
+    {"contract": "Le PER Generali Patrimoine",
+     "pdf_url": "https://www.meilleursper.com/img/uploads/pages/"
+                "page_LE_PER_GENERALI_PATRIMOINE_image_pdf_ls.pdf"},
+]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generali Vie AV France catalog")
     ap.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     ap.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = ap.parse_args()
     run_eligibility(COMPANY, CONTRACTS, scraper_name="av-fr-generali-catalog",
+                    apply=args.apply, limit=args.limit, seed_missing=True)
+    run_eligibility(COMPANY_RETRAITE, CONTRACTS_RETRAITE,
+                    scraper_name="av-fr-generali-catalog",
                     apply=args.apply, limit=args.limit, seed_missing=True)
 
 

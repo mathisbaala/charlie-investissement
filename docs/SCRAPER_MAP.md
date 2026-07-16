@@ -322,6 +322,17 @@ Ajouts 2026-07-16 (AV France) :
 | `av-fr-oradea-catalog.py` (ressuscité) | Même portail, page oradea.html — l'ex-priips.oradea-vie.com a déménagé | 8 contrats / ~1 119 ISIN |
 | `av-fr-conservateur-catalog.py` | PDF loi PACTE M40/M41/M42 (millésime via wp-json media) | 5 contrats / ~54 ISIN |
 
+Ajouts 2026-07-16 (mapping PER — cf. av-referencing §8quater) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-fr-caar-catalog.py` | WP REST ca-assurances-retraite.com → PDF (FRPS ex-Predica) | 2 PER / ~303 ISIN |
+| `av-fr-cnp-dic-catalog.py` | API JSON dic.cnp.fr (supports par produit, entité via codeEntiteJuridique) | 2 PER / ~172 ISIN |
+| `av-fr-lmp-easypack.py` | Easypack Quantalys France AG2R (per-bassin, 41 contrats retraite) | 41 contrats / ~2 535 ISIN |
+| `av-fr-covea-easypack.py` | Portails Quantalys MMA/GMF (id_contrat) | 3 PER / ~164 ISIN |
+| `av-fr-generali-catalog.py` (étendu) | + annexe PDF « Le PER Generali Patrimoine » (Generali Retraite) | 1 PER / ~1 091 ISIN |
+| `av-fr-sogecap-catalog.py` (étendu) | + Doc_Perf loi PACTE « PER Acacia » | 1 PER / 68 ISIN |
+
 ---
 
 ### 10. Sources testées et abandonnées

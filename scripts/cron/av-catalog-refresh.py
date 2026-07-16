@@ -59,6 +59,10 @@ AV_CATALOG_STEPS = [
     #    sur ISIN en base). ~65 contrats / ~11,9k liens bruts au câblage.
     ("scrapers/av-fr-cnp-catalog.py", []),          # CNP Assurances (Lucya CNP, Nuances, EasyVie)
     ("scrapers/av-fr-predica-catalog.py", []),      # Predica / Crédit Agricole (WP REST → PDF)
+    ("scrapers/av-fr-caar-catalog.py", []),         # CAA Retraite / ex-Predica — PER Perspective + LCL Retraite PER (clone WP predica, ajouté 16/07)
+    ("scrapers/av-fr-cnp-dic-catalog.py", []),      # CNP Retraite — PER Cachemire + PER CE via API JSON dic.cnp.fr (ajouté 16/07)
+    ("scrapers/av-fr-covea-easypack.py", []),       # Covéa MMA/GMF — PER Avenir, Signature PER, Cadencéo (Easypack Quantalys, ajouté 16/07)
+    ("scrapers/av-fr-lmp-easypack.py", []),         # AG2R La Mondiale — 41 contrats retraite/PER France (Easypack LMP, ajouté 16/07)
     ("scrapers/av-fr-abeille-catalog.py", []),      # Abeille Vie (ex-Aviva, Afer/Lucya Abeille)
     ("scrapers/av-fr-groupama-gan-catalog.py", []), # Groupama Gan Vie (webfg, 4 marques)
     ("scrapers/av-fr-macsf-catalog.py", []),        # MACSF (RES Multisupport)

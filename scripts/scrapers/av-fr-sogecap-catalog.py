@@ -32,10 +32,47 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client, log_run  # noqa: E402
-from _av_pdf_common import existing_isins, make_session, _valid_isin  # noqa: E402
+from _av_pdf_common import existing_isins, extract_isins, fetch_pdf_text, make_session, _valid_isin  # noqa: E402
 
 PORTAL_URL = "https://priips.sogecap.com/priips/sogecap.html"
 COMPANY    = "Sogécap"
+
+# Contrats ABSENTS du portail PRIIPS mais dotés d'un « Document des performances »
+# loi PACTE annuel (ISIN + frais + rétrocessions). URL re-millésimée chaque année
+# → découverte sur la page index, repli sur la dernière édition connue.
+PERF_INDEX_URL = ("https://www.assurances.societegenerale.com/en/investor-journalist/about/"
+                  "our-entities/our-entities-france/sogecap/performance-and-fee-documents-for-contracts/")
+EXTRA_PDF_CONTRACTS = [
+    # (nom de contrat, motif du lien sur la page index, URL de repli)
+    ("PER Acacia", r'href="([^"]*Doc_Perf_PER_Acacia[^"]*\.pdf)"',
+     "https://www.assurances.societegenerale.com/fileadmin/2025/Documents_des_performances_et_frais_de_contrat/Doc_Perf_PER_Acacia_2025.pdf"),
+]
+
+
+def fetch_extra_pdf_contracts(session) -> list[tuple[str, list[str]]]:
+    """Contrats hors portail via leur Doc_Perf loi PACTE (PDF → ISIN).
+
+    La page index est derrière Imperva/Incapsula mais laisse passer curl_cffi
+    aujourd'hui ; en cas de blocage on retombe sur l'URL de la dernière édition.
+    """
+    index_html = ""
+    try:
+        r = session.get(PERF_INDEX_URL, timeout=60)
+        if r.status_code == 200:
+            index_html = r.text or ""
+    except Exception as e:
+        print(f"      ⚠ index Doc_Perf : {str(e)[:60]} → replis")
+    out = []
+    for name, pattern, fallback in EXTRA_PDF_CONTRACTS:
+        m = re.search(pattern, index_html)
+        url = m.group(1) if m else fallback
+        if not url.startswith("http"):
+            # TYPO3 sert des liens racine-relatifs SANS slash initial (fileadmin/…)
+            url = "https://www.assurances.societegenerale.com/" + url.lstrip("/")
+        text = fetch_pdf_text(session, url)
+        isins = [x for x in extract_isins(text or "") if _valid_isin(x)]
+        out.append((name, isins))
+    return out
 
 LABEL_RE = re.compile(r'<div class="prs_tree_label_produit">\s*([^<]*?)\s*\*?\s*</div>')
 LI_RE    = re.compile(r'cdproduit="(\w+)"[^>]*?cdisine="([A-Z0-9]+)"')
@@ -63,7 +100,8 @@ def parse_portal(html: str) -> list[tuple[str, list[str]]]:
 
 
 def run(apply: bool, limit: int | None, *, portal_url: str = PORTAL_URL,
-        company: str = COMPANY, scraper_name: str = "av-fr-sogecap-catalog"):
+        company: str = COMPANY, scraper_name: str = "av-fr-sogecap-catalog",
+        with_extra_pdfs: bool = False):
     print("=" * 64)
     print(f"  {company} — portail PRIIPS {portal_url.rsplit('/', 1)[-1]}")
     print(f"  Mode : {'APPLY' if apply else 'DRY-RUN'}")
@@ -85,6 +123,8 @@ def run(apply: bool, limit: int | None, *, portal_url: str = PORTAL_URL,
         return
 
     contracts = parse_portal(r.text or "")
+    if with_extra_pdfs:
+        contracts += fetch_extra_pdf_contracts(session)
     if limit:
         contracts = contracts[:limit]
     for i, (name, isins) in enumerate(contracts):
@@ -139,4 +179,4 @@ if __name__ == "__main__":
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     parser.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = parser.parse_args()
-    run(apply=args.apply, limit=args.limit)
+    run(apply=args.apply, limit=args.limit, with_extra_pdfs=True)

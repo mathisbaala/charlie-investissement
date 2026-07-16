@@ -222,3 +222,24 @@ couvre nativement.
   d'upload WP — une vieille édition peut être re-téléversée après la neuve).
 - **Restes FR documentés** : Matmut Vie & Neuflize Vie (aucune source publique,
   quarantaine 15/07 maintenue) ; Mutavie/MIF/SMAvie/Milleis (marginaux en UC).
+
+## 8quater. Mapping PER (16/07/2026)
+
+Le type `per` est déduit du NOM de contrat (regex `retraite|per|perin|pero|perp|
+madelin`, migration `20260611270000`) — nommer les contrats en conséquence
+(ex. « PER Assurance Perspective », pas « Perspective » seul). Couverture
+passée de 53 contrats / 17 assureurs à **87 contrats / 24 assureurs** :
+
+| Assureur (`company_name`) | Scraper | Source | Contrats |
+|---|---|---|---|
+| Crédit Agricole Assurances Retraite | `av-fr-caar-catalog` | ca-assurances-retraite.com (FRPS ex-Predica, clone WP de predica.com — WP REST → PDF) | PER Assurance Perspective, LCL Retraite PER (~303 ISIN) |
+| CNP Retraite | `av-fr-cnp-dic-catalog` | **API JSON publique `dic.cnp.fr/wkd-web/kid-webapi`** (sans anti-bot ; couvre aussi Nuances/EasyVie → pourrait remplacer les PDF d'av-fr-cnp-catalog) | Cachemire PER (LBP), PER CE (BPCE) (~172 ISIN) |
+| AG2R La Mondiale | `av-fr-lmp-easypack` | Easypack Quantalys FRANCE `ag2rlm-easypack.quantalys.com/LMPEasypack` (jumeau du LMEP lux ; endpoint `/Recherche/Data`, per-bassin). ⚠ 1 042 bassins au total : seuls les ~41 retraite/PER sont câblés — le stock AV/capi France du groupe est une extension possible (élargir BASSIN_RE) | 41 contrats (Excellie Retraite GB ~1 351 UC = univers du PER Enedia, Prestige Retraite, Ambition Retraite…) (~2 535 ISIN) |
+| MMA Vie / GMF Vie | `av-fr-covea-easypack` | Portails Quantalys par marque `infos-supports-investissement-{mma,gmf}.quantalys.com` (payload DataTables minimal + `id_contrat`). Couvre aussi les AV (MMA Multisupports id 1 = 44 UC > cap.mma.fr ; GMF Multéo id 1) → piste pour remplacer cleerly.fr | MMA PER Avenir, MMA Signature PER, PER Cadencéo (~164 ISIN) |
+| Generali Retraite | `av-fr-generali-catalog` (étendu) | Annexe financière PDF gestion libre (hébergée meilleursper.com ; repli moniwan.fr) | Le PER Generali Patrimoine (~1 091 ISIN) |
+| Sogécap | `av-fr-sogecap-catalog` (étendu) | Doc_Perf loi PACTE (contrat hors portail PRIIPS, URL découverte sur la page index) | PER Acacia (68 ISIN) |
+
+Restes PER documentés : **Matla** (PER Boursorama, assuré Oradéa Vie — aucune
+annexe publique trouvée, CG sans ISIN) ; e-PER Generali (table JS Altaprofits,
+sous-univers probable du PER GPat) ; Préfon (produit à points, hors UC) ;
+Monaliza Retraite Optimale (lancement 2025, à surveiller).
