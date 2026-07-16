@@ -5,6 +5,26 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 (nuit, 2) — passe APPROFONDIE des irréductibles → 471 en base
+
+Sur demande (« tout doit être réglé au maximum »), passe renforcée sur les 5 restants
+(workflow `av-terms-deep-5`, run `wf_39964450-48e`, **PDF/DIC autorisés**, 3-4 recherches,
+sources Lux/CGP) : **4/5 écrits** (~0,29 M tokens).
+- **Le Conservateur Privilège** → curated (tableau officiel M42-11/2025).
+- **Spirica MustEpargne** → curated (annexe financière Sylvea AF-1137, contrat fermé).
+- **BPCE Vie Fonds des mandats d'arbitrages** → indicative (n'est pas un contrat autonome
+  mais la liste des UC des mandats BPCE ; frais du porteur Horizeo 2 documentés + note).
+- **Natixis Life Lux Liberalys Essentiel** → indicative (aucune notice publique — comme
+  toute la gamme Liberalys ; données de cadrage alignées sur la famille).
+- **Base : 471 contrats** (196 curated / 275 indicative).
+- **Reste 2 / 466 représentatifs** (99,6 % couvert) : (1) **Spirica « Patrimoine Privée »**
+  = très probablement un **nom de contrat erroné dans le catalogue** (absent du PDF officiel
+  Spirica listant ses ~80 contrats et de toute source ; voisins réels : Private Vie, Amytis
+  Patrimoine, Livret Patrimoine Vie) → **à trancher en data-quality**, pas sourçable ;
+  (2) 1 nouveau contrat entré par refresh de la matview (queue mouvante normale).
+- Hygiène faite le même jour : 3 branches remote mergées supprimées, `tsc` clean,
+  **666/666 tests verts**.
+
 ## MàJ 2026-07-16 (nuit) — CLÔTURE : passe finale ≥100 UC, chantier ~99 % couvert
 
 Passe finale (run `wf_af88fab0-254`) sur les **26 derniers ≥100 UC** (surtout Lux gestion

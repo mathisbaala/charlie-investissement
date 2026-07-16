@@ -173,13 +173,8 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🧹 Dette technique
 
-### Élaguer 3 branches remote mergées
-- **Priorité** : ⚪ Mineure
-- **Détecté le** : 2026-07-16
-- **Où** : `origin/data/av-assureurs-sacha`, `origin/feat/referencement-partie1-harvest`, `origin/feat/simulateur-frais-cgp-univers`
-- **Le problème** : ces 3 branches distantes sont **entièrement mergées dans `main`** (0 commit en avance, vérifié) mais traînent encore sur le remote.
-- **Comment l'aborder** : `git push origin --delete <branche>` pour les trois (sûr, contenu déjà dans main). `main` reste seule.
-- **Effort estimé** : rapide
+### (élagage 3 branches remote — réglé le 16/07)
+Les 3 branches distantes mergées (`data/av-assureurs-sacha`, `feat/referencement-partie1-harvest`, `feat/simulateur-frais-cgp-univers`) sont **supprimées le 16/07** après vérif (0 commit en avance + `--merged`). Reste `origin/main` seule. Voir « ✅ Réglés ».
 
 ### (pipeline data-quality — réglé le 14/07)
 Les 6 correctifs d'unités étaient bien **non appliqués** en prod (dry-run du 14/07 : ~600 lignes sales restantes). **Appliqués via `run-data-quality-fixes.sh APPLY=1`** — voir « ✅ Réglés ».
@@ -194,7 +189,15 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### (aucun écart ouvert)
+### Contrat catalogue probablement fantôme : « Spirica::Patrimoine Privée »
+- **Priorité** : ⚪ Mineure (data-quality)
+- **Détecté le** : 2026-07-16
+- **Où** : `investissement_contract_groups_mv` (205 UC rattachées) — seul contrat resté non documenté du sweep AV.
+- **Le problème** : sourcing approfondi (PDF/DIC inclus) = **introuvable partout** — absent du PDF officiel Spirica qui liste ses ~80 contrats, absent de spirica.fr / FranceTransactions / comparateurs. Nom **probablement erroné** (voisins réels : Private Vie, Amytis Patrimoine, Livret Patrimoine Vie).
+- **Comment l'aborder** : vérifier la source du référencement de ces 205 UC (scraper d'origine) ; renommer vers le vrai contrat ou fusionner le groupe si c'est un doublon mal étiqueté. **Décision produit** (ne pas renommer à l'aveugle).
+- **Effort estimé** : rapide (une fois la vraie identité confirmée)
+
+### (aucun autre écart ouvert)
 `CHANTIERS.md` et `SESSION_HANDOFF.md` sont à jour au 14/07 (23ᵉ passe : journal du soir ajouté, livrables du jour reflétés). Voir « ✅ Réglés ».
 
 ---
@@ -202,6 +205,10 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Hygiène git + santé re-vérifiée (25ᵉ passe)** — *Réglé le 2026-07-16* : 3 branches remote mergées supprimées (`data/av-assureurs-sacha`, `feat/referencement-partie1-harvest`, `feat/simulateur-frais-cgp-univers`, vérifiées 0 commit en avance) → `origin/main` seule. **`tsc` clean + 666/666 tests verts** (47 fichiers, vs 605 au 14/07 — le référencement + simulateur ont ajouté des tests, tous verts). Working tree propre.
+
+- **Sweep AV — passe approfondie des 5 irréductibles (471 en base)** — *Réglé le 2026-07-16* : workflow `av-terms-deep-5` (PDF/DIC autorisés, sources Lux/CGP), **4/5 écrits** → Le Conservateur Privilège (curated, tableau M42), Spirica MustEpargne (curated, annexe Sylvea AF-1137), BPCE Fonds des mandats (indicative, liste UC + frais porteur Horizeo 2), Natixis Lux Liberalys Essentiel (indicative). Base **468 → 471** (196 curated / 275 indicative), **464/466 représentatifs couverts (99,6 %)**. Reste 2 : Spirica « Patrimoine Privée » (**fantôme catalogue** → voir « 📄 Doc ») + 1 newcomer refresh matview. Gotcha : pour les cas durs, autoriser les PDF/DIC débloque le curated. Cf. [[av-contract-terms-sweep-tranches]].
 
 - **Sweep conditions de contrats AV — CLOS ~99 %** — *Réglé le 2026-07-16* : mapping exhaustif des conditions de contrat (frais, fonds euros, univers, options, ticket) pour la fiche-contrat de la page Partenaires. Repris par tranches ~5 M tokens (politique Mathis) via le workflow **`av-contract-terms-sweep-v2`** (design **1 agent Sonnet/contrat** qui source 1-2 pages HTML + écrit lui-même en base via `execute_sql` + `json_populate_record` + `ON CONFLICT (key) DO UPDATE`, PDF interdits). **Tranche 3** (≥100 UC, 2 lots) 130 écrits ~4,46 M ; **tranche 4** (<100 UC) 123/126 ~3,91 M ; **passe finale** (26 derniers ≥100 UC surtout Lux) 25/26 ~0,84 M. Bilan : **192 → 468 contrats** (194 curated / 274 indicative) sur 466 représentatifs, ≈ 9,2 M tokens. **Reste 5 irréductibles** (Spirica Patrimoine Privée, Natixis Life Lux, Le Conservateur Privilège… CGP-only/banque privée, pas de conditions publiques) → relais = scraper DIC mensuel `av-contract-terms.yml`. Qualité vérifiée par échantillon à chaque tranche. Docs : `docs/REPRISE-sweep-av.md` (statut CLOS). Cf. [[av-contract-terms-sweep-tranches]] + [[mapping-assureurs-contrats-doc]].
 
