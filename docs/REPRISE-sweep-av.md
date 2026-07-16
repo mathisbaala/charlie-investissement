@@ -127,10 +127,10 @@ semaines ; à ~5 M on **arrête proprement** et on n'y revient plus (les contrat
   (2 Linxea curés + 19 phares du pilote workflow). Table `investissement_av_contract_terms`.
 - **Collecté par le sweep mais PAS encore en base** : **152 contrats** (≥300 UC),
   récupérés depuis le workflow `wf_b3b49243-752` avant l'arrêt (48 `curated`,
-  104 `indicative`, 0 `unknown`). **Préservés dans deux fichiers du repo** :
-  - `scripts/data/av_contract_terms_sweep_salvage.json` — données brutes récupérées.
-  - `supabase/migrations/20260714170000_seed_av_contract_terms_sweep_salvage.sql`
-    — **migration de seed PRÊTE À APPLIQUER** (152 lignes, 25 colonnes, échappement OK).
+  104 `indicative`, 0 `unknown`). Appliqués en base depuis, et **préservés** par la
+  migration de seed `supabase/migrations/20260714170000_seed_av_contract_terms_sweep_salvage.sql`
+  (152 lignes, 25 colonnes). _(Le dump brut `av_contract_terms_sweep_salvage.json` a été
+  supprimé le 16/07 après clôture du sweep — superseded, données 100 % en base.)_
 - **Restant à collecter** : ~42 contrats ≥300 UC (194 ciblés − 152 récupérés) + le reste
   du catalogue (≥100 UC = ~310 au total) si on veut aller plus loin.
 - Workflow **arrêté** (TaskStop sur `w402y2y56`), `caffeinate` **coupé**, surveillance
