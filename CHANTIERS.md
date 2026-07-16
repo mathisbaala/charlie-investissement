@@ -189,15 +189,8 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### Contrat catalogue probablement fantôme : « Spirica::Patrimoine Privée »
-- **Priorité** : ⚪ Mineure (data-quality)
-- **Détecté le** : 2026-07-16
-- **Où** : `investissement_contract_groups_mv` (205 UC rattachées) — seul contrat resté non documenté du sweep AV.
-- **Le problème** : sourcing approfondi (PDF/DIC inclus) = **introuvable partout** — absent du PDF officiel Spirica qui liste ses ~80 contrats, absent de spirica.fr / FranceTransactions / comparateurs. Nom **probablement erroné** (voisins réels : Private Vie, Amytis Patrimoine, Livret Patrimoine Vie).
-- **Comment l'aborder** : vérifier la source du référencement de ces 205 UC (scraper d'origine) ; renommer vers le vrai contrat ou fusionner le groupe si c'est un doublon mal étiqueté. **Décision produit** (ne pas renommer à l'aveugle).
-- **Effort estimé** : rapide (une fois la vraie identité confirmée)
-
-### (aucun autre écart ouvert)
+### (aucun écart ouvert)
+La coquille catalogue « Spirica::Patrimoine Privée » a été **tracée et corrigée le 16/07** (vrai nom = « Patrimoine Privé », PDF officiel AF-9901 ; cause = libellé fautif de la page listing Sylvéa) → voir « ✅ Réglés ». Le sweep AV est **100 % couvert**.
 `CHANTIERS.md` et `SESSION_HANDOFF.md` sont à jour au 14/07 (23ᵉ passe : journal du soir ajouté, livrables du jour reflétés). Voir « ✅ Réglés ».
 
 ---
@@ -205,6 +198,8 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Sweep AV → 100 % : coquille catalogue « Patrimoine Privé » résolue + newcomer sourcé** — *Réglé le 2026-07-16* : enquête sur le dernier contrat non documenté (« Spirica::Patrimoine Privée », 205 UC). **Tracé** à la source (`investissement_av_lux_eligibility` → scraper `av-fr-spirica-catalog.py`, produit Sylvéa 9901). Le PDF officiel **AF-9901** donne le vrai nom **« Patrimoine Privé »** (masculin) — la page listing Sylvéa affichait « Privée » (fautif) que le scraper recopiait. **Corrigé** : (1) rename des 208 lignes d'éligibilité `Patrimoine Privée → Patrimoine Privé` + REFRESH des 2 matviews (`fund_insurers_mv`, `contract_groups_mv`) ; (2) fiche de conditions écrite (curated, frais gestion UC 0,98 %, univers 205 UC dont 77,67 % art.8 / 9,77 % art.9, plafond FE 5 M€, source PDF officiel) ; (3) **fix durable dans le scraper** (`NAME_FIXES` : « Patrimoine Privée » → « Patrimoine Privé », py_compile OK) pour ne plus réintroduire la coquille au run trimestriel. Corrigé au passage : **apostrophe** de `BPCE Vie::Fonds des mandats d'arbitrages` (`'`→`’`) réalignée sur la clé catalogue ; **Sogécap::PER Acacia** (newcomer refresh, 54 UC) sourcé (curated : entrée 2,50 %, gestion 0,84 %, FE 3,25 %, ticket 150 €, gestion pilotée Horizon). **Univers AV désormais couvert à 100 %** (467/467 contrats représentatifs, 473 lignes terms). Cf. [[av-contract-terms-sweep-tranches]].
 
 - **Hygiène git + santé re-vérifiée (25ᵉ passe)** — *Réglé le 2026-07-16* : 3 branches remote mergées supprimées (`data/av-assureurs-sacha`, `feat/referencement-partie1-harvest`, `feat/simulateur-frais-cgp-univers`, vérifiées 0 commit en avance) → `origin/main` seule. **`tsc` clean + 666/666 tests verts** (47 fichiers, vs 605 au 14/07 — le référencement + simulateur ont ajouté des tests, tous verts). Working tree propre.
 

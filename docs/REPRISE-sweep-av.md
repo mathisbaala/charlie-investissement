@@ -5,6 +5,24 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 (nuit, 3) — SWEEP CLOS À 100 % (coquille catalogue résolue)
+
+Enquête sur le dernier non-documenté (« Spirica::Patrimoine Privée », 205 UC) → **ce
+n'était PAS un fantôme mais une coquille**. Traçage : `av_lux_eligibility` → scraper
+`av-fr-spirica-catalog.py` (produit Sylvéa 9901). Le PDF officiel **AF-9901** dit
+**« Patrimoine Privé »** (masculin) ; la page listing Sylvéa affiche « Privée » (fautif),
+recopié par le scraper. **Corrigé** :
+- rename des 208 lignes d'éligibilité + REFRESH `fund_insurers_mv` puis `contract_groups_mv` ;
+- fiche écrite (curated, frais gestion UC **0,98 %**, 205 UC dont 77,67 % art.8/9,77 % art.9,
+  plafond FE 5 M€, source PDF officiel) ;
+- **fix durable scraper** (`NAME_FIXES`) pour ne pas réintroduire la coquille au run trimestriel.
+- Au passage : apostrophe `BPCE Vie::Fonds des mandats d'arbitrages` (`'`→`’`) réalignée ;
+  **Sogécap::PER Acacia** (newcomer refresh, 54 UC) sourcé curated.
+
+**RÉSULTAT : univers AV couvert à 100 %** — **467/467 contrats représentatifs** documentés
+(473 lignes `av_contract_terms`). Plus aucun reste. Relais permanent = scraper DIC mensuel
+`av-contract-terms.yml` pour les futurs newcomers.
+
 ## MàJ 2026-07-16 (nuit, 2) — passe APPROFONDIE des irréductibles → 471 en base
 
 Sur demande (« tout doit être réglé au maximum »), passe renforcée sur les 5 restants
