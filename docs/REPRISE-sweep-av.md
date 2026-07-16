@@ -5,6 +5,29 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 — tranche 3 (fin des ≥100 UC), ~4,46 M tokens
+
+Reprise du sweep (politique 5 M/tranche). Design **v2 inchangé** = workflow
+`av-contract-terms-sweep-v2`, **1 agent Sonnet/contrat** qui source (1-2 WebSearch +
+1-2 WebFetch, **PDF interdits**) puis **écrit lui-même** via `execute_sql` +
+`json_populate_record` dollar-quoté `$ct$…$ct$` + `ON CONFLICT (key) DO UPDATE`.
+
+- **Lot 1** (80 plus gros ≥100 UC, funds DESC) : **76/80 écrits** (37 curated / 39 indicative),
+  ~2,57 M tokens. Run `wf_4336bd56-673`.
+- **Lot 2** (58 restants ≥100 UC, dont les 4 « none » du lot 1) : **54/58 écrits**
+  (16 curated / 37 indicative), ~1,89 M tokens. Run `wf_65caafe2-730` (même script réutilisé
+  via `scriptPath`).
+- **Cumul tranche 3 : ~4,46 M tokens**, +129 contrats nets → **321 en base**
+  (138 curated / 183 indicative). Arrêt propre sous 5 M.
+- **Reste** : **17 contrats ≥100 UC** = traîne dure (surtout Lux sans conditions publiques :
+  Natixis Life Lux Liberalys, Cardif Lux ASTER/PERSPECTIVE, Spirica Patrimoine Privée…,
+  les agents renvoient « none » faute de page HTML publique) + **114 contrats <100 UC**.
+- Rappel convention (vérifiée) : `frais_*_pct`/`fonds_euros_taux_pct` = valeur en **%**
+  (0.60 = 0,60 %) ; `fonds_euros_annee` = entier ; `univers_classes`/`options_gestion` =
+  text[] (NOT NULL, au moins `{}`) ; `confidence`/`updated_at` NOT NULL → toujours dans le JSON.
+- Requête de reprise (idempotente, prochaine tranche) : `funds >= 100 AND NOT EXISTS(...)`
+  (les 17 durs, à tenter autrement — DIC/Lux) puis `funds >= 1 AND funds < 100`, `ORDER BY funds DESC`.
+
 ## MàJ 2026-07-15 (soir) — tranche 2, politique « 5 M tokens / tranche »
 
 Décision Mathis : on avance par **tranches de ~5 M tokens** étalées sur plusieurs
