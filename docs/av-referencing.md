@@ -243,3 +243,21 @@ Restes PER documentés : **Matla** (PER Boursorama, assuré Oradéa Vie — aucu
 annexe publique trouvée, CG sans ISIN) ; e-PER Generali (table JS Altaprofits,
 sous-univers probable du PER GPat) ; Préfon (produit à points, hors UC) ;
 Monaliza Retraite Optimale (lancement 2025, à surveiller).
+
+## 8quinquies. Mapping capitalisation (16/07/2026)
+
+La plupart des contrats capi partagent l'annexe de leur jumeau vie et étaient
+déjà captés (147 entrées / 22 assureurs à l'audit). Compléments :
+- **AG2R La Mondiale** : `av-fr-lmp-easypack` étendu aux ~214 bassins
+  CAPITALISATION de La Mondiale Partenaire (stock patrimonial courtage, fermés
+  inclus — 1818 Partenaires Capi Opus 1 ~1 139 UC, gammes Anjou/Aster/Excellie
+  Capi…). Les variantes à univers identique sont regroupées par contract_groups.
+- **Generali Vie** : contrat « Himalia Capitalisation » ajouté (même annexe
+  qu'Himalia, ~1 773 ISIN).
+- **AFI ESCA Luxembourg** : « Cap Quality » renommé « Cap Quality
+  (capitalisation) » (scraper + base) — sans le mot-clé, la détection de type
+  (`capitalisation|\mcapi` sur le nom) le classait `av`.
+- **Sans objet** (pas d'offre capi individuelle notable) : mutuelles
+  (MAIF/MACIF/GMF/MAAF/Garance/Carac…), entités retraite (CAAR, CNP Retraite,
+  Generali Retraite), assureurs lux à univers global (déjà couverts par nature).
+- **Chez Joseph** : APICIL Intencial (Liberalys Capitalisation…).

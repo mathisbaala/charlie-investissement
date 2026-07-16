@@ -31,8 +31,12 @@ COMPANY = "Generali Vie"
 
 CONTRACTS = [
     # Himalia — annexe financière (liste des UC). Source distributeur BourseDirect
-    # (PDF texte officiel Generali, le plus complet ~1 750 UC).
+    # (PDF texte officiel Generali, le plus complet ~1 750 UC). L'annexe couvre la
+    # gamme : Himalia Capitalisation (contrat jumeau PM/PP) partage l'univers.
     {"contract": "Himalia",
+     "pdf_url": "https://epargne.boursedirect.fr/uploads/files/products_fin/"
+                "e1cf9a0d9a50ca064d2078bab00ec586/Liste%20des%20UC.pdf"},
+    {"contract": "Himalia Capitalisation",
      "pdf_url": "https://epargne.boursedirect.fr/uploads/files/products_fin/"
                 "e1cf9a0d9a50ca064d2078bab00ec586/Liste%20des%20UC.pdf"},
     # e-Xaélidia — liste des supports (source officielle generali.fr).

@@ -67,7 +67,10 @@ def main():
     print(f"  Liste loi PACTE : {pdf_url}")
     contracts = [
         {"contract": "Quality Life", "pdf_url": pdf_url, "source_url": DISCOVERY_URL},
-        {"contract": "Cap Quality",  "pdf_url": pdf_url, "source_url": DISCOVERY_URL},
+        # suffixe « (capitalisation) » : sans lui le contrat serait typé `av`
+        # (la détection de type matche `capitalisation|\mcapi` sur le NOM —
+        # « Cap Quality » passe à travers, migration 20260611270000).
+        {"contract": "Cap Quality (capitalisation)", "pdf_url": pdf_url, "source_url": DISCOVERY_URL},
     ]
     run_eligibility(COMPANY, contracts, scraper_name="av-lux-afi-esca-catalog",
                     apply=args.apply, limit=args.limit)

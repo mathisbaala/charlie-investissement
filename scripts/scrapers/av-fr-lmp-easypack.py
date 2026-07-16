@@ -14,11 +14,12 @@ Différences vs LMEP Lux (repérage 2026-07-16) :
     (65 colonnes dans `var columns = [...]`) ;
   - payload DataTables identique (columns[i], Values.lstContrats[i], lstIDProduits).
 
-PÉRIMÈTRE ACTUEL : les ~45 bassins RETRAITE/PER/Madelin uniquement (mission
-mapping PER — ex. Excellie Retraite GB ~1 351 UC = univers du PER Enedia,
-Prestige Retraite, Ambition Retraite Individuelle…). Le reste du stock
-(~1 000 contrats AV/capi France du groupe) est volontairement hors périmètre
-pour ne pas noyer l'UI — extension possible en élargissant BASSIN_RE.
+PÉRIMÈTRE ACTUEL : les bassins RETRAITE/PER/Madelin (~41, mission PER du 16/07)
++ CAPITALISATION (~244, mission capi du 16/07 — stock patrimonial La Mondiale
+Partenaire, fermés inclus : utile à l'analyse de portefeuilles clients ; les
+variantes à univers identique sont regroupées par la matview contract_groups).
+Le stock AV (vie) France du groupe (~700 bassins) reste hors périmètre —
+extension possible en élargissant BASSIN_RE.
 company_name = « AG2R La Mondiale » (nom déjà autoritaire en base pour le
 groupe ; les entités juridiques par bassin sont dans sAssureur si besoin).
 
@@ -51,8 +52,9 @@ DRIVER_JS = f"{ROOT}/Areas/Partenaire/Easypack/LMPEasypack/Supports/LMPEasypack.
 
 COMPANY = "AG2R La Mondiale"
 
-# Bassins retenus : contrats retraite/PER/Madelin (mission mapping PER).
-BASSIN_RE = re.compile(r"retraite|\bper\b|perin|\bperp\b|madelin", re.IGNORECASE)
+# Bassins retenus : contrats retraite/PER/Madelin + capitalisation.
+BASSIN_RE = re.compile(r"retraite|\bper\b|perin|\bperp\b|madelin|capitalisation|\bcapi\b",
+                       re.IGNORECASE)
 
 ISIN_RE   = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}\d$")
 PAGE_SIZE = 400
