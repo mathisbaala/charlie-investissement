@@ -5,6 +5,22 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 (nuit) — CLÔTURE : passe finale ≥100 UC, chantier ~99 % couvert
+
+Passe finale (run `wf_af88fab0-254`) sur les **26 derniers ≥100 UC** (surtout Lux gestion
+privée : CNP Lux, Swiss Life Lux, Sogelife, Oradéa, CALI Europe, Cardif Lux, Natixis Lux,
+AFI ESCA Lux, Allianz Life Lux) : **25/26 écrits** (6 curated / 19 indicative), ~0,84 M tokens.
+Même le Lux s'est sourcé (indicative). 1 seul « none » : Spirica Patrimoine Privée (CGP-only).
+
+- **Base finale : 468 contrats** (194 curated / 274 indicative) sur **466 représentatifs**.
+- **Reste irréductible : 5 contrats** sans conditions publiques (2 ≥100 UC + 3 <100 UC) —
+  contrats CGP-only / banque privée (Spirica Patrimoine Privée, Natixis Life Lux, Le
+  Conservateur Privilège…). Nécessiteraient les DIC/notices → hors périmètre sweep web.
+- **CHANTIER ESSENTIELLEMENT CLOS** (~99 % de l'univers). Prochaine reprise = seulement si
+  la matview réintègre de nouveaux contrats ; sinon relais = scraper DIC mensuel
+  `av-contract-terms.yml`. Cumul total tranches 3+4+finale ≈ **9,2 M tokens** (+276 contrats,
+  192 → 468).
+
 ## MàJ 2026-07-16 (soir) — tranche 4 (longue traîne <100 UC), ~3,91 M tokens
 
 Même design v2 (`av-contract-terms-sweep-v2`, 1 agent Sonnet/contrat, écriture immédiate).
