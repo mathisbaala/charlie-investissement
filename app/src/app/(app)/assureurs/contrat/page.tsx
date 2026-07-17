@@ -81,6 +81,21 @@ function classLabel(raw: string): string {
   return CLASS_LABEL[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
 }
 
+// Zones géographiques : les codes viennent en anglais/minuscules de la base
+// (world, usa, emerging…). On les affiche en français capitalisé, comme les
+// classes d'actifs — repli = majuscule initiale pour tout code non listé.
+const REGION_LABEL: Record<string, string> = {
+  world: "Monde", europe: "Europe", eurozone: "Zone euro", france: "France",
+  germany: "Allemagne", switzerland: "Suisse", uk: "Royaume-Uni",
+  usa: "États-Unis", "north_america": "Amérique du Nord",
+  emerging: "Émergents", china: "Chine", india: "Inde", brazil: "Brésil",
+  asia: "Asie", japan: "Japon", pacific: "Pacifique", latam: "Amérique latine",
+  africa: "Afrique", "middle_east": "Moyen-Orient",
+};
+function regionLabel(raw: string): string {
+  return REGION_LABEL[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
+}
+
 // Barres de répartition : label + compte + barre proportionnelle au max local.
 function BreakdownBars({ items, format }: { items: Breakdown[]; format?: (l: string) => string }) {
   if (items.length === 0) {
@@ -432,7 +447,7 @@ export default async function ContractPage({
         </Card>
         <Card className="px-5 py-5">
           <h2 className="text-label text-ink font-semibold mb-4">Zones géographiques</h2>
-          <BreakdownBars items={o.regions ?? []} />
+          <BreakdownBars items={o.regions ?? []} format={regionLabel} />
         </Card>
         <Card className="px-5 py-5">
           <h2 className="text-label text-ink font-semibold mb-4">Principaux gestionnaires</h2>
