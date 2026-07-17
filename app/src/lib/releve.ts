@@ -200,6 +200,48 @@ export function extractPositions(text: string): ExtractedPosition[] {
   return Array.from(byIsin.values());
 }
 
+// Lignes de total d'un relevé (« TOTAL VALEUR DE RACHAT 9 255,86 Euros »,
+// « TOTAL VALEURS FRANCAISES 459,92 »…). On écarte les totaux qui ne sont pas
+// une valorisation du portefeuille (frais, versements, plus-values).
+const TOTAL_LINE_RE = /\btotal\b/i;
+const TOTAL_EXCLUDE_RE = /frais|versement|plus[- ]value|moins[- ]value|rachat[s]?\s+effectu/i;
+
+/**
+ * Total de valorisation imprimé sur le relevé (contrôle de cohérence) : plus
+ * grand montant des lignes « TOTAL … » sans ISIN. Null si aucun total trouvé.
+ */
+export function extractDocumentTotal(text: string): number | null {
+  let best: number | null = null;
+  for (const line of (text || "").split(/\r?\n/)) {
+    if (!TOTAL_LINE_RE.test(line) || TOTAL_EXCLUDE_RE.test(line)) continue;
+    ISIN_SCAN_RE.lastIndex = 0;
+    if (ISIN_SCAN_RE.test(line)) continue;
+    const v = lineAmount(line);
+    if (v !== null && (best === null || v > best)) best = v;
+  }
+  return best;
+}
+
+/** Verdict de réconciliation entre la somme des lignes et le total du relevé. */
+export interface Reconciliation {
+  status: "ok" | "gap";
+  /** Écart (total du relevé, somme des lignes) — positif si des lignes manquent. */
+  diff: number;
+  total: number;
+}
+
+/**
+ * Compare la somme des montants extraits/saisis au total imprimé sur le relevé.
+ * Tolérance : 1 € ou 0,5 % du total (arrondis d'affichage du document).
+ * Null si le document ne porte pas de total exploitable.
+ */
+export function reconcileTotal(sum: number, total: number | null): Reconciliation | null {
+  if (total === null || total <= 0) return null;
+  const diff = Math.round((total - sum) * 100) / 100;
+  const tolerance = Math.max(1, total * 0.005);
+  return { status: Math.abs(diff) <= tolerance ? "ok" : "gap", diff, total };
+}
+
 /** Position validée à l'écran (montant confirmé, fonds connu du catalogue). */
 export interface ValidatedPosition {
   isin: string;

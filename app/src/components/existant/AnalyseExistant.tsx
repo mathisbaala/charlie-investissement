@@ -8,7 +8,7 @@ import { PageShell } from "@/components/ui/Page";
 import { Shield, X } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
-import { consolidate, type ValidatedPosition } from "@/lib/releve";
+import { consolidate, reconcileTotal, type ValidatedPosition } from "@/lib/releve";
 import {
   buildRecommendations, weightedSri, type Recommendation, type FeeLine,
 } from "@/lib/analyseExistant";
@@ -33,6 +33,8 @@ interface Releve {
   /** Index du contrat retenu dans `matches` (-1 = non rattaché). */
   chosen: number;
   warning?: string;
+  /** Total de valorisation imprimé sur le document (contrôle de cohérence). */
+  documentTotal: number | null;
 }
 
 interface Synthese {
@@ -79,6 +81,7 @@ export function AnalyseExistant() {
             matches: json.matches ?? [],
             chosen: (json.matches ?? []).length > 0 ? 0 : -1,
             warning: json.warning,
+            documentTotal: json.documentTotal ?? null,
           },
         ]);
       }
@@ -360,6 +363,11 @@ export function AnalyseExistant() {
             </div>
           )}
 
+          {/* Contrôle de cohérence : somme des lignes vs total imprimé sur le
+              relevé (toutes lignes, y compris hors catalogue : elles font
+              partie du total du document). */}
+          <ReconciliationBadge releve={r} />
+
           {/* Un fonds a échappé à l'extraction ? Recherche directe dans la base
               (ISIN ou nom), puis saisie du montant dans le tableau. */}
           <div className="mt-3 max-w-md" data-testid="fund-adder">
@@ -460,6 +468,32 @@ export function AnalyseExistant() {
 }
 
 // ── Sous-composants ──────────────────────────────────────────────────────────
+
+/**
+ * Badge de réconciliation : la somme des montants du relevé (lignes extraites,
+ * saisies et hors catalogue confondues) doit retrouver le total imprimé sur le
+ * document. Vert = extraction fiable ; orange = il manque des lignes (fonds
+ * euros sans ISIN, support raté), avec l'écart chiffré pour guider la saisie.
+ */
+function ReconciliationBadge({ releve }: { releve: Releve }) {
+  const sum = releve.positions.reduce((s, p) => s + (p.amount ?? 0), 0);
+  const rec = reconcileTotal(sum, releve.documentTotal);
+  if (!rec) return null;
+  if (rec.status === "ok") {
+    return (
+      <p className="mt-3 text-caption text-ok" data-testid="reconciliation-ok">
+        ✓ Total réconcilié avec le relevé ({EUR.format(rec.total)})
+      </p>
+    );
+  }
+  return (
+    <p className="mt-3 text-caption text-danger" data-testid="reconciliation-gap">
+      Écart de {EUR.format(Math.abs(rec.diff))} avec le total du relevé ({EUR.format(rec.total)}) :
+      il manque probablement des lignes (fonds en euros sans code ISIN, support non extrait) ;
+      complétez avec la barre d&apos;ajout ou corrigez les montants.
+    </p>
+  );
+}
 
 function ExpoCard({ title, slices }: { title: string; slices: Expo[] }) {
   return (

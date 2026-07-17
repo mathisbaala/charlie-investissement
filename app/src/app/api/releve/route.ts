@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { extractPositions, looksLikeFeeDocument } from "@/lib/releve";
+import { extractDocumentTotal, extractPositions, looksLikeFeeDocument } from "@/lib/releve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,6 +102,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const extracted = extractPositions(text).slice(0, MAX_ISINS);
+  // Total de valorisation imprimé sur le document (contrôle de cohérence UI).
+  const documentTotal = extractDocumentTotal(text);
   if (extracted.length === 0) {
     return NextResponse.json(
       { positions: [], matches: [], warning: "Aucun ISIN détecté — relevé scanné ou format inattendu ?" },
@@ -182,5 +184,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       "Déposez le relevé de situation (celui qui valorise chaque support), ou saisissez les montants à la main."
     : undefined;
 
-  return NextResponse.json({ positions, matches, knownCount, warning });
+  return NextResponse.json({ positions, matches, knownCount, warning, documentTotal });
 }

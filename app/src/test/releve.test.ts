@@ -1,8 +1,39 @@
 import { describe, it, expect } from "vitest";
 import {
   isValidIsin, parseFrenchAmount, extractPositions, consolidate, scrubLabel,
-  looksLikeFeeDocument,
+  looksLikeFeeDocument, extractDocumentTotal, reconcileTotal,
 } from "@/lib/releve";
+
+describe("extractDocumentTotal", () => {
+  it("prend le plus grand total de valorisation (cas Afer et relevé titres)", () => {
+    expect(extractDocumentTotal([
+      "TOTAL VALEUR DE RACHAT  9 255,86 Euros",
+      "TOTAL DE L'EPARGNE DISPONIBLE au 01/04/2026  9 255,86 Euros",
+    ].join("\n"))).toBeCloseTo(9255.86);
+    expect(extractDocumentTotal([
+      "Sous-Total  459,92  100,00",
+      "TOTAL VALEURS FRANCAISES  459,92  100,00",
+    ].join("\n"))).toBeCloseTo(459.92);
+  });
+  it("ignore les totaux de frais/versements et rend null sans total", () => {
+    expect(extractDocumentTotal("Total des frais  123,45 €")).toBeNull();
+    expect(extractDocumentTotal("Total des versements  10 000,00 €")).toBeNull();
+    expect(extractDocumentTotal("aucune ligne de synthèse")).toBeNull();
+  });
+});
+
+describe("reconcileTotal", () => {
+  it("ok dans la tolérance (1 € ou 0,5 %), gap au-delà avec l'écart chiffré", () => {
+    expect(reconcileTotal(9255.5, 9255.86)?.status).toBe("ok");
+    const gap = reconcileTotal(7946.64, 9255.86);
+    expect(gap?.status).toBe("gap");
+    expect(gap?.diff).toBeCloseTo(1309.22); // le fonds euros manquant du cas Afer
+  });
+  it("null quand le document n'a pas de total exploitable", () => {
+    expect(reconcileTotal(1000, null)).toBeNull();
+    expect(reconcileTotal(1000, 0)).toBeNull();
+  });
+});
 
 describe("looksLikeFeeDocument", () => {
   it("vrai quand des supports existent mais qu'aucun n'est valorisé", () => {
