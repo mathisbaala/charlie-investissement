@@ -87,6 +87,9 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-lux-utmost-catalog.py", []),            # migré PDF → API REST utmostgroup.com le 16/07 (ex-Lombard, renommé Utmost Luxembourg S.A.)
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis
     ("scrapers/av-lux-wealins-catalog.py", []),           # migré scrapling→curl_cffi+parsel (21/06)
+    # ── PEA courtiers (univers de fonds négociables par PEA bancaire) ─────────
+    ("scrapers/pea-fortuneo-catalog.py", []),       # API JSON publique — PEA (~595 : OPCVM+ETF) + PEA-PME (36) — ajouté 17/07
+    ("scrapers/pea-boursedirect-catalog.py", []),   # API WebFG — PEA (~3 090) + PEA-PME (259) — ajouté 17/07
     # ── Délistage : purge les liens confirmés périmés (UC retirées d'un contrat) ──
     ("enrichers/prune-stale-av-eligibility.py", []),
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──

@@ -244,6 +244,29 @@ annexe publique trouvée, CG sans ISIN) ; e-PER Generali (table JS Altaprofits,
 sous-univers probable du PER GPat) ; Préfon (produit à points, hors UC) ;
 Monaliza Retraite Optimale (lancement 2025, à surveiller).
 
+## 8sexies. PEA bancaires et flag ETF autoritaire (17/07/2026)
+
+- **`justetf-pea-fill`** (job HEBDO, séquentiel après justetf-nav — règle « un
+  seul script JustETF ») : flag `pea_eligible` des ETF depuis le filtre PEA
+  officiel de JustETF (flux Wicket GET+POST, 2-3 requêtes, ~210 ETF dont 82
+  SYNTHÉTIQUES type Amundi PEA S&P 500/Nasdaq, iShares MSCI World Swap PEA
+  irlandais). FULL-REFRESH du flag sur les ETF (94 True / 2 021 False au
+  premier run — l'heuristique par nom surestimait), garde < 150 lignes.
+  ⚠ 118 ETF PEA de JustETF absents du catalogue = pistes d'enrichissement.
+  Au passage : l'endpoint `justetf.com/api/etfs` de justetf-scraper est MORT
+  (301→404) — le flux Wicket est son remplaçant naturel.
+- **PEA courtiers** (job trimestriel, section dédiée de l'orchestrateur) :
+  `pea-fortuneo-catalog` (API JSON publique `/api/{sicav,trackers}/search/`,
+  additionalParams JSON — ⚠ `peaPme` n'existe que côté sicav, ignoré sur
+  trackers → univers entier ; garde MAX_UNIVERSE) et `pea-boursedirect-catalog`
+  (POST WebFG `pageSize=500` — ⚠ PEA-PME = « PEAPME », toute autre valeur est
+  ignorée → 57 507 fonds ; même garde). Contrats « PEA <courtier> » sous les
+  companies Fortuneo / Bourse Direct (précédent Linxea).
+- **Écartés/différés** : Saxo et CA Invest Store (derrière login), easybourse
+  (rendu JS → navigateur, plus tard), BoursoBank (univers média Boursorama déjà
+  chargé par ailleurs, `data_source=boursorama-pea` ; liste sans ISIN → jointure
+  secId Morningstar possible via WebFG si besoin d'en faire un contrat).
+
 ## 8quinquies. Mapping capitalisation (16/07/2026)
 
 La plupart des contrats capi partagent l'annexe de leur jumeau vie et étaient

@@ -89,6 +89,10 @@ def weekly_steps():
         # sur des VL Yahoo périmées. Cible uniquement les ETF non frais (cf.
         # STALE_DAYS) → pas de doublon avec FT. AVANT compute-metrics.
         ("scrapers/justetf-nav.py", []),
+        # Flag pea_eligible des ETF (synthétiques inclus) depuis le filtre PEA
+        # officiel de JustETF (2-3 requêtes). SÉQUENTIEL après justetf-nav :
+        # règle « un seul script JustETF à la fois » respectée par construction.
+        ("scrapers/justetf-pea-fill.py", []),
         # Filet OPCVM FR : GECO (API VL AMF) rafraîchit les OPCVM domiciliés en
         # France que FT ne tient pas frais (≈ source primaire pour eux). Rotation
         # stable par rang d'encours (--all), bornée à GECO_BUCKET/semaine. Écrit
