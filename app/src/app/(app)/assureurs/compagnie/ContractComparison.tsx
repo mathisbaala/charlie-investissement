@@ -38,16 +38,6 @@ export type ComparisonContract = {
 const ENV_LABEL: Record<string, string> = {
   av: "Assurance vie", capi: "Capitalisation", per: "PER", pea: "PEA", pep: "PEP",
 };
-const CLASS_LABEL: Record<string, string> = {
-  action: "Actions", obligation: "Obligations", diversifie: "Diversifiés",
-  monetaire: "Monétaire", immobilier: "Immobilier", "non_coté": "Non coté",
-  structure: "Produits structurés", matieres_premieres: "Matières premières",
-};
-function classLabel(raw: string | null): string {
-  if (!raw) return "—";
-  return CLASS_LABEL[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
-}
-
 const contractHref = (key: string) => `/assureurs/contrat?key=${encodeURIComponent(key)}`;
 
 // % « brut » (valeurs terms déjà en pourcentage) ; 0 est significatif (gratuit).
@@ -215,7 +205,6 @@ export default function ContractComparison({
                           </span>
                           <span className="flex items-center gap-2 mt-1 pl-4">
                             <EnvBadges c={c} />
-                            <span className="text-caption text-muted-2">· {classLabel(c.top_class)}</span>
                           </span>
                         </Link>
                       </td>
