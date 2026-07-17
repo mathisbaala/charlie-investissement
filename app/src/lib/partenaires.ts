@@ -5,7 +5,10 @@
 // un PEA Fortuneo — ces helpers choisissent le bon terme.
 
 /** Sociétés référencées qui sont des courtiers/banques, pas des assureurs. */
-const BROKER_COMPANIES = new Set(["Fortuneo", "Bourse Direct", "BoursoBank", "Linxea"]);
+const BROKER_COMPANIES = new Set([
+  "Fortuneo", "Bourse Direct", "BoursoBank", "Linxea",
+  "Easybourse", "LCL", "Yomoni", "Caisse d'Épargne", "Banque Populaire", "Trade Republic",
+]);
 
 export type PartnerKind = "assureur" | "courtier";
 

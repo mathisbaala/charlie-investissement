@@ -262,10 +262,21 @@ Monaliza Retraite Optimale (lancement 2025, à surveiller).
   (POST WebFG `pageSize=500` — ⚠ PEA-PME = « PEAPME », toute autre valeur est
   ignorée → 57 507 fonds ; même garde). Contrats « PEA <courtier> » sous les
   companies Fortuneo / Bourse Direct (précédent Linxea).
-- **Écartés/différés** : Saxo et CA Invest Store (derrière login), easybourse
-  (rendu JS → navigateur, plus tard), BoursoBank (univers média Boursorama déjà
-  chargé par ailleurs, `data_source=boursorama-pea` ; liste sans ISIN → jointure
-  secId Morningstar possible via WebFG si besoin d'en faire un contrat).
+- **Vague 2 (17/07 après-midi)** : `pea-boursobank-catalog` (dérivé des fonds
+  `data_source=boursorama-pea`, chargeur amont hors repo), `pea-easybourse-catalog`
+  (endpoint REST public `/rest/search` découvert — le verdict « navigateur requis »
+  était faux ; réponse = dict de CHAÎNES JSON à re-parser), `pea-lcl-catalog`
+  (API Amundi TIP publique, flag `class.peaEligibility` dans les docs Solr),
+  `pea-selections-catalog` (SSR : Yomoni + sélections Caisse d'Épargne/Banque
+  Populaire), `pea-traderepublic-catalog` (PDF univers ~13,5k ISIN SANS flag PEA
+  → sous-ensemble déduit par ∩ avec les flags `pea_eligible` de la base).
+  Vocabulaire UI : lib `partenaires.ts` (courtier vs assureur — « fonds et ETF
+  négociables » vs « unités de compte », fil d'Ariane « Tous les partenaires »).
+- **Écartés (pas de liste publique du négociable)** : Saxo, CA Invest Store,
+  BforBank (comparateur = univers Morningstar mondial sans flag PEA), Hello
+  bank!/BNP, Monabanq, SG (coquille legacy), CIC/CM (gamme maison sans filtre
+  PEA) ; Nalo (pas de PEA). Les ACTIONS restent exclues des comptages contrats
+  (filtre product_type des RPC) — décision à revisiter avec l'équipe.
 
 ## 8quinquies. Mapping capitalisation (16/07/2026)
 
