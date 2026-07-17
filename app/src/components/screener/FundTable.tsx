@@ -5,9 +5,37 @@ import Link from "next/link";
 import { ChevronRight, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { SfdrBadge, SriBadge } from "@/components/ui/Badge";
 import { InsurerChips } from "@/components/screener/InsurerChips";
-import { useSelection } from "@/components/SelectionProvider";
+import { useSelection, type SelectedFund } from "@/components/SelectionProvider";
 import { pct, fmtAumShort, decodeHtml } from "@/lib/format";
 import type { Fund } from "@/lib/types";
+
+// Payload de sélection/comparaison, partagé entre la carte mobile et le tableau desktop.
+function toSelected(f: Fund): SelectedFund {
+  return {
+    isin: f.isin,
+    name: f.name,
+    gestionnaire: f.gestionnaire ?? null,
+    sfdr_article: f.sfdr_article ?? null,
+    risk_score: f.risk_score ?? null,
+    performance_1y: f.performance_1y ?? null,
+    performance_3y: f.performance_3y ?? null,
+    performance_5y: f.performance_5y ?? null,
+    ongoing_charges: f.ongoing_charges ?? f.ter ?? null,
+    volatility_1y: f.volatility_1y ?? null,
+    sharpe_1y: f.sharpe_1y ?? null,
+    max_drawdown_3y: f.max_drawdown_3y ?? null,
+    morningstar_rating: f.morningstar_rating ?? null,
+    track_record_years: f.track_record_years ?? null,
+    aum_eur: f.aum_eur ?? null,
+    retrocession_cgp: f.retrocession_cgp ?? null,
+    pea_eligible: f.pea_eligible ?? null,
+    pea_pme_eligible: f.pea_pme_eligible ?? null,
+    per_eligible: f.per_eligible ?? null,
+    av_fr_eligible: f.av_fr_eligible ?? null,
+    av_lux_eligible: f.av_lux_eligible ?? null,
+    cto_eligible: f.cto_eligible ?? null,
+  };
+}
 
 interface FundTableProps {
   funds: Fund[];
@@ -71,11 +99,13 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
     <>
     {/* ── Mobile : liste de cartes (le tableau déborderait sur un téléphone) ── */}
     <div className="md:hidden divide-y divide-line-soft">
-      {funds.map((f) => (
+      {funds.map((f) => {
+        const sel = isSelected(f.isin);
+        return (
         <Link
           key={f.isin}
           href={`/fonds/${f.isin}`}
-          className="block p-3.5 bg-paper active:bg-cream transition-colors"
+          className={`block p-3.5 transition-colors ${sel ? "bg-ok-soft/20" : "bg-paper active:bg-cream"}`}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -88,7 +118,19 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
               </div>
               <InsurerChips insurers={f.insurers} className="mt-1" />
             </div>
-            <ChevronRight size={16} className="shrink-0 text-muted mt-0.5" />
+            {/* Case de comparaison : cocher pour ajouter au panier (sans naviguer). */}
+            <label
+              className="shrink-0 -m-1 p-1"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <input
+                type="checkbox"
+                checked={sel}
+                onChange={() => toggle(toSelected(f))}
+                aria-label={`Ajouter ${decodeHtml(f.name)} à la comparaison`}
+                className="w-4 h-4 rounded border-line accent-brown cursor-pointer align-middle"
+              />
+            </label>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2.5">
@@ -115,7 +157,8 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
             <EligPill label="AV Lux"  active={f.av_lux_eligible} />
           </div>
         </Link>
-      ))}
+        );
+      })}
     </div>
 
     {/* ── Desktop : tableau complet ── */}
@@ -161,30 +204,7 @@ export function FundTable({ funds, onRowClick, activeFundIsin, sortBy, sortDir, 
                   <input
                     type="checkbox"
                     checked={sel}
-                    onChange={() => toggle({
-                      isin: f.isin,
-                      name: f.name,
-                      gestionnaire: f.gestionnaire ?? null,
-                      sfdr_article: f.sfdr_article ?? null,
-                      risk_score: f.risk_score ?? null,
-                      performance_1y: f.performance_1y ?? null,
-                      performance_3y: f.performance_3y ?? null,
-                      performance_5y: f.performance_5y ?? null,
-                      ongoing_charges: f.ongoing_charges ?? f.ter ?? null,
-                      volatility_1y: f.volatility_1y ?? null,
-                      sharpe_1y: f.sharpe_1y ?? null,
-                      max_drawdown_3y: f.max_drawdown_3y ?? null,
-                      morningstar_rating: f.morningstar_rating ?? null,
-                      track_record_years: f.track_record_years ?? null,
-                      aum_eur: f.aum_eur ?? null,
-                      retrocession_cgp: f.retrocession_cgp ?? null,
-                      pea_eligible: f.pea_eligible ?? null,
-                      pea_pme_eligible: f.pea_pme_eligible ?? null,
-                      per_eligible: f.per_eligible ?? null,
-                      av_fr_eligible: f.av_fr_eligible ?? null,
-                      av_lux_eligible: f.av_lux_eligible ?? null,
-                      cto_eligible: f.cto_eligible ?? null,
-                    })}
+                    onChange={() => toggle(toSelected(f))}
                     className="w-3.5 h-3.5 rounded border-line accent-brown cursor-pointer"
                   />
                 </td>

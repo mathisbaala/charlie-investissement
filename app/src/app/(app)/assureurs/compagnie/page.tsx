@@ -184,10 +184,7 @@ export default async function InsurerPage({
 
       {/* Comparateur des contrats (interactif : enveloppe, tri, statut) */}
       <div>
-        <h2 className="text-title text-ink font-semibold mb-1">Comparer les contrats</h2>
-        <p className="text-meta text-muted mb-4">
-          Sélectionnez des contrats avec <span className="text-ink-2">+</span> — même d&apos;assureurs différents — pour les comparer côte à côte.
-        </p>
+        <h2 className="text-title text-ink font-semibold mb-4">Comparer les contrats</h2>
         <ContractComparison
           contracts={(o.contracts ?? []).map((c) => ({ ...c, company }))}
           company={company}

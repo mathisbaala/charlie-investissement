@@ -177,9 +177,6 @@ export default async function ComparateurPage({
         <h1 className="text-display leading-[1.2] text-ink font-medium" style={{ fontFamily: "var(--font-sans)" }}>
           Comparateur de contrats
         </h1>
-        <p className="text-meta text-muted mt-1">
-          {ordered.length} contrat{ordered.length > 1 ? "s" : ""} en regard · le coût total combine les frais des supports et la gestion du contrat.
-        </p>
       </div>
 
       <Card className="overflow-hidden p-0">
@@ -238,9 +235,6 @@ export default async function ComparateurPage({
         </Link>
       )}
 
-      <p className="text-caption text-muted-2">
-        Coût total et frais donnés à titre indicatif (moyenne des supports référencés, conditions du contrat à la dernière source connue) ; se reporter aux documents contractuels avant toute souscription.
-      </p>
     </PageShell>
   );
 }
