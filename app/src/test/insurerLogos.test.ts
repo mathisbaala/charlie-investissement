@@ -31,6 +31,12 @@ describe("insurerLogoSrc", () => {
     expect(INSURER_LOGO_SLUGS.has("generali-vie")).toBe(true);
     expect(insurerLogoSrc("Generali Vie")).toBe("/insurers/generali-vie.png");
   });
+  it("réutilise le logo de la maison mère via alias de marque", () => {
+    // Allianz Life Luxembourg n'a pas de fichier propre → logo Allianz France.
+    expect(INSURER_LOGO_SLUGS.has("allianz-life-luxembourg")).toBe(false);
+    expect(insurerLogoSrc("Allianz Life Luxembourg")).toBe("/insurers/allianz-france.png");
+    expect(insurerLogoSrc("Swiss Life Luxembourg")).toBe("/insurers/swisslife-france.png");
+  });
   it("renvoie null quand aucun logo n'a été sourcé (repli monogramme)", () => {
     // Spirica a été exclu (placeholder générique) → pas de logo.
     expect(INSURER_LOGO_SLUGS.has("spirica")).toBe(false);

@@ -16,11 +16,23 @@ export function slugifyInsurer(company: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-// Chemin du logo si un vrai logo existe pour cet assureur, sinon null.
+// Alias de marque : une entité sans logo propre récupérable réutilise le logo
+// RÉEL de sa maison mère quand c'est EXACTEMENT la même marque (nom identique,
+// juste le véhicule Lux/France qui change). On ne force jamais le logo d'un
+// groupe sur une sous-marque distincte et connue (Spirica, Caisse d'Épargne…)
+// qui, elle, garde son monogramme. Clé/valeur = slugs.
+const LOGO_ALIASES: Record<string, string> = {
+  "allianz-life-luxembourg": "allianz-france",
+  "swiss-life-luxembourg": "swisslife-france",
+};
+
+// Chemin du logo si un vrai logo existe pour cet assureur (directement ou via
+// alias de marque), sinon null.
 export function insurerLogoSrc(company: string | null | undefined): string | null {
   if (!company) return null;
   const slug = slugifyInsurer(company);
-  return INSURER_LOGO_SLUGS.has(slug) ? `/insurers/${slug}.png` : null;
+  const target = LOGO_ALIASES[slug] ?? slug;
+  return INSURER_LOGO_SLUGS.has(target) ? `/insurers/${target}.png` : null;
 }
 
 // Mots vides ignorés pour composer un monogramme lisible.
