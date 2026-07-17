@@ -176,7 +176,7 @@ export function AnalyseExistant() {
 
       setSynthese({ analysis, geo, sectors, recos, sri: weightedSri(sriRows), terMoyen, truncated });
     } catch {
-      setError("L'analyse a échoué — réessayer.");
+      setError("L'analyse a échoué, réessayer.");
     } finally {
       setAnalysing(false);
     }
@@ -197,7 +197,7 @@ export function AnalyseExistant() {
       <p className="text-body text-muted mb-6">
         Déposez les relevés de situation du client (PDF) : Charlie en extrait les positions,
         reconnaît les contrats grâce au référencement, puis dresse la synthèse consolidée et
-        des recommandations ciblées — sans refaire le portefeuille.
+        des recommandations ciblées, sans refaire le portefeuille.
       </p>
 
       {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
@@ -205,12 +205,12 @@ export function AnalyseExistant() {
         <Shield className="w-5 h-5 mt-0.5 shrink-0 text-ok" aria-hidden />
         <div>
           <p className="text-body font-semibold text-ink mb-0.5">
-            Vos documents ne sont ni stockés, ni transmis — l&apos;analyse est 100&nbsp;% anonyme.
+            Vos documents ne sont ni stockés, ni transmis : l&apos;analyse est 100&nbsp;% anonyme.
           </p>
           <p className="text-caption text-muted">
-            Charlie lit uniquement les lignes de supports financiers (code ISIN et montant) pour
-            construire un portefeuille anonymisé. Aucune donnée d&apos;identité — nom, adresse,
-            n°&nbsp;d&apos;adhérent, e-mail — n&apos;est extraite, conservée ou envoyée : le PDF est lu en
+            Charlie lit uniquement les lignes de supports financiers (code ISIN et montant) et en
+            construit un portefeuille anonymisé. Aucune donnée d&apos;identité (nom, adresse, numéro
+            d&apos;adhérent, adresse mail) n&apos;est extraite, conservée ou envoyée ; le PDF est lu en
             mémoire puis immédiatement oublié.
           </p>
         </div>
@@ -251,7 +251,7 @@ export function AnalyseExistant() {
               <h2 className="text-body font-semibold text-ink">{r.fileName}</h2>
               <p className="text-caption text-muted">
                 {r.positions.length} ligne{r.positions.length > 1 ? "s" : ""} détectée{r.positions.length > 1 ? "s" : ""}
-                {r.warning ? ` — ${r.warning}` : ""}
+                {r.warning ? ` (${r.warning})` : ""}
               </p>
             </div>
             <button
@@ -274,7 +274,7 @@ export function AnalyseExistant() {
               >
                 {r.matches.map((m, i) => (
                   <option key={`${m.company}::${m.contract}`} value={i}>
-                    {m.company} — {m.contract} ({Math.round(m.coverage * 100)} % des lignes couvertes)
+                    {m.company} · {m.contract} ({Math.round(m.coverage * 100)} % des lignes couvertes)
                   </option>
                 ))}
                 <option value={-1}>Autre / ne pas rattacher</option>
@@ -369,8 +369,8 @@ export function AnalyseExistant() {
           </div>
           {synthese.truncated && (
             <p className="text-caption text-muted mb-4">
-              Ratios et corrélations calculés sur les 20 premières lignes (limite du moteur) — les
-              répartitions couvrent l&apos;ensemble.
+              Ratios et corrélations calculés sur les 20 premières lignes (limite du moteur) ;
+              les répartitions couvrent l&apos;ensemble.
             </p>
           )}
 

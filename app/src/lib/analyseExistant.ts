@@ -167,7 +167,7 @@ export function buildRecommendations(input: {
       title: pairs.length > 1 ? `${pairs.length} paires de fonds très corrélées` : "Deux fonds très corrélés",
       detail:
         `« ${nameOf(p.a)} » et « ${nameOf(p.b)} » évoluent quasi à l'identique ` +
-        `(corrélation ${fr(p.rho)}). Détenir les deux n'apporte pas de diversification — ` +
+        `(corrélation ${fr(p.rho)}). Détenir les deux n'apporte pas de diversification ; ` +
         `en remplacer un par un support décorrélé éligible au même contrat.`,
       impact: Math.min(1, 0.6 + 0.1 * pairs.length),
     });
@@ -191,7 +191,7 @@ export function buildRecommendations(input: {
       title: a.scope === "zone" ? `Concentration géographique : ${a.label}` : `Concentration sectorielle : ${a.label}`,
       detail:
         `${a.label} pèse ${fr(a.weight, 0)} % du portefeuille consolidé (repère : ${a.max} %). ` +
-        `Cette exposition n'apparaît dans aucun relevé pris isolément — rééquilibrer progressivement.`,
+        `Cette exposition n'apparaît dans aucun relevé pris isolément ; rééquilibrer progressivement.`,
       impact: Math.min(1, a.weight / a.max / 2),
     });
   }
@@ -204,7 +204,7 @@ export function buildRecommendations(input: {
       title: exp.length > 1 ? `${exp.length} lignes sensiblement plus chères que le reste` : "Une ligne sensiblement plus chère que le reste",
       detail:
         `« ${l.name} » facture ${fr(l.ter as number)} %/an de frais courants, contre ` +
-        `${fr(l.median)} % (médiane du portefeuille) — soit ~${fr(l.surcost * 100, 0)} bp de ` +
+        `${fr(l.median)} % (médiane du portefeuille), soit environ ${fr(l.surcost * 100, 0)} bp de ` +
         `surcoût annuel au niveau du portefeuille. Chercher un équivalent moins chargé dans le même contrat.`,
       impact: Math.min(1, 0.3 + exp.reduce((s, e) => s + e.surcost, 0) * 10),
     });
