@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct } from "@/lib/format";
+import { supportsSub } from "@/lib/partenaires";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
@@ -283,7 +284,7 @@ export default async function ContractPage({
         className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors"
       >
         <ArrowLeft size={12} />
-        Tous les assureurs
+        Tous les partenaires
       </Link>
 
       {/* En-tête */}
@@ -339,7 +340,7 @@ export default async function ContractPage({
         <StatCard
           label="Supports référencés"
           value={o.funds.toLocaleString("fr-FR")}
-          sub="unités de compte"
+          sub={supportsSub(o.company, o.types ?? [])}
         />
         <StatCard
           label="Frais courants moyens"
@@ -436,7 +437,7 @@ export default async function ContractPage({
         <Card className="px-5 py-5">
           <h2 className="text-body-lg text-ink font-semibold">Conditions du contrat</h2>
           <p className="text-meta text-muted mt-1.5 max-w-[70ch]">
-            Le contexte de l&apos;assureur et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
+            Le contexte du partenaire et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
             <em> ce </em> contrat ne sont pas encore renseignées dans notre base&nbsp;: nous affichons
             pour l&apos;instant les supports référencés et leurs caractéristiques. Le détail arrive prochainement.
           </p>

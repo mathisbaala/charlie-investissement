@@ -90,6 +90,7 @@ AV_CATALOG_STEPS = [
     # ── PEA courtiers (univers de fonds négociables par PEA bancaire) ─────────
     ("scrapers/pea-fortuneo-catalog.py", []),       # API JSON publique — PEA (~595 : OPCVM+ETF) + PEA-PME (36) — ajouté 17/07
     ("scrapers/pea-boursedirect-catalog.py", []),   # API WebFG — PEA (~3 090) + PEA-PME (259) — ajouté 17/07
+    ("scrapers/pea-boursobank-catalog.py", []),     # dérivé des fonds data_source='boursorama-pea' (chargeur de Joseph, hors repo) — ajouté 17/07
     # ── Délistage : purge les liens confirmés périmés (UC retirées d'un contrat) ──
     ("enrichers/prune-stale-av-eligibility.py", []),
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──
