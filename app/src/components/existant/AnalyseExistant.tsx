@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
 import { Shield, X } from "@/components/ui/icons";
+import { FundAdder } from "@/components/portfolio/FundAdder";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
 import { consolidate, type ValidatedPosition } from "@/lib/releve";
 import {
@@ -106,6 +107,34 @@ export function AnalyseExistant() {
   }
   function chooseContract(rid: string, idx: number) {
     setReleves((prev) => prev.map((r) => (r.id === rid ? { ...r, chosen: idx } : r)));
+  }
+
+  // Ajout manuel d'un fonds oublié par l'extraction : recherche dans la base
+  // (FundAdder), ajout immédiat avec montant à saisir, puis enrichissement
+  // TER/SRI en arrière-plan (mêmes données que le reste, pour les diagnostics).
+  function addFund(rid: string, isin: string, name: string) {
+    setReleves((prev) => prev.map((r) => {
+      if (r.id !== rid || r.positions.some((p) => p.isin === isin)) return r;
+      return {
+        ...r,
+        positions: [...r.positions, { isin, label: "", amount: null, known: true, name, ter: null, sri: null }],
+      };
+    }));
+    setSynthese(null);
+    fetch(`/api/funds?search=${encodeURIComponent(isin)}&per_page=1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        const f = json?.data?.[0];
+        if (!f) return;
+        const terFrac = f.ongoing_charges ?? f.ter;
+        const ter = terFrac != null ? Math.round(Number(terFrac) * 10000) / 100 : null;
+        const sri = f.risk_score ?? null;
+        setReleves((prev) => prev.map((r) => r.id !== rid ? r : {
+          ...r,
+          positions: r.positions.map((p) => (p.isin === isin ? { ...p, ter, sri } : p)),
+        }));
+      })
+      .catch(() => {});
   }
 
   // Portefeuille consolidé : positions connues + montant confirmé, tous relevés.
@@ -330,6 +359,15 @@ export function AnalyseExistant() {
               </table>
             </div>
           )}
+
+          {/* Un fonds a échappé à l'extraction ? Recherche directe dans la base
+              (ISIN ou nom), puis saisie du montant dans le tableau. */}
+          <div className="mt-3 max-w-md" data-testid="fund-adder">
+            <FundAdder
+              onAdd={(isin, name) => addFund(r.id, isin, name)}
+              existing={new Set(r.positions.map((p) => p.isin))}
+            />
+          </div>
         </Card>
       ))}
 
