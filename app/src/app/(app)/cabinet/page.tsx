@@ -9,10 +9,6 @@ export const metadata = { title: "Mon cabinet · Charlie" };
 export default function CabinetPage() {
   return (
     <PageShell className="space-y-6">
-      <div>
-        <h1 className="text-heading text-ink font-semibold">Mon cabinet</h1>
-        <p className="text-meta text-muted">Réglages repris par la plateforme. Renseignés une fois.</p>
-      </div>
       <CabinetForm />
     </PageShell>
   );

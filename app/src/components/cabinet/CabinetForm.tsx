@@ -268,12 +268,12 @@ export function CabinetForm() {
     : [];
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-2xl space-y-5">
       {/* Identité */}
       <Card className="p-5 space-y-3">
         <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">Nom du cabinet</p>
         <input
-          className={`${inputCls} max-w-md`}
+          className={inputCls}
           value={cabinet.cabinetName}
           onChange={(e) => setCabinet((c) => ({ ...c, cabinetName: e.target.value }))}
           placeholder="Ex. Charlie Gestion Privée"
@@ -286,7 +286,7 @@ export function CabinetForm() {
         <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
           Assureurs partenaires
         </p>
-        <div className="relative max-w-md">
+        <div className="relative">
           <input
             type="text"
             aria-label="Rechercher un assureur partenaire"
@@ -320,9 +320,6 @@ export function CabinetForm() {
             </div>
           )}
         </div>
-        {cabinet.insurers.length === 0 && (
-          <p className="text-meta text-muted">Ajoutez vos assureurs partenaires.</p>
-        )}
 
         {/* Un bloc par assureur : recherche pour ajouter les contrats distribués
             un à un (pas de rattachement d'office — certains assureurs en

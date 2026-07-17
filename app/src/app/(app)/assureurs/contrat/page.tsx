@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, feeFracToPct } from "@/lib/format";
+import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { supportsSub } from "@/lib/partenaires";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
-import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
+import { ArrowLeft, ChevronRight } from "@/components/ui/icons";
+import { InsurerLogo } from "@/components/ui/InsurerLogo";
 
 // ─── Fiche-contrat (rendu serveur, comme la fiche fonds) ─────────────────────
 // L'onglet Assurance vie ne redirige plus vers le screener : il ouvre CETTE
@@ -23,6 +24,22 @@ type InsurerProfile = {
   forces: string[];
   limites: string[];
   lux: { ticket?: string; fid?: string; fas?: string; plancher_uc?: string } | null;
+  // Solidité financière (SFCR) — Levier 3
+  solvabilite_2_pct: number | null;
+  notation: string | null;
+  notation_agence: string | null;
+  notation_annee: number | null;
+  ppb_pct: number | null;
+  encours_vie_mds: number | null;
+  sfcr_annee: number | null;
+  sfcr_url: string | null;
+};
+// Historique du taux servi d'un fonds euros de l'assureur (multi-année).
+type FondsEurosRate = {
+  fonds_euros_nom: string;
+  annee: number;
+  taux_pct: number;
+  bonus_note: string | null;
 };
 type ContractTerms = {
   frais_entree_pct: number | null;
@@ -82,6 +99,21 @@ function classLabel(raw: string): string {
   return CLASS_LABEL[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
 }
 
+// Zones géographiques : les codes viennent en anglais/minuscules de la base
+// (world, usa, emerging…). On les affiche en français capitalisé, comme les
+// classes d'actifs — repli = majuscule initiale pour tout code non listé.
+const REGION_LABEL: Record<string, string> = {
+  world: "Monde", europe: "Europe", eurozone: "Zone euro", france: "France",
+  germany: "Allemagne", switzerland: "Suisse", uk: "Royaume-Uni",
+  usa: "États-Unis", "north_america": "Amérique du Nord",
+  emerging: "Émergents", china: "Chine", india: "Inde", brazil: "Brésil",
+  asia: "Asie", japan: "Japon", pacific: "Pacifique", latam: "Amérique latine",
+  africa: "Afrique", "middle_east": "Moyen-Orient",
+};
+function regionLabel(raw: string): string {
+  return REGION_LABEL[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
+}
+
 // Barres de répartition : label + compte + barre proportionnelle au max local.
 function BreakdownBars({ items, format }: { items: Breakdown[]; format?: (l: string) => string }) {
   if (items.length === 0) {
@@ -132,6 +164,58 @@ function fmtPct(v: number | null | undefined): string | null {
   return `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
 }
 
+// Majuscule initiale (valeurs de chips venant de la base, souvent en minuscules).
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+// Indicateur de solidité (Solvabilité II, notation, PPB, encours) — ne s'affiche
+// que si la valeur est renseignée. `sub` porte la précision (agence, millésime…).
+function SolidityStat({ label, value, sub }: { label: string; value: string | null; sub?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="rounded-lg bg-paper-2 border border-line px-3 py-2">
+      <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">{label}</p>
+      <p className="text-body-lg text-ink font-semibold tabular-nums mt-0.5">{value}</p>
+      {sub && <p className="text-caption text-muted-2 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+// Historique du taux servi d'un fonds euros : libellé + suite d'années (barres
+// proportionnelles au meilleur taux affiché), le millésime le plus récent en gras.
+function FondsEurosTrend({ nom, rates }: { nom: string; rates: FondsEurosRate[] }) {
+  const max = Math.max(...rates.map((r) => Number(r.taux_pct)), 0.01);
+  const latest = rates.at(-1);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-meta text-ink-2 font-medium truncate">{nom}</span>
+        {latest && (
+          <span className="text-body text-ink font-semibold tabular-nums shrink-0">
+            {fmtPct(latest.taux_pct)}
+            <span className="text-caption text-muted-2 font-normal"> en {latest.annee}</span>
+          </span>
+        )}
+      </div>
+      <ul className="flex items-end gap-2 mt-2">
+        {rates.map((r) => (
+          <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+            <span className="text-caption text-muted tabular-nums">{fmtPct(r.taux_pct)}</span>
+            <span className="w-full h-12 flex items-end rounded-sm bg-paper-2 overflow-hidden">
+              <span
+                className="block w-full rounded-sm bg-accent/50"
+                style={{ height: `${Math.max(8, (Number(r.taux_pct) / max) * 100)}%` }}
+              />
+            </span>
+            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // Ligne « libellé : valeur » ; ne s'affiche que si la valeur est renseignée.
 function TermRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -143,19 +227,12 @@ function TermRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-const CONFIDENCE_LABEL: Record<ContractTerms["confidence"], string> = {
-  scraped: "extrait du DIC",
-  curated: "vérifié à la main",
-  indicative: "indicatif",
-};
-
 // Bloc « Conditions du contrat » quand les T&C sont sourcées (terms présent).
 function TermsCard({ terms }: { terms: ContractTerms }) {
   const fraisArb = fmtPct(terms.frais_arbitrage_pct) ?? terms.frais_arbitrage_note;
   const fe = terms.fonds_euros_taux_pct != null
     ? `${fmtPct(terms.fonds_euros_taux_pct)}${terms.fonds_euros_annee ? ` (${terms.fonds_euros_annee})` : ""}`
     : null;
-  const sourceHost = terms.source_url ? (() => { try { return new URL(terms.source_url!).hostname.replace(/^www\./, ""); } catch { return null; } })() : null;
 
   return (
     <Card className="px-5 py-5">
@@ -198,7 +275,7 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Univers accessible</p>
               <div className="flex flex-wrap gap-1.5">
                 {terms.univers_classes.map((c) => (
-                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{cap(c)}</span>
                 ))}
               </div>
             </div>
@@ -208,32 +285,13 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Options de gestion</p>
               <div className="flex flex-wrap gap-1.5">
                 {terms.options_gestion.map((c) => (
-                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{cap(c)}</span>
                 ))}
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {terms.notes && (
-        <p className="text-caption text-muted mt-4 max-w-[80ch] leading-relaxed">
-          <span className="text-muted-2 font-semibold uppercase tracking-widest">Précisions&nbsp;: </span>
-          {terms.notes}
-        </p>
-      )}
-
-      <p className="text-caption text-muted-2 mt-3">
-        {terms.source_url ? (
-          <a href={terms.source_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-ink-2">
-            {CONFIDENCE_LABEL[terms.confidence]}
-          </a>
-        ) : (
-          CONFIDENCE_LABEL[terms.confidence]
-        )}
-        {terms.as_of ? ` · millésime ${new Date(terms.as_of).getFullYear()}` : ""}
-        {sourceHost ? ` · source ${sourceHost}` : ""}
-      </p>
     </Card>
   );
 }
@@ -255,9 +313,38 @@ export default async function ContractPage({
   // conditions propres au contrat (frais réels, fonds euros du contrat, options).
   const { data: profile } = await supabase
     .from("investissement_av_insurer_profiles")
-    .select("kind, groupe, positionnement, fonds_euros, forces, limites, lux")
+    .select(
+      "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+    )
     .eq("company", o.company)
     .maybeSingle<InsurerProfile>();
+
+  // Historique du taux servi des fonds euros de l'assureur (multi-année, sourcé
+  // SFCR / communiqués). Regroupé par fonds euros pour l'affichage.
+  const { data: feRates } = await supabase
+    .from("investissement_av_fonds_euros_history")
+    .select("fonds_euros_nom, annee, taux_pct, bonus_note")
+    .eq("company", o.company)
+    .order("annee", { ascending: true })
+    .returns<FondsEurosRate[]>();
+
+  const feByFund = new Map<string, FondsEurosRate[]>();
+  for (const r of feRates ?? []) {
+    const arr = feByFund.get(r.fonds_euros_nom) ?? [];
+    arr.push(r);
+    feByFund.set(r.fonds_euros_nom, arr);
+  }
+  // Fonds euros triés par millésime le plus récent servi (le plus « vivant » en tête).
+  const feFunds = [...feByFund.entries()].sort(
+    (a, b) => (b[1].at(-1)?.annee ?? 0) - (a[1].at(-1)?.annee ?? 0),
+  );
+
+  const hasSolidity =
+    profile != null &&
+    (profile.solvabilite_2_pct != null ||
+      profile.notation != null ||
+      profile.ppb_pct != null ||
+      profile.encours_vie_mds != null);
 
   const terPct = feeFracToPct(o.avg_fee);
   const primaryType = o.types?.[0] ?? "av";
@@ -290,7 +377,9 @@ export default async function ContractPage({
       {/* En-tête */}
       <Card className="px-5 py-5 md:px-7 md:py-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div className="min-w-0">
+          <div className="flex items-start gap-4 min-w-0">
+            <InsurerLogo company={o.company} size={54} className="mt-0.5 hidden sm:inline-flex" />
+            <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {(o.types ?? []).map((t) => (
                 <span
@@ -314,8 +403,8 @@ export default async function ContractPage({
             <h1 className="text-display leading-[1.2] text-ink font-medium" style={{ fontFamily: "var(--font-sans)" }}>
               {decodeHtml(o.contract)}
             </h1>
-            <p className="flex items-center gap-2 mt-2 text-meta text-muted">
-              <Shield size={13} className="text-muted-2" />
+            <p className="mt-2 text-meta text-muted">
+              <span className="sm:hidden mr-1.5 align-middle"><InsurerLogo company={o.company} size={18} /></span>
               {decodeHtml(o.company)}
             </p>
             {o.variants?.length > 0 && (
@@ -323,6 +412,7 @@ export default async function ContractPage({
                 Mêmes supports que&nbsp;: {o.variants.map((v) => decodeHtml(v.contract)).join(" · ")}
               </p>
             )}
+            </div>
           </div>
 
           <Link
@@ -362,14 +452,20 @@ export default async function ContractPage({
       {/* L'assureur — profil curé (contexte assureur / enveloppe) */}
       {profile && (
         <Card className="px-5 py-5">
-          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h2 className="text-body-lg text-ink font-semibold">L&apos;assureur</h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <InsurerLogo company={o.company} size={44} />
+              <div className="min-w-0">
+                <h2 className="text-body-lg text-ink font-semibold leading-tight">L&apos;assureur</h2>
+                <p className="text-meta text-muted truncate">{decodeHtml(o.company)}</p>
+              </div>
+            </div>
             <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">
               {profile.kind === "lux" ? "Luxembourg" : "France"}
             </span>
           </div>
           {profile.groupe && (
-            <p className="text-meta text-muted mt-1">Groupe&nbsp;: <span className="text-ink-2">{profile.groupe}</span></p>
+            <p className="text-meta text-muted mt-1">Groupe&nbsp;: <span className="text-ink-2">{groupeName(profile.groupe)}</span></p>
           )}
           {profile.positionnement && (
             <p className="text-body text-ink-2 mt-2 max-w-[75ch]">{profile.positionnement}</p>
@@ -379,6 +475,63 @@ export default async function ContractPage({
             <div className="mt-3 inline-flex items-baseline gap-2 rounded-lg bg-paper-2 border border-line px-3 py-1.5">
               <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Fonds euros</span>
               <span className="text-body text-ink-2 font-medium">{profile.fonds_euros}</span>
+            </div>
+          )}
+
+          {/* Solidité financière (SFCR) — Solvabilité II, notation, PPB, encours.
+              Faits chiffrés et auditables (rapport SFCR annuel). */}
+          {hasSolidity && (
+            <div className="mt-4 pt-4 border-t border-line-soft">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap mb-2.5">
+                <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Solidité financière</p>
+                {profile.sfcr_url && (
+                  <a
+                    href={profile.sfcr_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-caption text-muted hover:text-accent-ink transition-colors underline decoration-line underline-offset-2"
+                  >
+                    Rapport SFCR{profile.sfcr_annee ? ` ${profile.sfcr_annee}` : ""}
+                  </a>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                <SolidityStat
+                  label="Solvabilité II"
+                  value={profile.solvabilite_2_pct != null ? `${Number(profile.solvabilite_2_pct).toLocaleString("fr-FR")} %` : null}
+                  sub="couverture du SCR"
+                />
+                <SolidityStat
+                  label="Notation"
+                  value={profile.notation}
+                  sub={[profile.notation_agence, profile.notation_annee].filter(Boolean).join(" · ") || null}
+                />
+                <SolidityStat
+                  label="PPB"
+                  value={profile.ppb_pct != null ? `${Number(profile.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : null}
+                  sub="réserve de rendement"
+                />
+                <SolidityStat
+                  label="Encours vie"
+                  value={profile.encours_vie_mds != null ? `${Number(profile.encours_vie_mds).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Md€` : null}
+                  sub="provisions techniques"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Rendement des fonds euros dans le temps (taux servis, nets de frais). */}
+          {feFunds.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-line-soft">
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-3">
+                Rendement des fonds euros
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                {feFunds.slice(0, 4).map(([nom, rates]) => (
+                  <FondsEurosTrend key={nom} nom={nom} rates={rates} />
+                ))}
+              </div>
+              <p className="text-caption text-muted-2 mt-3">Taux servis nets de frais de gestion, hors prélèvements sociaux et fiscaux.</p>
             </div>
           )}
 
@@ -407,8 +560,9 @@ export default async function ContractPage({
             </div>
           )}
 
-          {/* Spécificités Luxembourg : ticket + seuils FID/FAS + garanties transverses */}
-          {profile.kind === "lux" && (
+          {/* Spécificités Luxembourg : ticket + seuils FID/FAS + garanties transverses.
+              N'affiche la section que si au moins un seuil est renseigné (sinon en-tête vide). */}
+          {profile.kind === "lux" && (profile.lux?.ticket || profile.lux?.fid || profile.lux?.fas || profile.lux?.plancher_uc) && (
             <div className="mt-4 pt-4 border-t border-line-soft">
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-2">Spécificités Luxembourg</p>
               <div className="flex flex-wrap gap-2">
@@ -417,16 +571,8 @@ export default async function ContractPage({
                 {profile.lux?.fas && <LuxChip label="Seuil FAS" value={profile.lux.fas} />}
                 {profile.lux?.plancher_uc && <LuxChip label="Frais UC plancher" value={profile.lux.plancher_uc} />}
               </div>
-              <p className="text-caption text-muted-2 mt-2 max-w-[75ch]">
-                Atouts transverses du Luxembourg&nbsp;: triangle de sécurité, super-privilège du souscripteur,
-                neutralité fiscale (fiscalité du pays de résidence), multidevise, FID/FAS et crédit lombard.
-              </p>
             </div>
           )}
-
-          <p className="text-caption text-muted-2 mt-4">
-            Repères assureur indicatifs (millésime 2025), à confirmer au contrat près.
-          </p>
         </Card>
       )}
 
@@ -436,18 +582,14 @@ export default async function ContractPage({
       ) : (
         <Card className="px-5 py-5">
           <h2 className="text-body-lg text-ink font-semibold">Conditions du contrat</h2>
-          <p className="text-meta text-muted mt-1.5 max-w-[70ch]">
-            Le contexte du partenaire et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
-            <em> ce </em> contrat ne sont pas encore renseignées dans notre base&nbsp;: nous affichons
-            pour l&apos;instant les supports référencés et leurs caractéristiques. Le détail arrive prochainement.
-          </p>
+          <p className="text-meta text-muted mt-1.5">Détail à venir.</p>
           <div className="flex flex-wrap gap-2 mt-4">
             {[
-              "Frais de gestion réels",
+              "Frais de gestion",
               "Frais de versement",
               "Frais d'arbitrage",
-              "Taux du fonds euros",
-              "Options (gestion pilotée, garanties)",
+              "Taux fonds euros",
+              "Options de gestion",
             ].map((t) => (
               <span key={t} className="inline-flex items-center gap-1.5 text-caption text-muted-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">
                 {t}
@@ -466,7 +608,7 @@ export default async function ContractPage({
         </Card>
         <Card className="px-5 py-5">
           <h2 className="text-label text-ink font-semibold mb-4">Zones géographiques</h2>
-          <BreakdownBars items={o.regions ?? []} />
+          <BreakdownBars items={o.regions ?? []} format={regionLabel} />
         </Card>
         <Card className="px-5 py-5">
           <h2 className="text-label text-ink font-semibold mb-4">Principaux gestionnaires</h2>

@@ -173,3 +173,11 @@ export function capitalize(v: string | null | undefined): string | null {
   if (!v) return null;
   return v.charAt(0).toUpperCase() + v.slice(1);
 }
+
+// Nom de groupe sans préfixe « Groupe » redondant : la valeur en base contient
+// parfois déjà « Groupe » (ex. « Groupe Apicil »), alors que les fiches
+// préfixent elles-mêmes « Groupe … ». Évite le doublon « Groupe Groupe Apicil ».
+export function groupeName(g: string | null | undefined): string {
+  if (!g) return "";
+  return g.replace(/^\s*groupe\s+/i, "");
+}

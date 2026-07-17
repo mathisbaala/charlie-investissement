@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Shield } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
+import { InsurerLogo } from "@/components/ui/InsurerLogo";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PageShell } from "@/components/ui/Page";
@@ -42,8 +43,11 @@ const ENV_LABEL: Record<Envelope, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
-// Assureur : on ouvre tous ses supports dans le screener (pas de fiche assureur).
-const insurerHref  = (company: string) => `/recherche?insurer=${encodeURIComponent(company)}`;
+// Assureur : on ouvre sa PAGE de comparaison des contrats (plus le screener
+// filtré). L'enveloppe active est transmise pour pré-cadrer la comparaison. Le
+// bouton « Voir les N supports » de cette page mène ensuite au screener filtré.
+const insurerHref  = (company: string, env: Envelope) =>
+  `/assureurs/compagnie?company=${encodeURIComponent(company)}&env=${env}`;
 // Contrat : on ouvre la FICHE-contrat (spécificités), plus la recherche filtrée.
 const contractHref = (key: string)     => `/assureurs/contrat?key=${encodeURIComponent(key)}`;
 
@@ -73,12 +77,14 @@ function InsurerCard(
 
   return (
     <Card className={`px-5 py-4 flex flex-col ${CARD_HEIGHT}`}>
-      {/* En-tête : clic → tous les supports de l'assureur dans le screener */}
+      {/* En-tête : clic → page de comparaison des contrats de l'assureur */}
       <Link
-        href={insurerHref(insurer.company)}
+        href={insurerHref(insurer.company, env)}
         className="group shrink-0 flex items-start justify-between gap-2 -mx-1 px-1 py-1 rounded-lg hover:bg-paper-2 transition-colors"
       >
-        <div className="min-w-0">
+        <div className="flex items-start gap-3 min-w-0">
+          <InsurerLogo company={insurer.company} size={38} className="mt-0.5" />
+          <div className="min-w-0">
           <p className="text-body-lg font-semibold text-ink group-hover:text-accent-ink truncate">
             {insurer.company}
           </p>
@@ -98,6 +104,7 @@ function InsurerCard(
               <>{visible.length} contrat{visible.length > 1 ? "s" : ""} en {ENV_LABEL[env]}</>
             )}
           </p>
+          </div>
         </div>
         <ChevronRight size={15} className="text-muted group-hover:text-accent-ink shrink-0 mt-0.5" />
       </Link>
@@ -146,13 +153,13 @@ function InsurerCard(
         </div>
       ) : (
         // Pas de détail de contrat (ex. AV Luxembourg « redondant ») : on remplit
-        // la carte avec un accès direct aux supports plutôt que de laisser un vide.
+        // la carte avec un accès direct à la fiche assureur plutôt qu'un vide.
         <div className="mt-3.5 flex-1 flex items-center justify-center">
           <Link
-            href={insurerHref(insurer.company)}
+            href={insurerHref(insurer.company, env)}
             className="inline-flex items-center gap-1.5 text-label font-medium text-accent hover:underline"
           >
-            Voir tous les supports référencés
+            Voir la fiche de l&apos;assureur
             <ChevronRight size={14} />
           </Link>
         </div>
