@@ -24,6 +24,9 @@ export function slugifyInsurer(company: string): string {
 const LOGO_ALIASES: Record<string, string> = {
   "allianz-life-luxembourg": "allianz-france",
   "swiss-life-luxembourg": "swisslife-france",
+  // Véhicules Lux/partenaire du groupe Apicil → logo APICIL (curé Wikimedia).
+  "apicil-onelife": "apicil",
+  "apicil-luxembourg": "apicil",
 };
 
 // Chemin du logo si un vrai logo existe pour cet assureur (directement ou via

@@ -37,10 +37,21 @@ describe("insurerLogoSrc", () => {
     expect(insurerLogoSrc("Allianz Life Luxembourg")).toBe("/insurers/allianz-france.png");
     expect(insurerLogoSrc("Swiss Life Luxembourg")).toBe("/insurers/swisslife-france.png");
   });
+  it("résout les logos curés (Wikimedia) avec le bon slug", () => {
+    expect(insurerLogoSrc("APICIL")).toBe("/insurers/apicil.png");
+    // slugs à pièges (apostrophe / espace).
+    expect(insurerLogoSrc("Caisse d'Épargne")).toBe("/insurers/caisse-d-epargne.png");
+    expect(insurerLogoSrc("Bourse Direct")).toBe("/insurers/bourse-direct.png");
+  });
+  it("aliasse les véhicules Apicil vers le logo APICIL", () => {
+    expect(insurerLogoSrc("Apicil / OneLife")).toBe("/insurers/apicil.png");
+    expect(insurerLogoSrc("APICIL Luxembourg")).toBe("/insurers/apicil.png");
+  });
   it("renvoie null quand aucun logo n'a été sourcé (repli monogramme)", () => {
-    // Spirica a été exclu (placeholder générique) → pas de logo.
+    // Spirica et Selencia : aucun logo libre trouvé → monogramme.
     expect(INSURER_LOGO_SLUGS.has("spirica")).toBe(false);
     expect(insurerLogoSrc("Spirica")).toBeNull();
+    expect(insurerLogoSrc("Selencia")).toBeNull();
   });
   it("renvoie null pour une valeur vide/absente", () => {
     expect(insurerLogoSrc("")).toBeNull();

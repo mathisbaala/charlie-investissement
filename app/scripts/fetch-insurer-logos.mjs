@@ -13,11 +13,19 @@
 // Les placeholders génériques (fond gris + 1re lettre, servis quand un domaine
 // n'a pas de favicon) sont détectés et EXCLUS → ces assureurs auront un
 // monogramme stylé côté UI plutôt qu'un faux logo.
+//
+// Marques dont le site bloque le favicon (403/JS) : logo officiel curé depuis
+// Wikimedia Commons (voir CURATED). Tous les fichiers sont normalisés en vrai
+// PNG (`sips`) car les sources peuvent renvoyer du JPEG/ICO renommé .png.
 
 import { writeFile, mkdir, stat, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileP = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_DIR = join(__dirname, "..");
@@ -112,6 +120,17 @@ const DOMAINS = {
   "Yomoni": "yomoni.fr",
 };
 
+// Logos CURÉS (par slug) : marques dont le site bloque le scraping de favicon
+// (403 / JS / anti-bot) → on prend le logo officiel via Wikimedia Commons
+// (Wikidata P154 ou image de tête de l'article), source stable et libre.
+// Special:FilePath rend même les SVG en raster. Normalisés en PNG à l'écriture.
+// Clés = slug(company) EXACT (slugify du nom en base).
+const CURATED = {
+  "apicil": "https://commons.wikimedia.org/wiki/Special:FilePath/Logotype%20Groupe%20APICIL.png?width=400",
+  "caisse-d-epargne": "https://commons.wikimedia.org/wiki/Special:FilePath/Team%20Caisse%20d%E2%80%99Epargne.svg?width=400",
+  "bourse-direct": "https://fr.wikipedia.org/wiki/Special:FilePath/Bourse-Direct-Logo.jpg?width=400",
+};
+
 const faviconUrl = (domain) =>
   `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=256`;
 const iconHorseUrl = (domain) => `https://icon.horse/icon/${encodeURIComponent(domain)}`;
@@ -147,6 +166,15 @@ async function buildPlaceholderHashes() {
     }),
   );
   return hashes;
+}
+
+// Normalise un fichier en vrai PNG (les favicons/logos peuvent arriver en JPEG,
+// ICO, WEBP… renommés .png). Utilise `sips` (macOS). Best-effort : sans sips,
+// on garde les octets tels quels. Idempotent sur un PNG déjà valide.
+async function normalizeToPng(path) {
+  try {
+    await execFileP("sips", ["-s", "format", "png", path, "--out", path]);
+  } catch {}
 }
 
 // Récupère un VRAI logo (non générique). Google favicon d'abord, repli icon.horse.
@@ -194,8 +222,25 @@ async function main() {
     }
     byHash.set(h, { slug, domain });
     await writeFile(out, buf);
+    await normalizeToPng(out);
     ok.push(slug);
     console.log(`✓ ${company.padEnd(34)} ${domain.padEnd(28)} ${buf.length} o`);
+  }
+
+  // Logos curés (Wikimedia) pour les marques dont le favicon est inexploitable.
+  for (const [slug, url] of Object.entries(CURATED)) {
+    if (ok.includes(slug)) continue; // déjà obtenu via favicon
+    const out = join(OUT_DIR, `${slug}.png`);
+    try {
+      const buf = await fetchBuffer(url);
+      if (buf.length < 300) throw new Error("trop petit");
+      await writeFile(out, buf);
+      await normalizeToPng(out);
+      ok.push(slug);
+      console.log(`✓ ${slug.padEnd(34)} ${"wikimedia (curé)".padEnd(28)} ${buf.length} o`);
+    } catch (e) {
+      console.log(`○ ${slug.padEnd(34)} ${"wikimedia (curé)".padEnd(28)} ${e?.message ?? e}`);
+    }
   }
 
   // Fichier généré : liste des slugs disposant d'un logo (source unique pour le
