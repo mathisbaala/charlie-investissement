@@ -87,7 +87,7 @@ export default async function ComparateurPage({
     return (
       <PageShell className="space-y-5">
         <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
-          <ArrowLeft size={12} /> Tous les assureurs
+          <ArrowLeft size={12} /> Tous les partenaires
         </Link>
         <div className="flex h-48">
           <EmptyState
@@ -111,7 +111,7 @@ export default async function ComparateurPage({
     return (
       <PageShell className="space-y-5">
         <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
-          <ArrowLeft size={12} /> Tous les assureurs
+          <ArrowLeft size={12} /> Tous les partenaires
         </Link>
         <div className="flex h-48">
           <EmptyState
@@ -170,7 +170,7 @@ export default async function ComparateurPage({
       <ComparatorSync items={ordered.map((r) => ({ key: r.key, company: r.company, contract: r.contract }))} />
 
       <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
-        <ArrowLeft size={12} /> Tous les assureurs
+        <ArrowLeft size={12} /> Tous les partenaires
       </Link>
 
       <div>

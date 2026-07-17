@@ -6,6 +6,7 @@ import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
 import { InsurerLogo } from "@/components/ui/InsurerLogo";
+import { SolidityStat } from "@/components/ui/SolidityStat";
 import type { Envelope } from "@/lib/insurer-envelope";
 import ContractComparison, { type ComparisonContract } from "./ContractComparison";
 
@@ -39,17 +40,6 @@ type InsurerComparison = {
 };
 
 const VALID_ENV: Envelope[] = ["av", "capi", "per", "pea"];
-
-function SolidityStat({ label, value, sub }: { label: string; value: string | null; sub?: string | null }) {
-  if (!value) return null;
-  return (
-    <div className="rounded-lg bg-paper-2 border border-line px-3 py-2">
-      <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">{label}</p>
-      <p className="text-body-lg text-ink font-semibold tabular-nums mt-0.5">{value}</p>
-      {sub && <p className="text-caption text-muted-2 mt-0.5">{sub}</p>}
-    </div>
-  );
-}
 
 export default async function InsurerPage({
   searchParams,
@@ -102,7 +92,7 @@ export default async function InsurerPage({
         className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors"
       >
         <ArrowLeft size={12} />
-        Tous les assureurs
+        Tous les partenaires
       </Link>
 
       {/* En-tête assureur : contexte + accès direct à tous ses supports */}

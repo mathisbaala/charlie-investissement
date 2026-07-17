@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Btn } from "@/components/ui/Btn";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
 import { Shield, X } from "@/components/ui/icons";
@@ -227,9 +228,8 @@ export function AnalyseExistant() {
     <PageShell>
       <h1 className="text-title-lg text-ink mb-1">Analyse de l&apos;existant</h1>
       <p className="text-body text-muted mb-6">
-        Déposez les relevés de situation du client (PDF, Excel ou CSV) : Charlie en extrait les
-        positions, reconnaît les contrats grâce au référencement, puis dresse la synthèse
-        consolidée et des recommandations ciblées, sans refaire le portefeuille.
+        Déposez les relevés du client (PDF, Excel ou CSV) : Charlie consolide les positions,
+        reconnaît les contrats et propose des recommandations ciblées.
       </p>
 
       {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
@@ -237,13 +237,11 @@ export function AnalyseExistant() {
         <Shield className="w-5 h-5 mt-0.5 shrink-0 text-ok" aria-hidden />
         <div>
           <p className="text-body font-semibold text-ink mb-0.5">
-            Vos documents ne sont ni stockés, ni transmis : l&apos;analyse est 100&nbsp;% anonyme.
+            Les documents ne sont jamais conservés.
           </p>
           <p className="text-caption text-muted">
-            Charlie lit uniquement les lignes de supports financiers (code ISIN et montant) et en
-            construit un portefeuille anonymisé. Aucune donnée d&apos;identité (nom, adresse, numéro
-            d&apos;adhérent, adresse mail) n&apos;est extraite, conservée ou envoyée ; le document est lu
-            en mémoire puis immédiatement oublié.
+            Seules les lignes de supports (ISIN et montants) sont lues, jamais les données
+            personnelles : le document est traité en mémoire puis oublié.
           </p>
         </div>
       </Card>
@@ -260,18 +258,16 @@ export function AnalyseExistant() {
           onChange={(e) => onFiles(e.target.files)}
         />
         <div className="flex items-center gap-4 flex-wrap">
-          <button
+          <Btn
             type="button"
+            variant="primary"
+            loading={busy}
             onClick={() => fileInput.current?.click()}
-            disabled={busy}
-            className="px-4 py-2 rounded-lg bg-ink text-paper text-body font-medium disabled:opacity-50"
           >
             {busy ? "Lecture en cours…" : "Déposer des relevés"}
-          </button>
+          </Btn>
           <p className="text-caption text-muted">
-            L&apos;outil lit les fichiers PDF, Excel (xlsx/xls) et CSV. Les documents scannés ou
-            photographiés ne sont pas encore lus : privilégiez les fichiers téléchargés depuis
-            les espaces en ligne.
+            Formats PDF, Excel et CSV. Les scans et photos ne sont pas encore lus.
           </p>
         </div>
         {error && <p className="text-caption text-danger mt-3">{error}</p>}
@@ -384,17 +380,19 @@ export function AnalyseExistant() {
       {/* ── Lancement de l'analyse ── */}
       {releves.length > 0 && (
         <div className="flex items-center gap-4 flex-wrap mb-8">
-          <button
+          <Btn
             type="button"
+            variant="primary"
+            loading={analysing}
+            disabled={consolidated.length < 2}
             onClick={analyse}
-            disabled={analysing || consolidated.length < 2}
-            className="px-4 py-2 rounded-lg bg-ink text-paper text-body font-medium disabled:opacity-50"
           >
             {analysing ? "Analyse en cours…" : "Analyser le patrimoine consolidé"}
-          </button>
+          </Btn>
           <p className="text-caption text-muted">
-            {consolidated.length} support{consolidated.length > 1 ? "s" : ""} valorisé{consolidated.length > 1 ? "s" : ""} ·{" "}
-            {nbLignes} ligne{nbLignes > 1 ? "s" : ""} extraite{nbLignes > 1 ? "s" : ""} · total {EUR.format(total)}
+            {consolidated.length < 2
+              ? "Au moins 2 supports valorisés sont nécessaires pour l'analyse."
+              : `${consolidated.length} supports valorisés · ${nbLignes} ligne${nbLignes > 1 ? "s" : ""} extraite${nbLignes > 1 ? "s" : ""} · total ${EUR.format(total)}`}
           </p>
         </div>
       )}
@@ -432,8 +430,8 @@ export function AnalyseExistant() {
           {synthese.recos.length === 0 ? (
             <Card className="p-5 mb-6">
               <p className="text-body text-ink">
-                Rien de bloquant détecté : corrélations maîtrisées, frais homogènes, pas de
-                concentration excessive. Le portefeuille existant est cohérent.
+                Aucune recommandation : corrélations maîtrisées, frais homogènes et pas de
+                concentration excessive.
               </p>
             </Card>
           ) : (

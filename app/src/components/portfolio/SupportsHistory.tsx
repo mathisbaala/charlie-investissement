@@ -68,9 +68,12 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
 
   const key = (isin: string) => `${isin}|${years}|${benchmark}`;
 
-  // Fan out : une analyse « portefeuille à 1 ligne » par support manquant.
+  // Fan out : une analyse « portefeuille à 1 ligne » par support manquant. La clé
+  // est inlinée (pas la closure `key`) pour que toutes les valeurs réactives lues
+  // figurent dans les deps ; la garde `missing.length === 0` coupe toute boucle
+  // dès que les supports de la fenêtre courante sont chargés.
   useEffect(() => {
-    const missing = holdings.filter((h) => !(key(h.isin) in fundData));
+    const missing = holdings.filter((h) => !(`${h.isin}|${years}|${benchmark}` in fundData));
     if (missing.length === 0) return;
     let cancelled = false;
     Promise.all(
@@ -78,13 +81,12 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
         fetch(`/api/portfolio/analyze?isins=${h.isin}&weights=100&years=${years}&benchmark=${benchmark}`)
           .then((r) => r.json())
           .catch(() => ({ error: "network" }) as PortfolioAnalysis)
-          .then((j) => [key(h.isin), j as PortfolioAnalysis] as const),
+          .then((j) => [`${h.isin}|${years}|${benchmark}`, j as PortfolioAnalysis] as const),
       ),
     ).then((entries) => {
       if (!cancelled) setFundData((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdings, years, benchmark, fundData]);
 
   // Séries par support, dans l'ordre des poids : la couleur suit le support
@@ -189,8 +191,8 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
         </div>
       </div>
       <p className="text-meta text-muted mb-4">
-        Chaque support rebasé à 100 sur son propre historique, face à l&apos;indice
-        (pointillé). Cliquer un support dans la légende pour le masquer ou le réafficher.
+        Base 100 sur l&apos;historique propre de chaque support, face à l&apos;indice
+        (pointillé). La légende permet de masquer ou réafficher un support.
       </p>
 
       {/* Maturité demandée plus profonde que le support le plus ancien : on le dit
@@ -262,8 +264,8 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
 
       {skipped > 0 && (
         <p className="text-caption text-muted-2 mt-2">
-          {skipped} support{skipped > 1 ? "s" : ""} non tracé{skipped > 1 ? "s" : ""} (8 lignes
-          maximum pour rester lisible) ; le tableau ci dessous couvre tout le portefeuille.
+          {skipped} support{skipped > 1 ? "s" : ""} non tracé{skipped > 1 ? "s" : ""} sur le
+          graphe (8 courbes maximum). Le tableau ci-dessous couvre tout le portefeuille.
         </p>
       )}
 
