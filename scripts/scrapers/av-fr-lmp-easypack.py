@@ -17,7 +17,8 @@ Différences vs LMEP Lux (repérage 2026-07-16) :
 PÉRIMÈTRE ACTUEL : les bassins RETRAITE/PER/Madelin (~41, mission PER du 16/07)
 + CAPITALISATION (~244, mission capi du 16/07 — stock patrimonial La Mondiale
 Partenaire, fermés inclus : utile à l'analyse de portefeuilles clients ; les
-variantes à univers identique sont regroupées par la matview contract_groups).
+variantes à univers identique sont regroupées par la matview contract_groups)
++ PEA (9 bassins dont 6 sans « capi » au nom, mission PEA du 17/07).
 Le stock AV (vie) France du groupe (~700 bassins) reste hors périmètre —
 extension possible en élargissant BASSIN_RE.
 company_name = « AG2R La Mondiale » (nom déjà autoritaire en base pour le
@@ -52,8 +53,10 @@ DRIVER_JS = f"{ROOT}/Areas/Partenaire/Easypack/LMPEasypack/Supports/LMPEasypack.
 
 COMPANY = "AG2R La Mondiale"
 
-# Bassins retenus : contrats retraite/PER/Madelin + capitalisation.
-BASSIN_RE = re.compile(r"retraite|\bper\b|perin|\bperp\b|madelin|capitalisation|\bcapi\b",
+# Bassins retenus : contrats retraite/PER/Madelin + capitalisation + PEA
+# (« ALPHEE PEA », « MONDIALE PEA »… n'ont ni « capi » ni « retraite » au nom —
+# 6 bassins PEA seraient ratés sans le mot-clé dédié, constat du 17/07).
+BASSIN_RE = re.compile(r"retraite|\bper\b|perin|\bperp\b|madelin|capitalisation|\bcapi\b|\bpea\b",
                        re.IGNORECASE)
 
 ISIN_RE   = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}\d$")
