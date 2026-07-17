@@ -47,8 +47,10 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-asac-fapes-catalog.py", []),   # Asac Fapes (3 contrats — vérifié 15/07)
     ("scrapers/av-fr-bpce-catalog.py", []),         # BPCE Vie / Natixis Assurances (portail HTML priips, 7 réseaux, 38 contrats — vérifié 15/07)
     ("scrapers/av-fr-prepar-vie-catalog.py", []),   # Prépar Vie (portail AJAX priips.prepar-vie.com, 11 réseaux, 36 contrats — vérifié 15/07)
-    ("scrapers/av-fr-afi-esca-catalog.py", []),     # Afi Esca (Sélection Premium, liste mensuelle — vérifié 15/07)
-    # av-fr-oradea-catalog.py RETIRÉ 13/07 : portail source décommissionné (cf. quarantaine ci-dessous).
+    ("scrapers/av-fr-afi-esca-catalog.py", []),     # Afi Esca FR (Sélection Premium, liste mensuelle — vérifié 15/07 ; ≠ AFI ESCA Luxembourg ci-dessous)
+    ("scrapers/av-fr-oradea-catalog.py", []),       # RESSUSCITÉ 16/07 : portail déménagé sur priips.sogecap.com/priips/oradea.html (8 contrats granulaires)
+    ("scrapers/av-fr-sogecap-catalog.py", []),      # Sogécap / SG Assurances (portail PRIIPS statique, 10 contrats — ajouté 16/07)
+    ("scrapers/av-fr-conservateur-catalog.py", []), # Le Conservateur (PDF loi PACTE M40/M41/M42, millésime découvert via wp-json — ajouté 16/07)
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
@@ -57,6 +59,10 @@ AV_CATALOG_STEPS = [
     #    sur ISIN en base). ~65 contrats / ~11,9k liens bruts au câblage.
     ("scrapers/av-fr-cnp-catalog.py", []),          # CNP Assurances (Lucya CNP, Nuances, EasyVie)
     ("scrapers/av-fr-predica-catalog.py", []),      # Predica / Crédit Agricole (WP REST → PDF)
+    ("scrapers/av-fr-caar-catalog.py", []),         # CAA Retraite / ex-Predica — PER Perspective + LCL Retraite PER (clone WP predica, ajouté 16/07)
+    ("scrapers/av-fr-cnp-dic-catalog.py", []),      # CNP Retraite — PER Cachemire + PER CE via API JSON dic.cnp.fr (ajouté 16/07)
+    ("scrapers/av-fr-covea-easypack.py", []),       # Covéa MMA/GMF — PER Avenir, Signature PER, Cadencéo (Easypack Quantalys, ajouté 16/07)
+    ("scrapers/av-fr-lmp-easypack.py", []),         # AG2R La Mondiale — 41 contrats retraite/PER France (Easypack LMP, ajouté 16/07)
     ("scrapers/av-fr-abeille-catalog.py", []),      # Abeille Vie (ex-Aviva, Afer/Lucya Abeille)
     ("scrapers/av-fr-groupama-gan-catalog.py", []), # Groupama Gan Vie (webfg, 4 marques)
     ("scrapers/av-fr-macsf-catalog.py", []),        # MACSF (RES Multisupport)
@@ -66,17 +72,29 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-acm-catalog.py", []),          # ACM Vie / Crédit Mutuel-CIC
     ("scrapers/av-fr-maif-catalog.py", []),         # MAIF Vie (ARS — API JSON gateway maif.fr ; reachability CI à confirmer, cf. gotcha Abeille/MAAF)
     # ── AV Luxembourg ─────────────────────────────────────────────────────────
+    ("scrapers/av-lux-afi-esca-catalog.py", []),          # AFI ESCA Lux — PDF loi PACTE, URL découverte (ajouté 16/07)
+    ("scrapers/av-lux-allianz-catalog.py", []),           # Allianz Life Lux — portail PRIIPS, POST par produit (ajouté 16/07)
     ("scrapers/av-lux-apicil-onelife-catalog.py", []),
     ("scrapers/av-lux-axa-wealtheurope-catalog.py", []),  # PDF → poppler-utils requis
     ("scrapers/av-lux-baloise-catalog.py", []),           # PDF → poppler-utils requis
+    ("scrapers/av-lux-cnp-catalog.py", []),               # CNP Lux — quantalys Easypack, listes par contrat (ajouté 16/07)
     ("scrapers/av-lux-generali-catalog.py", []),
     ("scrapers/av-lux-lmep-easypack.py", []),               # AG2R LMEP (quantalys Easypack, réparé 21/06 : porte JS + payload DataTables)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--all"]),      # contrats KNOWN_CONTRACTS (IDs figés)
     ("scrapers/av-lux-opcvm360-catalog.py", ["--dynamic"]),  # contrats /licontracts (noms assureur autoritaires : Generali Vie, AG2R, Spirica…)
+    ("scrapers/av-lux-sogelife-catalog.py", []),          # Sogelife — ZIP PRIIPS, répertoire central lu via Range (ajouté 16/07)
     ("scrapers/av-lux-swisslife-catalog.py", []),
-    ("scrapers/av-lux-utmost-catalog.py", []),            # PDF → poppler-utils requis
+    ("scrapers/av-lux-utmost-catalog.py", []),            # migré PDF → API REST utmostgroup.com le 16/07 (ex-Lombard, renommé Utmost Luxembourg S.A.)
     ("scrapers/av-lux-vitislife-catalog.py", []),         # PDF → poppler-utils requis
     ("scrapers/av-lux-wealins-catalog.py", []),           # migré scrapling→curl_cffi+parsel (21/06)
+    # ── PEA courtiers (univers de fonds négociables par PEA bancaire) ─────────
+    ("scrapers/pea-fortuneo-catalog.py", []),       # API JSON publique — PEA (~595 : OPCVM+ETF) + PEA-PME (36) — ajouté 17/07
+    ("scrapers/pea-boursedirect-catalog.py", []),   # API WebFG — PEA (~3 090) + PEA-PME (259) — ajouté 17/07
+    ("scrapers/pea-boursobank-catalog.py", []),     # dérivé des fonds data_source='boursorama-pea' (chargeur de Joseph, hors repo) — ajouté 17/07
+    ("scrapers/pea-easybourse-catalog.py", []),     # REST public /rest/search (La Banque Postale) — PEA 297 + PEA-PME 24 — ajouté 17/07
+    ("scrapers/pea-lcl-catalog.py", []),            # API Amundi TIP publique, flag class.peaEligibility — 79 fonds — ajouté 17/07
+    ("scrapers/pea-selections-catalog.py", []),     # SSR : Yomoni (195) + sélections Caisse d'Épargne/Banque Populaire (45+45) — ajouté 17/07
+    ("scrapers/pea-traderepublic-catalog.py", []),  # PDF univers (~13,5k ISIN) ∩ flags pea_eligible — ajouté 17/07
     # ── Délistage : purge les liens confirmés périmés (UC retirées d'un contrat) ──
     ("enrichers/prune-stale-av-eligibility.py", []),
     # ── Recompose l'offre par contrat (matview lue par /assureurs & screener) ──
@@ -98,26 +116,20 @@ AV_CATALOG_STEPS = [
 #                                            ne contiennent aucun ISIN — liste de supports
 #                                            réservée à l'espace client/portail. À couvrir via
 #                                            Playwright si l'espace public change de structure.)
-#       - Sogelife                           (le site public ne référence que la plateforme
-#                                            PREMIUM réservée aux partenaires (login requis) ;
-#                                            aucune annexe financière publique trouvée le 15/07.
-#                                            À recontacter côté partenariat Sogelife pour un accès
-#                                            API/export, ou Playwright si PREMIUM devient accessible.)
 #       - Neuflize Vie (Hoche Patrimoine…)   (banque privée : /contrats/ redirige vers la page
 #                                            d'accueil générique neuflizeobc.fr, aucune annexe
 #                                            financière publique trouvée le 15/07. Distribution
 #                                            probablement conseiller-only ; à recontacter côté
 #                                            partenariat ou vérifier un accès CGP dédié.)
-#   • sources DÉCOMMISSIONNÉES (hôte source disparu, à re-sourcer avant réintégration) :
-#       - scrapers/av-fr-oradea-catalog.py   (RETIRÉ 13/07 : le portail statique
-#                                            priips.oradea-vie.com — HTML à attributs cdisine="ISIN" —
-#                                            est mort (NXDOMAIN, tout le domaine oradea-vie.com).
-#                                            Le groupe a migré vers oradeavie.fr (Imperva/Incapsula,
-#                                            landing marketing sans catalogue machine-lisible).
-#                                            Les 916 liens Oradéa déjà en base sont conservés
-#                                            (upsert-only + garde anti-scraper-cassé du prune).
-#                                            Réintégrer si un nouvel endpoint DIC listant les ISIN
-#                                            est retrouvé sur oradeavie.fr.)
+#     (Sogelife : quarantaine du 15/07 LEVÉE le 16/07 — les ZIP PRIIPS publics
+#      doc.sogelife.com/priips/<code>.zip listent les UC par contrat →
+#      av-lux-sogelife-catalog câblé dans la liste ci-dessus.)
+#     (Oradéa : décommission du 13/07 ANNULÉE le 16/07 — le portail statique n'est
+#      pas mort, il a DÉMÉNAGÉ sur l'infra de la maison mère :
+#      priips.sogecap.com/priips/oradea.html (même format cdisine, désormais
+#      granulaire par contrat, 8 produits). av-fr-oradea-catalog réintégré
+#      ci-dessus ; l'ancien agrégat « Oradéa Vie (gamme courtage) » (916 lignes)
+#      a été purgé au profit du per-contrat le 16/07.)
 # (scrapers/linxea-av-catalog.py SUPPRIMÉ le 21/06 : comparateur Linxea 404, superseded
 #  par av-lux-linxea-catalog.py.)
 #

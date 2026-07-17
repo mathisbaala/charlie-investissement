@@ -28,23 +28,29 @@ from db import get_client, log_run
 
 AV_LUX_COMPANIES = [
     # (short_code, name, group, website, notes)
-    ("LOMBARD_INTL",     "Lombard International Assurance",       "Lombard Intl Group",       "https://www.lombardinternational.com",         "Leader HNW, FID/FIC, ticket élevé"),
+    # Lombard International Assurance S.A. a été RENOMMÉE Utmost Luxembourg S.A.
+    # (rachat Utmost Group 30/12/2024, rebrand 11/2025, même entité — RCS B37604).
+    ("LOMBARD_INTL",     "Utmost Luxembourg S.A.",                 "Utmost Group",              "https://www.utmostgroup.com",                   "ex-Lombard International Assurance ; leader HNW, contrat Liberté, FID/FAS"),
     ("ONELIFE",          "OneLife",                                "APICIL",                    "https://www.onelife.eu.com",                    "Filiale APICIL (FR), FID/FIC"),
-    ("SOGELIFE",         "Sogelife (Société Générale Insurance)",  "Société Générale Insurance","https://www.sogelife.com",                      "Filiale Société Générale, AV Lux"),
+    ("SOGELIFE",         "Sogelife",                               "Société Générale Insurance","https://www.sogelife.com",                      "Filiale Société Générale ; Personal Multisupports, BoursoVie Lux"),
     ("WEALINS",          "Wealins (ex-Foyer International)",       "Foyer Group",               "https://www.wealins.com",                       "Spécialiste HNW, FID"),
     ("GENERALI_LUX",     "Generali Luxembourg",                    "Generali",                  "https://www.generali.lu",                       "Filiale Generali, multi-produits"),
     ("BALOISE_LUX",      "Baloise Vie Luxembourg",                 "Baloise Group",             "https://www.baloise.lu",                        "Filiale Baloise (CH)"),
     ("VITIS_LIFE",       "Vitis Life (groupe BIL)",                "Banque Internationale Lux", "https://www.vitislife.com",                     "Filiale BIL"),
-    ("CALI_EUROPE",      "Cardif Lux Vie (CALI Europe)",           "BNP Paribas Cardif",        "https://www.cardifluxvie.com",                  "Filiale BNP Paribas Cardif"),
+    # ⚠ CALI Europe = Crédit Agricole Life Insurance Europe (corrigé 16/07/2026 :
+    #   l'entrée confondait CALI Europe et Cardif Lux Vie/BNP — deux compagnies).
+    ("CALI_EUROPE",      "CALI Europe",                            "Crédit Agricole Assurances","https://www.cali-europe.com",                   "Filiale Crédit Agricole ; distribution banques privées CA/LCL/Indosuez (CALIE Life Excellence/Patrimony)"),
+    ("CARDIF_LUX_VIE",   "Cardif Lux Vie",                         "BNP Paribas Cardif",        "https://www.cardifluxvie.com",                  "Filiale BNP Paribas Cardif"),
     ("BCEE_VIE",         "Lalux Vie (Le Foyer)",                   "Le Foyer",                  "https://www.lalux.lu",                          "Compagnie historique, retail+HNW"),
     ("AXA_LUX",          "AXA Wealth Europe",                      "AXA",                       "https://wealtheurope.axa.com",                  "Filiale AXA, AV Lux"),
-    ("ALLIANZ_LIFE_LUX", "Allianz Life Luxembourg",                "Allianz",                   "https://www.allianz.lu",                        "Filiale Allianz, multi-produits"),
+    ("ALLIANZ_LIFE_LUX", "Allianz Life Luxembourg",                "Allianz",                   "https://www.allianz.lu",                        "Filiale Allianz ; Exclusive Invest France, Global Invest Evolution (LPS)"),
+    ("AFI_ESCA_LUX",     "AFI ESCA Luxembourg",                    "Groupe Burrus",             "https://www.afi-esca.lu",                       "Quality Life / Cap Quality (LPS France) ; ≠ Afi-Esca S.A. Strasbourg (entité FR)"),
     ("NATIO_VIE",        "Natio Vie Luxembourg",                   "BPCE Vie",                  "",                                              "Filiale BPCE"),
-    ("UTMOST_WEALTH",    "Utmost Wealth Solutions",                "Utmost Group",              "https://www.utmostwealthsolutions.com",         "ex-Generali Worldwide"),
-    ("CNP_LUX",          "CNP Luxembourg",                         "CNP Assurances",            "https://www.cnp.lu",                            "Filiale CNP"),
+    ("UTMOST_WEALTH",    "Utmost Wealth Solutions",                "Utmost Group",              "https://www.utmostgroup.com",                   "Marque de division (dont Utmost PanEurope dac, Irlande — PWP France)"),
+    ("CNP_LUX",          "CNP Luxembourg",                         "CNP Assurances",            "https://www.cnpluxembourg.lu",                  "LPS France depuis 2015 (CNP One Lux, Aster One, Alyses…), CGP + La Banque Postale"),
     ("SEB_LIFE",         "SEB Life International",                 "SEB",                       "https://www.seb.lu",                            "Spécialiste cross-border HNW"),
     ("SWISSLIFE_LUX",    "Swiss Life Luxembourg",                  "Swiss Life",                "https://www.swisslife.lu",                      "Filiale Swiss Life"),
-    ("ZURICH_EUROVITA",  "Zurich Eurolife",                        "Zurich Insurance",          "https://www.zurich.lu",                         "Filiale Zurich"),
+    ("ZURICH_EUROVITA",  "Zurich Eurolife",                        "Zurich Insurance",          "https://www.zurich.lu",                         "HORS PÉRIMÈTRE retail FR : retraite/prévoyance collective only (patrimonial cédé à Lombard en 2016)"),
     ("AVIVA_LUX",        "Aviva Vie Luxembourg",                   "Aviva (Aéma)",              "https://www.aviva.lu",                          "ex-AVIVA"),
     ("PRIVATEINSU",      "Private Insurer (groupe Vault)",         "Vault",                     "https://www.private-insurer.com",               "Spécialiste FID"),
     ("HSBC_LIFE",        "HSBC Life Assurance Luxembourg",         "HSBC",                      "https://www.hsbc.lu",                           "Filiale HSBC"),

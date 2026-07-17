@@ -1,7 +1,7 @@
 # Référencement Assurance-Vie — système & runbook
 
 > Doc de référence du système de référencement UC↔contrat d'assurance-vie.
-> Dernière mise à jour : 2026-06-21. Complète `docs/data-collection-playbook.md`
+> Dernière mise à jour : 2026-07-16. Complète `docs/data-collection-playbook.md`
 > (collecte de fonds) et `docs/tier3-missing-insurers-spec.md` (extension assureurs).
 
 ## 1. À quoi ça sert
@@ -39,12 +39,26 @@ chevauchement). Décalé du refresh SCPI (le 5).
 
 ## 4. Inventaire des scrapers
 
-**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,mutualistes,oradea,spirica,suravenir,swisslife}`,
-`av-lux-{apicil-onelife,axa-wealtheurope,baloise,generali,swisslife,utmost,vitislife,wealins}`,
+**Actifs (job HTTP)** : `av-fr-{allianz,axa,cardif,generali,mutualistes,garance,monceau,asac-fapes,bpce,prepar-vie,afi-esca,oradea,sogecap,conservateur,spirica,suravenir,swisslife}`
+(oradea RESSUSCITÉ 16/07 : le portail a déménagé sur `priips.sogecap.com/priips/oradea.html`, granulaire par contrat),
+`av-lux-{afi-esca,allianz,apicil-onelife,axa-wealtheurope,baloise,cnp,generali,sogelife,swisslife,utmost,vitislife,wealins}`,
 `av-lux-opcvm360 --all` + `--dynamic`. *(Tier 3 : bancassureurs FR ajoutés en parallèle — cf. §8.)*
 
 **Actifs (job navigateur)** : `av-lux-linxea-catalog` (JWT Morningstar via navigateur),
-`av-lux-cardif-lux-vie-catalog` (APIs SPA en session).
+`av-lux-cardif-lux-vie-catalog` (APIs SPA en session),
+`av-lux-cali-europe-catalog` (grid DevExpress my-calie.com, API cliente `ExpandAll`/`GotoPage`).
+
+**Extension AV Lux LPS France (16/07/2026)** — sources par assureur :
+
+| Assureur (`company_name`) | Scraper | Source | Contrats |
+|---|---|---|---|
+| CNP Luxembourg | `av-lux-cnp-catalog` | Quantalys Easypack `cnplux-ezp.quantalys.com` (porte JS + DataTables, listes PAR contrat, `agrement=FR`) | 9 (CNP One Lux/Capi, Saint Honoré Innovation, Aster One, Vertuo, Alyses) — ~2 277 ISIN |
+| Sogelife | `av-lux-sogelife-catalog` | ZIP PRIIPS `doc.sogelife.com/priips/<code>.zip` — ISIN lus dans les NOMS de fichiers DIS (`S_<ISIN>_…pdf`) via le répertoire central du ZIP (requêtes Range, ~100 Ko au lieu de 230 Mo) | 5 (Personal Multisupports ×2, Private Selection, Target FR ×2) — ~1 001 ISIN |
+| CALI Europe | `av-lux-cali-europe-catalog` 🖥 | Portail PRIIPS `my-calie.com/FO.PRIIPS` (jeton `pct` de session via l'iframe SearchKid ; navigateur requis) | 4 (CALIE Life Excellence/Patrimony 2+ (F), vie+capi) — ~286 ISIN |
+| Allianz Life Luxembourg | `av-lux-allianz-catalog` | Portail PRIIPS `life.allianz.lu/priips/` — POST `p=<code>&lang=fr`, page ~16 Mo régexée sur `data-isin` | 2 (Exclusive Invest France `085`, Global Invest Evolution France `092`) — ~172 ISIN |
+| AFI ESCA Luxembourg | `av-lux-afi-esca-catalog` | PDF « Liste-QLCQ-FRANCE loi PACTE » (annuel, URL découverte sur `afi-esca.lu/infos-tarification-france/`) | Quality Life + Cap Quality — ~129 ISIN. ≠ « Afi Esca » (entité FR) |
+| Utmost Luxembourg S.A. | `av-lux-utmost-catalog` | **Migré PDF → API REST WP** `utmostgroup.com/wp-json/wp/v2/fund?fund-list-code=<id>` (slug 2626 = Liberté). Ex-Lombard International (renommé 11/2025) | Liberté — 66 ISIN externes (les « ~800 UC » incluent FID/FAS non publiés) |
+| Zurich Eurolife | — | **Hors périmètre** : uniquement retraite/prévoyance collective B2B en France ; le portefeuille patrimonial a été cédé à Lombard en 2016 | — |
 
 **Hors job (redondants/inopérants, données seedées)** :
 - `linxea-av-catalog` — URLs comparateur Linxea mortes ; **redondant** (Linxea couvert par `av-lux-linxea-catalog`).
@@ -93,6 +107,16 @@ pour un CGP) :
   Détail + procédure dans `docs/tier3-missing-insurers-spec.md` §0.bis.
 - ⚠️ **Noms d'assureur** : prendre le nom autoritaire de la source → évite « Assureur
   inconnu » et les doublons d'accent.
+- 🔴 **`contract_name` DOIT différer de `company_name`** : la matview
+  `investissement_fund_insurers_mv` construit `contracts[]` avec
+  `FILTER (contract_name <> company_name)`. Un scraper qui écrit le nom de
+  l'assureur comme nom de contrat rend l'offre INVISIBLE dans
+  `get_contracts_list`/`/assureurs` alors que l'assureur apparaît dans
+  `get_insurers_list` et que le run CI est `success` (le compteur
+  `records_processed` ne couvre que l'upsert des fonds). Deux fois le même bug :
+  Generali Lux (migration `20260710120000`) et Swiss Life Lux (`20260715120000`,
+  1 242 liens invisibles pendant ~2 mois). Convention : suffixer
+  « … Univers Global » quand la source n'a pas de per-contrat public.
 - **Valider sans DB** : `--apply` absent = dry-run (ne touche pas `get_client`) ; sonder
   d'abord avec `curl_cffi`. Creds réels = secrets CI → run `workflow_dispatch` pour le bout-en-bout.
 
@@ -158,3 +182,116 @@ couvre nativement.
   cf. `docs/tier3-missing-insurers-spec.md`. **Validé bout-en-bout en CI le 21/06** : 7/7 assureurs
   live (~2 504 fonds, 65 contrats) ; 5/7 écrits par le job, Abeille+MAAF seedés manuellement
   (IP CI bloquée → re-seed manuel trimestriel, cf. gotcha §7).
+
+## 8bis. Extension AV Lux LPS France (juillet 2026)
+
+- **Bugfix Swiss Life Luxembourg** : 1 242 liens présents en base mais contrat
+  invisible (`contract_name = company_name`, cf. gotcha §7). Scraper corrigé
+  (`Swiss Life Luxembourg Univers Global`) + migration `20260715120000`.
+- **5 nouveaux assureurs LPS France** (détail §4) : CNP Luxembourg, Sogelife,
+  CALI Europe 🖥, Allianz Life Luxembourg, AFI ESCA Luxembourg — sources
+  vérifiées par sondes le 16/07, dry-runs OK (~3 900 ISIN bruts cumulés).
+- **Utmost** : entité ex-Lombard renommée Utmost Luxembourg S.A. (rachat Utmost
+  clôturé 30/12/2024, rebrand 11/2025) ; scraper migré du PDF fonds-externes
+  vers l'API REST WordPress d'utmostgroup.com (taxonomie `fund-list-code`).
+  Les FID/FAS sur mesure ne sont pas énumérables publiquement (« ~800 UC »
+  marketing → 66 ISIN externes référençables).
+- **Zurich Eurolife : hors périmètre** (B2B collectif only en France ; SFCR 2025).
+- **Seed compagnies corrigé** : l'entrée CALI_EUROPE confondait CALI Europe
+  (Crédit Agricole) et Cardif Lux Vie (BNP) — scindée en deux ; ajout
+  AFI_ESCA_LUX ; noms Utmost/CNP mis à jour.
+
+## 8ter. Extension AV France (16/07/2026) — Sogécap, Le Conservateur, Oradéa
+
+- **Sogécap** (`av-fr-sogecap-catalog`) : portail PRIIPS statique
+  `priips.sogecap.com/priips/sogecap.html` — 1 requête = tout l'arbre contrat →
+  supports (`cdproduit`/`cdisine`), 10 contrats (~415 ISIN : Séquoia, Ébène ±capi,
+  Érable Essentiel, Sogécapi, gamme SG Gestion Privée). Sans anti-bot, régénéré
+  quotidiennement. DIS/KID par support via l'API AMFINE `epr.amfinesoft.com`
+  (clé embarquée dans la page).
+- **Oradéa Vie ressuscité** : la « décommission » du 13/07 était en fait un
+  déménagement sur la même infra Sogécap (`…/priips/oradea.html`, repéré via la
+  CSP du portail). Désormais **granulaire par contrat** (8 produits, ~1 119
+  ISIN dont Oradéa Multisupport). L'ancien agrégat « Oradéa Vie (gamme
+  courtage) » (916 lignes) a été purgé au profit du per-contrat.
+- **Le Conservateur** (`av-fr-conservateur-catalog`) : PDF « Tableau
+  d'information UC » loi PACTE par code produit (M40 = Hélios Patrimoine/Capi,
+  M41 = Épargne Retraite PER, M42 = Privilège/Capi Privilège), ~54 ISIN.
+  ⚠ millésime : URL résolue via `wp-json/wp/v2/media?search=Tableau-d-information`
+  en triant sur le suffixe `-MMAA.pdf` du nom de fichier (PAS sur la date
+  d'upload WP — une vieille édition peut être re-téléversée après la neuve).
+- **Restes FR documentés** : Matmut Vie & Neuflize Vie (aucune source publique,
+  quarantaine 15/07 maintenue) ; Mutavie/MIF/SMAvie/Milleis (marginaux en UC).
+
+## 8quater. Mapping PER (16/07/2026)
+
+Le type `per` est déduit du NOM de contrat (regex `retraite|per|perin|pero|perp|
+madelin`, migration `20260611270000`) — nommer les contrats en conséquence
+(ex. « PER Assurance Perspective », pas « Perspective » seul). Couverture
+passée de 53 contrats / 17 assureurs à **87 contrats / 24 assureurs** :
+
+| Assureur (`company_name`) | Scraper | Source | Contrats |
+|---|---|---|---|
+| Crédit Agricole Assurances Retraite | `av-fr-caar-catalog` | ca-assurances-retraite.com (FRPS ex-Predica, clone WP de predica.com — WP REST → PDF) | PER Assurance Perspective, LCL Retraite PER (~303 ISIN) |
+| CNP Retraite | `av-fr-cnp-dic-catalog` | **API JSON publique `dic.cnp.fr/wkd-web/kid-webapi`** (sans anti-bot ; couvre aussi Nuances/EasyVie → pourrait remplacer les PDF d'av-fr-cnp-catalog) | Cachemire PER (LBP), PER CE (BPCE) (~172 ISIN) |
+| AG2R La Mondiale | `av-fr-lmp-easypack` | Easypack Quantalys FRANCE `ag2rlm-easypack.quantalys.com/LMPEasypack` (jumeau du LMEP lux ; endpoint `/Recherche/Data`, per-bassin). ⚠ 1 042 bassins au total : seuls les ~41 retraite/PER sont câblés — le stock AV/capi France du groupe est une extension possible (élargir BASSIN_RE) | 41 contrats (Excellie Retraite GB ~1 351 UC = univers du PER Enedia, Prestige Retraite, Ambition Retraite…) (~2 535 ISIN) |
+| MMA Vie / GMF Vie | `av-fr-covea-easypack` | Portails Quantalys par marque `infos-supports-investissement-{mma,gmf}.quantalys.com` (payload DataTables minimal + `id_contrat`). Couvre aussi les AV (MMA Multisupports id 1 = 44 UC > cap.mma.fr ; GMF Multéo id 1) → piste pour remplacer cleerly.fr | MMA PER Avenir, MMA Signature PER, PER Cadencéo (~164 ISIN) |
+| Generali Retraite | `av-fr-generali-catalog` (étendu) | Annexe financière PDF gestion libre (hébergée meilleursper.com ; repli moniwan.fr) | Le PER Generali Patrimoine (~1 091 ISIN) |
+| Sogécap | `av-fr-sogecap-catalog` (étendu) | Doc_Perf loi PACTE (contrat hors portail PRIIPS, URL découverte sur la page index) | PER Acacia (68 ISIN) |
+
+Restes PER documentés : **Matla** (PER Boursorama, assuré Oradéa Vie — aucune
+annexe publique trouvée, CG sans ISIN) ; e-PER Generali (table JS Altaprofits,
+sous-univers probable du PER GPat) ; Préfon (produit à points, hors UC) ;
+Monaliza Retraite Optimale (lancement 2025, à surveiller).
+
+## 8sexies. PEA bancaires et flag ETF autoritaire (17/07/2026)
+
+- **`justetf-pea-fill`** (job HEBDO, séquentiel après justetf-nav — règle « un
+  seul script JustETF ») : flag `pea_eligible` des ETF depuis le filtre PEA
+  officiel de JustETF (flux Wicket GET+POST, 2-3 requêtes, ~210 ETF dont 82
+  SYNTHÉTIQUES type Amundi PEA S&P 500/Nasdaq, iShares MSCI World Swap PEA
+  irlandais). FULL-REFRESH du flag sur les ETF (94 True / 2 021 False au
+  premier run — l'heuristique par nom surestimait), garde < 150 lignes.
+  ⚠ 118 ETF PEA de JustETF absents du catalogue = pistes d'enrichissement.
+  Au passage : l'endpoint `justetf.com/api/etfs` de justetf-scraper est MORT
+  (301→404) — le flux Wicket est son remplaçant naturel.
+- **PEA courtiers** (job trimestriel, section dédiée de l'orchestrateur) :
+  `pea-fortuneo-catalog` (API JSON publique `/api/{sicav,trackers}/search/`,
+  additionalParams JSON — ⚠ `peaPme` n'existe que côté sicav, ignoré sur
+  trackers → univers entier ; garde MAX_UNIVERSE) et `pea-boursedirect-catalog`
+  (POST WebFG `pageSize=500` — ⚠ PEA-PME = « PEAPME », toute autre valeur est
+  ignorée → 57 507 fonds ; même garde). Contrats « PEA <courtier> » sous les
+  companies Fortuneo / Bourse Direct (précédent Linxea).
+- **Vague 2 (17/07 après-midi)** : `pea-boursobank-catalog` (dérivé des fonds
+  `data_source=boursorama-pea`, chargeur amont hors repo), `pea-easybourse-catalog`
+  (endpoint REST public `/rest/search` découvert — le verdict « navigateur requis »
+  était faux ; réponse = dict de CHAÎNES JSON à re-parser), `pea-lcl-catalog`
+  (API Amundi TIP publique, flag `class.peaEligibility` dans les docs Solr),
+  `pea-selections-catalog` (SSR : Yomoni + sélections Caisse d'Épargne/Banque
+  Populaire), `pea-traderepublic-catalog` (PDF univers ~13,5k ISIN SANS flag PEA
+  → sous-ensemble déduit par ∩ avec les flags `pea_eligible` de la base).
+  Vocabulaire UI : lib `partenaires.ts` (courtier vs assureur — « fonds et ETF
+  négociables » vs « unités de compte », fil d'Ariane « Tous les partenaires »).
+- **Écartés (pas de liste publique du négociable)** : Saxo, CA Invest Store,
+  BforBank (comparateur = univers Morningstar mondial sans flag PEA), Hello
+  bank!/BNP, Monabanq, SG (coquille legacy), CIC/CM (gamme maison sans filtre
+  PEA) ; Nalo (pas de PEA). Les ACTIONS restent exclues des comptages contrats
+  (filtre product_type des RPC) — décision à revisiter avec l'équipe.
+
+## 8quinquies. Mapping capitalisation (16/07/2026)
+
+La plupart des contrats capi partagent l'annexe de leur jumeau vie et étaient
+déjà captés (147 entrées / 22 assureurs à l'audit). Compléments :
+- **AG2R La Mondiale** : `av-fr-lmp-easypack` étendu aux ~214 bassins
+  CAPITALISATION de La Mondiale Partenaire (stock patrimonial courtage, fermés
+  inclus — 1818 Partenaires Capi Opus 1 ~1 139 UC, gammes Anjou/Aster/Excellie
+  Capi…). Les variantes à univers identique sont regroupées par contract_groups.
+- **Generali Vie** : contrat « Himalia Capitalisation » ajouté (même annexe
+  qu'Himalia, ~1 773 ISIN).
+- **AFI ESCA Luxembourg** : « Cap Quality » renommé « Cap Quality
+  (capitalisation) » (scraper + base) — sans le mot-clé, la détection de type
+  (`capitalisation|\mcapi` sur le nom) le classait `av`.
+- **Sans objet** (pas d'offre capi individuelle notable) : mutuelles
+  (MAIF/MACIF/GMF/MAAF/Garance/Carac…), entités retraite (CAAR, CNP Retraite,
+  Generali Retraite), assureurs lux à univers global (déjà couverts par nature).
+- **Chez Joseph** : APICIL Intencial (Liberalys Capitalisation…).

@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   // Le badge de dev Next.js se place par défaut en bas à gauche, pile sur
   // l'icône « Mon cabinet » du rail (introuvable en dev). On le déporte.
   devIndicators: { position: "bottom-right" },
+  // pdfjs et xlsx (extraction des relevés, /api/releve) restent des modules
+  // Node externes : bundlés par Next, leurs imports dynamiques cassent
+  // (résolution worker pour pdfjs ; cpexcel pour xlsx).
+  serverExternalPackages: ["pdfjs-dist", "xlsx"],
 };
 
 export default nextConfig;

@@ -294,8 +294,8 @@ export default function AssureursPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher un assureur…"
-            aria-label="Rechercher un assureur"
+            placeholder="Rechercher un partenaire…"
+            aria-label="Rechercher un partenaire"
             className="flex-1 bg-transparent text-body text-ink placeholder:text-muted-2 focus:outline-none"
           />
         </div>
@@ -329,7 +329,7 @@ export default function AssureursPage() {
         <div className="flex h-48">
           <EmptyState
             icon={<Shield size={16} />}
-            title="Impossible de charger les assureurs."
+            title="Impossible de charger les partenaires."
             hint="Vérifiez votre connexion et réessayez."
             action={
               <button
@@ -347,8 +347,8 @@ export default function AssureursPage() {
             icon={<Shield size={16} />}
             title={
               q.trim()
-                ? `Aucun assureur ne correspond à « ${q.trim()} ».`
-                : `Aucun assureur ne propose encore de ${ENV_LABEL[env]} dans notre base.`
+                ? `Aucun partenaire ne correspond à « ${q.trim()} ».`
+                : `Aucun partenaire ne propose encore de ${ENV_LABEL[env]} dans notre base.`
             }
             hint={
               q.trim()

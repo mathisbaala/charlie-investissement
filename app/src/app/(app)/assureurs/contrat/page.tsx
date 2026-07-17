@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
 import type { ContractType } from "@/lib/insurer-envelope";
+import { supportsSub } from "@/lib/partenaires";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight } from "@/components/ui/icons";
@@ -373,7 +374,7 @@ export default async function ContractPage({
         className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors"
       >
         <ArrowLeft size={12} />
-        Tous les assureurs
+        Tous les partenaires
       </Link>
 
       {/* En-tête */}
@@ -432,7 +433,7 @@ export default async function ContractPage({
         <StatCard
           label="Supports référencés"
           value={o.funds.toLocaleString("fr-FR")}
-          sub="unités de compte"
+          sub={supportsSub(o.company, o.types ?? [])}
         />
         <StatCard
           label="Frais courants moyens"

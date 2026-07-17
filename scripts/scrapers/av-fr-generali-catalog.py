@@ -31,8 +31,12 @@ COMPANY = "Generali Vie"
 
 CONTRACTS = [
     # Himalia — annexe financière (liste des UC). Source distributeur BourseDirect
-    # (PDF texte officiel Generali, le plus complet ~1 750 UC).
+    # (PDF texte officiel Generali, le plus complet ~1 750 UC). L'annexe couvre la
+    # gamme : Himalia Capitalisation (contrat jumeau PM/PP) partage l'univers.
     {"contract": "Himalia",
+     "pdf_url": "https://epargne.boursedirect.fr/uploads/files/products_fin/"
+                "e1cf9a0d9a50ca064d2078bab00ec586/Liste%20des%20UC.pdf"},
+    {"contract": "Himalia Capitalisation",
      "pdf_url": "https://epargne.boursedirect.fr/uploads/files/products_fin/"
                 "e1cf9a0d9a50ca064d2078bab00ec586/Liste%20des%20UC.pdf"},
     # e-Xaélidia — liste des supports (source officielle generali.fr).
@@ -42,12 +46,28 @@ CONTRACTS = [
 ]
 
 
+# PER — porté par Generali Retraite (FRPS, ex-Generali Vie). Annexe financière
+# gestion libre officielle (~1 091 ISIN), hébergée par un distributeur
+# (meilleursper.com — generali.fr ne publie pas l'annexe UC du PER) ; en cas de
+# 404 futur, repli connu : moniwan.fr « liste-des-supports-disponibles-en-
+# gestion-libre » (sous-univers, ~429 ISIN). Ajouté 16/07 (mapping PER).
+COMPANY_RETRAITE = "Generali Retraite"
+CONTRACTS_RETRAITE = [
+    {"contract": "Le PER Generali Patrimoine",
+     "pdf_url": "https://www.meilleursper.com/img/uploads/pages/"
+                "page_LE_PER_GENERALI_PATRIMOINE_image_pdf_ls.pdf"},
+]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generali Vie AV France catalog")
     ap.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     ap.add_argument("--limit", type=int, help="Limiter à N contrats (debug)")
     args = ap.parse_args()
     run_eligibility(COMPANY, CONTRACTS, scraper_name="av-fr-generali-catalog",
+                    apply=args.apply, limit=args.limit, seed_missing=True)
+    run_eligibility(COMPANY_RETRAITE, CONTRACTS_RETRAITE,
+                    scraper_name="av-fr-generali-catalog",
                     apply=args.apply, limit=args.limit, seed_missing=True)
 
 

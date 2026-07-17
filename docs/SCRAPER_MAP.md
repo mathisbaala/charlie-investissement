@@ -298,7 +298,44 @@ limites structurelles (SRI graphique, kid_url N/A pour SCPI).
 
 ---
 
-### 9. Sources testées et abandonnées
+### 9. Référencement assurance-vie (UC ↔ contrat)
+
+Système documenté dans `docs/av-referencing.md` (modèle de données, orchestration
+trimestrielle `av-refresh.yml`/`av-refresh-browser.yml`, conventions
+éligibilité-only, gotcha `contract_name ≠ company_name`). Scrapers
+`scripts/scrapers/av-fr-*` et `av-lux-*`. Ajouts 2026-07-16 (AV Lux LPS France) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-lux-cnp-catalog.py` | Quantalys Easypack CNP Lux (JSON DataTables par contrat) | 9 contrats / ~2 277 ISIN |
+| `av-lux-sogelife-catalog.py` | ZIP PRIIPS doc.sogelife.com (ISIN dans les noms de fichiers, lus via Range) | 5 contrats / ~1 001 ISIN |
+| `av-lux-cali-europe-catalog.py` | Portail PRIIPS my-calie.com (DevExpress, navigateur) | 4 contrats / ~286 ISIN |
+| `av-lux-allianz-catalog.py` | Portail PRIIPS life.allianz.lu (POST par produit) | 2 contrats / ~172 ISIN |
+| `av-lux-afi-esca-catalog.py` | PDF loi PACTE afi-esca.lu (URL découverte) | 2 contrats / ~129 ISIN |
+| `av-lux-utmost-catalog.py` | API REST utmostgroup.com (ex-Lombard → Utmost Luxembourg S.A.) | 1 contrat / 66 ISIN |
+
+Ajouts 2026-07-16 (AV France) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-fr-sogecap-catalog.py` | Portail PRIIPS statique priips.sogecap.com (arbre cdproduit/cdisine) | 10 contrats / ~415 ISIN |
+| `av-fr-oradea-catalog.py` (ressuscité) | Même portail, page oradea.html — l'ex-priips.oradea-vie.com a déménagé | 8 contrats / ~1 119 ISIN |
+| `av-fr-conservateur-catalog.py` | PDF loi PACTE M40/M41/M42 (millésime via wp-json media) | 5 contrats / ~54 ISIN |
+
+Ajouts 2026-07-16 (mapping PER — cf. av-referencing §8quater) :
+
+| Scraper | Source | Volumétrie dry-run |
+|---|---|---|
+| `av-fr-caar-catalog.py` | WP REST ca-assurances-retraite.com → PDF (FRPS ex-Predica) | 2 PER / ~303 ISIN |
+| `av-fr-cnp-dic-catalog.py` | API JSON dic.cnp.fr (supports par produit, entité via codeEntiteJuridique) | 2 PER / ~172 ISIN |
+| `av-fr-lmp-easypack.py` | Easypack Quantalys France AG2R (per-bassin, 41 contrats retraite) | 41 contrats / ~2 535 ISIN |
+| `av-fr-covea-easypack.py` | Portails Quantalys MMA/GMF (id_contrat) | 3 PER / ~164 ISIN |
+| `av-fr-generali-catalog.py` (étendu) | + annexe PDF « Le PER Generali Patrimoine » (Generali Retraite) | 1 PER / ~1 091 ISIN |
+| `av-fr-sogecap-catalog.py` (étendu) | + Doc_Perf loi PACTE « PER Acacia » | 1 PER / 68 ISIN |
+
+---
+
+### 10. Sources testées et abandonnées
 
 | Source | Script | Raison d'échec |
 |--------|--------|----------------|

@@ -35,6 +35,7 @@ STEP_TIMEOUT = 1200  # secondes
 AV_BROWSER_STEPS = [
     ("scrapers/av-lux-linxea-catalog.py", []),
     ("scrapers/av-lux-cardif-lux-vie-catalog.py", []),
+    ("scrapers/av-lux-cali-europe-catalog.py", []),  # CALI Europe (grid DevExpress my-calie.com, callbacks à état → navigateur) — ajouté 16/07
     # Recompose l'offre par contrat (matview lue par /assureurs & screener).
     ("enrichers/refresh-insurer-mv.py", []),
 ]
