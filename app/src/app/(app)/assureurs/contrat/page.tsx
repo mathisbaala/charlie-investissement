@@ -400,8 +400,9 @@ export default async function ContractPage({
             </div>
           )}
 
-          {/* Spécificités Luxembourg : ticket + seuils FID/FAS + garanties transverses */}
-          {profile.kind === "lux" && (
+          {/* Spécificités Luxembourg : ticket + seuils FID/FAS + garanties transverses.
+              N'affiche la section que si au moins un seuil est renseigné (sinon en-tête vide). */}
+          {profile.kind === "lux" && (profile.lux?.ticket || profile.lux?.fid || profile.lux?.fas || profile.lux?.plancher_uc) && (
             <div className="mt-4 pt-4 border-t border-line-soft">
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-2">Spécificités Luxembourg</p>
               <div className="flex flex-wrap gap-2">

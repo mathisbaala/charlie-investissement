@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-export const dynamic = "force-dynamic";
+// Pas de `force-dynamic` : il neutralise l'en-tête `s-maxage` (Next le remplace
+// par un simple `public`, cache edge jamais utilisé → chaque clic refrappe
+// Supabase). L'appel RPC (fetch non caché) suffit à garder la route dynamique au
+// build, et le Cache-Control ci-dessous atteint alors le CDN Vercel (~40 ms sur
+// répétition). Voir get_insurers_list, matview investissement_insurers_list_mv.
 
 // Liste des assureurs référençant des fonds (nom + nombre de fonds), pour
 // alimenter le filtre « Référencé chez » du screener.

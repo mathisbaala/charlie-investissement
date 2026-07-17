@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-export const dynamic = "force-dynamic";
+// Pas de `force-dynamic` : il neutralise l'en-tête `s-maxage` (cache edge jamais
+// utilisé). L'appel RPC garde la route dynamique au build, et le Cache-Control
+// ci-dessous atteint alors le CDN Vercel (~40 ms sur répétition).
 
 // Liste des contrats (assureur + contrat + nombre de fonds), pour alimenter la
 // sélection « par contrat » imbriquée sous chaque assureur du screener.
