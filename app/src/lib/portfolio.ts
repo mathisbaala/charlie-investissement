@@ -202,6 +202,134 @@ export function mergeCurves(
   }));
 }
 
+/** Nombre maximal de fonds de comparaison sur le back-test. */
+export const COMPARE_MAX = 3;
+
+/** Fonds ajouté en comparaison du back-test (choisi via la recherche). */
+export interface CompareFund {
+  isin: string;
+  name: string;
+}
+
+/**
+ * Aligne la courbe d'un fonds de comparaison sur la grille de dates du
+ * portefeuille (LOCF borné) puis la rebase à 100 au premier point aligné.
+ *
+ * Les deux courbes sortent du même RPC mais avec des fenêtres propres : leurs
+ * grilles hebdomadaires ne partagent donc pas forcément les mêmes dates. Pour
+ * chaque date de la grille on prend la dernière valeur du fonds ≤ date, à
+ * condition qu'elle date de moins de `toleranceDays` (au-delà, la valeur est
+ * périmée → null, la ligne s'interrompt au lieu de mentir en plateau).
+ * Historique plus court que le portefeuille → nulls en tête, base 100 au
+ * premier point couvert : la comparaison démarre là où le fonds existe.
+ */
+export function alignCompareCurve(
+  grid: string[],
+  curve: PortfolioCurvePoint[],
+  toleranceDays = 10,
+): (number | null)[] {
+  const sorted = [...curve].sort((a, b) => (a.d < b.d ? -1 : 1));
+  const tolMs = toleranceDays * 86400_000;
+  const out: (number | null)[] = [];
+  let i = 0;
+  let base: number | null = null;
+  for (const d of grid) {
+    const t = new Date(d).getTime();
+    while (i < sorted.length && new Date(sorted[i].d).getTime() <= t) i++;
+    const last = i > 0 ? sorted[i - 1] : null;
+    if (!last || t - new Date(last.d).getTime() > tolMs) {
+      out.push(null);
+      continue;
+    }
+    if (base == null) base = last.v;
+    out.push(base > 0 ? (last.v / base) * 100 : null);
+  }
+  return out;
+}
+
+/**
+ * Fusionne courbe portefeuille + indice + fonds comparés en un jeu unique
+ * [{d, p, b, c0…}] pour le graphe multi-lignes. Les fonds comparés sont
+ * réalignés sur la grille du portefeuille (cf. alignCompareCurve).
+ */
+export function mergeCurvesMulti(
+  portfolio: PortfolioCurvePoint[],
+  benchmark: PortfolioCurvePoint[] | undefined | null,
+  compares: PortfolioCurvePoint[][],
+): Record<string, string | number | null>[] {
+  const rows = mergeCurves(portfolio, benchmark) as unknown as Record<
+    string,
+    string | number | null
+  >[];
+  const grid = portfolio.map((pt) => pt.d);
+  compares.forEach((curve, idx) => {
+    const aligned = alignCompareCurve(grid, curve);
+    rows.forEach((row, ri) => {
+      row[`c${idx}`] = aligned[ri];
+    });
+  });
+  return rows;
+}
+
+// LOCF sur une courbe TRIÉE : dernière valeur dont la date ≤ cible, ou null si
+// la courbe commence après la cible (pas d'extrapolation vers le passé).
+function locfAt(curve: PortfolioCurvePoint[], targetMs: number): number | null {
+  let v: number | null = null;
+  for (const pt of curve) {
+    if (new Date(pt.d).getTime() > targetMs) break;
+    v = pt.v;
+  }
+  return v;
+}
+
+/**
+ * Performance glissante sur `days` jours : dernier point de la courbe vs valeur
+ * LOCF à (fin − days). `null` si la courbe ne couvre pas l'horizon (début de
+ * courbe postérieur à la date cible) ou trop courte. La courbe est la grille
+ * hebdo du RPC, triée croissante.
+ */
+export function trailingReturn(
+  curve: PortfolioCurvePoint[],
+  days: number,
+): number | null {
+  if (curve.length < 2) return null;
+  const endMs = new Date(curve[curve.length - 1].d).getTime();
+  const targetMs = endMs - days * 86400_000;
+  if (new Date(curve[0].d).getTime() > targetMs) return null;
+  const base = locfAt(curve, targetMs);
+  const last = curve[curve.length - 1].v;
+  if (base == null || base <= 0) return null;
+  return last / base - 1;
+}
+
+/**
+ * Performances par année civile : { "2023": 0.14, … }. L'année N est calculée
+ * de la valeur LOCF au 31/12/N−1 à celle du 31/12/N (dernier point pour l'année
+ * en cours → YTD). Une année n'apparaît que si la courbe couvre son début
+ * (1er point ≤ 7 janvier), pour ne pas afficher une année partielle comme pleine.
+ */
+export function calendarYearReturns(
+  curve: PortfolioCurvePoint[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (curve.length < 2) return out;
+  const firstMs = new Date(curve[0].d).getTime();
+  const lastDate = new Date(curve[curve.length - 1].d);
+  const firstYear = new Date(curve[0].d).getFullYear();
+  const lastYear = lastDate.getFullYear();
+  for (let y = firstYear; y <= lastYear; y++) {
+    if (firstMs > Date.UTC(y, 0, 7)) continue;
+    const base = locfAt(curve, Date.UTC(y - 1, 11, 31, 23, 59, 59));
+    const end =
+      y === lastYear
+        ? curve[curve.length - 1].v
+        : locfAt(curve, Date.UTC(y, 11, 31, 23, 59, 59));
+    if (base == null || base <= 0 || end == null) continue;
+    out[String(y)] = end / base - 1;
+  }
+  return out;
+}
+
 /**
  * Construit une matrice de corrélation NxN (symétrique, diagonale = 1) depuis la
  * liste de paires renvoyée par le RPC. `null` si la paire est absente.

@@ -54,6 +54,7 @@ AV_CATALOG_STEPS = [
     ("scrapers/av-fr-spirica-catalog.py", []),      # OK (vérifié 22/06 : sylvea.fr rétabli, 146 contrats, ~62k lignes)
     ("scrapers/av-fr-suravenir-catalog.py", []),
     ("scrapers/av-fr-swisslife-catalog.py", []),
+    ("scrapers/av-fr-axa-thema-coralis.py", []),    # AXA Théma gamme Coralis (annexe unique, colonne PEA → PEA assurance — câblé 17/07)
     # ── AV France — bancassureurs majeurs (Tier 3, annexes PDF, juin 2026) ─────
     #    Tous éligibilité-only via _av_pdf_common (curl_cffi + pdftotext, filtre
     #    sur ISIN en base). ~65 contrats / ~11,9k liens bruts au câblage.

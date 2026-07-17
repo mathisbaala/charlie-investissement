@@ -16,6 +16,9 @@ interface Props {
   existing: Set<string>;
   /** Vrai quand le portefeuille a atteint sa taille maximale. */
   full?: boolean;
+  /** Textes du champ (défaut : ajout au portefeuille). */
+  placeholder?: string;
+  fullPlaceholder?: string;
 }
 
 // Libellés courts d'univers pour la pastille de résultat.
@@ -30,7 +33,7 @@ const TYPE_LABEL: Record<string, string> = {
  * l'ISIN exact) → on choisit dans la liste. Complète le parcours « je connais
  * déjà le fonds » sans repasser par le screener.
  */
-export function FundAdder({ onAdd, existing, full }: Props) {
+export function FundAdder({ onAdd, existing, full, placeholder, fullPlaceholder }: Props) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,7 +101,7 @@ export function FundAdder({ onAdd, existing, full }: Props) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => hits.length && setOpen(true)}
           onKeyDown={onKey}
-          placeholder={full ? "Portefeuille au complet" : "Ajouter un fonds : ISIN ou nom"}
+          placeholder={full ? (fullPlaceholder ?? "Portefeuille au complet") : (placeholder ?? "Ajouter un fonds : ISIN ou nom")}
           className="flex-1 min-w-0 bg-transparent text-meta text-ink placeholder:text-muted focus:outline-none disabled:cursor-not-allowed"
         />
         <Search size={13} className="text-muted-2 shrink-0" />

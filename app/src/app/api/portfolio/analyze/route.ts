@@ -33,7 +33,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ? rawW
       : unique.map(() => 1);
 
-  const years = Math.min(Math.max(Number(p.get("years")) || 5, 1), 10);
+  // 15 ans max : la fenêtre réelle reste bornée par l'historique disponible
+  // (le RPC prend le plus tardif des premiers points des fonds retenus).
+  const years = Math.min(Math.max(Number(p.get("years")) || 5, 1), 15);
 
   const benchRaw = (p.get("benchmark") ?? "").trim().toLowerCase();
   const benchmark = BENCHMARK_CODE_RE.test(benchRaw) ? benchRaw : null;

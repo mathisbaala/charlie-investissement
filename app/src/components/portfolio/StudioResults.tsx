@@ -11,6 +11,7 @@ import { AllocationReport } from "@/components/portfolio/AllocationReport";
 import { MarkowitzChart } from "@/components/portfolio/MarkowitzChart";
 import { PortfolioExposure } from "@/components/portfolio/PortfolioExposure";
 import { PortfolioBacktest } from "@/components/portfolio/PortfolioBacktest";
+import { SupportsHistory } from "@/components/portfolio/SupportsHistory";
 import { DEFAULT_CONSTRAINTS } from "@/lib/optimizer";
 import { GOAL_PRIORITY_LABELS, type ClientGoal } from "@/lib/clientProfile";
 import { goalToPlan, requiredAnnualReturn, goalSuccessProbabilityMC } from "@/lib/goalPlanning";
@@ -372,6 +373,14 @@ export function StudioResults() {
           l'univers de démonstration n'a pas de séries de prix. */}
       {source === "api" && (
         <PortfolioBacktest
+          holdings={shown.lines.map((l) => ({ isin: l.isin, weight: l.weight }))}
+        />
+      )}
+
+      {/* Historique PAR SUPPORT (graphe base 100 + tableau par horizon/année) :
+          directement visible sous le backtest, mêmes sources de données. */}
+      {source === "api" && (
+        <SupportsHistory
           holdings={shown.lines.map((l) => ({ isin: l.isin, weight: l.weight }))}
         />
       )}
