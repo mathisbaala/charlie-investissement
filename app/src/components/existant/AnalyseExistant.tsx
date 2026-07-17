@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { Shield, X } from "@/components/ui/icons";
+import { Shield, X, ArrowLeft } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
 import {
@@ -223,6 +223,12 @@ export function AnalyseExistant() {
 
   return (
     <PageShell>
+      <Link
+        href="/portefeuille"
+        className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit mb-4"
+      >
+        <ArrowLeft size={14} /> Portefeuille
+      </Link>
       <h1 className="text-title-lg text-ink mb-1">Analyse de l&apos;existant</h1>
       <p className="text-body text-muted mb-6">
         Déposez les relevés du client (PDF, Excel ou CSV) : Charlie consolide les positions,
@@ -454,7 +460,7 @@ export function AnalyseExistant() {
             <Link href={simulateurHref} className="text-body text-ink underline underline-offset-4">
               Ouvrir dans le simulateur de frais
             </Link>
-            <Link href="/portefeuille" className="text-caption text-muted underline underline-offset-4">
+            <Link href="/portefeuille/construire" className="text-caption text-muted underline underline-offset-4">
               Simuler une réallocation complète (chemin secondaire)
             </Link>
           </div>

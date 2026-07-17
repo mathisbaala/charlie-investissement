@@ -37,9 +37,9 @@ import {
 } from "@/lib/cabinet";
 
 // Contexte de l'atelier Portefeuille : porte TOUT l'état et le moteur d'optimisation,
-// monté au niveau du layout /portefeuille pour survivre à la navigation entre la
-// page de réglages (/portefeuille) et la page dédiée au portefeuille
-// (/portefeuille/resultat). Réutilise le PROFIL CLIENT saisi à l'accueil (même
+// monté au niveau du layout /portefeuille/construire pour survivre à la navigation
+// entre la page de réglages (/portefeuille/construire) et la page dédiée au
+// portefeuille (/portefeuille/construire/resultat). Réutilise le PROFIL CLIENT saisi à l'accueil (même
 // formulaire, mêmes données, partagées via le stockage local). Branché sur
 // /api/portfolio/optimize (fonds réels du contrat) ; si la base n'est pas
 // joignable (dev local sans secrets), repli sur l'univers d'exemple. Interactif :

@@ -33,8 +33,10 @@ describe("PortfolioStudio", () => {
     renderStudio();
     // Étape 1 — profil client (n'existe plus que dans Portefeuille).
     expect(screen.getByText("Profil du client")).toBeTruthy();
-    // Étape 2 — portefeuille : réglages du conseiller + génération.
-    expect(screen.getByText("Portefeuille")).toBeTruthy();
+    // Étape 2 — portefeuille : réglages du conseiller + génération. On cible le
+    // titre (heading) pour le distinguer du lien retour « Portefeuille » vers
+    // le carrefour, qui porte le même libellé.
+    expect(screen.getByRole("heading", { name: "Portefeuille" })).toBeTruthy();
     expect(screen.getByText("Générer le portefeuille")).toBeTruthy();
     // Pas de rapport tant qu'on n'a pas généré (la vue résultat reste vide).
     expect(screen.queryByText("Portefeuille détaillé")).toBeNull();

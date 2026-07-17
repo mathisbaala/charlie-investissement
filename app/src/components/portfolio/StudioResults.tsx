@@ -192,7 +192,7 @@ export function StudioResults() {
 
   // Accès direct / rechargement sans portefeuille généré → retour aux réglages.
   useEffect(() => {
-    if (!result || !presentation) router.replace("/portefeuille");
+    if (!result || !presentation) router.replace("/portefeuille/construire");
   }, [result, presentation, router]);
 
   if (!presentation || !result) return null;
@@ -202,7 +202,7 @@ export function StudioResults() {
   return (
     <PageShell className="space-y-5">
       <Link
-        href="/portefeuille"
+        href="/portefeuille/construire"
         className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit"
       >
         <ArrowLeft size={14} /> Réglages

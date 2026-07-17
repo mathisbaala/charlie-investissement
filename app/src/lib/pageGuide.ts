@@ -75,11 +75,39 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     },
   },
   {
+    // Plus spécifique que /portefeuille → doit précéder l'entrée générique.
+    prefixes: ["/portefeuille/analyser"],
+    guide: {
+      title: "Analyser un portefeuille existant",
+      intro:
+        "Le diagnostic d'un portefeuille que le client détient déjà. Déposez ses relevés de situation ; Charlie consolide les positions, reconnaît les contrats et pointe les axes d'amélioration — sans refaire le portefeuille.",
+      sections: [
+        {
+          heading: "Sur cette page",
+          items: [
+            "Le dépôt des relevés du client (PDF, Excel ou CSV) : les documents ne sont jamais conservés.",
+            "La validation des positions extraites : contrat reconnu (ou à choisir), montants éditables, fonds oubliés à ajouter à la main.",
+            "La synthèse consolidée multi-contrats : répartition (classes, zones, secteurs), risque (SRI pondéré), frais moyens (TER).",
+            "Les recommandations ciblées, triées par impact : corrélation excessive, concentration, frais élevés.",
+          ],
+        },
+        {
+          heading: "Comment l'utiliser",
+          items: [
+            "Déposez un ou plusieurs relevés, puis vérifiez le rattachement des contrats et les montants.",
+            "Lancez l'analyse : Charlie calcule corrélations, exposition agrégée et recommandations.",
+            "Prolongez si besoin dans le simulateur de frais, ou basculez vers « Créer un portefeuille » pour proposer une réallocation complète.",
+          ],
+        },
+      ],
+    },
+  },
+  {
     prefixes: ["/portefeuille"],
     guide: {
       title: "Portefeuille",
       intro:
-        "L'atelier de construction de portefeuille. À partir du profil client et d'un contrat, Charlie construit un portefeuille optimisé (max-Sharpe ou HRP), le met à l'épreuve d'un back-test historique, et produit la proposition d'investissement (PDF / PowerPoint).",
+        "Deux chemins pour travailler le portefeuille d'un client : le construire de A à Z (profil client + contrat → allocation optimisée max-Sharpe ou HRP, back-test historique, proposition PDF / PowerPoint) ou analyser l'existant à partir de ses relevés.",
       sections: [
         {
           heading: "Sur cette page",

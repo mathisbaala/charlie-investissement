@@ -3,21 +3,23 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Logo, FileText, FileSearch, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
+import { Logo, FileText, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
 import { loadStoredCabinet } from "@/lib/cabinet";
 
 // La recherche n'a pas d'onglet dédié : c'est le prolongement de l'accueil, qu'on
 // atteint en lançant une requête / un profil client (ou en partant d'un assureur).
 // L'icône Accueil reste donc active sur /recherche. Cela allège le rail.
-// Portefeuille fusionne l'ancienne allocation : profil client → allocation
-// optimisée + back-test + proposition (un seul atelier, un seul onglet).
+// Portefeuille = un seul onglet, deux chemins depuis sa page-carrefour :
+// construire un portefeuille de A à Z (ex-allocation : profil client →
+// allocation optimisée + back-test + proposition) ou analyser un portefeuille
+// existant (ex-onglet « Analyse de l'existant » : import des relevés →
+// diagnostic).
 const NAV = [
-  { href: "/accueil",          icon: LayoutGrid, label: "Accueil" },
-  { href: "/assureurs",        icon: Shield,     label: "Partenaires" },
-  { href: "/portefeuille",     icon: TrendingUp, label: "Portefeuille" },
-  { href: "/analyse-existant", icon: FileSearch, label: "Analyse de l'existant" },
-  { href: "/simulateur",       icon: Calculator, label: "Simulateur de frais" },
-  { href: "/documents",        icon: FileText,   label: "Documents" },
+  { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
+  { href: "/assureurs",    icon: Shield,     label: "Partenaires" },
+  { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
+  { href: "/simulateur",   icon: Calculator, label: "Simulateur de frais" },
+  { href: "/documents",    icon: FileText,   label: "Documents" },
 ];
 
 // Mon cabinet vit en pied de rail, comme un réglage (paramétrage du cabinet :

@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
-import { X, ChevronDown, ChevronRight } from "@/components/ui/icons";
+import { X, ChevronDown, ChevronRight, ArrowLeft } from "@/components/ui/icons";
 import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
 import { FundAdder } from "@/components/portfolio/FundAdder";
@@ -21,9 +22,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 const inputCls = "border border-line rounded-lg px-3 py-2 text-meta text-ink bg-paper focus:outline-none focus:border-clay";
 
-// Page 1 de l'atelier : profil client (étape 1) + réglages du conseiller
-// (étape 2). « Générer le portefeuille » lance le calcul puis redirige vers la
-// page dédiée /portefeuille/resultat (état conservé par le contexte du layout).
+// Chemin « construire » de l'atelier : profil client (étape 1) + réglages du
+// conseiller (étape 2). « Générer le portefeuille » lance le calcul puis
+// redirige vers la page dédiée /portefeuille/construire/resultat (état conservé
+// par le contexte du layout /portefeuille/construire).
 export function StudioInputs() {
   const router = useRouter();
   const {
@@ -42,11 +44,18 @@ export function StudioInputs() {
 
   async function generate() {
     const ok = await compute();
-    if (ok) router.push("/portefeuille/resultat");
+    if (ok) router.push("/portefeuille/construire/resultat");
   }
 
   return (
     <PageShell className="space-y-5">
+      <Link
+        href="/portefeuille"
+        className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit"
+      >
+        <ArrowLeft size={14} /> Portefeuille
+      </Link>
+
       {/* Étape 1 — Profil du client (données CLIENT). Depuis la refonte de nav,
           le profil ne se saisit plus qu'ici (retiré de l'accueil). */}
       <Card className="px-5 py-5">

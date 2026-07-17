@@ -1,12 +1,8 @@
-import { AnalyseExistant } from "@/components/existant/AnalyseExistant";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Analyse de l'existant · Charlie" };
-
-// Onglet « Analyse de l'existant » (docs/analyse-existant-spec.md) : import des
-// relevés de situation PDF du client → extraction des positions + reconnaissance
-// des contrats via le référencement → synthèse consolidée multi-contrats →
-// recommandations ciblées (corrélation, concentration, frais) — sans refaire
-// le portefeuille.
+// L'onglet « Analyse de l'existant » a fusionné dans Portefeuille (chemin
+// « analyser »). On conserve la route en redirection pour les liens et signets
+// existants.
 export default function AnalyseExistantPage() {
-  return <AnalyseExistant />;
+  redirect("/portefeuille/analyser");
 }
