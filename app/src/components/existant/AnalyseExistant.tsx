@@ -269,8 +269,9 @@ export function AnalyseExistant() {
             {busy ? "Lecture en cours…" : "Déposer des relevés"}
           </button>
           <p className="text-caption text-muted">
-            PDF, Excel (xlsx/xls) ou CSV ; pensez aux exports de vos extranets partenaires.
-            Les scans ne sont pas gérés en V1.
+            L&apos;outil lit les fichiers PDF, Excel (xlsx/xls) et CSV, par exemple les exports de
+            vos extranets partenaires. Les documents scannés ou photographiés ne sont pas encore
+            lus : privilégiez les fichiers téléchargés depuis les espaces en ligne.
           </p>
         </div>
         {error && <p className="text-caption text-danger mt-3">{error}</p>}
