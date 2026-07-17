@@ -131,6 +131,11 @@ function fmtPct(v: number | null | undefined): string | null {
   return `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
 }
 
+// Majuscule initiale (valeurs de chips venant de la base, souvent en minuscules).
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 // Ligne « libellé : valeur » ; ne s'affiche que si la valeur est renseignée.
 function TermRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -142,19 +147,12 @@ function TermRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
-const CONFIDENCE_LABEL: Record<ContractTerms["confidence"], string> = {
-  scraped: "extrait du DIC",
-  curated: "vérifié à la main",
-  indicative: "indicatif",
-};
-
 // Bloc « Conditions du contrat » quand les T&C sont sourcées (terms présent).
 function TermsCard({ terms }: { terms: ContractTerms }) {
   const fraisArb = fmtPct(terms.frais_arbitrage_pct) ?? terms.frais_arbitrage_note;
   const fe = terms.fonds_euros_taux_pct != null
     ? `${fmtPct(terms.fonds_euros_taux_pct)}${terms.fonds_euros_annee ? ` (${terms.fonds_euros_annee})` : ""}`
     : null;
-  const sourceHost = terms.source_url ? (() => { try { return new URL(terms.source_url!).hostname.replace(/^www\./, ""); } catch { return null; } })() : null;
 
   return (
     <Card className="px-5 py-5">
@@ -197,7 +195,7 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Univers accessible</p>
               <div className="flex flex-wrap gap-1.5">
                 {terms.univers_classes.map((c) => (
-                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{cap(c)}</span>
                 ))}
               </div>
             </div>
@@ -207,32 +205,13 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
               <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Options de gestion</p>
               <div className="flex flex-wrap gap-1.5">
                 {terms.options_gestion.map((c) => (
-                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{c}</span>
+                  <span key={c} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">{cap(c)}</span>
                 ))}
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {terms.notes && (
-        <p className="text-caption text-muted mt-4 max-w-[80ch] leading-relaxed">
-          <span className="text-muted-2 font-semibold uppercase tracking-widest">Précisions&nbsp;: </span>
-          {terms.notes}
-        </p>
-      )}
-
-      <p className="text-caption text-muted-2 mt-3">
-        {terms.source_url ? (
-          <a href={terms.source_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-ink-2">
-            {CONFIDENCE_LABEL[terms.confidence]}
-          </a>
-        ) : (
-          CONFIDENCE_LABEL[terms.confidence]
-        )}
-        {terms.as_of ? ` · millésime ${new Date(terms.as_of).getFullYear()}` : ""}
-        {sourceHost ? ` · source ${sourceHost}` : ""}
-      </p>
     </Card>
   );
 }
@@ -416,16 +395,8 @@ export default async function ContractPage({
                 {profile.lux?.fas && <LuxChip label="Seuil FAS" value={profile.lux.fas} />}
                 {profile.lux?.plancher_uc && <LuxChip label="Frais UC plancher" value={profile.lux.plancher_uc} />}
               </div>
-              <p className="text-caption text-muted-2 mt-2 max-w-[75ch]">
-                Atouts transverses du Luxembourg&nbsp;: triangle de sécurité, super-privilège du souscripteur,
-                neutralité fiscale (fiscalité du pays de résidence), multidevise, FID/FAS et crédit lombard.
-              </p>
             </div>
           )}
-
-          <p className="text-caption text-muted-2 mt-4">
-            Repères assureur indicatifs (millésime 2025), à confirmer au contrat près.
-          </p>
         </Card>
       )}
 
@@ -435,18 +406,14 @@ export default async function ContractPage({
       ) : (
         <Card className="px-5 py-5">
           <h2 className="text-body-lg text-ink font-semibold">Conditions du contrat</h2>
-          <p className="text-meta text-muted mt-1.5 max-w-[70ch]">
-            Le contexte de l&apos;assureur et de l&apos;enveloppe figure ci-dessus. Les conditions propres à
-            <em> ce </em> contrat ne sont pas encore renseignées dans notre base&nbsp;: nous affichons
-            pour l&apos;instant les supports référencés et leurs caractéristiques. Le détail arrive prochainement.
-          </p>
+          <p className="text-meta text-muted mt-1.5">Détail à venir.</p>
           <div className="flex flex-wrap gap-2 mt-4">
             {[
-              "Frais de gestion réels",
+              "Frais de gestion",
               "Frais de versement",
               "Frais d'arbitrage",
-              "Taux du fonds euros",
-              "Options (gestion pilotée, garanties)",
+              "Taux fonds euros",
+              "Options de gestion",
             ].map((t) => (
               <span key={t} className="inline-flex items-center gap-1.5 text-caption text-muted-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">
                 {t}

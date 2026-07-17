@@ -320,9 +320,6 @@ export function CabinetForm() {
             </div>
           )}
         </div>
-        {cabinet.insurers.length === 0 && (
-          <p className="text-meta text-muted">Ajoutez vos assureurs partenaires.</p>
-        )}
 
         {/* Un bloc par assureur : recherche pour ajouter les contrats distribués
             un à un (pas de rattachement d'office — certains assureurs en

@@ -10,23 +10,13 @@ import { FundPreviewDrawer } from "@/components/screener/FundPreviewDrawer";
 import { SelectionBar } from "@/components/screener/SelectionBar";
 import { ComparisonModal } from "@/components/screener/ComparisonModal";
 import { Btn } from "@/components/ui/Btn";
-import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, X, Search } from "@/components/ui/icons";
+import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Search } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-import { buildParams, filtersFromParams, describeScreenerFilters, sortFromIntent, DEFAULT_SORT, pickReferencing, searchUrlWithReferencing } from "@/lib/screenerParams";
+import { buildParams, filtersFromParams, sortFromIntent, DEFAULT_SORT, pickReferencing, searchUrlWithReferencing } from "@/lib/screenerParams";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
 import { parseContractKey } from "@/lib/insurer-envelope";
-import {
-  type RichClientProfile,
-  EMPTY_PROFILE,
-  loadStoredProfile,
-  saveStoredProfile,
-  clearStoredProfile,
-  isProfileActive,
-  serializeForNlp,
-  profileToScreenerFilters,
-} from "@/lib/clientProfile";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,20 +111,13 @@ function RechercheInner() {
   const [showComparison, setShowComparison] = useState(false);
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
 
-  // Client profile — saisi sur la page dédiée (/matching), partagé via localStorage.
-  const [profile, setProfile] = useState<RichClientProfile>(EMPTY_PROFILE);
-  // Bandeau de contexte « filtres issus du profil » : visible à l'arrivée depuis
-  // « Trouver les fonds adaptés » pour rendre les filtres appliqués lisibles.
-  const [showProfileBar, setShowProfileBar] = useState(false);
-
   const initialSortBy    = searchParams.get("sort_by");
-  // Filtres décidés en amont, transmis par l'URL (page Profil client, lien
-  // partagé, enveloppe/assureur depuis l'accueil). `from=profile` force l'état
-  // « recherché » même si le profil ne se traduit par aucun filtre dur.
+  // Filtres décidés en amont, transmis par l'URL (lien partagé, enveloppe/
+  // assureur/contrat depuis l'onglet Assurances vie). La recherche est « pure » :
+  // aucun profil client n'intervient ici (le profil vit dans le Portefeuille).
   const initialUrlFilters = filtersFromParams(searchParams);
-  const fromProfile       = searchParams.get("from") === "profile";
   const hasUrlFilters     = Object.keys(initialUrlFilters).length > 0;
-  const hasInitialFilter  = !!(initialQ || hasUrlFilters || fromProfile);
+  const hasInitialFilter  = !!(initialQ || hasUrlFilters);
   const [hasSearched, setHasSearched] = useState(hasInitialFilter);
 
   // Results
@@ -148,22 +131,20 @@ function RechercheInner() {
   const [sortBy,  setSortBy]  = useState(initialSortBy ?? "data_completeness");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Load profile from localStorage on mount
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (initialized) return;
     setInitialized(true);
-    setProfile(loadStoredProfile());
 
     // Restauration instantanée depuis le cache de session : au retour d'une
     // fiche fonds (URL /recherche sans `q`, ou `q` identique à la recherche
     // mémorisée), on réaffiche la liste précédente sans re-parser ni recharger.
-    // On ne restaure PAS si l'URL porte des filtres explicites (Profil client,
-    // enveloppe/assureur, lien partagé) : l'intention prime sur l'historique.
+    // On ne restaure PAS si l'URL porte des filtres explicites (enveloppe/
+    // assureur, lien partagé) : l'intention prime sur l'historique.
     const cache = loadSearchCache();
     const canRestore =
-      cache && !hasUrlFilters && !fromProfile &&
+      cache && !hasUrlFilters &&
       (!initialQ || initialQ === cache.query);
     if (canRestore && cache) {
       skipNextFetch.current = true;
@@ -184,10 +165,9 @@ function RechercheInner() {
       return;
     }
 
-    // Arrivée avec des filtres déjà décidés (Profil client, enveloppe/assureur
-    // depuis l'accueil, lien partagé) : on amorce directement, sans analyse NLP.
-    if (hasUrlFilters || fromProfile) {
-      if (fromProfile) setShowProfileBar(true);
+    // Arrivée avec des filtres déjà décidés (enveloppe/assureur/contrat depuis
+    // l'onglet Assurances vie, lien partagé) : on amorce directement, sans NLP.
+    if (hasUrlFilters) {
       // Cas d'un rechargement / lien après une recherche partie de l'onglet
       // Assurances vie : l'URL combine une requête texte `q=` et un filtre de
       // référencement (assureur/contrat). On parse le texte ET on conserve le
@@ -195,7 +175,7 @@ function RechercheInner() {
       // survivent au reload — comme en session.
       const refOverlay = pickReferencing(initialUrlFilters);
       const hasRef = !!(refOverlay.insurers || refOverlay.contracts);
-      if (initialQ && hasRef && !fromProfile) {
+      if (initialQ && hasRef) {
         setQuery(initialQ);
         if (asExactIsin(initialQ)) {
           setFilters({ free_text: initialQ, ...refOverlay });
@@ -232,12 +212,6 @@ function RechercheInner() {
     // figés à l'arrivée ; pas besoin de réagir à leurs changements d'identité.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
-
-  // Persist profile changes
-  useEffect(() => {
-    if (!initialized) return;
-    saveStoredProfile(profile);
-  }, [profile, initialized]);
 
   // Fetch results
   useEffect(() => {
@@ -305,20 +279,7 @@ function RechercheInner() {
       router.replace(searchUrlWithReferencing(raw, referencing), { scroll: false });
       return;
     }
-    const profileCtx = isProfileActive(profile) ? serializeForNlp(profile) : null;
-    const fullQuery = profileCtx
-      ? `${raw} (contexte client : ${profileCtx})`
-      : raw;
-
-    const parsed = await parseQuery(fullQuery);
-    // Profil actif : on injecte ses PRÉFÉRENCES DOUCES (revenus, TMI, novice, petit
-    // montant) dans les filtres compris — le LLM ne les produit pas. Elles ne
-    // restreignent pas l'univers, elles nuancent le classement par adéquation
-    // (sans effet si une intention de tri explicite est détectée plus bas).
-    if (isProfileActive(profile)) {
-      const prefs = profileToScreenerFilters(profile).prefs;
-      if (prefs) parsed.prefs = { ...prefs, ...parsed.prefs };
-    }
+    const parsed = await parseQuery(raw);
     const hasFilters = Object.keys(parsed).length > 0;
     // `...referencing` en dernier : le filtre assureur/contrat prime sur ce que le
     // NLP aurait pu produire, et n'est jamais écrasé par une requête sans filtre.
@@ -335,7 +296,7 @@ function RechercheInner() {
     setPrioritizeComplete(detectedSort != null);
     setParsing(false);    // libère le fetch, qui part avec les filtres compris
     router.replace(searchUrlWithReferencing(raw, referencing), { scroll: false });
-  }, [query, router, profile, filters.insurers, filters.contracts]);
+  }, [query, router, filters.insurers, filters.contracts]);
 
   const handleFiltersApply = useCallback(() => setPage(1), []);
 
@@ -375,16 +336,6 @@ function RechercheInner() {
     router.replace(q ? `/recherche?q=${encodeURIComponent(q)}` : "/recherche", { scroll: false });
   }, [router, query]);
 
-  // Retire les filtres issus du profil (bandeau de contexte). On vide les filtres
-  // hydratés depuis l'URL et on nettoie l'URL ; le profil lui-même reste actif
-  // (pastille) pour les recherches suivantes.
-  const clearProfileFilters = useCallback(() => {
-    setFilters({});
-    setShowProfileBar(false);
-    setPage(1);
-    router.replace("/recherche", { scroll: false });
-  }, [router]);
-
   // ─── Sort / pagination ─────────────────────────────────────────────────────
 
   // Tri manuel = choix délibéré de l'utilisateur : on lève le plancher de complétude relevé
@@ -404,10 +355,6 @@ function RechercheInner() {
   const goToPrevPage = useCallback(() => setPage((p) => Math.max(1, p - 1)), []);
   const goToNextPage = useCallback(() => setPage((p) => Math.min(totalPages, p + 1)), [totalPages]);
   const handleRowClick = useCallback((f: Fund) => setActiveFund((prev) => prev === f.isin ? null : f.isin), []);
-
-  const profileActive = isProfileActive(profile);
-  // Libellés des filtres issus du profil, pour le bandeau de contexte.
-  const profileFilterChips = showProfileBar ? describeScreenerFilters(filters) : [];
 
   // Bandeau de contexte « référencement » : libellé lisible quand le screener est
   // filtré sur un contrat (clé « Assureur::Contrat ») ou un assureur, depuis
@@ -444,51 +391,12 @@ function RechercheInner() {
               className="flex-1"
             />
 
-            {/* Pastille profil actif : le profil se renseigne sur la page dédiée
-                (clic → édition) ; la croix le retire des recherches en cours. */}
-            {profileActive && (
-              <button
-                type="button"
-                onClick={() => router.push("/accueil")}
-                title="Modifier le profil client"
-                className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent-soft text-accent-ink text-label font-medium border border-accent/20 hover:bg-accent/10 transition-colors"
-              >
-                <span>Profil actif</span>
-                <X
-                  size={10}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setProfile(EMPTY_PROFILE);
-                    clearStoredProfile();
-                  }}
-                />
-              </button>
-            )}
-
             <Btn variant="primary" size="sm" onClick={handleSearch}>
               Rechercher
             </Btn>
           </div>
         </div>
 
-        {profileFilterChips.length > 0 && (
-          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
-            <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto scrollbar-none">
-              <span className="text-label font-semibold text-accent-ink shrink-0">Profil client :</span>
-              {profileFilterChips.map((c) => (
-                <span key={c} className="inline-block shrink-0 px-2 py-0.5 rounded-md text-caption font-medium bg-paper text-accent-ink border border-accent/20">
-                  {c}
-                </span>
-              ))}
-            </div>
-            <button
-              onClick={clearProfileFilters}
-              className="text-label text-accent-ink/80 hover:text-accent-ink underline shrink-0"
-            >
-              retirer
-            </button>
-          </div>
-        )}
         {referencingLabel && (
           <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-accent-soft/30 border border-accent/20">
             <p className="text-label text-accent-ink min-w-0 truncate">
@@ -607,16 +515,11 @@ function RechercheInner() {
                 <EmptyState
                   icon={<Search size={16} />}
                   title="Aucun fonds ne correspond à votre recherche."
-                  hint="Élargissez ou réinitialisez vos filtres, ou laissez-vous guider par un profil client."
+                  hint="Élargissez ou réinitialisez vos filtres."
                   action={
-                    <div className="flex flex-col items-center gap-2">
-                      <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
-                        Réinitialiser les filtres
-                      </button>
-                      <button onClick={() => router.push("/accueil")} className="text-meta text-muted hover:text-accent-ink hover:underline">
-                        Ou partir d&apos;un profil client →
-                      </button>
-                    </div>
+                    <button onClick={handleFiltersReset} className="text-accent text-meta font-medium hover:underline">
+                      Réinitialiser les filtres
+                    </button>
                   }
                 />
               </div>

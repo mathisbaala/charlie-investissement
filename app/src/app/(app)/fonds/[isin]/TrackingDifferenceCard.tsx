@@ -55,23 +55,6 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
         {title}
       </h3>
 
-      <p className="text-label text-ink-2 leading-snug mb-4">
-        {passive ? (
-          <>
-            Pour un ETF, les frais courants (TER) ne reflètent pas le coût réel. Ce
-            dernier se mesure à l&apos;<span className="font-semibold">écart de réplication</span> :
-            la performance face à son {variant}, qui intègre frais, fiscalité des
-            dividendes et qualité de réplication.
-          </>
-        ) : (
-          <>
-            L&apos;<span className="font-semibold">alpha</span> mesure la performance
-            du fonds, nette de frais, au-delà de son indice de référence. Positif, la
-            gestion crée de la valeur face au marché ; négatif, elle en détruit.
-          </>
-        )}
-      </p>
-
       <p className="text-label text-muted mb-2">
         Indice de référence : <span className="text-ink-2 font-medium">{fund.benchmark_index}</span>
         {fund.benchmark_is_category && (
@@ -94,11 +77,6 @@ export function TrackingDifferenceCard({ fund }: { fund: FundDetailHF }) {
           {variant.charAt(0).toUpperCase() + variant.slice(1)} sur 3 ans : {pct(fund.benchmark_perf_3y, true)}/an.
         </p>
       )}
-      <p className="text-caption text-muted-2 mt-2 leading-snug">
-        {passive
-          ? <>Écart = performance de l&apos;ETF − performance de l&apos;indice. Estimation indicative, vs l&apos;{variant} converti dans la devise de la part. À confirmer par la donnée officielle de l&apos;émetteur.</>
-          : <>Alpha = performance du fonds − performance de l&apos;indice, sur fenêtres alignées. {fund.benchmark_is_category && "Indice de catégorie (proxy), pas l'indice exact du fonds. "}Estimation indicative.</>}
-      </p>
     </Card>
   );
 }

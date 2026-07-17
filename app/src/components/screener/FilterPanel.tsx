@@ -385,9 +385,6 @@ export function FilterPanel({
             />
             <span className="text-meta text-muted">% max</span>
           </div>
-          <p className="text-caption text-muted-2 mt-2 leading-snug">
-            Chute maximale tolérée sur 3 ans (ex. 20 = fonds n&apos;ayant pas perdu plus de 20%).
-          </p>
         </Section>
 
         <Divider />
@@ -517,10 +514,6 @@ export function FilterPanel({
                   );
                 })}
               </div>
-              <p className="text-caption text-muted-2 mt-2 leading-snug">
-                Cliquez sur l&apos;assureur pour le sélectionner, ou sur le chevron pour filtrer par contrat
-                précis.
-              </p>
             </Section>
 
             <Divider />
@@ -641,9 +634,6 @@ export function FilterPanel({
               </div>
             </div>
           )}
-          <p className="text-caption text-muted-2 mt-2 leading-snug">
-            Fonds obligataires qui portent leurs titres jusqu&apos;à une année cible (millésime).
-          </p>
         </Section>
 
         <Divider />
@@ -673,10 +663,6 @@ export function FilterPanel({
               />
             ))}
           </div>
-          <p className="text-caption text-muted-2 mt-2 leading-snug">
-            FCPR / FCPI / FIP / FPCI = private equity (non coté). Éligibilité
-            assurance-vie via l&apos;enveloppe AV Luxembourg.
-          </p>
         </Section>
 
         <Divider />
