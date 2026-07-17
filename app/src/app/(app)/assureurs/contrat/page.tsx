@@ -22,6 +22,22 @@ type InsurerProfile = {
   forces: string[];
   limites: string[];
   lux: { ticket?: string; fid?: string; fas?: string; plancher_uc?: string } | null;
+  // Solidité financière (SFCR) — Levier 3
+  solvabilite_2_pct: number | null;
+  notation: string | null;
+  notation_agence: string | null;
+  notation_annee: number | null;
+  ppb_pct: number | null;
+  encours_vie_mds: number | null;
+  sfcr_annee: number | null;
+  sfcr_url: string | null;
+};
+// Historique du taux servi d'un fonds euros de l'assureur (multi-année).
+type FondsEurosRate = {
+  fonds_euros_nom: string;
+  annee: number;
+  taux_pct: number;
+  bonus_note: string | null;
 };
 type ContractTerms = {
   frais_entree_pct: number | null;
@@ -151,6 +167,53 @@ function cap(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+// Indicateur de solidité (Solvabilité II, notation, PPB, encours) — ne s'affiche
+// que si la valeur est renseignée. `sub` porte la précision (agence, millésime…).
+function SolidityStat({ label, value, sub }: { label: string; value: string | null; sub?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="rounded-lg bg-paper-2 border border-line px-3 py-2">
+      <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">{label}</p>
+      <p className="text-body-lg text-ink font-semibold tabular-nums mt-0.5">{value}</p>
+      {sub && <p className="text-caption text-muted-2 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+// Historique du taux servi d'un fonds euros : libellé + suite d'années (barres
+// proportionnelles au meilleur taux affiché), le millésime le plus récent en gras.
+function FondsEurosTrend({ nom, rates }: { nom: string; rates: FondsEurosRate[] }) {
+  const max = Math.max(...rates.map((r) => Number(r.taux_pct)), 0.01);
+  const latest = rates.at(-1);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-meta text-ink-2 font-medium truncate">{nom}</span>
+        {latest && (
+          <span className="text-body text-ink font-semibold tabular-nums shrink-0">
+            {fmtPct(latest.taux_pct)}
+            <span className="text-caption text-muted-2 font-normal"> en {latest.annee}</span>
+          </span>
+        )}
+      </div>
+      <ul className="flex items-end gap-2 mt-2">
+        {rates.map((r) => (
+          <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+            <span className="text-caption text-muted tabular-nums">{fmtPct(r.taux_pct)}</span>
+            <span className="w-full h-12 flex items-end rounded-sm bg-paper-2 overflow-hidden">
+              <span
+                className="block w-full rounded-sm bg-accent/50"
+                style={{ height: `${Math.max(8, (Number(r.taux_pct) / max) * 100)}%` }}
+              />
+            </span>
+            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // Ligne « libellé : valeur » ; ne s'affiche que si la valeur est renseignée.
 function TermRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -248,9 +311,38 @@ export default async function ContractPage({
   // conditions propres au contrat (frais réels, fonds euros du contrat, options).
   const { data: profile } = await supabase
     .from("investissement_av_insurer_profiles")
-    .select("kind, groupe, positionnement, fonds_euros, forces, limites, lux")
+    .select(
+      "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+    )
     .eq("company", o.company)
     .maybeSingle<InsurerProfile>();
+
+  // Historique du taux servi des fonds euros de l'assureur (multi-année, sourcé
+  // SFCR / communiqués). Regroupé par fonds euros pour l'affichage.
+  const { data: feRates } = await supabase
+    .from("investissement_av_fonds_euros_history")
+    .select("fonds_euros_nom, annee, taux_pct, bonus_note")
+    .eq("company", o.company)
+    .order("annee", { ascending: true })
+    .returns<FondsEurosRate[]>();
+
+  const feByFund = new Map<string, FondsEurosRate[]>();
+  for (const r of feRates ?? []) {
+    const arr = feByFund.get(r.fonds_euros_nom) ?? [];
+    arr.push(r);
+    feByFund.set(r.fonds_euros_nom, arr);
+  }
+  // Fonds euros triés par millésime le plus récent servi (le plus « vivant » en tête).
+  const feFunds = [...feByFund.entries()].sort(
+    (a, b) => (b[1].at(-1)?.annee ?? 0) - (a[1].at(-1)?.annee ?? 0),
+  );
+
+  const hasSolidity =
+    profile != null &&
+    (profile.solvabilite_2_pct != null ||
+      profile.notation != null ||
+      profile.ppb_pct != null ||
+      profile.encours_vie_mds != null);
 
   const terPct = feeFracToPct(o.avg_fee);
   const primaryType = o.types?.[0] ?? "av";
@@ -372,6 +464,63 @@ export default async function ContractPage({
             <div className="mt-3 inline-flex items-baseline gap-2 rounded-lg bg-paper-2 border border-line px-3 py-1.5">
               <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Fonds euros</span>
               <span className="text-body text-ink-2 font-medium">{profile.fonds_euros}</span>
+            </div>
+          )}
+
+          {/* Solidité financière (SFCR) — Solvabilité II, notation, PPB, encours.
+              Faits chiffrés et auditables (rapport SFCR annuel). */}
+          {hasSolidity && (
+            <div className="mt-4 pt-4 border-t border-line-soft">
+              <div className="flex items-baseline justify-between gap-3 flex-wrap mb-2.5">
+                <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Solidité financière</p>
+                {profile.sfcr_url && (
+                  <a
+                    href={profile.sfcr_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-caption text-muted hover:text-accent-ink transition-colors underline decoration-line underline-offset-2"
+                  >
+                    Rapport SFCR{profile.sfcr_annee ? ` ${profile.sfcr_annee}` : ""}
+                  </a>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                <SolidityStat
+                  label="Solvabilité II"
+                  value={profile.solvabilite_2_pct != null ? `${Number(profile.solvabilite_2_pct).toLocaleString("fr-FR")} %` : null}
+                  sub="couverture du SCR"
+                />
+                <SolidityStat
+                  label="Notation"
+                  value={profile.notation}
+                  sub={[profile.notation_agence, profile.notation_annee].filter(Boolean).join(" · ") || null}
+                />
+                <SolidityStat
+                  label="PPB"
+                  value={profile.ppb_pct != null ? `${Number(profile.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : null}
+                  sub="réserve de rendement"
+                />
+                <SolidityStat
+                  label="Encours vie"
+                  value={profile.encours_vie_mds != null ? `${Number(profile.encours_vie_mds).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Md€` : null}
+                  sub="provisions techniques"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Rendement des fonds euros dans le temps (taux servis, nets de frais). */}
+          {feFunds.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-line-soft">
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-3">
+                Rendement des fonds euros
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                {feFunds.slice(0, 4).map(([nom, rates]) => (
+                  <FondsEurosTrend key={nom} nom={nom} rates={rates} />
+                ))}
+              </div>
+              <p className="text-caption text-muted-2 mt-3">Taux servis nets de frais de gestion, hors prélèvements sociaux et fiscaux.</p>
             </div>
           )}
 
