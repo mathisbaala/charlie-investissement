@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SESSION_KEY, type SelectedFund } from "@/components/SelectionProvider";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { X, ChevronDown, ChevronRight, ArrowLeft } from "@/components/ui/icons";
@@ -35,6 +37,37 @@ export function StudioInputs() {
     included, setIncluded, includeFund, source, linesIsins,
     profile, onProfileChange, busy, errorMsg, compute,
   } = usePortfolioStudio();
+
+  // Import des fonds sélectionnés au screener : la barre de sélection redirige
+  // vers /portefeuille/construire?isins=… . On lit ces ISIN une seule fois au
+  // montage, on les impose au portefeuille (nom récupéré depuis la sélection
+  // stockée, repli sur l'ISIN), puis on nettoie l'URL pour qu'un rafraîchissement
+  // ne réimporte pas. Lecture directe du sessionStorage (et non du contexte de
+  // sélection) : les noms sont dispo tout de suite, sans dépendre de l'ordre de
+  // montage des effets.
+  const importedRef = useRef(false);
+  useEffect(() => {
+    if (importedRef.current) return;
+    importedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("isins");
+    if (!raw) return;
+    const isins = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (isins.length) {
+      let nameByIsin = new Map<string, string>();
+      try {
+        const saved = sessionStorage.getItem(SESSION_KEY);
+        if (saved) {
+          const list = JSON.parse(saved) as SelectedFund[];
+          nameByIsin = new Map(list.map((f) => [f.isin, f.name]));
+        }
+      } catch {}
+      isins.forEach((isin) => includeFund(isin, nameByIsin.get(isin) ?? isin));
+    }
+    params.delete("isins");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, [includeFund]);
 
   // Périmètre du sélecteur de contrat : les assureurs renseignés (distribution
   // du profil, pré-remplie depuis Mon cabinet) + les partenaires du cabinet.

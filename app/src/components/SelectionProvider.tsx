@@ -41,7 +41,7 @@ interface SelectionContextValue {
 }
 
 const SelectionContext = createContext<SelectionContextValue | null>(null);
-const SESSION_KEY = "charlie_comparison";
+export const SESSION_KEY = "charlie_comparison";
 
 // Sélection : jusqu'à 10 fonds (pour le portefeuille). La COMPARAISON, elle, est
 // limitée à 4 (au-delà, l'onglet Comparé devient illisible — voir SelectionBar).

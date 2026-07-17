@@ -105,7 +105,7 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
       </a>
       {selected.length >= 2 && (
         <Link
-          href={`/portefeuille?isins=${selected.map((f) => f.isin).join(",")}`}
+          href={`/portefeuille/construire?isins=${selected.map((f) => f.isin).join(",")}`}
           prefetch={false}
           className="shrink-0"
         >
