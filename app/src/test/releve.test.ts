@@ -1,8 +1,39 @@
 import { describe, it, expect } from "vitest";
 import {
   isValidIsin, parseFrenchAmount, extractPositions, consolidate, scrubLabel,
-  looksLikeFeeDocument, extractDocumentTotal, reconcileTotal,
+  looksLikeFeeDocument, extractDocumentTotal, reconcileTotal, csvToText, rowsToText,
 } from "@/lib/releve";
+
+describe("csvToText (ingestion CSV)", () => {
+  it("convertit un export point-virgule et alimente l'extraction", () => {
+    const text = csvToText([
+      "Support;ISIN;Quantité;Valorisation",
+      "Comgest Renaissance Europe C;FR0000295230;18,45;5 574,67",
+    ].join("\n"));
+    const [p] = extractPositions(text);
+    expect(p.isin).toBe("FR0000295230");
+    expect(p.amount).toBeCloseTo(5574.67);
+  });
+  it("respecte les guillemets : virgule décimale ET délimiteur virgule", () => {
+    const text = csvToText('"Fonds Europe",FR0000295230,"1 234,56"');
+    const [p] = extractPositions(text);
+    expect(p.amount).toBeCloseTo(1234.56);
+  });
+});
+
+describe("rowsToText (ingestion Excel)", () => {
+  it("rend les nombres JS en décimales à virgule (sinon 1234.56 serait faux)", () => {
+    const text = rowsToText([
+      ["Support", "ISIN", "Valorisation"],
+      ["Comgest Renaissance Europe C", "FR0000295230", 5574.67],
+    ]);
+    const [p] = extractPositions(text);
+    expect(p.amount).toBeCloseTo(5574.67);
+  });
+  it("cellules vides et non-chaînes sans casse", () => {
+    expect(rowsToText([[null, undefined, "x", 12]])).toBe("    x  12");
+  });
+});
 
 describe("extractDocumentTotal", () => {
   it("prend le plus grand total de valorisation (cas Afer et relevé titres)", () => {

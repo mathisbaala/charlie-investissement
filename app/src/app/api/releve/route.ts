@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { extractDocumentTotal, extractPositions, looksLikeFeeDocument } from "@/lib/releve";
+import { csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, rowsToText } from "@/lib/releve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,6 +71,32 @@ async function pdfToLines(data: Uint8Array): Promise<string> {
   return lines.join("\n");
 }
 
+/** Classeur Excel → texte lignes (toutes les feuilles, cellules brutes). */
+async function workbookToLines(data: Uint8Array): Promise<string> {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.read(data, { type: "array" });
+  const parts: string[] = [];
+  for (const name of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {
+      header: 1,
+      raw: true,
+      defval: "",
+    }) as unknown[][];
+    parts.push(rowsToText(rows));
+  }
+  return parts.join("\n");
+}
+
+/** CSV → texte lignes, avec repli d'encodage : les extranets français exportent
+ *  souvent en windows-1252 (accents cassés en UTF-8 strict). */
+function decodeCsv(data: Uint8Array): string {
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(data);
+  const raw = utf8.includes("�")
+    ? new TextDecoder("windows-1252").decode(data)
+    : utf8;
+  return csvToText(raw);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let form: FormData;
   try {
@@ -86,17 +112,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "PDF trop volumineux (15 Mo max)" }, { status: 413 });
   }
 
+  // Ingestion multi-format : PDF, classeur Excel (xlsx/xls) ou CSV — détection
+  // par SIGNATURE de fichier (l'extension ment parfois), même pipeline ensuite.
   const buf = new Uint8Array(await file.arrayBuffer());
-  if (buf.length < 4 || String.fromCharCode(...buf.slice(0, 4)) !== "%PDF") {
-    return NextResponse.json({ error: "Le fichier n'est pas un PDF" }, { status: 415 });
-  }
+  const sig4 = buf.length >= 4 ? String.fromCharCode(...buf.slice(0, 4)) : "";
+  const isPdf = sig4 === "%PDF";
+  const isZip = sig4.startsWith("PK");                          // xlsx = zip
+  const isOle = buf.length >= 4 && buf[0] === 0xd0 && buf[1] === 0xcf; // xls BIFF
 
   let text: string;
   try {
-    text = await pdfToLines(buf);
+    if (isPdf) {
+      text = await pdfToLines(buf);
+    } else if (isZip || isOle) {
+      text = await workbookToLines(buf);
+    } else {
+      text = decodeCsv(buf);
+    }
   } catch {
     return NextResponse.json(
-      { error: "PDF illisible (protégé ou scanné ? L'OCR n'est pas géré en V1)" },
+      {
+        error: isPdf
+          ? "PDF illisible (protégé ou scanné ? L'OCR n'est pas géré en V1)"
+          : "Fichier illisible : formats acceptés PDF, Excel (xlsx/xls) ou CSV",
+      },
       { status: 422 },
     );
   }

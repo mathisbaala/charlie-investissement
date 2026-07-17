@@ -200,6 +200,59 @@ export function extractPositions(text: string): ExtractedPosition[] {
   return Array.from(byIsin.values());
 }
 
+// ── Ingestion multi-format : CSV / grilles Excel → texte « lignes » ─────────
+// Les extranets partenaires exportent les positions en tableur. On convertit
+// vers le même texte ligne-à-ligne que les PDF (cellules jointes par double
+// espace) pour réutiliser TEL QUEL extractPositions/extractDocumentTotal.
+
+/**
+ * CSV → texte lignes. Gère les délimiteurs français (« ; » et tabulation en
+ * priorité — la virgule décimale interdit de couper naïvement sur « , ») et
+ * les champs entre guillemets (délimiteur ignoré à l'intérieur).
+ */
+export function csvToText(raw: string): string {
+  const out: string[] = [];
+  for (const line of (raw || "").split(/\r?\n/)) {
+    const delim = line.includes(";") ? ";" : line.includes("\t") ? "\t" : ",";
+    const cells: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; continue; }
+        inQuotes = !inQuotes;
+      } else if (ch === delim && !inQuotes) {
+        cells.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    cells.push(cur);
+    out.push(cells.map((c) => c.trim()).join("  "));
+  }
+  return out.join("\n");
+}
+
+/**
+ * Grille tableur (lignes de cellules brutes) → texte lignes. Les nombres JS
+ * sont rendus en décimales à VIRGULE (sinon « 1234.56 » serait lu comme
+ * « 1 234 » suivi de « 56 » par le parseur de montants français).
+ */
+export function rowsToText(rows: unknown[][]): string {
+  return rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          if (cell === null || cell === undefined) return "";
+          if (typeof cell === "number") return String(cell).replace(".", ",");
+          return String(cell).trim();
+        })
+        .join("  "),
+    )
+    .join("\n");
+}
+
 // Lignes de total d'un relevé (« TOTAL VALEUR DE RACHAT 9 255,86 Euros »,
 // « TOTAL VALEURS FRANCAISES 459,92 »…). On écarte les totaux qui ne sont pas
 // une valorisation du portefeuille (frais, versements, plus-values).

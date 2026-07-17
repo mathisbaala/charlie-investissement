@@ -227,9 +227,9 @@ export function AnalyseExistant() {
     <PageShell>
       <h1 className="text-title-lg text-ink mb-1">Analyse de l&apos;existant</h1>
       <p className="text-body text-muted mb-6">
-        Déposez les relevés de situation du client (PDF) : Charlie en extrait les positions,
-        reconnaît les contrats grâce au référencement, puis dresse la synthèse consolidée et
-        des recommandations ciblées, sans refaire le portefeuille.
+        Déposez les relevés de situation du client (PDF, Excel ou CSV) : Charlie en extrait les
+        positions, reconnaît les contrats grâce au référencement, puis dresse la synthèse
+        consolidée et des recommandations ciblées, sans refaire le portefeuille.
       </p>
 
       {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
@@ -242,8 +242,8 @@ export function AnalyseExistant() {
           <p className="text-caption text-muted">
             Charlie lit uniquement les lignes de supports financiers (code ISIN et montant) et en
             construit un portefeuille anonymisé. Aucune donnée d&apos;identité (nom, adresse, numéro
-            d&apos;adhérent, adresse mail) n&apos;est extraite, conservée ou envoyée ; le PDF est lu en
-            mémoire puis immédiatement oublié.
+            d&apos;adhérent, adresse mail) n&apos;est extraite, conservée ou envoyée ; le document est lu
+            en mémoire puis immédiatement oublié.
           </p>
         </div>
       </Card>
@@ -253,7 +253,7 @@ export function AnalyseExistant() {
         <input
           ref={fileInput}
           type="file"
-          accept="application/pdf"
+          accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv"
           multiple
           className="hidden"
           data-testid="releve-input"
@@ -266,10 +266,11 @@ export function AnalyseExistant() {
             disabled={busy}
             className="px-4 py-2 rounded-lg bg-ink text-paper text-body font-medium disabled:opacity-50"
           >
-            {busy ? "Lecture en cours…" : "Déposer des relevés PDF"}
+            {busy ? "Lecture en cours…" : "Déposer des relevés"}
           </button>
           <p className="text-caption text-muted">
-            Relevés PDF texte uniquement (les scans ne sont pas gérés en V1).
+            PDF, Excel (xlsx/xls) ou CSV ; pensez aux exports de vos extranets partenaires.
+            Les scans ne sont pas gérés en V1.
           </p>
         </div>
         {error && <p className="text-caption text-danger mt-3">{error}</p>}
