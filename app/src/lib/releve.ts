@@ -48,7 +48,17 @@ export function parseFrenchAmount(raw: string): number | null {
 }
 
 // Nombre « à la française » sur une ligne de relevé (avec ou sans décimales).
-const AMOUNT_SCAN_RE = /-?\d{1,3}(?:[  \s.]\d{3})*(?:,\d{1,4})?(?:\s*(?:€|EUR))?/g;
+const AMOUNT_SCAN_RE = /-?\d{1,3}(?:[  \s.]\d{3})+(?:,\d{1,4})?(?:\s*(?:€|EUR))?|-?\d+(?:,\d{1,4})?(?:\s*(?:€|EUR))?/g;
+
+/**
+ * Un document dont AUCUNE position ne porte de montant n'est pas un relevé de
+ * situation : c'est typiquement une annexe de frais/performances (loi PACTE)
+ * qui liste des supports avec des pourcentages. Sert à avertir l'utilisateur
+ * qu'il a déposé le mauvais document.
+ */
+export function looksLikeFeeDocument(positions: ExtractedPosition[]): boolean {
+  return positions.length > 0 && positions.every((p) => p.amount === null);
+}
 
 /** Ligne extraite d'un relevé : une position candidate. */
 export interface ExtractedPosition {
@@ -113,13 +123,28 @@ export function extractPositions(text: string): ExtractedPosition[] {
       const label = before || after;
 
       // Montants de la ligne HORS l'ISIN lui-même (sa terminaison numérique
-      // matcherait le scan). On masque l'ISIN avant de chercher.
+      // matcherait le scan). On masque l'ISIN avant de chercher. Deux pièges
+      // rencontrés sur relevés réels :
+      //   - un nombre suivi de « % » est une performance ou des frais, JAMAIS
+      //     un montant (annexes loi PACTE : « MSCI World … 11,32% ») ;
+      //   - les libellés portent des entiers secs (« S&P 500 », « Horizon
+      //     2030 ») : dès qu'un nombre À DÉCIMALES existe sur la ligne, seuls
+      //     les nombres à décimales sont candidats (les colonnes chiffrées des
+      //     relevés — VL, valorisation — sont toujours décimales).
       const masked = line.slice(0, m.index) + " ".repeat(isin.length) + line.slice(m.index + isin.length);
-      let amount: number | null = null;
-      for (const am of masked.match(AMOUNT_SCAN_RE) ?? []) {
-        const v = parseFrenchAmount(am);
-        if (v !== null && v >= 1 && (amount === null || v > amount)) amount = v;
+      const candidates: { v: number; decimal: boolean }[] = [];
+      AMOUNT_SCAN_RE.lastIndex = 0;
+      let am: RegExpExecArray | null;
+      while ((am = AMOUNT_SCAN_RE.exec(masked)) !== null) {
+        if (!am[0].trim()) continue;
+        if (/^\s*%/.test(masked.slice(am.index + am[0].length))) continue;
+        const v = parseFrenchAmount(am[0]);
+        if (v !== null && v >= 1) candidates.push({ v, decimal: /,\d/.test(am[0]) });
       }
+      const pool = candidates.some((c) => c.decimal)
+        ? candidates.filter((c) => c.decimal)
+        : candidates;
+      const amount = pool.length ? Math.max(...pool.map((c) => c.v)) : null;
 
       const prev = byIsin.get(isin);
       if (prev) {

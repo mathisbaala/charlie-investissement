@@ -1,7 +1,23 @@
 import { describe, it, expect } from "vitest";
 import {
   isValidIsin, parseFrenchAmount, extractPositions, consolidate, scrubLabel,
+  looksLikeFeeDocument,
 } from "@/lib/releve";
+
+describe("looksLikeFeeDocument", () => {
+  it("vrai quand des supports existent mais qu'aucun n'est valorisé", () => {
+    expect(looksLikeFeeDocument([
+      { isin: "FR0010094839", label: "Afer Actions Monde", amount: null },
+    ])).toBe(true);
+  });
+  it("faux dès qu'un montant existe, ou sans position", () => {
+    expect(looksLikeFeeDocument([
+      { isin: "FR0010094839", label: "Afer Actions Monde", amount: 1200 },
+      { isin: "LU2216001268", label: "Afer Climat", amount: null },
+    ])).toBe(false);
+    expect(looksLikeFeeDocument([])).toBe(false);
+  });
+});
 
 describe("scrubLabel (anonymisation)", () => {
   it("masque n° d'adhérent, e-mails et civilités+nom", () => {
@@ -78,6 +94,23 @@ describe("extractPositions", () => {
   it("laisse amount à null quand la ligne ne porte aucun montant", () => {
     const [p] = extractPositions("Support en euros Nouvelle Génération  FR0000120271");
     expect(p.amount).toBeNull();
+  });
+  it("ignore les entiers des libellés quand des colonnes décimales existent (cas réel)", () => {
+    // Relevé-titres réel : « 500 » appartient au NOM du fonds ; la valorisation
+    // est la plus grande colonne décimale (8 parts × 57,49 = 459,92).
+    const [p] = extractPositions("8  AM.SP 500 ETF ACC (FR0011871128)  *  57,49  459,92  100,00  45,74");
+    expect(p.amount).toBeCloseTo(459.92);
+    // Sans aucune colonne décimale, l'entier reste utilisable (repli).
+    const [q] = extractPositions("Fonds Divers  FR0000295230  1200");
+    expect(q.amount).toBe(1200);
+  });
+  it("n'assimile JAMAIS un pourcentage à un montant (annexes loi PACTE)", () => {
+    // Cas réel (annexe Afer) : la ligne porte l'indice de référence et sa perf.
+    const [p] = extractPositions("AFER ACTIONS MONDE  FR0010094839  MSCI World All Countries Index  11,32%");
+    expect(p.amount).toBeNull();
+    // Mixte : perf en % ET vraie valorisation en € sur la même ligne.
+    const [q] = extractPositions("Fonds Europe  FR0000295230  11,32%  5 574,67 €");
+    expect(q.amount).toBeCloseTo(5574.67);
   });
 });
 

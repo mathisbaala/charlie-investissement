@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { extractPositions } from "@/lib/releve";
+import { extractPositions, looksLikeFeeDocument } from "@/lib/releve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -175,5 +175,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .sort((a, b) => b.coverage - a.coverage || b.matched - a.matched)
     .slice(0, 8);
 
-  return NextResponse.json({ positions, matches, knownCount });
+  // Mauvais type de document : des supports mais aucun montant, c'est une
+  // annexe de frais/performances, pas un relevé de situation.
+  const warning = looksLikeFeeDocument(extracted)
+    ? "Aucun montant détecté : ce document ressemble à une annexe de frais ou de performances. " +
+      "Déposez le relevé de situation (celui qui valorise chaque support), ou saisissez les montants à la main."
+    : undefined;
+
+  return NextResponse.json({ positions, matches, knownCount, warning });
 }
