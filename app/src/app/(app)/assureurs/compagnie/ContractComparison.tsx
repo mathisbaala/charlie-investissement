@@ -217,11 +217,6 @@ export default function ContractComparison({
                             <EnvBadges c={c} />
                             <span className="text-caption text-muted-2">· {classLabel(c.top_class)}</span>
                           </span>
-                          {c.variants.length > 0 && (
-                            <span className="block text-caption text-muted-2 mt-1 pl-4 truncate">
-                              Mêmes supports que&nbsp;: {c.variants.map((v) => decodeHtml(v.contract)).join(" · ")}
-                            </span>
-                          )}
                         </Link>
                       </td>
                       {COLS.map((col) => (
@@ -266,11 +261,6 @@ export default function ContractComparison({
               </Link>
             ))}
           </div>
-
-          <p className="text-caption text-muted-2 mt-3">
-            « Frais supports » = frais courants moyens des unités de compte référencées. Les frais d'entrée, de gestion et le taux du fonds euros
-            sont ceux du contrat lorsqu'ils sont sourcés ; « — » signale une donnée non encore renseignée.
-          </p>
         </>
       )}
     </div>

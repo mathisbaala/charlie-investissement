@@ -59,18 +59,25 @@ export default async function InsurerPage({
   const { company, env } = await searchParams;
   if (!company) notFound();
 
-  const { data, error } = await supabase.rpc("get_insurer_comparison", { p_company: company });
+  // Les deux lectures (comparaison + profil curé) sont indépendantes → en
+  // parallèle plutôt qu'en séquence (deux allers-retours Supabase = ouverture
+  // perçue comme lente sinon).
+  const [comparison, profileRes] = await Promise.all([
+    supabase.rpc("get_insurer_comparison", { p_company: company }),
+    supabase
+      .from("investissement_av_insurer_profiles")
+      .select(
+        "kind, groupe, positionnement, fonds_euros, forces, limites, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+      )
+      .eq("company", company)
+      .maybeSingle<InsurerProfile>(),
+  ]);
+
+  const { data, error } = comparison;
   const o = data as InsurerComparison | null;
   if (error || !o) notFound();
 
-  // Profil curé de l'assureur (contexte + solidité), comme sur la fiche-contrat.
-  const { data: profile } = await supabase
-    .from("investissement_av_insurer_profiles")
-    .select(
-      "kind, groupe, positionnement, fonds_euros, forces, limites, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
-    )
-    .eq("company", company)
-    .maybeSingle<InsurerProfile>();
+  const profile = profileRes.data;
 
   // L'assureur n'existe ni comme offre ni comme profil → 404 franc.
   if ((o.contracts?.length ?? 0) === 0 && !profile && !o.funds_total) notFound();
@@ -187,10 +194,7 @@ export default async function InsurerPage({
 
       {/* Comparateur des contrats (interactif : enveloppe, tri, statut) */}
       <div>
-        <h2 className="text-title text-ink font-semibold mb-1">Comparer les contrats</h2>
-        <p className="text-meta text-muted mb-4">
-          Mettez les contrats en regard, puis ouvrez celui qui convient pour le détail complet.
-        </p>
+        <h2 className="text-title text-ink font-semibold mb-4">Comparer les contrats</h2>
         <ContractComparison
           contracts={(o.contracts ?? []).map((c) => ({ ...c, company }))}
           company={company}
