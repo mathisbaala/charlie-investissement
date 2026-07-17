@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// Pas de `force-dynamic` : il neutralise l'en-tête `s-maxage` (cache edge jamais
-// utilisé). L'appel RPC garde la route dynamique au build, et le Cache-Control
-// ci-dessous atteint alors le CDN Vercel (~40 ms sur répétition).
+// Cache edge (Next 16) : `force-static` + `revalidate` (seule façon de cacher un
+// GET route handler). `force-dynamic` neutralisait le `s-maxage`. Prérendu puis
+// ISR toutes les 300 s → CDN Vercel ~40 ms. Donnée à évolution lente.
+export const dynamic = "force-static";
+export const revalidate = 300;
 
 // Liste des contrats (assureur + contrat + nombre de fonds), pour alimenter la
 // sélection « par contrat » imbriquée sous chaque assureur du screener.
@@ -14,11 +16,6 @@ export async function GET(): Promise<NextResponse> {
   // 500 (et non 200 + []) sur erreur RPC : voir route insurers. Source principale
   // de /assureurs → une panne ne doit pas se déguiser en « aucun contrat ».
   if (error) return NextResponse.json({ error: "rpc_failed" }, { status: 500 });
-  // Agrégation pure qui bouge lentement : mêmes en-têtes de cache edge que
-  // /insurers, pour servir le FilterPanel en ~40 ms sur répétition et délester
-  // Supabase quand le trafic monte.
-  return NextResponse.json(
-    { data: data ?? [] },
-    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } }
-  );
+  // s-maxage piloté par force-static + revalidate (voir en-tête du fichier).
+  return NextResponse.json({ data: data ?? [] });
 }
