@@ -63,8 +63,30 @@ export interface ExtractedPosition {
 // Libellé plausible : au moins 3 lettres, pas un en-tête de colonne.
 const HEADER_WORDS = /\b(isin|code|libell[ée]|support|valeur|montant|part|quantit[ée]|unit[ée]s?)\b/i;
 
+/**
+ * ANONYMISATION déterministe d'un libellé : le seul texte libre qui sorte d'un
+ * relevé est le libellé de la ligne de support — on y masque tout ce qui
+ * pourrait identifier le client si l'assureur le fait figurer sur la ligne :
+ *   - suites de ≥ 5 chiffres (n° d'adhérent/contrat — jamais un nom de fonds ;
+ *     les millésimes type « Horizon 2030 » font 4 chiffres et sont préservés),
+ *   - adresses e-mail,
+ *   - civilités suivies d'un nom (« M. Dupont », « Madame Martin »).
+ * Le reste du document (état civil, adresse…) n'est JAMAIS extrait : seules
+ * les lignes porteuses d'un ISIN valide sont lues.
+ */
+export function scrubLabel(label: string): string {
+  return label
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "•")
+    .replace(/\b(?:M\.|Mr|Mme|Mlle|Monsieur|Madame|Mademoiselle)\s+[A-ZÀ-Ý][\wÀ-ÿ'-]*/g, "•")
+    .replace(/\d{5,}/g, "•")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function plausibleLabel(s: string): string {
-  const t = s.replace(/\s{2,}/g, " ").replace(/^[\s.·–—|-]+|[\s.·–—|:-]+$/g, "").trim();
+  const t = scrubLabel(
+    s.replace(/\s{2,}/g, " ").replace(/^[\s.·–—|-]+|[\s.·–—|:-]+$/g, "").trim(),
+  );
   if (t.length < 4 || !/[A-Za-zÀ-ÿ]{3}/.test(t) || HEADER_WORDS.test(t)) return "";
   return t.slice(0, 120);
 }

@@ -141,6 +141,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const f = funds.get(p.isin);
     return {
       ...p,
+      // Anonymisation : dès que le fonds est au catalogue, son nom OFFICIEL
+      // remplace le libellé extrait du relevé (déjà nettoyé par scrubLabel) —
+      // le texte du document ne sert plus à rien et n'est pas renvoyé.
+      label: f ? "" : p.label,
       known: Boolean(f),
       name: f?.name ?? null,
       ter: f?.ter ?? null,

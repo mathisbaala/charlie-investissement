@@ -1,7 +1,20 @@
 import { describe, it, expect } from "vitest";
 import {
-  isValidIsin, parseFrenchAmount, extractPositions, consolidate,
+  isValidIsin, parseFrenchAmount, extractPositions, consolidate, scrubLabel,
 } from "@/lib/releve";
+
+describe("scrubLabel (anonymisation)", () => {
+  it("masque n° d'adhérent, e-mails et civilités+nom", () => {
+    expect(scrubLabel("Comgest Renaissance — Adhérent 1234567")).toBe("Comgest Renaissance — Adhérent •");
+    expect(scrubLabel("Contact jean.dupont@mail.fr Fonds Europe")).toBe("Contact • Fonds Europe");
+    expect(scrubLabel("M. Dupont Fonds Patrimoine")).toBe("• Fonds Patrimoine");
+    expect(scrubLabel("Madame Martin — poche libre")).toBe("• — poche libre");
+  });
+  it("préserve les noms de fonds légitimes (millésimes 4 chiffres, sigles)", () => {
+    expect(scrubLabel("Horizon 2030 Actions Europe")).toBe("Horizon 2030 Actions Europe");
+    expect(scrubLabel("CAC 40 ESG UCITS ETF")).toBe("CAC 40 ESG UCITS ETF");
+  });
+});
 
 describe("isValidIsin", () => {
   it("accepte des ISIN réels (clé Luhn valide)", () => {

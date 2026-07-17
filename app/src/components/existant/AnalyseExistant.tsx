@@ -221,7 +221,9 @@ export function AnalyseExistant() {
             {busy ? "Lecture en cours…" : "Déposer des relevés PDF"}
           </button>
           <p className="text-caption text-muted">
-            Relevés texte uniquement (les scans ne sont pas gérés). Les PDF ne sont pas conservés.
+            Relevés texte uniquement (les scans ne sont pas gérés). Analyse anonyme : le PDF n&apos;est
+            jamais conservé, seuls les couples ISIN/montant sont traités — aucune donnée d&apos;identité
+            n&apos;est extraite ni transmise.
           </p>
         </div>
         {error && <p className="text-caption text-danger mt-3">{error}</p>}
