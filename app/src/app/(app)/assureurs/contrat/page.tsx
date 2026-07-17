@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct } from "@/lib/format";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
-import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
+import { ArrowLeft, ChevronRight } from "@/components/ui/icons";
+import { InsurerLogo } from "@/components/ui/InsurerLogo";
 
 // ─── Fiche-contrat (rendu serveur, comme la fiche fonds) ─────────────────────
 // L'onglet Assurance vie ne redirige plus vers le screener : il ouvre CETTE
@@ -375,7 +376,9 @@ export default async function ContractPage({
       {/* En-tête */}
       <Card className="px-5 py-5 md:px-7 md:py-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div className="min-w-0">
+          <div className="flex items-start gap-4 min-w-0">
+            <InsurerLogo company={o.company} size={54} className="mt-0.5 hidden sm:inline-flex" />
+            <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {(o.types ?? []).map((t) => (
                 <span
@@ -399,8 +402,8 @@ export default async function ContractPage({
             <h1 className="text-display leading-[1.2] text-ink font-medium" style={{ fontFamily: "var(--font-sans)" }}>
               {decodeHtml(o.contract)}
             </h1>
-            <p className="flex items-center gap-2 mt-2 text-meta text-muted">
-              <Shield size={13} className="text-muted-2" />
+            <p className="mt-2 text-meta text-muted">
+              <span className="sm:hidden mr-1.5 align-middle"><InsurerLogo company={o.company} size={18} /></span>
               {decodeHtml(o.company)}
             </p>
             {o.variants?.length > 0 && (
@@ -408,6 +411,7 @@ export default async function ContractPage({
                 Mêmes supports que&nbsp;: {o.variants.map((v) => decodeHtml(v.contract)).join(" · ")}
               </p>
             )}
+            </div>
           </div>
 
           <Link
@@ -447,8 +451,14 @@ export default async function ContractPage({
       {/* L'assureur — profil curé (contexte assureur / enveloppe) */}
       {profile && (
         <Card className="px-5 py-5">
-          <div className="flex items-baseline justify-between gap-3 flex-wrap">
-            <h2 className="text-body-lg text-ink font-semibold">L&apos;assureur</h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <InsurerLogo company={o.company} size={44} />
+              <div className="min-w-0">
+                <h2 className="text-body-lg text-ink font-semibold leading-tight">L&apos;assureur</h2>
+                <p className="text-meta text-muted truncate">{decodeHtml(o.company)}</p>
+              </div>
+            </div>
             <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">
               {profile.kind === "lux" ? "Luxembourg" : "France"}
             </span>
