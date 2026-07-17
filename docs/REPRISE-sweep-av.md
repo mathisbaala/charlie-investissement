@@ -5,6 +5,77 @@ fonds euros, univers, options, ticket…) pour la fiche-contrat, selon l'ontolog
 `docs/mapping-assureurs-contrats-cgp.md` §3.1. **Mis en pause pour économiser du quota
 de tokens** (~10 M consommés). Rien n'est perdu, tout est prêt à reprendre.
 
+## MàJ 2026-07-16 (nuit, 3) — SWEEP CLOS À 100 % (coquille catalogue résolue)
+
+Enquête sur le dernier non-documenté (« Spirica::Patrimoine Privée », 205 UC) → **ce
+n'était PAS un fantôme mais une coquille**. Traçage : `av_lux_eligibility` → scraper
+`av-fr-spirica-catalog.py` (produit Sylvéa 9901). Le PDF officiel **AF-9901** dit
+**« Patrimoine Privé »** (masculin) ; la page listing Sylvéa affiche « Privée » (fautif),
+recopié par le scraper. **Corrigé** :
+- rename des 208 lignes d'éligibilité + REFRESH `fund_insurers_mv` puis `contract_groups_mv` ;
+- fiche écrite (curated, frais gestion UC **0,98 %**, 205 UC dont 77,67 % art.8/9,77 % art.9,
+  plafond FE 5 M€, source PDF officiel) ;
+- **fix durable scraper** (`NAME_FIXES`) pour ne pas réintroduire la coquille au run trimestriel.
+- Au passage : apostrophe `BPCE Vie::Fonds des mandats d'arbitrages` (`'`→`’`) réalignée ;
+  **Sogécap::PER Acacia** (newcomer refresh, 54 UC) sourcé curated.
+
+**RÉSULTAT : univers AV couvert à 100 %** — **467/467 contrats représentatifs** documentés
+(473 lignes `av_contract_terms`). Plus aucun reste. Relais permanent = scraper DIC mensuel
+`av-contract-terms.yml` pour les futurs newcomers.
+
+## MàJ 2026-07-16 (nuit, 2) — passe APPROFONDIE des irréductibles → 471 en base
+
+Sur demande (« tout doit être réglé au maximum »), passe renforcée sur les 5 restants
+(workflow `av-terms-deep-5`, run `wf_39964450-48e`, **PDF/DIC autorisés**, 3-4 recherches,
+sources Lux/CGP) : **4/5 écrits** (~0,29 M tokens).
+- **Le Conservateur Privilège** → curated (tableau officiel M42-11/2025).
+- **Spirica MustEpargne** → curated (annexe financière Sylvea AF-1137, contrat fermé).
+- **BPCE Vie Fonds des mandats d'arbitrages** → indicative (n'est pas un contrat autonome
+  mais la liste des UC des mandats BPCE ; frais du porteur Horizeo 2 documentés + note).
+- **Natixis Life Lux Liberalys Essentiel** → indicative (aucune notice publique — comme
+  toute la gamme Liberalys ; données de cadrage alignées sur la famille).
+- **Base : 471 contrats** (196 curated / 275 indicative).
+- **Reste 2 / 466 représentatifs** (99,6 % couvert) : (1) **Spirica « Patrimoine Privée »**
+  = très probablement un **nom de contrat erroné dans le catalogue** (absent du PDF officiel
+  Spirica listant ses ~80 contrats et de toute source ; voisins réels : Private Vie, Amytis
+  Patrimoine, Livret Patrimoine Vie) → **à trancher en data-quality**, pas sourçable ;
+  (2) 1 nouveau contrat entré par refresh de la matview (queue mouvante normale).
+- Hygiène faite le même jour : 3 branches remote mergées supprimées, `tsc` clean,
+  **666/666 tests verts**.
+
+## MàJ 2026-07-16 (nuit) — CLÔTURE : passe finale ≥100 UC, chantier ~99 % couvert
+
+Passe finale (run `wf_af88fab0-254`) sur les **26 derniers ≥100 UC** (surtout Lux gestion
+privée : CNP Lux, Swiss Life Lux, Sogelife, Oradéa, CALI Europe, Cardif Lux, Natixis Lux,
+AFI ESCA Lux, Allianz Life Lux) : **25/26 écrits** (6 curated / 19 indicative), ~0,84 M tokens.
+Même le Lux s'est sourcé (indicative). 1 seul « none » : Spirica Patrimoine Privée (CGP-only).
+
+- **Base finale : 468 contrats** (194 curated / 274 indicative) sur **466 représentatifs**.
+- **Reste irréductible : 5 contrats** sans conditions publiques (2 ≥100 UC + 3 <100 UC) —
+  contrats CGP-only / banque privée (Spirica Patrimoine Privée, Natixis Life Lux, Le
+  Conservateur Privilège…). Nécessiteraient les DIC/notices → hors périmètre sweep web.
+- **CHANTIER ESSENTIELLEMENT CLOS** (~99 % de l'univers). Prochaine reprise = seulement si
+  la matview réintègre de nouveaux contrats ; sinon relais = scraper DIC mensuel
+  `av-contract-terms.yml`. Cumul total tranches 3+4+finale ≈ **9,2 M tokens** (+276 contrats,
+  192 → 468).
+
+## MàJ 2026-07-16 (soir) — tranche 4 (longue traîne <100 UC), ~3,91 M tokens
+
+Même design v2 (`av-contract-terms-sweep-v2`, 1 agent Sonnet/contrat, écriture immédiate).
+Run `wf_197dbcd3-12a` sur **126 contrats <100 UC** (funds DESC, 98→2) : **123/126 écrits**
+(50 curated / 73 indicative), ~3,91 M tokens. La queue s'est mieux sourcée que prévu
+(mutualistes/bancassureurs bien documentés ; seuls 3 « none » : Le Conservateur Privilège,
+Natixis Life Lux Liberalys Essentiel, Spirica MustEpargne).
+
+- **Base : 321 → 444 contrats** (188 curated / 256 indicative). +123 nets.
+- **Reste <100 UC : 3** (les 3 « none » ci-dessus — pas de conditions publiques).
+- **Reste ≥100 UC : 26** — ⚠️ a AUGMENTÉ (17 → 26) car la matview
+  `investissement_contract_groups_mv` a été **rafraîchie** entre-temps (nouveaux contrats
+  passés au-dessus de 100 UC / recomptage). Ce sont surtout des Lux + quelques nouveautés.
+  Prochaine tranche : reprendre `funds >= 100 AND NOT EXISTS(...)` (26) puis c'est bouclé.
+- **Cumul chantier (tranches 3+4) : ~8,37 M tokens** pour passer de 192 → 444 contrats
+  (+252). Qualité vérifiée par échantillon (frais en %, taux fonds euros plausibles, sources HTML).
+
 ## MàJ 2026-07-16 — tranche 3 (fin des ≥100 UC), ~4,46 M tokens
 
 Reprise du sweep (politique 5 M/tranche). Design **v2 inchangé** = workflow
@@ -56,10 +127,10 @@ semaines ; à ~5 M on **arrête proprement** et on n'y revient plus (les contrat
   (2 Linxea curés + 19 phares du pilote workflow). Table `investissement_av_contract_terms`.
 - **Collecté par le sweep mais PAS encore en base** : **152 contrats** (≥300 UC),
   récupérés depuis le workflow `wf_b3b49243-752` avant l'arrêt (48 `curated`,
-  104 `indicative`, 0 `unknown`). **Préservés dans deux fichiers du repo** :
-  - `scripts/data/av_contract_terms_sweep_salvage.json` — données brutes récupérées.
-  - `supabase/migrations/20260714170000_seed_av_contract_terms_sweep_salvage.sql`
-    — **migration de seed PRÊTE À APPLIQUER** (152 lignes, 25 colonnes, échappement OK).
+  104 `indicative`, 0 `unknown`). Appliqués en base depuis, et **préservés** par la
+  migration de seed `supabase/migrations/20260714170000_seed_av_contract_terms_sweep_salvage.sql`
+  (152 lignes, 25 colonnes). _(Le dump brut `av_contract_terms_sweep_salvage.json` a été
+  supprimé le 16/07 après clôture du sweep — superseded, données 100 % en base.)_
 - **Restant à collecter** : ~42 contrats ≥300 UC (194 ciblés − 152 récupérés) + le reste
   du catalogue (≥100 UC = ~310 au total) si on veut aller plus loin.
 - Workflow **arrêté** (TaskStop sur `w402y2y56`), `caffeinate` **coupé**, surveillance

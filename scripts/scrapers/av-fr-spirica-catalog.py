@@ -25,6 +25,12 @@ from db import get_client
 
 COMPANY = "Spirica"
 PERF_URL = "https://www.spirica.fr/performances-et-frais-associes-des-unites-de-compte/"
+
+# Coquilles connues de la page listing Sylvéa → nom officiel (en-tête du PDF annexe).
+# La page perfs/frais affiche parfois un libellé fautif que l'annexe corrige.
+NAME_FIXES = {
+    "Patrimoine Privée": "Patrimoine Privé",  # produit 9901 : listing Sylvéa fautif, PDF AF-9901 = « Privé »
+}
 H = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 ISIN_RE = re.compile(r"\b([A-Z]{2}[A-Z0-9]{9}\d)\b")
 
@@ -50,7 +56,9 @@ def list_contracts(open_only: bool) -> list[tuple[str, str]]:
                 name = txt
                 break
         seen.add(pid)
-        out.append((pid, name or f"Contrat Spirica {pid}"))
+        name = name or f"Contrat Spirica {pid}"
+        name = NAME_FIXES.get(name, name)  # corrige les coquilles connues du listing
+        out.append((pid, name))
     return out
 
 
