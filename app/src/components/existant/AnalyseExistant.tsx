@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { X } from "@/components/ui/icons";
+import { Shield, X } from "@/components/ui/icons";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
 import { consolidate, type ValidatedPosition } from "@/lib/releve";
 import {
@@ -200,6 +200,22 @@ export function AnalyseExistant() {
         des recommandations ciblées — sans refaire le portefeuille.
       </p>
 
+      {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
+      <Card className="p-4 mb-4 flex items-start gap-3">
+        <Shield className="w-5 h-5 mt-0.5 shrink-0 text-ok" aria-hidden />
+        <div>
+          <p className="text-body font-semibold text-ink mb-0.5">
+            Vos documents ne sont ni stockés, ni transmis — l&apos;analyse est 100&nbsp;% anonyme.
+          </p>
+          <p className="text-caption text-muted">
+            Charlie lit uniquement les lignes de supports financiers (code ISIN et montant) pour
+            construire un portefeuille anonymisé. Aucune donnée d&apos;identité — nom, adresse,
+            n°&nbsp;d&apos;adhérent, e-mail — n&apos;est extraite, conservée ou envoyée : le PDF est lu en
+            mémoire puis immédiatement oublié.
+          </p>
+        </div>
+      </Card>
+
       {/* ── Dépôt ── */}
       <Card className="p-5 mb-6">
         <input
@@ -221,9 +237,7 @@ export function AnalyseExistant() {
             {busy ? "Lecture en cours…" : "Déposer des relevés PDF"}
           </button>
           <p className="text-caption text-muted">
-            Relevés texte uniquement (les scans ne sont pas gérés). Analyse anonyme : le PDF n&apos;est
-            jamais conservé, seuls les couples ISIN/montant sont traités — aucune donnée d&apos;identité
-            n&apos;est extraite ni transmise.
+            Relevés PDF texte uniquement (les scans ne sont pas gérés en V1).
           </p>
         </div>
         {error && <p className="text-caption text-danger mt-3">{error}</p>}
