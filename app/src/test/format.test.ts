@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import { pct, eur, fmtAum, dt, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS } from '../lib/format'
+import { pct, eur, fmtAum, dt, fmtSharpe, fmtYears, productTypeLabel, capitalize, feeFracToPct, annualizeCumul, annualizeForType, perfNetteClient, CONTRACT_FEE_DEFAULTS, groupeName } from '../lib/format'
+
+describe('groupeName', () => {
+  it('retire le préfixe « Groupe » redondant', () => {
+    expect(groupeName('Groupe Apicil (mutualiste)')).toBe('Apicil (mutualiste)')
+    expect(groupeName('Groupe Foyer')).toBe('Foyer')
+  })
+  it('laisse intacts les noms sans préfixe', () => {
+    expect(groupeName('AXA')).toBe('AXA')
+    expect(groupeName('Groupama')).toBe('Groupama') // « Groupama » ≠ « Groupe … »
+  })
+  it('gère vide/absent', () => {
+    expect(groupeName(null)).toBe('')
+    expect(groupeName(undefined)).toBe('')
+    expect(groupeName('')).toBe('')
+  })
+})
 
 describe('pct', () => {
   it('returns dash for null', () => expect(pct(null)).toBe('-'))

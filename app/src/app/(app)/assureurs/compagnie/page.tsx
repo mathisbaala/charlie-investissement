@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml } from "@/lib/format";
+import { decodeHtml, groupeName } from "@/lib/format";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
@@ -107,7 +107,7 @@ export default async function InsurerPage({
             {profile && (
               <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">
                 {profile.kind === "lux" ? "Luxembourg" : "France"}
-                {profile.groupe ? ` · Groupe ${profile.groupe}` : ""}
+                {profile.groupe ? ` · Groupe ${groupeName(profile.groupe)}` : ""}
               </span>
             )}
             <h1 className="text-display leading-[1.2] text-ink font-medium mt-1" style={{ fontFamily: "var(--font-sans)" }}>

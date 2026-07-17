@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, feeFracToPct } from "@/lib/format";
+import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight } from "@/components/ui/icons";
@@ -464,7 +464,7 @@ export default async function ContractPage({
             </span>
           </div>
           {profile.groupe && (
-            <p className="text-meta text-muted mt-1">Groupe&nbsp;: <span className="text-ink-2">{profile.groupe}</span></p>
+            <p className="text-meta text-muted mt-1">Groupe&nbsp;: <span className="text-ink-2">{groupeName(profile.groupe)}</span></p>
           )}
           {profile.positionnement && (
             <p className="text-body text-ink-2 mt-2 max-w-[75ch]">{profile.positionnement}</p>
