@@ -28,13 +28,13 @@ export function DurabiliteCard({ fund }: { fund: FundDetailHF }) {
     fund.pai_considered != null;
 
   return (
-    <Card className="px-6 py-5">
+    <Card className="px-6 py-5 self-start">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
         Durabilité · recueil DDA
       </h3>
 
       {sfdr && (
-        <div className="mb-4">
+        <div className={labels.length > 0 || hasMifid ? "mb-4" : ""}>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-caption px-2 py-0.5 rounded-full font-semibold border bg-ok-soft text-ok border-ok/20">
               SFDR {sfdr.tag}
