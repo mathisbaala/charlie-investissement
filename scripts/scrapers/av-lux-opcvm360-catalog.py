@@ -7,13 +7,16 @@ Ce script est paramétrable par contrat via --contract-id (ou --all pour tous).
 
 Contrats identifiés (iframeKey=dec511123cYF4gtju8Spf67dr) :
   633  AG2R La Mondiale               "Life Mobility Evolution"        336 fonds
-  645  BPCE / Natixis Life            "Liberalys BP (large)"           157 fonds
-  665  BPCE / Natixis Life            "Liberalys BP (medium)"          106 fonds
-  669  Natixis Life Luxembourg        "Liberalys + SCPI"                57 fonds
-  670  Natixis Life Luxembourg        "Liberalys Core DNCA"             43 fonds
-  671  Natixis Life Luxembourg        "Liberalys Premium"              117 fonds
-  672  Natixis Life Luxembourg        "Liberalys Plus"                  57 fonds
-  673  Natixis Life Luxembourg        "Liberalys Essentiel"             42 fonds
+  645  APICIL (Intencial)             "Intencial Liberalys Vie (BP Large)"  157 fonds
+  665  APICIL (Intencial)             "Intencial Liberalys Vie (BP Medium)" 106 fonds
+  669  APICIL (Intencial)             "Intencial Liberalys Vie (+ SCPI)"     57 fonds
+  670  APICIL (Intencial)             "Intencial Liberalys Vie (Core DNCA)"  43 fonds
+  671  APICIL (Intencial)             "Intencial Liberalys Vie (Premium)"   117 fonds
+  672  APICIL (Intencial)             "Intencial Liberalys Vie (Plus)"       57 fonds
+  673  APICIL (Intencial)             "Intencial Liberalys Vie (Essentiel)"  42 fonds
+       ↑ « Liberalys » = marque INTENCIAL Patrimoine (assureur APICIL Épargne), PAS
+         Natixis Life : ids étiquetés à la main à tort (opcvm360 ne les rattache pas
+         à cette clé promoteur). Corrigé 17/07 (recoupement ISIN + insurerName APICIL).
   680  La Banque Postale Life / CNP   "Compte Libre Croissance LBP"     49 fonds
   681  La Banque Postale Life / CNP   "Compte Libre Croissance LBP 2"   49 fonds
   701  APICIL Luxembourg              "APICIL Luxembourg AV"            40 fonds
@@ -65,13 +68,15 @@ API_FIELDS = (
 # Contrats connus : id → (company, contract_name, data_source_tag)
 KNOWN_CONTRACTS: dict[int, tuple[str, str, str]] = {
     633: ("AG2R La Mondiale",           "Life Mobility Evolution",              "ag2r-lmep"),
-    645: ("Natixis Life Luxembourg",    "Liberalys BP Large",                   "natixis-life-lux"),
-    665: ("Natixis Life Luxembourg",    "Liberalys BP Medium",                  "natixis-life-lux"),
-    669: ("Natixis Life Luxembourg",    "Liberalys + SCPI",                     "natixis-life-lux"),
-    670: ("Natixis Life Luxembourg",    "Liberalys Core DNCA",                  "natixis-life-lux"),
-    671: ("Natixis Life Luxembourg",    "Liberalys Premium",                    "natixis-life-lux"),
-    672: ("Natixis Life Luxembourg",    "Liberalys Plus",                       "natixis-life-lux"),
-    673: ("Natixis Life Luxembourg",    "Liberalys Essentiel",                  "natixis-life-lux"),
+    # « Liberalys » = Intencial Patrimoine / APICIL Épargne (PAS Natixis Life).
+    # Noms alignés sur la base (upsert idempotent sur (isin, contract_name)).
+    645: ("APICIL",                     "Intencial Liberalys Vie (BP Large)",   "intencial-liberalys"),
+    665: ("APICIL",                     "Intencial Liberalys Vie (BP Medium)",  "intencial-liberalys"),
+    669: ("APICIL",                     "Intencial Liberalys Vie (+ SCPI)",     "intencial-liberalys"),
+    670: ("APICIL",                     "Intencial Liberalys Vie (Core DNCA)",  "intencial-liberalys"),
+    671: ("APICIL",                     "Intencial Liberalys Vie (Premium)",    "intencial-liberalys"),
+    672: ("APICIL",                     "Intencial Liberalys Vie (Plus)",       "intencial-liberalys"),
+    673: ("APICIL",                     "Intencial Liberalys Vie (Essentiel)",  "intencial-liberalys"),
     680: ("La Banque Postale Life",     "Compte Libre Croissance LBP",          "lbp-life-lux"),
     681: ("La Banque Postale Life",     "Compte Libre Croissance LBP 2",        "lbp-life-lux"),
     701: ("APICIL Luxembourg",          "APICIL Luxembourg AV",                 "apicil-lux"),
