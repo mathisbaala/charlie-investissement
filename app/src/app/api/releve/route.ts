@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, rowsToText } from "@/lib/releve";
+import {
+  csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, rowsToText,
+  type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
+} from "@/lib/releve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,24 +22,6 @@ export const dynamic = "force-dynamic";
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 const MAX_ISINS = 200;
 
-interface RelevePosition {
-  isin: string;
-  label: string;
-  amount: number | null;
-  /** Présent dans investissement_funds (analysable) ? */
-  known: boolean;
-  name: string | null;
-  ter: number | null;
-  sri: number | null;
-}
-
-interface ContractMatch {
-  company: string;
-  contract: string;
-  /** Part des ISIN connus du relevé couverts par l'univers du contrat (0-1). */
-  coverage: number;
-  matched: number;
-}
 
 /** Reconstruit des lignes de texte à partir des items pdfjs (tri Y puis X). */
 async function pdfToLines(data: Uint8Array): Promise<string> {

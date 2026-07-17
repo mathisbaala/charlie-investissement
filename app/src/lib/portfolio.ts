@@ -78,6 +78,19 @@ export const DEFAULT_BENCHMARK = "msci_world";
 // Code benchmark valide (lettres/chiffres/underscore) — garde-fou côté API.
 export const BENCHMARK_CODE_RE = /^[a-z0-9_]{2,40}$/;
 
+/** Périodes de back-test proposées (années), partagées par le backtest agrégé et
+ *  l'historique par support. `y` borne l'appel RPC (`inv_portfolio_analyze`). */
+export const PORTFOLIO_PERIODS: { y: number; label: string }[] = [
+  { y: 1, label: "1 an" }, { y: 3, label: "3 ans" }, { y: 5, label: "5 ans" },
+  { y: 10, label: "10 ans" }, { y: 15, label: "15 ans" },
+];
+
+/** Tronque un libellé à `max` caractères, suffixe « … » si coupé. */
+export function truncateLabel(name: string, max = 30): string {
+  const n = name.trim();
+  return n.length > max ? `${n.slice(0, max - 1)}…` : n;
+}
+
 /** Une ligne de portefeuille : un fonds et son poids en POURCENTAGE (0-100). */
 export interface Holding {
   isin: string;

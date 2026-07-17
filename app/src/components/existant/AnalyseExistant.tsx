@@ -9,7 +9,11 @@ import { PageShell } from "@/components/ui/Page";
 import { Shield, X } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
-import { consolidate, reconcileTotal, type ValidatedPosition } from "@/lib/releve";
+import {
+  consolidate, reconcileTotal,
+  type ValidatedPosition,
+  type ReleveApiPosition as ApiPosition, type ReleveContractMatch as ApiMatch,
+} from "@/lib/releve";
 import {
   buildRecommendations, weightedSri, type Recommendation, type FeeLine,
 } from "@/lib/analyseExistant";
@@ -18,14 +22,7 @@ import type { PortfolioAnalysis } from "@/lib/portfolio";
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const PCT = (v: number, d = 1) => `${v.toFixed(d).replace(".", ",")} %`;
 
-// ── Types locaux (miroir de /api/releve) ─────────────────────────────────────
-
-interface ApiPosition {
-  isin: string; label: string; amount: number | null;
-  known: boolean; name: string | null; ter: number | null; sri: number | null;
-}
-interface ApiMatch { company: string; contract: string; coverage: number; matched: number }
-
+// ── Type local : un relevé côté client (positions/contrats = types /api/releve) ─
 interface Releve {
   id: string;
   fileName: string;

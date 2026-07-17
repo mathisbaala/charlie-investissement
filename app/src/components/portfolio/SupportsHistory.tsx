@@ -8,9 +8,12 @@ import { Card } from "@/components/ui/Card";
 import { pct } from "@/lib/format";
 import {
   alignCompareCurve, trailingReturn, calendarYearReturns,
-  BENCHMARK_OPTIONS, DEFAULT_BENCHMARK,
+  BENCHMARK_OPTIONS, DEFAULT_BENCHMARK, PORTFOLIO_PERIODS, truncateLabel,
   type Holding, type PortfolioAnalysis, type PortfolioBenchmark, type PortfolioCurvePoint,
 } from "@/lib/portfolio";
+import {
+  CHART_GRID, CHART_AXIS, CHART_TOOLTIP_BORDER, CHART_BENCHMARK, CHART_SERIES,
+} from "@/lib/chartColors";
 
 // Historique PAR SUPPORT de l'allocation générée : sous le backtest agrégé, une
 // carte toujours visible (pas d'onglet) avec le graphe base 100 de chaque support
@@ -23,19 +26,7 @@ import {
 // dont l'appel porte aussi la courbe de l'indice (même fenêtre). La légende est
 // cliquable : masquer/réafficher un support pour jouer avec le graphe.
 
-const PERIODS = [
-  { y: 1, label: "1 an" }, { y: 3, label: "3 ans" }, { y: 5, label: "5 ans" },
-  { y: 10, label: "10 ans" }, { y: 15, label: "15 ans" },
-];
-
-// Palette catégorielle validée (dataviz) sur le fond papier : ordre FIXE, jamais
-// recyclé — au delà de 8 supports, les suivants ne sont pas tracés (ils restent
-// dans le tableau). L'identité ne repose pas que sur la couleur : légende + tableau.
-const SERIES = [
-  "#2a78d6", "#1baf7a", "#eda100", "#008300",
-  "#4a3aa7", "#e34948", "#e87ba4", "#eb6834",
-];
-const MAX_LINES = SERIES.length;
+const MAX_LINES = CHART_SERIES.length;
 
 // Horizons glissants du tableau (jours) — seuls ceux couverts par au moins un
 // support sont affichés.
@@ -52,11 +43,6 @@ const HORIZONS: { days: number; label: string }[] = [
 const MAX_CALENDAR_YEARS = 6;
 
 const fmtPct = (v: number | null | undefined, sign = false) => pct(v == null ? null : v * 100, sign);
-
-function shortName(name: string, max = 30): string {
-  const n = name.trim();
-  return n.length > max ? `${n.slice(0, max - 1)}…` : n;
-}
 
 export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
   const [years, setYears] = useState(5);
@@ -100,7 +86,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
       curve: usable ? a.curve : ([] as PortfolioCurvePoint[]),
       totalReturn: usable ? (a.ratios?.total_return ?? null) : null,
       benchmark: usable ? (a.benchmark ?? null) : null,
-      color: i < MAX_LINES ? SERIES[i] : null,
+      color: i < MAX_LINES ? CHART_SERIES[i] : null,
     };
   });
   const drawable = series.filter((s) => s.curve.length > 1 && s.color);
@@ -141,7 +127,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
   // Tableau : tous les supports (tracés ou non) + l'indice sur la fenêtre du donneur.
   const tableSeries = [
     ...series.map((s) => ({ key: s.isin, name: s.name, color: s.curve.length > 1 ? s.color : null, curve: s.curve })),
-    ...(bench?.curve?.length ? [{ key: "__bench", name: bench.label, color: "#8A8780", curve: bench.curve }] : []),
+    ...(bench?.curve?.length ? [{ key: "__bench", name: bench.label, color: CHART_BENCHMARK, curve: bench.curve }] : []),
   ];
   const horizonCols = HORIZONS.filter(
     (h) => h.days <= years * 366 && tableSeries.some((s) => trailingReturn(s.curve, h.days) != null),
@@ -156,7 +142,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
   const seriesLabel = (dataKey: string): string => {
     if (dataKey === "__bench") return bench?.label ?? "Indice";
     const s = series.find((x) => x.isin === dataKey);
-    return s ? shortName(s.name) : dataKey;
+    return s ? truncateLabel(s.name) : dataKey;
   };
 
   if (holdings.length === 0) return null;
@@ -170,7 +156,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
         </h2>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-line overflow-hidden">
-            {PERIODS.map((p) => (
+            {PORTFOLIO_PERIODS.map((p) => (
               <button
                 key={p.y}
                 onClick={() => setYears(p.y)}
@@ -210,20 +196,20 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
       {visible.length + (bench ? 1 : 0) > 0 && grid.length > 1 && (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
-            <XAxis dataKey="d" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+            <XAxis dataKey="d" tick={{ fontSize: 10, fill: CHART_AXIS }} tickLine={false}
               tickFormatter={(v: string) => { const d = new Date(v); return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`; }}
               interval="preserveStartEnd" minTickGap={56} />
-            <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={40} />
+            <YAxis tick={{ fontSize: 10, fill: CHART_AXIS }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={40} />
             <Tooltip
               formatter={(v: unknown, n: unknown) => [typeof v === "number" ? v.toFixed(1) : "n.d.", seriesLabel(String(n))]}
               labelFormatter={(l: unknown) => { const d = new Date(String(l)); return isNaN(d.getTime()) ? String(l) : d.toLocaleDateString("fr-FR"); }}
-              contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
+              contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${CHART_TOOLTIP_BORDER}` }} />
             {visible.map((s) => (
               <Line key={s.isin} type="monotone" dataKey={s.isin}
                 stroke={s.color!} strokeWidth={2} dot={false} />
             ))}
-            {bench && <Line type="monotone" dataKey="__bench" stroke="#8A8780" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />}
+            {bench && <Line type="monotone" dataKey="__bench" stroke={CHART_BENCHMARK} strokeWidth={1.5} strokeDasharray="4 3" dot={false} />}
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -252,7 +238,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
           })}
           {bench && (
             <div className="flex items-baseline gap-2 min-w-0 px-1 py-0.5">
-              <span className="inline-block w-2.5 h-0.5 shrink-0 self-center" style={{ background: "#8A8780" }} />
+              <span className="inline-block w-2.5 h-0.5 shrink-0 self-center" style={{ background: CHART_BENCHMARK }} />
               <span className="min-w-0">
                 <span className="block text-meta text-ink-2 truncate">{bench.label}</span>
                 <span className="block text-caption text-muted">{fmtPct(bench.total_return, true)}</span>
@@ -300,7 +286,7 @@ export function SupportsHistory({ holdings }: { holdings: Holding[] }) {
                         {s.color
                           ? <span className="inline-block w-2 h-2 rounded-sm shrink-0" style={{ background: s.color }} />
                           : <span className="inline-block w-2 h-2 shrink-0" />}
-                        <span className="truncate">{shortName(s.name, 36)}</span>
+                        <span className="truncate">{truncateLabel(s.name, 36)}</span>
                       </span>
                     </td>
                     {horizonCols.map((h) => (

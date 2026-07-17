@@ -302,6 +302,27 @@ export interface ValidatedPosition {
   amount: number;
 }
 
+/** Position enrichie renvoyée par /api/releve — contrat unique client ↔ serveur. */
+export interface ReleveApiPosition {
+  isin: string;
+  label: string;
+  amount: number | null;
+  /** Présent dans investissement_funds (analysable) ? */
+  known: boolean;
+  name: string | null;
+  ter: number | null;
+  sri: number | null;
+}
+
+/** Contrat reconnu pour un relevé, renvoyé par /api/releve. */
+export interface ReleveContractMatch {
+  company: string;
+  contract: string;
+  /** Part des ISIN connus du relevé couverts par l'univers du contrat (0-1). */
+  coverage: number;
+  matched: number;
+}
+
 /**
  * Consolide plusieurs relevés en un portefeuille pondéré : somme les montants
  * par ISIN puis convertit en poids (fractions, somme = 1). Les montants nuls ou

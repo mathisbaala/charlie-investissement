@@ -11,9 +11,12 @@ import { pct } from "@/lib/format";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import {
   normalizeWeights, serializePortfolioParams, mergeCurvesMulti,
-  BENCHMARK_OPTIONS, DEFAULT_BENCHMARK, COMPARE_MAX,
+  BENCHMARK_OPTIONS, DEFAULT_BENCHMARK, COMPARE_MAX, PORTFOLIO_PERIODS, truncateLabel,
   type Holding, type PortfolioAnalysis, type CompareFund,
 } from "@/lib/portfolio";
+import {
+  CHART_GRID, CHART_AXIS, CHART_TOOLTIP_BORDER, CHART_BENCHMARK, CHART_PORTFOLIO, CHART_COMPARE,
+} from "@/lib/chartColors";
 
 // Back-test historique de l'allocation générée : rejoue la performance réelle des
 // supports retenus (aux poids courants) face à un indice ET à des fonds de
@@ -22,15 +25,6 @@ import {
 // (portefeuille à 1 ligne) puis sa courbe est réalignée sur la grille du
 // portefeuille et rebasée à 100. N'est monté que sur données réelles (fonds du
 // contrat avec historique de prix) — l'univers de démonstration n'a pas de séries.
-
-const PERIODS = [
-  { y: 1, label: "1 an" }, { y: 3, label: "3 ans" }, { y: 5, label: "5 ans" },
-  { y: 10, label: "10 ans" }, { y: 15, label: "15 ans" },
-];
-
-// Couleurs des fonds comparés — teintes sourdes, distinctes du portefeuille
-// (clay #B0613F) et de l'indice (gris tireté).
-const COMPARE_COLORS = ["#5B7A8C", "#6E8B5E", "#8C6D9C"];
 
 const fmtPct = (v: number | null | undefined, sign = false) => pct(v == null ? null : v * 100, sign);
 const signTone = (v: number | null | undefined) => (v == null ? null : v >= 0 ? "ok" : "bad");
@@ -53,8 +47,7 @@ function startsLater(a: string | null | undefined, b: string | null | undefined)
 
 // Libellé court d'un fonds comparé (légende / tableau) : nom tronqué, sinon ISIN.
 function shortName(c: CompareFund, max = 26): string {
-  const n = (c.name || c.isin).trim();
-  return n.length > max ? `${n.slice(0, max - 1)}…` : n;
+  return truncateLabel(c.name || c.isin, max);
 }
 
 export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
@@ -177,7 +170,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
         </h2>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-line overflow-hidden">
-            {PERIODS.map((p) => {
+            {PORTFOLIO_PERIODS.map((p) => {
               // Maturité au delà de l'historique disponible : cliquable mais
               // marquée (le graphe s'arrêtera à la profondeur des données).
               const beyond = depth != null && p.y > depth.years + 0.5;
@@ -236,7 +229,7 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
           >
             <span
               className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{ background: r.analysis ? COMPARE_COLORS[drawn.indexOf(r)] : "#C9C7C2" }}
+              style={{ background: r.analysis ? CHART_COMPARE[drawn.indexOf(r)] : CHART_TOOLTIP_BORDER }}
             />
             {shortName(r.fund)}
             {!r.analysis && !r.pending && (
@@ -276,21 +269,21 @@ export function PortfolioBacktest({ holdings }: { holdings: Holding[] }) {
       {mergedCurve.length > 0 && (
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={mergedCurve} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
-            <XAxis dataKey="d" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+            <XAxis dataKey="d" tick={{ fontSize: 10, fill: CHART_AXIS }} tickLine={false}
               tickFormatter={(v: string) => { const d = new Date(v); return `${d.getMonth() + 1}/${String(d.getFullYear()).slice(2)}`; }}
               interval="preserveStartEnd" minTickGap={56} />
-            <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={40} />
+            <YAxis tick={{ fontSize: 10, fill: CHART_AXIS }} tickLine={false} axisLine={false} domain={["auto", "auto"]} width={40} />
             <Tooltip
               formatter={(v: unknown, n: unknown) => [typeof v === "number" ? v.toFixed(1) : "n.d.", seriesLabel(String(n))]}
               labelFormatter={(l: unknown) => { const d = new Date(String(l)); return isNaN(d.getTime()) ? String(l) : d.toLocaleDateString("fr-FR"); }}
-              contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
+              contentStyle={{ fontSize: 11, borderRadius: 8, border: `1px solid ${CHART_TOOLTIP_BORDER}` }} />
             <Legend formatter={(value: string) => <span style={{ fontSize: 11 }}>{seriesLabel(value)}</span>} />
-            <Line type="monotone" dataKey="p" stroke="#B0613F" strokeWidth={2} dot={false} />
-            {bench && <Line type="monotone" dataKey="b" stroke="#8A8780" strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls />}
+            <Line type="monotone" dataKey="p" stroke={CHART_PORTFOLIO} strokeWidth={2} dot={false} />
+            {bench && <Line type="monotone" dataKey="b" stroke={CHART_BENCHMARK} strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls />}
             {drawn.map((r, i) => (
               <Line key={r.fund.isin} type="monotone" dataKey={`c${i}`}
-                stroke={COMPARE_COLORS[i]} strokeWidth={1.5} dot={false} />
+                stroke={CHART_COMPARE[i]} strokeWidth={1.5} dot={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
