@@ -5,6 +5,8 @@ import { Rail } from "@/components/chrome/Rail";
 import { Topbar } from "@/components/chrome/Topbar";
 import { GuidePanel } from "@/components/chrome/GuidePanel";
 import { SelectionProvider } from "@/components/SelectionProvider";
+import { ContractCompareProvider } from "@/components/ContractCompareProvider";
+import { ContractCompareBar } from "@/components/ContractCompareBar";
 import { RateLimitDialog } from "@/components/ui/RateLimitDialog";
 import { WelcomeTour } from "@/components/chrome/WelcomeTour";
 
@@ -13,6 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SelectionProvider>
+      <ContractCompareProvider>
       <div className="flex h-full min-h-screen bg-cream overflow-x-hidden">
         {/* Rail 60px fixed left */}
         <Rail />
@@ -39,7 +42,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Visite guidée de première visite (5 onglets + Charlie), une seule fois */}
         <WelcomeTour />
+
+        {/* Panier de comparaison transversale des contrats (flottant, se masque à vide) */}
+        <ContractCompareBar />
       </div>
+      </ContractCompareProvider>
     </SelectionProvider>
   );
 }

@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "@/components/ui/icons";
+import { ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Check, Plus } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { decodeHtml, feeFracToPct } from "@/lib/format";
+import { contractTotalCost } from "@/lib/av-cost";
+import { useContractCompare } from "@/components/ContractCompareProvider";
 import {
   type ContractType, type Envelope,
   typesOf, inEnvelope, realContracts,
@@ -53,17 +55,56 @@ function fmtFee(frac: number | null | undefined): string {
 function fmtSri(v: number | null | undefined): string {
   return v == null ? "—" : `${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7`;
 }
+// Coût total de détention : frais moyens des supports + frais de gestion du
+// contrat (sourcé sinon indicatif enveloppe → préfixe « ~ » quand estimé).
+function fmtCtd(c: ComparisonContract): string {
+  const { total, contractSourced } = contractTotalCost(c.avg_fee, c.frais_gestion_uc_pct, typesOf(c));
+  if (total == null) return "—";
+  const s = `${total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
+  return contractSourced ? s : `~ ${s}`;
+}
 
 // Colonnes triables : clé d'accès + sens « meilleur » par défaut au 1er clic.
-type SortCol = "funds" | "avg_fee" | "frais_entree_pct" | "frais_gestion_uc_pct" | "fonds_euros_taux_pct" | "sri_avg";
-const COLS: { key: SortCol; label: string; get: (c: ComparisonContract) => number | null; firstDir: "asc" | "desc"; render: (c: ComparisonContract) => string }[] = [
+type SortCol = "funds" | "avg_fee" | "ctd" | "frais_entree_pct" | "frais_gestion_uc_pct" | "fonds_euros_taux_pct" | "sri_avg";
+const COLS: { key: SortCol; label: string; get: (c: ComparisonContract) => number | null; firstDir: "asc" | "desc"; render: (c: ComparisonContract) => string; emphasis?: boolean }[] = [
   { key: "funds",                label: "Supports",       get: (c) => c.funds,                firstDir: "desc", render: (c) => c.funds.toLocaleString("fr-FR") },
   { key: "avg_fee",              label: "Frais supports", get: (c) => c.avg_fee,              firstDir: "asc",  render: (c) => fmtFee(c.avg_fee) },
-  { key: "frais_entree_pct",     label: "Frais d'entrée", get: (c) => c.frais_entree_pct,     firstDir: "asc",  render: (c) => fmtPct(c.frais_entree_pct) },
   { key: "frais_gestion_uc_pct", label: "Gestion (UC)",   get: (c) => c.frais_gestion_uc_pct, firstDir: "asc",  render: (c) => fmtPct(c.frais_gestion_uc_pct) },
+  { key: "ctd",                  label: "Coût total",     get: (c) => contractTotalCost(c.avg_fee, c.frais_gestion_uc_pct, typesOf(c)).total, firstDir: "asc", render: fmtCtd, emphasis: true },
+  { key: "frais_entree_pct",     label: "Frais d'entrée", get: (c) => c.frais_entree_pct,     firstDir: "asc",  render: (c) => fmtPct(c.frais_entree_pct) },
   { key: "fonds_euros_taux_pct", label: "Fonds euros",    get: (c) => c.fonds_euros_taux_pct, firstDir: "desc", render: (c) => c.fonds_euros_taux_pct == null ? "—" : `${fmtPct(c.fonds_euros_taux_pct)}${c.fonds_euros_annee ? ` (${c.fonds_euros_annee})` : ""}` },
   { key: "sri_avg",              label: "SRI moyen",      get: (c) => c.sri_avg,              firstDir: "asc",  render: (c) => fmtSri(c.sri_avg) },
 ];
+
+// Bouton « ajouter au comparateur transversal ». En <button> (pas checkbox) avec
+// preventDefault + stopPropagation pour rester fiable à l'intérieur d'une carte-lien
+// (mobile) : on toggle sans déclencher la navigation de la fiche.
+function CompareToggle({ c }: { c: ComparisonContract }) {
+  const { isCompared, toggle, atMax } = useContractCompare();
+  const on = isCompared(c.key);
+  const disabled = !on && atMax;
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggle({ key: c.key, company: c.company, contract: c.contract });
+      }}
+      title={on ? "Retirer du comparateur" : disabled ? `Maximum atteint` : "Ajouter au comparateur"}
+      aria-pressed={on}
+      aria-label={on ? `Retirer ${c.contract} du comparateur` : `Ajouter ${c.contract} au comparateur`}
+      className={`inline-flex items-center justify-center w-6 h-6 rounded-md border transition-colors shrink-0 ${
+        on
+          ? "bg-accent border-accent text-paper"
+          : "bg-paper border-line text-muted-2 hover:border-accent/50 hover:text-accent-ink"
+      } disabled:opacity-40 disabled:cursor-not-allowed`}
+    >
+      {on ? <Check size={13} /> : <Plus size={13} />}
+    </button>
+  );
+}
 
 // Badges d'enveloppe + statut, réutilisés entre la ligne desktop et la carte mobile.
 function EnvBadges({ c }: { c: ComparisonContract }) {
@@ -179,6 +220,7 @@ export default function ContractComparison({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-line">
+                    <th className="w-10 px-3 py-3" aria-hidden />
                     <th className="text-caption uppercase tracking-widest text-muted-2 font-semibold px-4 py-3">Contrat</th>
                     {COLS.map((col) => (
                       <th key={col.key} className="px-4 py-3">
@@ -197,6 +239,9 @@ export default function ContractComparison({
                 <tbody>
                   {filtered.map((c) => (
                     <tr key={c.key} className="border-b border-line-soft last:border-0 hover:bg-accent/[0.03] transition-colors group">
+                      <td className="pl-3 pr-0 py-3 align-middle">
+                        <CompareToggle c={c} />
+                      </td>
                       <td className="px-4 py-3 max-w-[320px]">
                         <Link href={contractHref(c.key)} className="block">
                           <span className="flex items-center gap-2.5">
@@ -209,7 +254,7 @@ export default function ContractComparison({
                         </Link>
                       </td>
                       {COLS.map((col) => (
-                        <td key={col.key} className="px-4 py-3 text-right text-body text-ink-2 tabular-nums whitespace-nowrap">
+                        <td key={col.key} className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${col.emphasis ? "text-body text-ink font-semibold" : "text-body text-ink-2"}`}>
                           {col.render(c)}
                         </td>
                       ))}
@@ -235,14 +280,17 @@ export default function ContractComparison({
                       <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.closed ? "border-[1.5px] border-muted-2" : "bg-ok"}`} />
                       <span className="text-body-lg text-ink font-semibold truncate">{decodeHtml(c.contract)}</span>
                     </span>
-                    <ChevronRight size={15} className="text-muted-2 shrink-0 mt-1" />
+                    <span className="flex items-center gap-2 shrink-0">
+                      <CompareToggle c={c} />
+                      <ChevronRight size={15} className="text-muted-2 mt-1" />
+                    </span>
                   </div>
                   <div className="mt-2"><EnvBadges c={c} /></div>
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
                     {COLS.map((col) => (
                       <div key={col.key} className="flex items-baseline justify-between gap-2">
                         <dt className="text-caption text-muted-2">{col.label}</dt>
-                        <dd className="text-meta text-ink-2 font-medium tabular-nums">{col.render(c)}</dd>
+                        <dd className={`text-meta tabular-nums ${col.emphasis ? "text-ink font-semibold" : "text-ink-2 font-medium"}`}>{col.render(c)}</dd>
                       </div>
                     ))}
                   </dl>

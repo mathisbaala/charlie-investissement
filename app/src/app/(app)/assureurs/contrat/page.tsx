@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
+import { contractTotalCost } from "@/lib/av-cost";
+import type { ContractType } from "@/lib/insurer-envelope";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight } from "@/components/ui/icons";
@@ -82,11 +84,6 @@ type ContractOverview = {
 
 const ENV_LABEL: Record<string, string> = {
   av: "Assurance vie", capi: "Capitalisation", per: "PER", pea: "PEA", pep: "PEP",
-};
-// Frais de gestion d'enveloppe INDICATIFS (moyenne de marché), en attendant les
-// conditions réelles du contrat. Alignés sur CONTRACT_FEE_DEFAULTS (simulateur).
-const ENV_INDICATIVE_FEE: Record<string, number> = {
-  av: 0.8, capi: 0.8, per: 0.6, pea: 0, pep: 0,
 };
 
 const CLASS_LABEL: Record<string, string> = {
@@ -346,8 +343,14 @@ export default async function ContractPage({
       profile.encours_vie_mds != null);
 
   const terPct = feeFracToPct(o.avg_fee);
-  const primaryType = o.types?.[0] ?? "av";
-  const indicativeFee = ENV_INDICATIVE_FEE[primaryType] ?? 0.8;
+  // Coût total de détention : frais moyens des supports + frais de gestion du
+  // contrat (sourcé si connu, sinon indicatif enveloppe). Chiffre unique et
+  // comparable — c'est le vrai coût annuel supporté sur une allocation moyenne.
+  const cost = contractTotalCost(
+    o.avg_fee,
+    o.terms?.frais_gestion_uc_pct ?? null,
+    (o.types ?? ["av"]) as ContractType[],
+  );
 
   // SRI moyen pondéré par le nombre de supports de chaque cran.
   const sriEntries = Object.entries(o.sri ?? {});
@@ -437,9 +440,13 @@ export default async function ContractPage({
           sub="des supports (hors contrat)"
         />
         <StatCard
-          label="Frais de gestion"
-          value={indicativeFee > 0 ? `~${indicativeFee.toLocaleString("fr-FR")} %/an` : "-"}
-          sub="indicatif enveloppe"
+          label="Coût total estimé"
+          value={
+            cost.total != null
+              ? `${cost.contractSourced ? "" : "~ "}${cost.total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %/an`
+              : "-"
+          }
+          sub="supports + gestion du contrat"
         />
         <StatCard
           label="SRI moyen"
