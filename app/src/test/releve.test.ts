@@ -104,6 +104,24 @@ describe("extractPositions", () => {
     const [q] = extractPositions("Fonds Divers  FR0000295230  1200");
     expect(q.amount).toBe(1200);
   });
+  it("apparie par NOM quand montants et ISIN vivent sur des pages différentes (relevé Afer)", () => {
+    // Structure réelle du relevé trimestriel Afer : synthèse chiffrée sans ISIN
+    // (page 2), annexe performances avec ISIN sans montants (page 3).
+    const text = [
+      "AFER ACTIONS MONDE  2 866,84 €  30,97 %  1,5715  1 824,26 €",
+      "AFER ACTIONS AMERIQUE  2 810,79 €  30,37 %  9,2442  304,06 €",
+      "FONDS GARANTI EN EUROS (2)  1 309,22 €  14,15 %  sans objet",
+      "FR0011399658  AFER ACTIONS AMERIQUE  Ofi Invest Asset Management",
+      "FR0010094839  AFER ACTIONS MONDE  Ofi Invest Asset Management",
+      "AFER ACTIONS MONDE  FR0010094839  MSCI World All Countries Index  11,32%",
+    ].join("\n");
+    const out = extractPositions(text);
+    const byIsin = Object.fromEntries(out.map((p) => [p.isin, p.amount]));
+    // Valeur de rachat (le plus grand décimal de la ligne), pas la VL ni la perf.
+    expect(byIsin["FR0010094839"]).toBeCloseTo(2866.84);
+    expect(byIsin["FR0011399658"]).toBeCloseTo(2810.79);
+    expect(out).toHaveLength(2); // le fonds euros sans ISIN n'invente pas de position
+  });
   it("n'assimile JAMAIS un pourcentage à un montant (annexes loi PACTE)", () => {
     // Cas réel (annexe Afer) : la ligne porte l'indice de référence et sa perf.
     const [p] = extractPositions("AFER ACTIONS MONDE  FR0010094839  MSCI World All Countries Index  11,32%");

@@ -102,6 +102,37 @@ function plausibleLabel(s: string): string {
 }
 
 /**
+ * Meilleur montant d'une ligne : plus grand nombre ≥ 1 hors pourcentages
+ * (perfs/frais), en ne retenant que les nombres À DÉCIMALES dès qu'il en
+ * existe (les entiers secs appartiennent aux libellés : « S&P 500 »).
+ */
+function lineAmount(line: string): number | null {
+  const candidates: { v: number; decimal: boolean }[] = [];
+  AMOUNT_SCAN_RE.lastIndex = 0;
+  let am: RegExpExecArray | null;
+  while ((am = AMOUNT_SCAN_RE.exec(line)) !== null) {
+    if (!am[0].trim()) continue;
+    if (/^\s*%/.test(line.slice(am.index + am[0].length))) continue;
+    const v = parseFrenchAmount(am[0]);
+    if (v !== null && v >= 1) candidates.push({ v, decimal: /,\d/.test(am[0]) });
+  }
+  const pool = candidates.some((c) => c.decimal)
+    ? candidates.filter((c) => c.decimal)
+    : candidates;
+  return pool.length ? Math.max(...pool.map((c) => c.v)) : null;
+}
+
+/** Normalisation de libellé pour l'appariement par nom (2nde passe). */
+function normalizeLabel(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
+/**
  * Extrait les positions d'un texte de relevé, ligne à ligne.
  * Une même ligne peut porter VL + parts + montant : on retient le PLUS GRAND
  * nombre ≥ 1 (best-effort, corrigeable à l'écran). Les occurrences répétées
@@ -109,7 +140,8 @@ function plausibleLabel(s: string): string {
  */
 export function extractPositions(text: string): ExtractedPosition[] {
   const byIsin = new Map<string, ExtractedPosition>();
-  for (const line of (text || "").split(/\r?\n/)) {
+  const lines = (text || "").split(/\r?\n/);
+  for (const line of lines) {
     ISIN_SCAN_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = ISIN_SCAN_RE.exec(line)) !== null) {
@@ -132,19 +164,7 @@ export function extractPositions(text: string): ExtractedPosition[] {
       //     les nombres à décimales sont candidats (les colonnes chiffrées des
       //     relevés — VL, valorisation — sont toujours décimales).
       const masked = line.slice(0, m.index) + " ".repeat(isin.length) + line.slice(m.index + isin.length);
-      const candidates: { v: number; decimal: boolean }[] = [];
-      AMOUNT_SCAN_RE.lastIndex = 0;
-      let am: RegExpExecArray | null;
-      while ((am = AMOUNT_SCAN_RE.exec(masked)) !== null) {
-        if (!am[0].trim()) continue;
-        if (/^\s*%/.test(masked.slice(am.index + am[0].length))) continue;
-        const v = parseFrenchAmount(am[0]);
-        if (v !== null && v >= 1) candidates.push({ v, decimal: /,\d/.test(am[0]) });
-      }
-      const pool = candidates.some((c) => c.decimal)
-        ? candidates.filter((c) => c.decimal)
-        : candidates;
-      const amount = pool.length ? Math.max(...pool.map((c) => c.v)) : null;
+      const amount = lineAmount(masked);
 
       const prev = byIsin.get(isin);
       if (prev) {
@@ -155,6 +175,28 @@ export function extractPositions(text: string): ExtractedPosition[] {
       }
     }
   }
+
+  // 2nde passe — APPARIEMENT PAR NOM : certains relevés (ex. Afer trimestriel)
+  // séparent la synthèse chiffrée (noms + montants, SANS ISIN) de l'annexe
+  // performances (ISIN + noms, SANS montants). Pour chaque position restée sans
+  // montant, on cherche son libellé sur les lignes dépourvues d'ISIN et on y
+  // prend le meilleur montant (mêmes gardes : pas de %, décimales d'abord).
+  const missing = Array.from(byIsin.values()).filter(
+    (p) => p.amount === null && normalizeLabel(p.label).length >= 6,
+  );
+  if (missing.length > 0) {
+    for (const line of lines) {
+      ISIN_SCAN_RE.lastIndex = 0;
+      if (ISIN_SCAN_RE.test(line)) continue; // lignes à ISIN : déjà traitées
+      const norm = normalizeLabel(line);
+      for (const p of missing) {
+        if (p.amount !== null || !norm.includes(normalizeLabel(p.label))) continue;
+        const v = lineAmount(line);
+        if (v !== null) p.amount = v;
+      }
+    }
+  }
+
   return Array.from(byIsin.values());
 }
 
