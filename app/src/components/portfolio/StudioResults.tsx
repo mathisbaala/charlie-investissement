@@ -332,15 +332,31 @@ export function StudioResults() {
         amountEur={amountEur}
       />
 
-      {shown.notes.length > 0 && (
-        <Card className="px-5 py-3">
-          <ul className="space-y-1">
-            {shown.notes.map((n, i) => (
-              <li key={i} className="text-meta text-muted">ⓘ {n}</li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {shown.notes.length > 0 && (() => {
+        // En mode démo, un fonds imposé « introuvable dans l'univers » vient
+        // presque toujours d'une sélection du screener (base réelle) posée sur
+        // l'univers d'exemple, qui ne la contient pas. On garde la note factuelle
+        // mais on ajoute une consigne : choisir son contrat pour les retrouver.
+        const hasUnresolvedImposed =
+          source === "demo" &&
+          shown.notes.some((n) => n.includes("introuvable dans l'univers"));
+        return (
+          <Card className="px-5 py-3">
+            <ul className="space-y-1">
+              {shown.notes.map((n, i) => (
+                <li key={i} className="text-meta text-muted">ⓘ {n}</li>
+              ))}
+            </ul>
+            {hasUnresolvedImposed && (
+              <p className="text-meta text-ink-2 mt-2">
+                Ces fonds proviennent de votre recherche : l’univers d’exemple ne
+                les contient pas. Sélectionnez votre contrat dans les réglages
+                pour les intégrer au portefeuille.
+              </p>
+            )}
+          </Card>
+        );
+      })()}
 
       <div className="flex justify-end gap-2">
         {/* Passe le portefeuille généré au simulateur de frais : lignes (poids
