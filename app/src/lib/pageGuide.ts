@@ -132,9 +132,9 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
   {
     prefixes: ["/simulateur"],
     guide: {
-      title: "Simulateur de frais",
+      title: "Frais",
       intro:
-        "Le simulateur de frais et de gains d'une assurance vie. Montre les deux étages de frais que porte le client final (contrat + unités de compte) et leur effet sur la performance nette, année par année.",
+        "La rémunération du cabinet et le coût du contrat, côté comptabilité : rétrocessions récurrentes et commission d'entrée, cumulées et détaillées support par support, avec le partage assureur / société de gestion / cabinet.",
       sections: [
         {
           heading: "Sur cette page",

@@ -458,7 +458,7 @@ export function AnalyseExistant() {
 
           <div className="flex items-center gap-4 flex-wrap mt-6">
             <Link href={simulateurHref} className="text-body text-ink underline underline-offset-4">
-              Ouvrir dans le simulateur de frais
+              Simuler ma rémunération
             </Link>
             <Link href="/portefeuille/construire" className="text-caption text-muted underline underline-offset-4">
               Simuler une réallocation complète (chemin secondaire)

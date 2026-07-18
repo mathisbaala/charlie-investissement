@@ -1,30 +1,32 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { FundAdder } from "@/components/portfolio/FundAdder";
-import { X } from "@/components/ui/icons";
+import { X, ArrowRight } from "@/components/ui/icons";
 import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
-  simulate, rendementPondere, projeterUC, partFraisDansGainBrut, repartitionFrais,
-  HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
+  simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
+  remunerationSupport, HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
+import { SupportSources, type DepositedHolding, type DiciSupport } from "./SupportSources";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 const DUREES = [5, 10, 15, 20, 25];
 const MAX_UC = 10;
 
-// Défauts « contrat type » (éditables à l'écran) : bancassureur classique.
-// Gestion UC = CONTRACT_FEE_DEFAUTS["AV-FR"], la référence de l'app.
+// Défauts « contrat type » (éditables) : bancassureur classique. La commission
+// upfront du cabinet est initialisée au niveau des frais d'entrée (convention
+// courante : les droits d'entrée reviennent au distributeur), éditable ensuite.
 const FRAIS_DEFAUT: FeeParams = {
   contratEntree: 2, contratGestionUC: CONTRACT_FEE_DEFAULTS["AV-FR"],
   contratGestionFE: 0.7, contratSortie: 0,
@@ -33,19 +35,18 @@ const FRAIS_DEFAUT: FeeParams = {
 const RENDEMENT_UC_DEFAUT = 5;   // %/an, faute d'UC sélectionnées
 const RENDEMENT_FE_DEFAUT = 2.5; // %/an, taux servi moyen récent
 
-// UC sélectionnée, enrichie depuis /api/funds (perf 5 ans annualisée, frais).
+// Support (UC) enrichi depuis /api/funds : perf 5 ans annualisée + frais.
 interface UcRow {
   isin: string;
   name: string;
   poids: number;               // % du compartiment UC
   perf5y: number | null;       // %/an, net des frais courants (VL réelle)
   ter: number | null;          // % (frais courants)
-  entryFee: number | null;     // % (converti depuis la fraction en base)
+  entryFee: number | null;     // %
   exitFee: number | null;      // %
-  retro: number | null;        // %/an — rétrocession CGP (part du TER reversée au cabinet)
+  retro: number | null;        // %/an — rétrocession CGP
 }
 
-// Fiche minimale renvoyée par /api/funds, telle qu'on la consomme ici.
 interface ApiFund {
   isin: string; name?: string | null; product_type?: string | null;
   performance_5y?: number | null; ter?: number | null; ongoing_charges?: number | null;
@@ -71,8 +72,6 @@ const toUcRow = (isin: string, name: string, poids: number, f: ApiFund | null): 
   retro: feeFracToPct(f?.retrocession_cgp ?? null),
 });
 
-// Un champ vidé ou invalide vaut 0 (jamais NaN : Number("") = 0 mais
-// Number("-") = NaN, qui contaminerait toute la simulation).
 const num = (s: string): number => {
   const v = Number(s);
   return Number.isFinite(v) ? v : 0;
@@ -117,10 +116,17 @@ function FieldEur({ label, value, onChange, step }: {
   );
 }
 
+const H2 = ({ children, className = "mb-3" }: { children: React.ReactNode; className?: string }) => (
+  <h2 className={`text-subhead text-ink ${className}`} style={{ fontFamily: "var(--font-sans)" }}>{children}</h2>
+);
+
 /**
- * Simulateur de frais & de gains d'une assurance vie : deux étages de frais
- * (contrat + UC), perf 5 ans réelle des UC sélectionnées, projections 5/10/15
- * ans, courbe de la valeur (avec vs sans frais) et courbe des frais cumulés.
+ * Onglet « Frais » — angle COMPTABILITÉ / rémunération du cabinet (CGP). Deux
+ * étages de frais (contrat + supports) mais la lecture est « combien je gagne,
+ * qu'est-ce qui est le plus avantageux » : rétrocessions récurrentes +
+ * commission upfront, cumulées et détaillées support par support. Les supports
+ * s'alimentent en autonomie (recherche, relevé, fiche/DICI) et un renvoi mène au
+ * détail investissement (fiche produit, analyse de portefeuille).
  */
 export function FeeSimulator() {
   const [versementInitial, setVersementInitial] = useState(10_000);
@@ -128,21 +134,19 @@ export function FeeSimulator() {
   const [duree, setDuree] = useState(15);
   const [partUC, setPartUC] = useState(30);
   const [rendementFE, setRendementFE] = useState(RENDEMENT_FE_DEFAUT);
-  // null = automatique (perf 5 ans réelle pondérée des UC sélectionnées)
   const [rendementUCManuel, setRendementUCManuel] = useState<number | null>(null);
   const [frais, setFrais] = useState<FeeParams>(FRAIS_DEFAUT);
   const [terManuel, setTerManuel] = useState<number | null>(null);
-  // null = automatique : frais d'entrée/sortie réels pondérés des UC choisies.
   const [ucEntreeManuel, setUcEntreeManuel] = useState<number | null>(null);
   const [ucSortieManuel, setUcSortieManuel] = useState<number | null>(null);
-  // null = automatique : rétrocession réelle pondérée des UC choisies.
   const [retroManuel, setRetroManuel] = useState<number | null>(null);
+  // Commission upfront du cabinet (%/versement) : seedée aux frais d'entrée.
+  const [commissionCabinet, setCommissionCabinet] = useState(FRAIS_DEFAUT.contratEntree);
   const [ucs, setUcs] = useState<UcRow[]>([]);
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
-  // Ajout d'une UC : le nom vient du FundAdder, le détail (perf 5 ans réelle,
-  // frais, rétrocession) est rechargé depuis /api/funds (raccourci ISIN exact).
+  // Ajout d'un support par recherche : détail rechargé depuis /api/funds.
   const addUC = async (isin: string, name: string) => {
     setUcs((prev) => {
       if (prev.length >= MAX_UC || prev.some((u) => u.isin === isin)) return prev;
@@ -150,14 +154,51 @@ export function FeeSimulator() {
       return [...prev, toUcRow(isin, name, poids, null)];
     });
     const f = await fetchFund(isin);
-    if (!f) return; // fiche indisponible : l'UC reste utilisable en manuel
+    if (!f) return;
     setUcs((prev) => prev.map((u) => (u.isin !== isin ? u : toUcRow(isin, u.name, u.poids, f))));
   };
 
-  // ── Préremplissage depuis un portefeuille (/simulateur?isins=&weights=&montant=) ──
-  // Les fonds euros du portefeuille ne deviennent pas des UC : leur poids bascule
-  // vers le compartiment euros (curseur « part UC »), les autres lignes sont
-  // renormalisées à 100 % du compartiment UC.
+  // Support déposé via fiche/DICI : frais extraits, enrichis si le fonds est en
+  // base (perf 5 ans, rétrocession réelle). Sinon, on garde les frais du DICI.
+  const addDiciSupport = async (s: DiciSupport) => {
+    setUcs((prev) => {
+      if (prev.length >= MAX_UC || prev.some((u) => u.isin === s.isin)) return prev;
+      const poids = prev.length ? prev.reduce((a, u) => a + u.poids, 0) / prev.length : 100;
+      return [...prev, {
+        isin: s.isin, name: s.name, poids,
+        perf5y: null, ter: s.ter, entryFee: s.entryFee, exitFee: s.exitFee, retro: null,
+      }];
+    });
+    if (!s.matchedIsin) return;
+    const f = await fetchFund(s.matchedIsin);
+    if (f) setUcs((prev) => prev.map((u) => (u.isin !== s.isin ? u : toUcRow(s.isin, u.name, u.poids, f))));
+  };
+
+  // Charge un portefeuille (paramètres d'URL ou relevé déposé) : sépare le fonds
+  // euros (son poids bascule vers le compartiment euros), renormalise les UC à
+  // 100 % du compartiment UC, et cale le versement initial sur le total.
+  const loadPortfolio = async (
+    items: { isin: string; name: string; weight: number }[],
+    montant: number | null,
+  ) => {
+    if (montant != null && Number.isFinite(montant) && montant > 0) setVersementInitial(Math.round(montant));
+    const fetched = await Promise.all(items.map(async (h) => ({ h, f: await fetchFund(h.isin) })));
+    const total = fetched.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
+    if (!(total > 0)) return;
+    const enUC = fetched.filter((x) => x.f?.product_type !== "fonds_euros");
+    const totalUC = enUC.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
+    setPartUC(Math.round((totalUC / total) * 100));
+    setUcs(enUC.slice(0, MAX_UC).map(({ h, f }) =>
+      toUcRow(h.isin, f?.name ?? h.name ?? h.isin, totalUC > 0 ? Math.round((h.weight / totalUC) * 1000) / 10 : 0, f),
+    ));
+  };
+
+  const addPortfolio = (holdings: DepositedHolding[]) => {
+    const total = holdings.reduce((a, h) => a + Math.max(0, h.amount), 0);
+    loadPortfolio(holdings.map((h) => ({ isin: h.isin, name: h.name, weight: h.amount })), total);
+  };
+
+  // Préremplissage depuis un autre onglet : /simulateur?isins=&weights=&montant=
   const searchParams = useSearchParams();
   const prefilled = useRef(false);
   useEffect(() => {
@@ -166,62 +207,33 @@ export function FeeSimulator() {
     const holdings = parsePortfolioParams(searchParams.get("isins"), searchParams.get("weights"));
     if (holdings.length === 0) return;
     const montant = Number(searchParams.get("montant"));
-    if (Number.isFinite(montant) && montant > 0) setVersementInitial(Math.round(montant));
-    (async () => {
-      const fetched = await Promise.all(
-        holdings.map(async (h) => ({ h, f: await fetchFund(h.isin) })),
-      );
-      const total = fetched.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
-      if (!(total > 0)) return;
-      const enUC = fetched.filter((x) => x.f?.product_type !== "fonds_euros");
-      const totalUC = enUC.reduce((a, x) => a + Math.max(0, x.h.weight), 0);
-      setPartUC(Math.round((totalUC / total) * 100));
-      setUcs(
-        enUC.slice(0, MAX_UC).map(({ h, f }) =>
-          toUcRow(h.isin, f?.name ?? h.isin, totalUC > 0 ? Math.round((h.weight / totalUC) * 1000) / 10 : 0, f),
-        ),
-      );
-    })();
+    loadPortfolio(
+      holdings.map((h) => ({ isin: h.isin, name: h.isin, weight: h.weight })),
+      Number.isFinite(montant) ? montant : null,
+    );
   }, [searchParams]);
 
   const removeUC = (isin: string) => setUcs((prev) => prev.filter((u) => u.isin !== isin));
   const setPoids = (isin: string, poids: number) =>
     setUcs((prev) => prev.map((u) => (u.isin === isin ? { ...u, poids: Math.max(0, poids) } : u)));
 
-  // Rendement UC : perf 5 ans réelle pondérée, surchargeable à la main.
+  // Rendement & frais des supports : réels pondérés, surchargeables.
   const perfPonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.perf5y, poids: u.poids }))),
-    [ucs],
-  );
+    () => rendementPondere(ucs.map((u) => ({ perf: u.perf5y, poids: u.poids }))), [ucs]);
   const rendementUC = rendementUCManuel ?? perfPonderee ?? RENDEMENT_UC_DEFAUT;
-
-  // Frais des UC : réels pondérés des UC sélectionnées (frais courants,
-  // entrée, sortie), chacun surchargeable à la main.
   const terPondere = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.ter, poids: u.poids }))),
-    [ucs],
-  );
+    () => rendementPondere(ucs.map((u) => ({ perf: u.ter, poids: u.poids }))), [ucs]);
   const entreePonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.entryFee, poids: u.poids }))),
-    [ucs],
-  );
+    () => rendementPondere(ucs.map((u) => ({ perf: u.entryFee, poids: u.poids }))), [ucs]);
   const sortiePonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.exitFee, poids: u.poids }))),
-    [ucs],
-  );
+    () => rendementPondere(ucs.map((u) => ({ perf: u.exitFee, poids: u.poids }))), [ucs]);
   const ucGestion = terManuel ?? terPondere ?? FRAIS_DEFAUT.ucGestion;
   const ucEntree = ucEntreeManuel ?? entreePonderee ?? FRAIS_DEFAUT.ucEntree;
   const ucSortie = ucSortieManuel ?? sortiePonderee ?? FRAIS_DEFAUT.ucSortie;
 
-  // Rétrocession CGP : réelle pondérée des UC choisies, surchargeable à la
-  // main. Sans donnée (aucune UC, ou UC sans rétro en base), on retombe sur
-  // l'estimation de place : ~50 % des frais courants reversés au cabinet
-  // (même convention que l'onglet cabinet / applyUcRetroShare). Une pondérée
-  // à 0 (fonds indiciels) reste 0 : les ETF ne rétrocèdent pas.
+  // Rétrocession : réelle pondérée, sinon estimation de place (50 % du TER).
   const retroPonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.retro, poids: u.poids }))),
-    [ucs],
-  );
+    () => rendementPondere(ucs.map((u) => ({ perf: u.retro, poids: u.poids }))), [ucs]);
   const retroEstimee = Math.round(ucGestion * 0.5 * 100) / 100;
   const retroCgp = retroManuel ?? retroPonderee ?? retroEstimee;
 
@@ -229,27 +241,25 @@ export function FeeSimulator() {
     versementInitial, versementAnnuel, dureeAnnees: duree, partUC,
     rendementUC, rendementFE,
     frais: { ...frais, ucGestion, ucEntree, ucSortie },
-    retroCgp,
-  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp]);
+    retroCgp, commissionCabinet,
+  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet]);
 
   const horizons = useMemo(
-    () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b),
-    [duree],
-  );
+    () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b), [duree]);
   const sim = useMemo(() => simulate(input, horizons), [input, horizons]);
   const final = sim.horizons[sim.horizons.length - 1];
-  // Répartition du coût de la structure par destinataire, à l'horizon simulé.
   const finalPoint = final ? sim.points[final.annees] : null;
   const repart = final && finalPoint
-    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee)
+    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee)
     : null;
 
-  // Courbe des frais : cumulés, regroupés en 3 postes lisibles.
-  const fraisCurve = useMemo(() => sim.points.map((p) => ({
+  const remuTotale = final ? final.retroCgpCumulee + final.commCabinetCumulee : 0;
+
+  // Courbe de rémunération cumulée du cabinet : upfront + rétrocessions.
+  const remuCurve = useMemo(() => sim.points.map((p) => ({
     annee: p.annee,
-    entree: p.fraisCumules.entreeContrat + p.fraisCumules.entreeUC,
-    contrat: p.fraisCumules.gestionContratUC + p.fraisCumules.gestionContratFE,
-    uc: p.fraisCumules.gestionUC,
+    upfront: p.commCabinetCumulee,
+    retro: p.retroCgpCumulee,
   })), [sim]);
 
   const valeurCurve = useMemo(() => sim.points.map((p) => ({
@@ -261,16 +271,33 @@ export function FeeSimulator() {
 
   const ucIsins = useMemo(() => new Set(ucs.map((u) => u.isin)), [ucs]);
 
+  // Détail par support : montant alloué (part UC × poids) → rémunération.
+  const totalPoids = ucs.reduce((a, u) => a + Math.max(0, u.poids), 0) || 1;
+  const ucPot = versementInitial * (partUC / 100);
+  const supportRows = ucs.map((u) => {
+    const montant = ucPot * (Math.max(0, u.poids) / totalPoids);
+    const effRetro = u.retro ?? retroCgp;
+    const remu = remunerationSupport(montant, effRetro, commissionCabinet);
+    return { u, montant, effRetro, ...remu };
+  });
+  const remuAnnuelleTotale = supportRows.reduce((a, r) => a + r.retroAnnuelle, 0);
+  const upfrontTotal = supportRows.reduce((a, r) => a + r.commissionUpfront, 0);
+
+  const portfolioHref = useMemo(() => {
+    if (!ucs.length) return null;
+    const isins = ucs.map((u) => u.isin).join(",");
+    const weights = ucs.map((u) => Math.round(u.poids * 10) / 10).join(",");
+    return `/portefeuille/analyser?isins=${isins}&weights=${weights}&montant=${Math.round(versementInitial)}`;
+  }, [ucs, versementInitial]);
+
   return (
     <PageShell>
-      {/* KPI à l'horizon simulé. Lecture CGP : les frais sont présentés en
-          regard des gains (transparence DDA), pas comme une perte sèche. */}
       {final && (
         <div className="flex flex-col md:flex-row gap-3 mb-6">
+          <Kpi label={`Rémunération cabinet à ${final.annees} ans`} value={EUR.format(remuTotale)} tone="ok" />
+          <Kpi label="Coût total client" value={EUR.format(final.totalFrais)} />
           <Kpi label={`Valeur nette à ${final.annees} ans`} value={EUR.format(final.valeurNette)} />
           <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
-          <Kpi label="Coût total de la structure" value={EUR.format(final.totalFrais)} />
-          <Kpi label="Rémunération du cabinet" value={EUR.format(final.retroCgpCumulee)} tone="ok" />
           <Kpi label="Frais / gain brut"
             value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
         </div>
@@ -279,8 +306,43 @@ export function FeeSimulator() {
       <div className="grid lg:grid-cols-[340px_1fr] gap-5 items-start">
         {/* ── Paramètres ── */}
         <div className="space-y-5 min-w-0">
+          <Card className="px-5 py-5">
+            <H2>Supports</H2>
+            <SupportSources
+              onAddFund={addUC}
+              existingIsins={ucIsins}
+              full={ucs.length >= MAX_UC}
+              onAddPortfolio={addPortfolio}
+              onAddDiciSupport={addDiciSupport}
+            />
+            {ucs.length > 0 && (
+              <div className="space-y-3 mt-4 pt-4 border-t border-line-soft">
+                {ucs.map((u) => (
+                  <div key={u.isin}>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/fonds/${u.isin}`} className="flex-1 min-w-0 text-meta text-ink truncate hover:text-accent-ink hover:underline" title={u.name}>
+                        {u.name}
+                      </Link>
+                      <input type="number" min={0} max={100} value={Math.round(u.poids * 10) / 10}
+                        onChange={(e) => setPoids(u.isin, num(e.target.value))}
+                        className={`w-14 text-right text-meta tabular-nums border border-line rounded-md px-1.5 py-1 bg-paper focus:outline-none focus:border-accent ${NUM_INPUT}`} />
+                      <span className="text-meta text-muted w-3">%</span>
+                      <button onClick={() => removeUC(u.isin)} className="text-muted hover:text-danger transition-colors" aria-label="Retirer">
+                        <X size={13} />
+                      </button>
+                    </div>
+                    <p className="text-caption text-muted-2 mt-1 font-mono">
+                      {u.isin}
+                      <span className="font-sans text-muted"> · frais courants {pct(u.ter)}{u.retro != null && <> · rétro {pct(u.retro)}</>}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           <Card className="px-5 py-5 space-y-3">
-            <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>Versements & allocation</h2>
+            <H2>Versement & horizon</H2>
             <FieldEur label="Versement initial" value={versementInitial} onChange={setVersementInitial} step={1000} />
             <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
             <div className="flex items-center justify-between gap-2">
@@ -302,9 +364,8 @@ export function FeeSimulator() {
               <input type="range" min={0} max={100} step={5} value={partUC}
                 onChange={(e) => setPartUC(Number(e.target.value))}
                 className="w-full accent-[#B0613F]" aria-label="Part unités de compte" />
-              <p className="text-caption text-muted mt-1">Le reste ({100 - partUC} %) va au fonds euros.</p>
             </div>
-            <FieldPct label="Taux fonds euros (servi, net)" value={rendementFE} onChange={setRendementFE} />
+            <FieldPct label="Taux fonds euros (net)" value={rendementFE} onChange={setRendementFE} />
             <label className="flex items-center justify-between gap-2">
               <span className="text-meta text-ink-2">
                 Rendement UC (net, %/an)
@@ -316,23 +377,26 @@ export function FeeSimulator() {
                 <input type="number" step={0.1} value={rendementUC}
                   onChange={(e) => {
                     const v = Number(e.target.value);
-                    // Champ vidé/invalide → retour au mode automatique (jamais NaN).
                     setRendementUCManuel(Number.isFinite(v) ? v : null);
                   }}
                   className={`w-16 text-right text-meta tabular-nums border border-line rounded-md px-1.5 py-1 bg-paper focus:outline-none focus:border-accent ${NUM_INPUT}`} />
                 <span className="text-meta text-muted w-3">%</span>
               </span>
             </label>
-            {rendementUCManuel != null && perfPonderee != null && (
-              <button onClick={() => setRendementUCManuel(null)}
-                className="text-caption text-accent hover:underline">
-                Revenir à la perf réelle pondérée ({pct(perfPonderee)})
-              </button>
-            )}
           </Card>
 
           <Card className="px-5 py-5 space-y-3">
-            <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>Frais du contrat</h2>
+            <H2>Ma rémunération (cabinet)</H2>
+            <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel}
+              note={retroManuel != null ? undefined
+                : retroPonderee != null ? "taux réel pondéré des supports"
+                : "estimation : 50 % des frais courants"} />
+            <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommissionCabinet}
+              note="part des frais d'entrée reversée au cabinet" />
+          </Card>
+
+          <Card className="px-5 py-5 space-y-3">
+            <H2>Frais du contrat</H2>
             <FieldPct label="Entrée / versement" value={frais.contratEntree} onChange={setF("contratEntree")} />
             <FieldPct label="Gestion UC (par an)" value={frais.contratGestionUC} onChange={setF("contratGestionUC")} />
             <FieldPct label="Gestion fonds euros (par an)" value={frais.contratGestionFE} onChange={setF("contratGestionFE")} />
@@ -340,104 +404,122 @@ export function FeeSimulator() {
           </Card>
 
           <Card className="px-5 py-5 space-y-3">
-            <h2 className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>Frais des UC</h2>
+            <H2>Frais des supports</H2>
             <FieldPct label="Entrée" value={ucEntree} onChange={setUcEntreeManuel}
-              note={ucEntreeManuel == null && entreePonderee != null ? "frais réels pondérés des UC choisies" : undefined} />
+              note={ucEntreeManuel == null && entreePonderee != null ? "pondéré des supports" : undefined} />
             <FieldPct label="Frais courants (par an)" value={ucGestion} onChange={setTerManuel}
-              note={terManuel == null && terPondere != null ? "TER pondéré des UC choisies" : undefined} />
+              note={terManuel == null && terPondere != null ? "TER pondéré des supports" : undefined} />
             <FieldPct label="Sortie" value={ucSortie} onChange={setUcSortieManuel}
-              note={ucSortieManuel == null && sortiePonderee != null ? "frais réels pondérés des UC choisies" : undefined} />
-            <FieldPct label="Rétrocession cabinet (par an)" value={retroCgp} onChange={setRetroManuel}
-              note={retroManuel != null
-                ? "part des frais courants reversée à votre cabinet"
-                : retroPonderee != null
-                  ? "taux réel pondéré des UC choisies"
-                  : "estimation de place : 50 % des frais courants"} />
-            <p className="text-caption text-muted pt-1 border-t border-line-soft">
-              Les frais courants sont déjà reflétés dans la valeur liquidative : ils
-              n&apos;abaissent pas la trajectoire nette mais sont détaillés dans la courbe
-              des frais, pour une transparence complète des deux étages (contrat + UC)
-              sans double comptage.
-            </p>
-          </Card>
-
-          {/* Sélection des UC réelles */}
-          <Card className="px-5 py-5">
-            <h2 className="text-subhead text-ink mb-3" style={{ fontFamily: "var(--font-sans)" }}>Unités de compte</h2>
-            <div className="space-y-3.5">
-              {ucs.map((u) => (
-                <div key={u.isin}>
-                  <div className="flex items-center gap-2">
-                    <p className="flex-1 min-w-0 text-meta text-ink truncate" title={u.name}>{u.name}</p>
-                    <input type="number" min={0} max={100} value={Math.round(u.poids * 10) / 10}
-                      onChange={(e) => setPoids(u.isin, num(e.target.value))}
-                      className={`w-14 text-right text-meta tabular-nums border border-line rounded-md px-1.5 py-1 bg-paper focus:outline-none focus:border-accent ${NUM_INPUT}`} />
-                    <span className="text-meta text-muted w-3">%</span>
-                    <button onClick={() => removeUC(u.isin)} className="text-muted hover:text-danger transition-colors" aria-label="Retirer">
-                      <X size={13} />
-                    </button>
-                  </div>
-                  <p className="text-caption text-muted-2 mt-1 font-mono">
-                    {u.isin}
-                    <span className="font-sans text-muted"> · perf 5 ans {pct(u.perf5y, true)}/an · frais courants {pct(u.ter)}{u.retro != null && <> · rétro {pct(u.retro)}</>}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <FundAdder onAdd={addUC} existing={ucIsins} full={ucs.length >= MAX_UC} />
-            </div>
-            {ucs.length === 0 && (
-              <p className="text-caption text-muted mt-3">
-                Sans UC sélectionnée, la simulation utilise {RENDEMENT_UC_DEFAUT} %/an
-                et {FRAIS_DEFAUT.ucGestion} % de frais courants (modifiables ci-dessus).
-              </p>
-            )}
+              note={ucSortieManuel == null && sortiePonderee != null ? "pondéré des supports" : undefined} />
           </Card>
         </div>
 
-        {/* ── Résultats ── */}
+        {/* ── Résultats : rémunération d'abord ── */}
         <div className="space-y-5 min-w-0">
-          {/* Lecture CGP du KPI « coût de la structure » : ce que c'est, qui
-              encaisse quoi, et ce que le cabinet gagne — en euros, à l'horizon. */}
+          <Card className="px-5 py-5">
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <H2 className="">Ma rémunération</H2>
+              {final && <span className="text-meta text-ok font-medium tabular-nums">{EUR.format(remuTotale)}</span>}
+            </div>
+            {final && (
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                  <p className="text-caption text-muted">Rétrocessions cumulées</p>
+                  <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
+                  <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.retroCgpCumulee / final.annees)}/an</p>
+                </div>
+                <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                  <p className="text-caption text-muted">Commission d'entrée</p>
+                  <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
+                  <p className="text-caption text-muted-2">à la souscription</p>
+                </div>
+              </div>
+            )}
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={remuCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
+                <XAxis dataKey="annee" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
+                  tickFormatter={(v: number) => `${v} an${v > 1 ? "s" : ""}`} interval="preserveStartEnd" minTickGap={40} />
+                <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
+                  width={56} tickFormatter={(v: number) => EUR.format(v)} />
+                <Tooltip
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
+                    n === "retro" ? "Rétrocessions" : "Commission d'entrée"]}
+                  labelFormatter={(l: unknown) => `Année ${l}`}
+                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
+                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>{v === "retro" ? "Rétrocessions" : "Commission d'entrée"}</span>} />
+                <Area type="monotone" dataKey="upfront" stackId="r" stroke="#7A5C3E" fill="#7A5C3E" fillOpacity={0.35} />
+                <Area type="monotone" dataKey="retro" stackId="r" stroke="#B0613F" fill="#B0613F" fillOpacity={0.55} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card className="px-5 py-5 overflow-x-auto">
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <H2 className="">Détail par support</H2>
+              {portfolioHref && (
+                <Link href={portfolioHref} className="text-caption text-accent-ink hover:underline whitespace-nowrap inline-flex items-center gap-1">
+                  Analyse complète <ArrowRight size={12} />
+                </Link>
+              )}
+            </div>
+            {supportRows.length === 0 ? (
+              <p className="text-caption text-muted">Ajoutez des supports (recherche, relevé ou fiche) pour voir la rémunération ligne par ligne.</p>
+            ) : (
+              <table className="w-full text-meta tabular-nums">
+                <thead>
+                  <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
+                    <th className="text-left py-2 font-semibold">Support</th>
+                    <th className="text-right py-2 font-semibold">Frais cour.</th>
+                    <th className="text-right py-2 font-semibold">Entrée</th>
+                    <th className="text-right py-2 font-semibold">Rétro</th>
+                    <th className="text-right py-2 font-semibold">Rétro /an</th>
+                    <th className="text-right py-2 font-semibold">Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supportRows.map(({ u, effRetro, retroAnnuelle, commissionUpfront }) => (
+                    <tr key={u.isin} className="border-b border-line-soft last:border-0">
+                      <td className="py-1.5 text-ink-2 max-w-[200px] truncate">
+                        <Link href={`/fonds/${u.isin}`} className="hover:text-accent-ink hover:underline" title={u.name}>{u.name}</Link>
+                      </td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(u.entryFee)}</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(effRetro)}{u.retro == null && <span className="text-muted-2"> *</span>}</td>
+                      <td className="py-1.5 text-right text-ok font-medium">{EUR.format(retroAnnuelle)}</td>
+                      <td className="py-1.5 text-right text-ok">{EUR.format(commissionUpfront)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-line font-medium">
+                    <td className="py-2 text-ink">Total</td>
+                    <td /><td /><td />
+                    <td className="py-2 text-right text-ok">{EUR.format(remuAnnuelleTotale)}</td>
+                    <td className="py-2 text-right text-ok">{EUR.format(upfrontTotal)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+            {supportRows.some((r) => r.u.retro == null) && (
+              <p className="text-caption text-muted-2 mt-2">* rétrocession non connue en base : taux effectif du contrat appliqué.</p>
+            )}
+          </Card>
+
           {repart && final && (
             <Card className="px-5 py-5">
-              <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>
-                Où va le coût de la structure ?
-              </h2>
-              <p className="text-caption text-muted mb-4">
-                Le « coût de la structure », c&apos;est tout ce que le contrat prélève
-                au&nbsp;delà de la performance brute des supports : il rémunère les trois
-                acteurs de la chaîne. Montants cumulés sur {final.annees} ans, sortie incluse.
-              </p>
-              <div className="space-y-3">
+              <H2>Où va le coût de la structure ?</H2>
+              <div className="space-y-2.5">
                 {[
-                  {
-                    nom: "Assureur",
-                    detail: "Frais du contrat : entrée sur chaque versement, gestion de l'enveloppe (UC et fonds euros), sortie. C'est le prix de l'assurance vie elle même : cadre fiscal, garantie, gestion administrative.",
-                    montant: repart.assureur,
-                  },
-                  {
-                    nom: "Société de gestion",
-                    detail: "Frais des UC : frais courants prélevés dans la valeur liquidative, entrée et sortie éventuelles — nets de ce qu'elle reverse à votre cabinet. C'est le prix de la gestion des fonds.",
-                    montant: repart.societeGestion,
-                  },
-                  {
-                    nom: "Votre cabinet (CGP)",
-                    detail: `Rétrocessions : la part des frais courants des UC que la société de gestion vous reverse (${pct(retroCgp)}/an de l'encours UC${retroManuel != null ? "" : retroPonderee != null ? ", taux réel pondéré des UC choisies" : ", estimation de place"}). C'est votre rémunération sur ce contrat — sans frais supplémentaire pour le client.`,
-                    montant: repart.cabinet,
-                  },
-                ].map(({ nom, detail, montant }) => {
+                  { nom: "Assureur", montant: repart.assureur },
+                  { nom: "Société de gestion", montant: repart.societeGestion },
+                  { nom: "Votre cabinet (CGP)", montant: repart.cabinet, mine: true },
+                ].map(({ nom, montant, mine }) => {
                   const part = final.totalFrais > 0 ? (montant / final.totalFrais) * 100 : 0;
                   return (
-                    <div key={nom} className="flex items-start justify-between gap-4 border-b border-line-soft last:border-0 pb-3 last:pb-0">
-                      <div className="min-w-0">
-                        <p className="text-meta text-ink font-medium">{nom}</p>
-                        <p className="text-caption text-muted mt-0.5 leading-snug">{detail}</p>
-                      </div>
+                    <div key={nom} className="flex items-center justify-between gap-4 border-b border-line-soft last:border-0 pb-2.5 last:pb-0">
+                      <p className={`text-meta ${mine ? "text-ok font-medium" : "text-ink"}`}>{nom}</p>
                       <div className="text-right shrink-0">
-                        <p className="text-meta text-ink font-medium tabular-nums">{EUR.format(montant)}</p>
-                        <p className="text-caption text-muted tabular-nums">{pct(part)} du total</p>
+                        <span className={`text-meta font-medium tabular-nums ${mine ? "text-ok" : "text-ink"}`}>{EUR.format(montant)}</span>
+                        <span className="text-caption text-muted tabular-nums ml-2">{pct(part)}</span>
                       </div>
                     </div>
                   );
@@ -447,13 +529,8 @@ export function FeeSimulator() {
           )}
 
           <Card className="px-5 py-5">
-            <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>Valeur du contrat</h2>
-            <p className="text-caption text-muted mb-3">
-              Valeur nette client vs trajectoire brute (avant toute structure) :
-              l&apos;écart rémunère l&apos;enveloppe, la gestion et le conseil, à mettre en
-              regard du gain net dégagé.
-            </p>
-            <ResponsiveContainer width="100%" height={260}>
+            <H2>Valeur du contrat</H2>
+            <ResponsiveContainer width="100%" height={240}>
               <LineChart data={valeurCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
                 <XAxis dataKey="annee" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
@@ -474,37 +551,8 @@ export function FeeSimulator() {
             </ResponsiveContainer>
           </Card>
 
-          <Card className="px-5 py-5">
-            <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>Courbe des frais cumulés</h2>
-            <p className="text-caption text-muted mb-3">
-              L&apos;assiette des frais de gestion suit l&apos;encours : la rémunération de la
-              chaîne (assureur, société de gestion, conseil) croît avec le patrimoine
-              du client. Intérêts alignés : mieux le contrat performe, plus l&apos;encours
-              monte. Transparence poste par poste, exigée par la DDA.
-            </p>
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={fraisCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
-                <XAxis dataKey="annee" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
-                  tickFormatter={(v: number) => `${v} an${v > 1 ? "s" : ""}`} interval="preserveStartEnd" minTickGap={40} />
-                <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
-                  width={56} tickFormatter={(v: number) => EUR.format(v)} />
-                <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
-                    n === "entree" ? "Frais d'entrée" : n === "contrat" ? "Gestion du contrat" : "Gestion des UC (frais courants)"]}
-                  labelFormatter={(l: unknown) => `Année ${l}`}
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
-                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>
-                  {v === "entree" ? "Entrée" : v === "contrat" ? "Gestion contrat" : "Gestion UC"}</span>} />
-                <Area type="monotone" dataKey="entree" stackId="f" stroke="#8A8780" fill="#DFDEDA" />
-                <Area type="monotone" dataKey="contrat" stackId="f" stroke="#B0613F" fill="#B0613F" fillOpacity={0.55} />
-                <Area type="monotone" dataKey="uc" stackId="f" stroke="#7A5C3E" fill="#7A5C3E" fillOpacity={0.35} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-
           <Card className="px-5 py-5 overflow-x-auto">
-            <h2 className="text-subhead text-ink mb-3" style={{ fontFamily: "var(--font-sans)" }}>Projections</h2>
+            <H2>Projections</H2>
             <table className="w-full text-meta tabular-nums">
               <thead>
                 <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
@@ -512,7 +560,7 @@ export function FeeSimulator() {
                   <th className="text-right py-2 font-semibold">Valeur nette</th>
                   <th className="text-right py-2 font-semibold">Gain net</th>
                   <th className="text-right py-2 font-semibold">Total frais</th>
-                  <th className="text-right py-2 font-semibold">Frais / gain brut</th>
+                  <th className="text-right py-2 font-semibold">Rému cabinet</th>
                 </tr>
               </thead>
               <tbody>
@@ -524,56 +572,15 @@ export function FeeSimulator() {
                       {h.gainNet >= 0 ? "+" : ""}{EUR.format(h.gainNet)}
                     </td>
                     <td className="py-1.5 text-right text-ink-2">{EUR.format(h.totalFrais)}</td>
-                    <td className="py-1.5 text-right text-ink-2">{pct(partFraisDansGainBrut(h))}</td>
+                    <td className="py-1.5 text-right text-ok">{EUR.format(h.retroCgpCumulee + h.commCabinetCumulee)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-caption text-muted mt-3">
-              Hypothèses : versements en début d&apos;année, frais de gestion prélevés en
-              fin d&apos;année, allocation constante sans arbitrage, fiscalité et
-              prélèvements sociaux non inclus. Projections indicatives, fondées sur la
-              perf 5 ans réelle des UC : les performances passées ne préjugent pas des
-              performances futures.
+            <p className="text-caption text-muted-2 mt-3">
+              Fiscalité et prélèvements sociaux non inclus. Perfs passées ≠ perfs futures.
             </p>
           </Card>
-
-          {ucs.length > 0 && (
-            <Card className="px-5 py-5 overflow-x-auto">
-              <h2 className="text-subhead text-ink mb-1" style={{ fontFamily: "var(--font-sans)" }}>UC : perf réelle & projections</h2>
-              <p className="text-caption text-muted mb-3">
-                Pour 10 000 € investis sur chaque UC seule, frais du contrat inclus
-                ({pct(frais.contratGestionUC)}/an de gestion UC).
-              </p>
-              <table className="w-full text-meta tabular-nums">
-                <thead>
-                  <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
-                    <th className="text-left py-2 font-semibold">UC</th>
-                    <th className="text-right py-2 font-semibold">Perf 5 ans (réelle)</th>
-                    <th className="text-right py-2 font-semibold">Frais courants</th>
-                    <th className="text-right py-2 font-semibold">5 ans</th>
-                    <th className="text-right py-2 font-semibold">10 ans</th>
-                    <th className="text-right py-2 font-semibold">15 ans</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ucs.map((u) => (
-                    <tr key={u.isin} className="border-b border-line-soft last:border-0">
-                      <td className="py-1.5 text-ink-2 max-w-[220px] truncate" title={u.name}>{u.name}</td>
-                      <td className={`py-1.5 text-right font-medium ${u.perf5y == null ? "text-muted" : u.perf5y >= 0 ? "text-ok" : "text-danger"}`}>
-                        {u.perf5y == null ? "—" : `${pct(u.perf5y, true)}/an`}
-                      </td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
-                      {[5, 10, 15].map((h) => {
-                        const v = projeterUC(u.perf5y, frais.contratGestionUC, 10_000, h);
-                        return <td key={h} className="py-1.5 text-right text-ink">{v == null ? "—" : EUR.format(v)}</td>;
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
         </div>
       </div>
     </PageShell>

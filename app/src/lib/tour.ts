@@ -29,8 +29,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     key: "simulateur",
-    title: "Simulateur de frais",
-    body: "Frais du contrat et des unités de compte : leur poids sur la performance nette, année par année, avec projections à 5, 10 et 15 ans.",
+    title: "Frais",
+    body: "Ce que gagne le cabinet et ce que coûte le contrat : rétrocessions et commission d'entrée, cumulées et détaillées support par support. Supports importés par recherche, relevé ou fiche.",
   },
   {
     key: "assureurs",

@@ -54,6 +54,15 @@ export interface SimulationInput {
    * CGP gagne ? » sans double comptage. 0 ou absent = non suivie.
    */
   retroCgp?: number;
+  /**
+   * Commission upfront du cabinet (%/versement) : la part des frais d'entrée
+   * que le distributeur (CGP) encaisse à la souscription et à chaque versement.
+   * Comme la rétro, ce n'est PAS un frais en plus — c'est une tranche des frais
+   * d'entrée déjà payés par le client, plafonnée à ceux-ci (elle ne peut pas
+   * excéder ce que le contrat prélève à l'entrée). On la suit à part pour « ce
+   * que gagne le cabinet » sans double comptage. 0 ou absent = non suivie.
+   */
+  commissionCabinet?: number;
 }
 
 export interface FeeBreakdown {
@@ -77,6 +86,7 @@ export interface YearPoint {
   fraisCumules: FeeBreakdown;
   totalFraisCumules: number; // somme des 7 postes cumulés
   retroCgpCumulee: number;   // rémunération CGP cumulée (tranche de gestionUC, 0 si non suivie)
+  commCabinetCumulee: number; // commission upfront cumulée (tranche des frais d'entrée, 0 si non suivie)
 }
 
 export interface HorizonProjection {
@@ -92,6 +102,7 @@ export interface HorizonProjection {
   manqueAGagner: number;     // valeurSansFrais − valeurAvantSortie (coût composé des frais)
   versementsCumules: number; // pour les ratios côté UI (frais / gain brut, etc.)
   retroCgpCumulee: number;   // rémunération CGP cumulée à cet horizon (0 si non suivie)
+  commCabinetCumulee: number; // commission upfront cumulée à cet horizon (0 si non suivie)
 }
 
 export interface SimulationResult {
@@ -170,6 +181,10 @@ export function simulate(
   // La rétrocession est une tranche des frais courants : elle ne peut pas
   // dépasser ce que la société de gestion prélève (assiette identique).
   const retroCgp = Math.min(clampFrais(input.retroCgp ?? 0), f.ucGestion);
+  // La commission upfront est une tranche des frais d'entrée du contrat : elle
+  // ne peut pas dépasser ce que le contrat prélève à l'entrée (assiette
+  // identique). Plafond appliqué versement par versement dans verser().
+  const commCabinet = Math.min(clampFrais(input.commissionCabinet ?? 0), f.contratEntree);
 
   // Facteurs annuels. Net UC = VL (nette de TER) dégradée du frais contrat UC.
   const factNetUC = (1 + rUC / 100) * (1 - f.contratGestionUC / 100);
@@ -181,7 +196,7 @@ export function simulate(
   const factBrutUC = (1 + rUC / 100) / (1 - gUC);
   const factBrutFE = (1 + rFE / 100) / (1 - gFE);
 
-  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0;
+  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0, commCumulee = 0;
   const cumul = zeroBreakdown();
   const points: YearPoint[] = [];
 
@@ -201,6 +216,10 @@ export function simulate(
     sfFE += montant * (1 - partUC);
     an.entreeContrat += entreeContrat;
     an.entreeUC += entreeUC;
+    // Commission upfront : tranche des frais d'entrée du contrat reversée au
+    // cabinet (plafonnée à entreeContrat, cf. commCabinet). Ne modifie aucun
+    // encours ni la trajectoire — c'est une répartition, pas un frais en plus.
+    commCumulee += montant * (commCabinet / 100);
   };
 
   const pousserPoint = (annee: number, an: FeeBreakdown) => {
@@ -216,6 +235,7 @@ export function simulate(
       fraisCumules: roundBreakdown(cumul),
       totalFraisCumules: r2(totalBreakdown(cumul)),
       retroCgpCumulee: r2(retroCumulee),
+      commCabinetCumulee: r2(commCumulee),
     });
   };
 
@@ -268,6 +288,7 @@ export function simulate(
       manqueAGagner: r2(p.valeurSansFrais - p.valeurNette),
       versementsCumules: p.versementsCumules,
       retroCgpCumulee: p.retroCgpCumulee,
+      commCabinetCumulee: p.commCabinetCumulee,
     });
   }
 
@@ -281,10 +302,13 @@ export function simulate(
  *                          sortie) : il rémunère l'enveloppe assurance vie ;
  *   • société de gestion — frais des UC (entrée, frais courants, sortie),
  *                          NETS de ce qu'elle reverse au cabinet ;
- *   • cabinet (CGP)      — rétrocessions : la part des frais courants des UC
- *                          reversée au conseiller. C'est ce que le CGP gagne.
+ *   • cabinet (CGP)      — rétrocessions (part des frais courants des UC) ET
+ *                          commission upfront (part des frais d'entrée du
+ *                          contrat) reversées au conseiller. C'est ce que le
+ *                          CGP gagne.
  * Total des trois = totalFrais de l'horizon (aucun frais caché, pas de double
- * comptage : la rétro est soustraite de la part société de gestion).
+ * comptage : la rétro sort de la poche société de gestion, la commission
+ * upfront sort de la poche assureur).
  */
 export interface FraisParDestinataire {
   assureur: number;
@@ -296,19 +320,21 @@ export function repartitionFrais(
   fraisCumules: FeeBreakdown,
   h: HorizonProjection,
   retroCgpCumulee: number,
+  commCabinetCumulee = 0,
 ): FraisParDestinataire {
-  const cabinet = Math.min(retroCgpCumulee, fraisCumules.gestionUC);
+  const retro = Math.min(retroCgpCumulee, fraisCumules.gestionUC);
+  const comm = Math.min(commCabinetCumulee, fraisCumules.entreeContrat);
   return {
     assureur: r2(
       fraisCumules.entreeContrat + fraisCumules.gestionContratUC +
       fraisCumules.gestionContratFE + fraisCumules.sortieContrat +
-      h.fraisSortieContrat,
+      h.fraisSortieContrat - comm,
     ),
     societeGestion: r2(
       fraisCumules.entreeUC + fraisCumules.gestionUC + fraisCumules.sortieUC +
-      h.fraisSortieUC - cabinet,
+      h.fraisSortieUC - retro,
     ),
-    cabinet: r2(cabinet),
+    cabinet: r2(retro + comm),
   };
 }
 
@@ -338,4 +364,30 @@ export function projeterUC(
   if (perfNetteAnnuellePct == null) return null;
   const fact = (1 + clampRendement(perfNetteAnnuellePct) / 100) * (1 - clampFrais(fraisContratPct) / 100);
   return r2(montant * Math.pow(fact, annees));
+}
+
+/**
+ * Rémunération du cabinet sur UN support, au montant investi donné — vue
+ * « détail par support » de l'onglet Frais. Deux flux, la lecture CGP directe :
+ *   • retroAnnuelle    : rétrocession récurrente (%/an de l'encours du support) ;
+ *   • commissionUpfront : commission one-shot à l'entrée (%/versement).
+ * Snapshot sur le montant fourni (pas d'actualisation ni de composition) : le
+ * cumul rigoureux sur l'horizon reste porté par la simulation agrégée. Montants
+ * en euros, taux en % ; les valeurs absentes/invalides comptent pour 0.
+ */
+export interface RemunerationSupport {
+  retroAnnuelle: number;     // €/an récurrent
+  commissionUpfront: number; // € à la souscription
+}
+
+export function remunerationSupport(
+  montant: number,
+  retroPct: number | null | undefined,
+  commissionUpfrontPct: number | null | undefined,
+): RemunerationSupport {
+  const m = Number.isFinite(montant) && montant > 0 ? montant : 0;
+  return {
+    retroAnnuelle: r2(m * (clampFrais(retroPct ?? 0) / 100)),
+    commissionUpfront: r2(m * (clampFrais(commissionUpfrontPct ?? 0) / 100)),
+  };
 }

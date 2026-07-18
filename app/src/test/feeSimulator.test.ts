@@ -5,6 +5,7 @@ import {
   projeterUC,
   partFraisDansGainBrut,
   repartitionFrais,
+  remunerationSupport,
   HORIZONS_DEFAUT,
   type SimulationInput,
   type FeeParams,
@@ -289,6 +290,71 @@ describe('rétrocession CGP & répartition des frais', () => {
     expect(sansRetro.cabinet).toBe(0)
     expect(sansRetro.societeGestion).toBeCloseTo(r.societeGestion + r.cabinet, 1)
     expect(sansRetro.assureur).toBe(r.assureur)
+  })
+})
+
+describe('commission upfront du cabinet', () => {
+  it('cumule une tranche des frais d’entrée, sans toucher à la trajectoire', () => {
+    // Frais d'entrée contrat 3 %, commission cabinet 2 % du versement.
+    const avec = simulate({ ...base, frais: FRAIS_TYPES, commissionCabinet: 2 })
+    const sans = simulate({ ...base, frais: FRAIS_TYPES })
+    // 10 000 € versés une fois → 200 € de commission upfront, dès l'an 0.
+    expect(avec.points[0].commCabinetCumulee).toBeCloseTo(200, 2)
+    expect(avec.points[15].commCabinetCumulee).toBeCloseTo(200, 2)
+    // c'est une répartition, jamais un frais en plus : valeur et total frais inchangés
+    expect(avec.points[15].valeurNette).toBe(sans.points[15].valeurNette)
+    expect(avec.points[15].totalFraisCumules).toBe(sans.points[15].totalFraisCumules)
+    // reportée sur les horizons
+    const h = avec.horizons.find((x) => x.annees === 15)!
+    expect(h.commCabinetCumulee).toBeCloseTo(200, 2)
+  })
+
+  it('s’applique à chaque versement (initial + annuels)', () => {
+    const sim = simulate({
+      ...base, versementAnnuel: 1_000, dureeAnnees: 3,
+      frais: FRAIS_TYPES, commissionCabinet: 2,
+    }, [3])
+    // 10 000 (an 0) + 3 × 1 000 (an 1-3) = 13 000 versés → 2 % = 260 €.
+    expect(sim.points[3].commCabinetCumulee).toBeCloseTo(260, 2)
+  })
+
+  it('plafonnée aux frais d’entrée du contrat (ne peut pas les dépasser)', () => {
+    // Commission 5 % mais frais d'entrée contrat 3 % → plafonnée à 3 %.
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, commissionCabinet: 5 }, [1])
+    expect(sim.points[0].commCabinetCumulee).toBeCloseTo(10_000 * 0.03, 2)
+  })
+
+  it('absente ou nulle → 0', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    expect(sim.points[0].commCabinetCumulee).toBe(0)
+    expect(sim.horizons[0].commCabinetCumulee).toBe(0)
+  })
+
+  it('répartition : la commission upfront sort de la poche assureur, va au cabinet', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const p = sim.points[15]
+    const avecComm = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee)
+    const sansComm = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee)
+    // le cabinet gagne la commission en plus, l'assureur la perd d'autant
+    expect(avecComm.cabinet).toBeCloseTo(sansComm.cabinet + p.commCabinetCumulee, 1)
+    expect(avecComm.assureur).toBeCloseTo(sansComm.assureur - p.commCabinetCumulee, 1)
+    // total conservé
+    expect(avecComm.assureur + avecComm.societeGestion + avecComm.cabinet).toBeCloseTo(h.totalFrais, 0)
+  })
+})
+
+describe('remunerationSupport', () => {
+  it('rétro annuelle et commission upfront sur le montant investi', () => {
+    const r = remunerationSupport(20_000, 0.9, 2)
+    expect(r.retroAnnuelle).toBeCloseTo(180, 2)      // 0,9 % de 20 000
+    expect(r.commissionUpfront).toBeCloseTo(400, 2)  // 2 % de 20 000
+  })
+
+  it('taux absents ou montant invalide → 0', () => {
+    expect(remunerationSupport(20_000, null, undefined)).toEqual({ retroAnnuelle: 0, commissionUpfront: 0 })
+    expect(remunerationSupport(-5, 0.9, 2)).toEqual({ retroAnnuelle: 0, commissionUpfront: 0 })
+    expect(remunerationSupport(NaN, 0.9, 2)).toEqual({ retroAnnuelle: 0, commissionUpfront: 0 })
   })
 })
 
