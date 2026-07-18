@@ -34,7 +34,7 @@ export function StudioInputs() {
     maxPerFund, setMaxPerFund, maxAssets, setMaxAssets, advisor, setAdvisor,
     contract, setContract, method, setMethod, showAdvanced, setShowAdvanced,
     retroTilt, setRetroTilt, cabinet, sriOverride, setSriOverride, effectiveSri,
-    included, setIncluded, includeFund, source, linesIsins,
+    included, setIncluded, includeFund, unreferencedIsins, source, linesIsins,
     profile, onProfileChange, busy, errorMsg, compute,
   } = usePortfolioStudio();
 
@@ -75,7 +75,12 @@ export function StudioInputs() {
   const scopeInsurers = [...new Set([...profile.insurers, ...cabinet.insurers])];
   const cabinetKeys = new Set(cabinet.contracts.map((c) => c.key));
 
+  // Au moins un support imposé n'est pas référencé dans le contrat courant :
+  // la génération est bloquée tant qu'il n'est pas retiré.
+  const hasUnreferenced = included.some((f) => unreferencedIsins.has(f.isin));
+
   async function generate() {
+    if (hasUnreferenced) return; // garde : le bouton est déjà désactivé
     const ok = await compute();
     if (ok) router.push("/portefeuille/construire/resultat");
   }
@@ -181,18 +186,27 @@ export function StudioInputs() {
               )}
               {included.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {included.map((f) => (
-                    <span key={f.isin} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border border-line text-ink-2 bg-paper-2">
-                      {shortName(f.name, 28)}
-                      <button
-                        aria-label={`Ne plus imposer ${f.name}`}
-                        onClick={() => setIncluded((prev) => prev.filter((x) => x.isin !== f.isin))}
-                        className="text-muted hover:text-danger"
+                  {included.map((f) => {
+                    // Support non référencé dans le contrat courant → pastille
+                    // rouge + il bloque la génération tant qu'il n'est pas retiré.
+                    const unref = unreferencedIsins.has(f.isin);
+                    return (
+                      <span
+                        key={f.isin}
+                        className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${unref ? "border-danger text-danger bg-danger-soft" : "border-line text-ink-2 bg-paper-2"}`}
                       >
-                        <X size={11} />
-                      </button>
-                    </span>
-                  ))}
+                        {shortName(f.name, 28)}
+                        {unref && <span className="font-medium">· non référencé</span>}
+                        <button
+                          aria-label={`Ne plus imposer ${f.name}`}
+                          onClick={() => setIncluded((prev) => prev.filter((x) => x.isin !== f.isin))}
+                          className={unref ? "text-danger hover:opacity-70" : "text-muted hover:text-danger"}
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -272,8 +286,20 @@ export function StudioInputs() {
             )}
           </div>
 
-        <div className="mt-5">
-          <Btn variant="primary" size="md" loading={busy} onClick={() => void generate()}>
+        <div className="mt-5 flex flex-col gap-2">
+          {hasUnreferenced && (
+            <span className="text-meta text-danger">
+              ⓘ Retirez les supports non référencés dans le contrat pour générer le portefeuille.
+            </span>
+          )}
+          <Btn
+            variant="primary"
+            size="md"
+            loading={busy}
+            disabled={hasUnreferenced}
+            onClick={() => void generate()}
+            className="w-fit"
+          >
             Générer le portefeuille
           </Btn>
         </div>

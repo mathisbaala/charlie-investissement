@@ -183,6 +183,10 @@ function useStudioState() {
   const [excluded, setExcluded] = useState<SimilarSuggestion[]>([]);
   const [included, setIncluded] = useState<SimilarSuggestion[]>([]);
   const [lastRemoved, setLastRemoved] = useState<RemovedInfo | null>(null);
+  // ISIN des fonds imposés NON référencés dans le contrat courant : ils reçoivent
+  // une pastille « non référencé » et bloquent la génération tant qu'ils ne sont
+  // pas retirés. Vide en mode démo (l'univers d'exemple n'a pas de référencement).
+  const [unreferencedIsins, setUnreferencedIsins] = useState<Set<string>>(new Set());
 
   const [presentation, setPresentation] = useState<AllocationPresentation | null>(null);
   const [result, setResult] = useState<AllocationResult | null>(null);
@@ -207,6 +211,33 @@ function useStudioState() {
   const [pptBusy, setPptBusy] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
 
+  // Référencement des supports imposés : à chaque changement de contrat OU de
+  // liste imposée, on vérifie côté base lesquels sont réellement référencés dans
+  // le contrat courant. Couvre les deux parcours (contrat d'abord → pastille dès
+  // l'ajout ; fonds d'abord → pastille dès que le contrat est renseigné). La
+  // démo (pas de « :: ») est exemptée. Réseau KO → aucune pastille (fail-open :
+  // on ne bloque jamais abusivement la génération).
+  useEffect(() => {
+    const isReal = contract.includes("::") && contract !== SAMPLE_CONTRACT;
+    const isins = included.map((f) => f.isin);
+    if (!isReal || isins.length === 0) {
+      setUnreferencedIsins((prev) => (prev.size ? new Set() : prev));
+      return;
+    }
+    const ac = new AbortController();
+    const qs = new URLSearchParams({ contract, isins: isins.join(",") });
+    fetch(`/api/portfolio/referencing?${qs.toString()}`, { signal: ac.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
+      .then((j: { referenced?: string[] }) => {
+        const ref = new Set((j.referenced ?? []).map((s) => s.toUpperCase()));
+        setUnreferencedIsins(new Set(isins.filter((i) => !ref.has(i.toUpperCase()))));
+      })
+      .catch(() => {
+        if (!ac.signal.aborted) setUnreferencedIsins((prev) => (prev.size ? new Set() : prev));
+      });
+    return () => ac.abort();
+  }, [contract, included]);
+
   // Plafond SRI dérivé du profil (tolérance + perte max), pour l'affichage.
   const profileSriCap = useMemo(
     () => profileToConstraints(profile).maxWeightedSri ?? 7,
@@ -228,6 +259,9 @@ function useStudioState() {
   // Renvoie true quand une allocation a été produite (→ affichage / navigation),
   // false sur erreur ou calcul obsolète.
   const compute = useCallback(async (): Promise<boolean> => {
+    // Garde : un support imposé non référencé dans le contrat bloque la
+    // génération (y compris le recalcul auto) tant qu'il n'est pas retiré.
+    if (included.some((f) => unreferencedIsins.has(f.isin))) return false;
     const runId = ++runIdRef.current;
     lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet });
     setBusy(true);
@@ -474,7 +508,7 @@ function useStudioState() {
     setBusy(false);
     setHasGenerated(true);
     return true;
-  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, convention]);
+  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, convention, unreferencedIsins]);
 
   // Recalcul automatique (débouncé) après la première génération : jouer avec le
   // SRI, les zones géographiques, les frais, l'ESG ou la composition met le
@@ -651,7 +685,7 @@ function useStudioState() {
     maxPerFund, setMaxPerFund, maxAssets, setMaxAssets, advisor, setAdvisor,
     contract, setContract, method, setMethod, showAdvanced, setShowAdvanced,
     retroTilt, setRetroTilt, cabinet, sriOverride, setSriOverride, effectiveSri,
-    included, setIncluded, includeFund, source, linesIsins,
+    included, setIncluded, includeFund, unreferencedIsins, source, linesIsins,
     profile, onProfileChange,
     // Moteur
     busy, errorMsg, compute,
