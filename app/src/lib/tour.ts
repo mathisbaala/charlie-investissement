@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "documents" | "guide";
+  key: "accueil" | "recherche" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "guide";
   title: string;
   body: string;
 };
@@ -25,7 +25,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     key: "portefeuille",
     title: "Portefeuille",
-    body: "Du profil client à la proposition : portefeuille optimisé (max-Sharpe ou HRP), Markowitz interactif, back-test face à un indice, restitution PDF et PowerPoint.",
+    body: "Deux chemins : construire un portefeuille optimisé (max-Sharpe ou HRP, Markowitz, back-test, restitution PDF et PowerPoint) ou analyser l'existant depuis les relevés du client, ou un DICI de support.",
   },
   {
     key: "simulateur",
@@ -43,11 +43,6 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Renseignez vos partenariats assureurs et vos rétrocessions une fois : le reste de la plateforme les réutilise.",
   },
   {
-    key: "documents",
-    title: "Documents",
-    body: "Déposez un DICI ou un KID : Charlie en extrait frais, risque et scénarios.",
-  },
-  {
     key: "guide",
     title: "Comprendre chaque page",
     body: "Cliquez le logo Charlie en haut à droite : une explication de la page et de son usage, à tout moment.",
@@ -59,7 +54,8 @@ export const TOUR_STEPS: TourStep[] = [
 // v4 : ajout de l'étape Simulateur de frais.
 // v5 : accueil recentré sur recherche + reprise d'activité (profil déplacé dans
 //      Portefeuille), assureurs devenus fiches-contrat.
-const KEY = "charlie_tour_v5_done";
+// v6 : onglet Documents retiré (DICI fusionné dans Portefeuille → Analyser).
+const KEY = "charlie_tour_v6_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;

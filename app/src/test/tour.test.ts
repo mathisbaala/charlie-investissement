@@ -10,7 +10,6 @@ describe("tour content", () => {
       "simulateur",
       "assureurs",
       "cabinet",
-      "documents",
       "guide",
     ]);
   });
@@ -32,7 +31,7 @@ describe("tour content", () => {
 
 describe("tour storage", () => {
   beforeEach(() => {
-    localStorage.removeItem("charlie_tour_v5_done");
+    localStorage.removeItem("charlie_tour_v6_done");
   });
 
   it("n'est pas terminé par défaut", () => {

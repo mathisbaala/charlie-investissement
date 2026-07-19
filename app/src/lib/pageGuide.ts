@@ -80,22 +80,21 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Analyser un portefeuille existant",
       intro:
-        "Le diagnostic d'un portefeuille que le client détient déjà. Déposez ses relevés de situation ; Charlie consolide les positions, reconnaît les contrats et pointe les axes d'amélioration — sans refaire le portefeuille.",
+        "Le diagnostic de ce que le client détient déjà, en deux modes : un portefeuille complet (déposez ses relevés de situation, Charlie consolide et recommande) ou un support unique (déposez un DICI / KID, Charlie en extrait l'essentiel) — sans refaire le portefeuille.",
       sections: [
         {
           heading: "Sur cette page",
           items: [
-            "Le dépôt des relevés du client (PDF, Excel ou CSV) : les documents ne sont jamais conservés.",
-            "La validation des positions extraites : contrat reconnu (ou à choisir), montants éditables, fonds oubliés à ajouter à la main.",
-            "La synthèse consolidée multi-contrats : répartition (classes, zones, secteurs), risque (SRI pondéré), frais moyens (TER).",
-            "Les recommandations ciblées, triées par impact : corrélation excessive, concentration, frais élevés.",
+            "Un sélecteur en tête : « Portefeuille complet » ou « Support unique ».",
+            "Mode portefeuille : le dépôt des relevés (PDF, Excel ou CSV, jamais conservés), la validation des positions (contrat reconnu ou à choisir, montants éditables, fonds à ajouter à la main), la synthèse consolidée (répartition, SRI pondéré, frais moyens) et les recommandations triées par impact (corrélation, concentration, frais).",
+            "Mode support unique : une zone de dépôt pour un DICI / KID qui produit un rapport de fonds structuré (identité, SRI, catégorie SFDR, frais détaillés, risques, scénarios de performance), rapproché des données de marché si le fonds est reconnu en base.",
           ],
         },
         {
           heading: "Comment l'utiliser",
           items: [
-            "Déposez un ou plusieurs relevés, puis vérifiez le rattachement des contrats et les montants.",
-            "Lancez l'analyse : Charlie calcule corrélations, exposition agrégée et recommandations.",
+            "Pour un portefeuille : déposez les relevés, vérifiez les contrats et les montants, puis lancez l'analyse (corrélations, exposition agrégée, recommandations).",
+            "Pour un support : basculez sur « Support unique » et déposez le DICI (jusqu'à 3 Mo) ; vérifiez les frais et scénarios extraits, puis ouvrez la fiche en base pour aller plus loin.",
             "Prolongez si besoin dans le simulateur de frais, ou basculez vers « Créer un portefeuille » pour proposer une réallocation complète.",
           ],
         },
@@ -175,32 +174,6 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
             "Ajoutez vos assureurs partenaires : la sélection alimente le référencement et le portefeuille.",
             "Renseignez les rétrocessions par contrat pour qu'elles remontent dans les restitutions.",
             "Une fois rempli, tout le reste de la plateforme réutilise ces informations sans re-saisie.",
-          ],
-        },
-      ],
-    },
-  },
-  {
-    prefixes: ["/documents"],
-    guide: {
-      title: "Documents",
-      intro:
-        "Le lecteur de DICI. Déposez un document et Charlie en extrait l'essentiel, structuré et lisible.",
-      sections: [
-        {
-          heading: "Sur cette page",
-          items: [
-            "Une zone de dépôt (glisser-déposer ou clic) pour un PDF de DICI / KID.",
-            "Un rapport structuré : identité du fonds, SRI, catégorie SFDR, frais détaillés, investisseur cible, risques clés, indice, scénarios de performance.",
-            "Un lien vers la fiche complète si le fonds est reconnu en base.",
-          ],
-        },
-        {
-          heading: "Comment l'utiliser",
-          items: [
-            "Déposez le PDF (jusqu'à 3 Mo) et laissez l'analyse se faire.",
-            "Vérifiez les frais et les scénarios extraits, puis ouvrez la fiche en base pour aller plus loin.",
-            "« Nouvelle analyse » réinitialise la page pour un autre document.",
           ],
         },
       ],

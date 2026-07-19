@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { DiciReport, type DiciFiche } from "@/app/(app)/documents/DiciReport";
+import { DiciReport, type DiciFiche } from "@/components/existant/DiciReport";
 
 // DiciReport utilise useRouter (navigation) — on le neutralise.
 vi.mock("next/navigation", () => ({

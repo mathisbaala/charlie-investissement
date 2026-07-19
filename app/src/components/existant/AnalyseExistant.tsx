@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { Shield, X, ArrowLeft } from "@/components/ui/icons";
+import { Shield, X, ArrowLeft, FileSearch, FileText } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
+import { SupportUnique } from "./SupportUnique";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
 import {
   consolidate, reconcileTotal,
@@ -17,7 +19,9 @@ import {
 import {
   buildRecommendations, weightedSri, type Recommendation, type FeeLine,
 } from "@/lib/analyseExistant";
-import type { PortfolioAnalysis } from "@/lib/portfolio";
+import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
+
+type AnalyseMode = "portefeuille" | "support";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const PCT = (v: number, d = 1) => `${v.toFixed(d).replace(".", ",")} %`;
@@ -47,7 +51,92 @@ interface Synthese {
 
 // ── Composant ────────────────────────────────────────────────────────────────
 
+// Deux chemins d'analyse de l'existant, réunis sous un seul onglet (ex-onglet
+// « Documents » absorbé) : un portefeuille complet (relevés → diagnostic
+// consolidé) ou un support unique (DICI → rapport de fonds). Le sélecteur en
+// tête bascule de l'un à l'autre. Un lien profond
+// `?isins=&weights=&montant=` (bouton « Analyse complète » du simulateur de
+// frais) ouvre directement le chemin portefeuille, prérempli.
 export function AnalyseExistant() {
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<AnalyseMode>(
+    searchParams.get("mode") === "support" ? "support" : "portefeuille",
+  );
+
+  const subtitle =
+    mode === "portefeuille"
+      ? "Déposez les relevés du client (PDF, Excel ou CSV) : Charlie consolide les positions, reconnaît les contrats et propose des recommandations ciblées."
+      : "Déposez le DICI (ou KID) d'un support : Charlie en extrait frais, risque et scénarios, et le rapproche des données de marché du fonds.";
+
+  return (
+    <PageShell>
+      <Link
+        href="/portefeuille"
+        className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit mb-4"
+      >
+        <ArrowLeft size={14} /> Portefeuille
+      </Link>
+      <h1 className="text-title-lg text-ink mb-1">Analyser l&apos;existant</h1>
+      <p className="text-body text-muted mb-4">{subtitle}</p>
+
+      {/* Sélecteur de mode : portefeuille complet ↔ support unique. */}
+      <div
+        role="tablist"
+        aria-label="Mode d'analyse"
+        className="inline-flex gap-1 p-1 mb-6 rounded-xl border border-line bg-paper-2"
+      >
+        <ModeTab
+          active={mode === "portefeuille"}
+          onClick={() => setMode("portefeuille")}
+          icon={FileSearch}
+          label="Portefeuille complet"
+        />
+        <ModeTab
+          active={mode === "support"}
+          onClick={() => setMode("support")}
+          icon={FileText}
+          label="Support unique"
+        />
+      </div>
+
+      {mode === "portefeuille" ? <PortefeuilleAnalyzer /> : <SupportUnique />}
+    </PageShell>
+  );
+}
+
+function ModeTab({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof FileSearch;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-meta font-medium transition-colors ${
+        active
+          ? "bg-brown text-paper"
+          : "text-ink-2 hover:bg-accent-soft hover:text-accent-ink"
+      }`}
+    >
+      <Icon size={15} strokeWidth={active ? 2 : 1.7} />
+      {label}
+    </button>
+  );
+}
+
+// ── Chemin « portefeuille complet » ────────────────────────────────────────────
+
+function PortefeuilleAnalyzer() {
+  const searchParams = useSearchParams();
   const [releves, setReleves] = useState<Releve[]>([]);
   const [busy, setBusy] = useState(false);
   const [analysing, setAnalysing] = useState(false);
@@ -110,18 +199,10 @@ export function AnalyseExistant() {
     setReleves((prev) => prev.map((r) => (r.id === rid ? { ...r, chosen: idx } : r)));
   }
 
-  // Ajout manuel d'un fonds oublié par l'extraction : recherche dans la base
-  // (FundAdder), ajout immédiat avec montant à saisir, puis enrichissement
-  // TER/SRI en arrière-plan (mêmes données que le reste, pour les diagnostics).
-  function addFund(rid: string, isin: string, name: string) {
-    setReleves((prev) => prev.map((r) => {
-      if (r.id !== rid || r.positions.some((p) => p.isin === isin)) return r;
-      return {
-        ...r,
-        positions: [...r.positions, { isin, label: "", amount: null, known: true, name, ter: null, sri: null }],
-      };
-    }));
-    setSynthese(null);
+  // Enrichissement TER/SRI/nom d'une position depuis la base (mêmes données que
+  // le reste, pour les diagnostics), en arrière-plan. Partagé par l'ajout manuel
+  // et le préremplissage par lien profond.
+  function enrichPosition(rid: string, isin: string) {
     fetch(`/api/funds?search=${encodeURIComponent(isin)}&per_page=1`)
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
@@ -132,11 +213,58 @@ export function AnalyseExistant() {
         const sri = f.risk_score ?? null;
         setReleves((prev) => prev.map((r) => r.id !== rid ? r : {
           ...r,
-          positions: r.positions.map((p) => (p.isin === isin ? { ...p, ter, sri } : p)),
+          positions: r.positions.map((p) =>
+            p.isin === isin ? { ...p, ter, sri, name: f.name ?? p.name } : p),
         }));
       })
       .catch(() => {});
   }
+
+  // Ajout manuel d'un fonds oublié par l'extraction : recherche dans la base
+  // (FundAdder), ajout immédiat avec montant à saisir, puis enrichissement.
+  function addFund(rid: string, isin: string, name: string) {
+    setReleves((prev) => prev.map((r) => {
+      if (r.id !== rid || r.positions.some((p) => p.isin === isin)) return r;
+      return {
+        ...r,
+        positions: [...r.positions, { isin, label: "", amount: null, known: true, name, ter: null, sri: null }],
+      };
+    }));
+    setSynthese(null);
+    enrichPosition(rid, isin);
+  }
+
+  // Préremplissage par lien profond : /portefeuille/analyser?isins=&weights=&montant=
+  // (bouton « Analyse complète » du simulateur de frais). On matérialise un relevé
+  // virtuel de supports valorisés, prêt à analyser, puis on enrichit TER/SRI/nom.
+  const preloaded = useRef(false);
+  useEffect(() => {
+    if (preloaded.current) return;
+    const holdings = parsePortfolioParams(searchParams.get("isins"), searchParams.get("weights"));
+    if (holdings.length === 0) return;
+    preloaded.current = true;
+    const montant = Number(searchParams.get("montant"));
+    const hasMontant = Number.isFinite(montant) && montant > 0;
+    const rid = "import-lien";
+    const positions: ApiPosition[] = holdings.map((h) => ({
+      isin: h.isin,
+      label: "",
+      amount: hasMontant ? Math.round((montant * h.weight) / 100) : null,
+      known: true,
+      name: h.isin,
+      ter: null,
+      sri: null,
+    }));
+    setReleves([{
+      id: rid,
+      fileName: "Supports importés du simulateur",
+      positions,
+      matches: [],
+      chosen: -1,
+      documentTotal: hasMontant ? Math.round(montant) : null,
+    }]);
+    for (const h of holdings) enrichPosition(rid, h.isin);
+  }, [searchParams]);
 
   // Portefeuille consolidé : positions connues + montant confirmé, tous relevés.
   const consolidated = useMemo(() => {
@@ -222,19 +350,7 @@ export function AnalyseExistant() {
   }, [consolidated, total]);
 
   return (
-    <PageShell>
-      <Link
-        href="/portefeuille"
-        className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit mb-4"
-      >
-        <ArrowLeft size={14} /> Portefeuille
-      </Link>
-      <h1 className="text-title-lg text-ink mb-1">Analyse de l&apos;existant</h1>
-      <p className="text-body text-muted mb-6">
-        Déposez les relevés du client (PDF, Excel ou CSV) : Charlie consolide les positions,
-        reconnaît les contrats et propose des recommandations ciblées.
-      </p>
-
+    <>
       {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
       <Card className="p-4 mb-4 flex items-start gap-3">
         <Shield className="w-5 h-5 mt-0.5 shrink-0 text-ok" aria-hidden />
@@ -466,7 +582,7 @@ export function AnalyseExistant() {
           </div>
         </>
       )}
-    </PageShell>
+    </>
   );
 }
 

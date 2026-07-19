@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Logo, FileText, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
+import { Logo, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
 import { loadStoredCabinet } from "@/lib/cabinet";
 
 // La recherche n'a pas d'onglet dédié : c'est le prolongement de l'accueil, qu'on
@@ -12,14 +12,13 @@ import { loadStoredCabinet } from "@/lib/cabinet";
 // Portefeuille = un seul onglet, deux chemins depuis sa page-carrefour :
 // construire un portefeuille de A à Z (ex-allocation : profil client →
 // allocation optimisée + back-test + proposition) ou analyser un portefeuille
-// existant (ex-onglet « Analyse de l'existant » : import des relevés →
-// diagnostic).
+// existant (ex-onglets « Analyse de l'existant » ET « Documents » fusionnés :
+// import des relevés → diagnostic, ou dépôt d'un DICI → rapport de support).
 const NAV = [
   { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
   { href: "/assureurs",    icon: Shield,     label: "Partenaires" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
   { href: "/simulateur",   icon: Calculator, label: "Frais" },
-  { href: "/documents",    icon: FileText,   label: "Documents" },
 ];
 
 // Mon cabinet vit en pied de rail, comme un réglage (paramétrage du cabinet :

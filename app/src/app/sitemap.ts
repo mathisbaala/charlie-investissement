@@ -12,7 +12,6 @@ const ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.S
   { path: "/portefeuille", priority: 0.6, changeFrequency: "monthly" },
   { path: "/portefeuille/construire", priority: 0.6, changeFrequency: "monthly" },
   { path: "/portefeuille/analyser", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/documents", priority: 0.5, changeFrequency: "monthly" },
   { path: "/confidentialite", priority: 0.3, changeFrequency: "yearly" },
 ];
 

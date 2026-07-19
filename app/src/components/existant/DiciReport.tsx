@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { NavChart } from "@/components/fund/NavChart";
-import { CompositionCard } from "../fonds/[isin]/CompositionCard";
+import { CompositionCard } from "@/app/(app)/fonds/[isin]/CompositionCard";
 import { pct, dt, fmtSharpe, nf } from "@/lib/format";
 import type { FundDetailHF } from "@/lib/types";
 

@@ -7,7 +7,7 @@ describe("guideForPath", () => {
     expect(guideForPath("/assureurs").title).toBe("Assurances vie");
     expect(guideForPath("/portefeuille").title).toBe("Portefeuille");
     expect(guideForPath("/cabinet").title).toBe("Mon cabinet");
-    expect(guideForPath("/documents").title).toBe("Documents");
+    expect(guideForPath("/portefeuille/analyser").title).toBe("Analyser un portefeuille existant");
     expect(guideForPath("/accueil").title).toBe("Accueil");
   });
 
@@ -30,7 +30,7 @@ describe("guideForPath", () => {
   });
 
   it("chaque guide a un intro et des sections non vides avec des puces", () => {
-    const paths = ["/recherche", "/assureurs", "/portefeuille", "/cabinet", "/documents", "/fonds/X", "/accueil"];
+    const paths = ["/recherche", "/assureurs", "/portefeuille", "/portefeuille/analyser", "/cabinet", "/fonds/X", "/accueil"];
     for (const p of paths) {
       const g = guideForPath(p);
       expect(g.intro.trim().length).toBeGreaterThan(0);
