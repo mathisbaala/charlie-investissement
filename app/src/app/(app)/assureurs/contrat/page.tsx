@@ -293,25 +293,24 @@ export default async function ContractPage({
   const o = data as ContractOverview | null;
   if (error || !o || o.funds === 0) notFound();
 
-  // Profil de l'assureur (curation vague 1, docs/mapping-assureurs-contrats-cgp.md) :
-  // enrichit chaque fiche par le contexte assureur/enveloppe, en attendant les
-  // conditions propres au contrat (frais réels, fonds euros du contrat, options).
-  const { data: profile } = await supabase
-    .from("investissement_av_insurer_profiles")
-    .select(
-      "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
-    )
-    .eq("company", o.company)
-    .maybeSingle<InsurerProfile>();
-
-  // Historique du taux servi des fonds euros de l'assureur (multi-année, sourcé
-  // SFCR / communiqués). Regroupé par fonds euros pour l'affichage.
-  const { data: feRates } = await supabase
-    .from("investissement_av_fonds_euros_history")
-    .select("fonds_euros_nom, annee, taux_pct, bonus_note")
-    .eq("company", o.company)
-    .order("annee", { ascending: true })
-    .returns<FondsEurosRate[]>();
+  // Profil de l'assureur (curation vague 1, docs/mapping-assureurs-contrats-cgp.md)
+  // + historique du taux servi des fonds euros : deux lectures indépendantes qui ne
+  // dépendent que de `o.company`, lancées EN PARALLÈLE (avant : en série).
+  const [{ data: profile }, { data: feRates }] = await Promise.all([
+    supabase
+      .from("investissement_av_insurer_profiles")
+      .select(
+        "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+      )
+      .eq("company", o.company)
+      .maybeSingle<InsurerProfile>(),
+    supabase
+      .from("investissement_av_fonds_euros_history")
+      .select("fonds_euros_nom, annee, taux_pct, bonus_note")
+      .eq("company", o.company)
+      .order("annee", { ascending: true })
+      .returns<FondsEurosRate[]>(),
+  ]);
 
   const feByFund = new Map<string, FondsEurosRate[]>();
   for (const r of feRates ?? []) {
