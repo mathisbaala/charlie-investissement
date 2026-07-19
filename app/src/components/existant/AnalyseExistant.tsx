@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { Shield, X, ArrowLeft, FileSearch, FileText } from "@/components/ui/icons";
+import { Upload, X, ArrowLeft, FileSearch, FileText } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { SupportUnique } from "./SupportUnique";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
@@ -63,21 +63,14 @@ export function AnalyseExistant() {
     searchParams.get("mode") === "support" ? "support" : "portefeuille",
   );
 
-  const subtitle =
-    mode === "portefeuille"
-      ? "Déposez les relevés du client (PDF, Excel ou CSV) : Charlie consolide les positions, reconnaît les contrats et propose des recommandations ciblées."
-      : "Déposez le DICI (ou KID) d'un support : Charlie en extrait frais, risque et scénarios, et le rapproche des données de marché du fonds.";
-
   return (
     <PageShell>
       <Link
         href="/portefeuille"
-        className="inline-flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit mb-4"
+        className="flex items-center gap-1 text-meta text-muted hover:text-ink transition-colors w-fit mb-5"
       >
         <ArrowLeft size={14} /> Portefeuille
       </Link>
-      <h1 className="text-title-lg text-ink mb-1">Analyser l&apos;existant</h1>
-      <p className="text-body text-muted mb-4">{subtitle}</p>
 
       {/* Sélecteur de mode : portefeuille complet ↔ support unique. */}
       <div
@@ -139,6 +132,7 @@ function PortefeuilleAnalyzer() {
   const searchParams = useSearchParams();
   const [releves, setReleves] = useState<Releve[]>([]);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [synthese, setSynthese] = useState<Synthese | null>(null);
@@ -351,46 +345,56 @@ function PortefeuilleAnalyzer() {
 
   return (
     <>
-      {/* ── Confidentialité : rassurer AVANT le dépôt ── */}
-      <Card className="p-4 mb-4 flex items-start gap-3">
-        <Shield className="w-5 h-5 mt-0.5 shrink-0 text-ok" aria-hidden />
-        <div>
-          <p className="text-body font-semibold text-ink mb-0.5">
-            Les documents ne sont jamais conservés.
-          </p>
-          <p className="text-caption text-muted">
-            Seules les lignes de supports (ISIN et montants) sont lues, jamais les données
-            personnelles : le document est traité en mémoire puis oublié.
-          </p>
+      {/* ── Dépôt : même zone glisser-déposer que le mode « Support unique » ── */}
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv"
+        multiple
+        className="hidden"
+        data-testid="releve-input"
+        onChange={(e) => onFiles(e.target.files)}
+      />
+      {busy ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-20 mb-6">
+          <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+          <p className="text-body font-medium text-ink-2">Lecture en cours…</p>
         </div>
-      </Card>
-
-      {/* ── Dépôt ── */}
-      <Card className="p-5 mb-6">
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv"
-          multiple
-          className="hidden"
-          data-testid="releve-input"
-          onChange={(e) => onFiles(e.target.files)}
-        />
-        <div className="flex items-center gap-4 flex-wrap">
-          <Btn
-            type="button"
-            variant="primary"
-            loading={busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            {busy ? "Lecture en cours…" : "Déposer des relevés"}
-          </Btn>
-          <p className="text-caption text-muted">
-            Formats PDF, Excel et CSV. Les scans et photos ne sont pas encore lus.
-          </p>
+      ) : (
+        <div
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            onFiles(e.dataTransfer.files);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onClick={() => fileInput.current?.click()}
+          className={`relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed transition-colors cursor-pointer py-16 px-8 text-center mb-6 ${
+            dragging
+              ? "border-accent bg-accent-soft/30"
+              : "border-line bg-paper hover:border-accent/40 hover:bg-paper-2"
+          }`}
+        >
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${
+            dragging ? "bg-accent/20" : "bg-paper-2 border border-line"
+          }`}>
+            <Upload size={24} className={dragging ? "text-accent" : "text-muted"} />
+          </div>
+          <div>
+            <p className="text-body-lg font-medium text-ink-2">
+              {dragging ? "Relâchez pour analyser" : "Glissez les relevés du client ici"}
+            </p>
+            <p className="text-meta text-muted mt-1">
+              ou <span className="text-accent-ink underline underline-offset-2">cliquez pour sélectionner</span> des fichiers PDF, Excel ou CSV
+            </p>
+          </div>
         </div>
-        {error && <p className="text-caption text-danger mt-3">{error}</p>}
-      </Card>
+      )}
+      {error && <p className="text-caption text-danger -mt-3 mb-6">{error}</p>}
 
       {/* ── Validation par relevé ── */}
       {releves.map((r) => (
