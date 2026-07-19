@@ -120,6 +120,21 @@ const H2 = ({ children, className = "mb-3" }: { children: React.ReactNode; class
   <h2 className={`text-subhead text-ink ${className}`} style={{ fontFamily: "var(--font-sans)" }}>{children}</h2>
 );
 
+// En-tête d'étape : pastille numérotée + titre + sous-titre. Structure le
+// parcours en trois temps (déposer → paramétrer → lire) pour lever l'ambiguïté
+// « d'où viennent ces chiffres ? ».
+const StepHeader = ({ n, title, subtitle }: { n: number; title: string; subtitle: string }) => (
+  <div className="flex items-start gap-3 mb-4">
+    <span className="shrink-0 w-7 h-7 rounded-full bg-brown text-paper text-meta font-medium flex items-center justify-center tabular-nums leading-none">
+      {n}
+    </span>
+    <div className="min-w-0">
+      <h2 className="text-title text-ink" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>
+      <p className="text-caption text-muted mt-0.5">{subtitle}</p>
+    </div>
+  </div>
+);
+
 /**
  * Onglet « Frais » — angle COMPTABILITÉ / rémunération du cabinet (CGP). Deux
  * étages de frais (contrat + supports) mais la lecture est « combien je gagne,
@@ -292,22 +307,19 @@ export function FeeSimulator() {
 
   return (
     <PageShell>
-      {final && (
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
-          <Kpi label={`Rémunération cabinet à ${final.annees} ans`} value={EUR.format(remuTotale)} tone="ok" />
-          <Kpi label="Coût total client" value={EUR.format(final.totalFrais)} />
-          <Kpi label={`Valeur nette à ${final.annees} ans`} value={EUR.format(final.valeurNette)} />
-          <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
-          <Kpi label="Frais / gain brut"
-            value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
-        </div>
-      )}
+      <div className="mb-7">
+        <h1 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-sans)" }}>Simulateur de rémunération</h1>
+        <p className="text-meta text-muted mt-1">
+          Trois étapes : déposez vos supports, réglez les paramètres de l'étude, lisez votre rémunération.
+        </p>
+      </div>
 
-      <div className="grid lg:grid-cols-[340px_1fr] gap-5 items-start">
-        {/* ── Paramètres ── */}
-        <div className="space-y-5 min-w-0">
+      <div className="space-y-9">
+        {/* ══ Étape 1 · Vos supports ══ */}
+        <section>
+          <StepHeader n={1} title="Vos supports"
+            subtitle="Recherchez un fonds, déposez un relevé de compte ou une fiche DICI." />
           <Card className="px-5 py-5">
-            <H2>Supports</H2>
             <SupportSources
               onAddFund={addUC}
               existingIsins={ucIsins}
@@ -340,82 +352,113 @@ export function FeeSimulator() {
               </div>
             )}
           </Card>
+        </section>
 
-          <Card className="px-5 py-5 space-y-3">
-            <H2>Versement & horizon</H2>
-            <FieldEur label="Versement initial" value={versementInitial} onChange={setVersementInitial} step={1000} />
-            <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-meta text-ink-2">Durée</span>
-              <div className="flex rounded-md border border-line overflow-hidden">
-                {DUREES.map((d) => (
-                  <button key={d} onClick={() => setDuree(d)}
-                    className={`text-caption px-2 py-1 transition-colors ${duree === d ? "bg-brown text-paper" : "text-muted hover:bg-accent-soft"}`}>
-                    {d} ans
-                  </button>
-                ))}
+        {/* ══ Étape 2 · Paramètres de l'étude ══ */}
+        <section>
+          <StepHeader n={2} title="Paramètres de l'étude"
+            subtitle="Ajustez le scénario. Les frais et rendements se pré-remplissent depuis vos supports — surchargez-les librement." />
+          <div className="grid md:grid-cols-2 gap-5 items-start">
+            <Card className="px-5 py-5 space-y-3">
+              <H2>Versement & horizon</H2>
+              <FieldEur label="Versement initial" value={versementInitial} onChange={setVersementInitial} step={1000} />
+              <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-meta text-ink-2">Durée</span>
+                <div className="flex rounded-md border border-line overflow-hidden">
+                  {DUREES.map((d) => (
+                    <button key={d} onClick={() => setDuree(d)}
+                      className={`text-caption px-2 py-1 transition-colors ${duree === d ? "bg-brown text-paper" : "text-muted hover:bg-accent-soft"}`}>
+                      {d} ans
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-meta text-ink-2">Part unités de compte</span>
-                <span className="text-meta tabular-nums text-ink font-medium">{partUC} %</span>
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-meta text-ink-2">Part unités de compte</span>
+                  <span className="text-meta tabular-nums text-ink font-medium">{partUC} %</span>
+                </div>
+                <input type="range" min={0} max={100} step={5} value={partUC}
+                  onChange={(e) => setPartUC(Number(e.target.value))}
+                  className="w-full accent-[#B0613F]" aria-label="Part unités de compte" />
               </div>
-              <input type="range" min={0} max={100} step={5} value={partUC}
-                onChange={(e) => setPartUC(Number(e.target.value))}
-                className="w-full accent-[#B0613F]" aria-label="Part unités de compte" />
+              <FieldPct label="Taux fonds euros (net)" value={rendementFE} onChange={setRendementFE} />
+              <label className="flex items-center justify-between gap-2">
+                <span className="text-meta text-ink-2">
+                  Rendement UC (net, %/an)
+                  {rendementUCManuel == null && perfPonderee != null && (
+                    <span className="text-caption text-muted block">perf 5 ans réelle pondérée</span>
+                  )}
+                </span>
+                <span className="flex items-center gap-1.5 shrink-0">
+                  <input type="number" step={0.1} value={rendementUC}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setRendementUCManuel(Number.isFinite(v) ? v : null);
+                    }}
+                    className={`w-16 text-right text-meta tabular-nums border border-line rounded-md px-1.5 py-1 bg-paper focus:outline-none focus:border-accent ${NUM_INPUT}`} />
+                  <span className="text-meta text-muted w-3">%</span>
+                </span>
+              </label>
+            </Card>
+
+            <Card className="px-5 py-5 space-y-3">
+              <H2>Ma rémunération (cabinet)</H2>
+              <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel}
+                note={retroManuel != null ? undefined
+                  : retroPonderee != null ? "taux réel pondéré des supports"
+                  : "estimation : 50 % des frais courants"} />
+              <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommissionCabinet}
+                note="part des frais d'entrée reversée au cabinet" />
+            </Card>
+
+            <Card className="px-5 py-5 space-y-3">
+              <H2>Frais du contrat</H2>
+              <FieldPct label="Entrée / versement" value={frais.contratEntree} onChange={setF("contratEntree")} />
+              <FieldPct label="Gestion UC (par an)" value={frais.contratGestionUC} onChange={setF("contratGestionUC")} />
+              <FieldPct label="Gestion fonds euros (par an)" value={frais.contratGestionFE} onChange={setF("contratGestionFE")} />
+              <FieldPct label="Sortie / rachat" value={frais.contratSortie} onChange={setF("contratSortie")} />
+            </Card>
+
+            <Card className="px-5 py-5 space-y-3">
+              <H2>Frais des supports</H2>
+              <FieldPct label="Entrée" value={ucEntree} onChange={setUcEntreeManuel}
+                note={ucEntreeManuel == null && entreePonderee != null ? "pondéré des supports" : undefined} />
+              <FieldPct label="Frais courants (par an)" value={ucGestion} onChange={setTerManuel}
+                note={terManuel == null && terPondere != null ? "TER pondéré des supports" : undefined} />
+              <FieldPct label="Sortie" value={ucSortie} onChange={setUcSortieManuel}
+                note={ucSortieManuel == null && sortiePonderee != null ? "pondéré des supports" : undefined} />
+            </Card>
+          </div>
+        </section>
+
+        {/* ══ Étape 3 · Résultats ══ */}
+        <section>
+          <StepHeader n={3} title="Résultats"
+            subtitle="Votre rémunération, le coût pour le client et la valeur projetée du contrat." />
+
+          {ucs.length === 0 && (
+            <Card className="px-5 py-3.5 mb-5 border-dashed">
+              <p className="text-meta text-ink-2">
+                Ces chiffres reposent sur des hypothèses par défaut.{" "}
+                <span className="text-muted">Déposez vos supports à l'étape 1 pour une simulation basée sur vos fonds réels.</span>
+              </p>
+            </Card>
+          )}
+
+          {final && (
+            <div className="flex flex-col md:flex-row gap-3 mb-5">
+              <Kpi label={`Rémunération cabinet à ${final.annees} ans`} value={EUR.format(remuTotale)} tone="ok" />
+              <Kpi label="Coût total client" value={EUR.format(final.totalFrais)} />
+              <Kpi label={`Valeur nette à ${final.annees} ans`} value={EUR.format(final.valeurNette)} />
+              <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
+              <Kpi label="Frais / gain brut"
+                value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
             </div>
-            <FieldPct label="Taux fonds euros (net)" value={rendementFE} onChange={setRendementFE} />
-            <label className="flex items-center justify-between gap-2">
-              <span className="text-meta text-ink-2">
-                Rendement UC (net, %/an)
-                {rendementUCManuel == null && perfPonderee != null && (
-                  <span className="text-caption text-muted block">perf 5 ans réelle pondérée</span>
-                )}
-              </span>
-              <span className="flex items-center gap-1.5 shrink-0">
-                <input type="number" step={0.1} value={rendementUC}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setRendementUCManuel(Number.isFinite(v) ? v : null);
-                  }}
-                  className={`w-16 text-right text-meta tabular-nums border border-line rounded-md px-1.5 py-1 bg-paper focus:outline-none focus:border-accent ${NUM_INPUT}`} />
-                <span className="text-meta text-muted w-3">%</span>
-              </span>
-            </label>
-          </Card>
+          )}
 
-          <Card className="px-5 py-5 space-y-3">
-            <H2>Ma rémunération (cabinet)</H2>
-            <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel}
-              note={retroManuel != null ? undefined
-                : retroPonderee != null ? "taux réel pondéré des supports"
-                : "estimation : 50 % des frais courants"} />
-            <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommissionCabinet}
-              note="part des frais d'entrée reversée au cabinet" />
-          </Card>
-
-          <Card className="px-5 py-5 space-y-3">
-            <H2>Frais du contrat</H2>
-            <FieldPct label="Entrée / versement" value={frais.contratEntree} onChange={setF("contratEntree")} />
-            <FieldPct label="Gestion UC (par an)" value={frais.contratGestionUC} onChange={setF("contratGestionUC")} />
-            <FieldPct label="Gestion fonds euros (par an)" value={frais.contratGestionFE} onChange={setF("contratGestionFE")} />
-            <FieldPct label="Sortie / rachat" value={frais.contratSortie} onChange={setF("contratSortie")} />
-          </Card>
-
-          <Card className="px-5 py-5 space-y-3">
-            <H2>Frais des supports</H2>
-            <FieldPct label="Entrée" value={ucEntree} onChange={setUcEntreeManuel}
-              note={ucEntreeManuel == null && entreePonderee != null ? "pondéré des supports" : undefined} />
-            <FieldPct label="Frais courants (par an)" value={ucGestion} onChange={setTerManuel}
-              note={terManuel == null && terPondere != null ? "TER pondéré des supports" : undefined} />
-            <FieldPct label="Sortie" value={ucSortie} onChange={setUcSortieManuel}
-              note={ucSortieManuel == null && sortiePonderee != null ? "pondéré des supports" : undefined} />
-          </Card>
-        </div>
-
-        {/* ── Résultats : rémunération d'abord ── */}
-        <div className="space-y-5 min-w-0">
+          <div className="space-y-5">
           <Card className="px-5 py-5">
             <div className="flex items-baseline justify-between gap-3 mb-3">
               <H2 className="">Ma rémunération</H2>
@@ -581,7 +624,8 @@ export function FeeSimulator() {
               Fiscalité et prélèvements sociaux non inclus. Perfs passées ≠ perfs futures.
             </p>
           </Card>
-        </div>
+          </div>
+        </section>
       </div>
     </PageShell>
   );
