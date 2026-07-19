@@ -3,7 +3,6 @@ import Link from "next/link";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité · Charlie",
   description:
     "Comment Charlie traite les données personnelles : documents clients déposés, profils, mesure d'audience, sous-traitants, durées de conservation et droits RGPD.",
   alternates: { canonical: "/confidentialite" },

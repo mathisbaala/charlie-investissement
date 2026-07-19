@@ -1,8 +1,6 @@
 import { Suspense } from "react";
 import { FeeSimulator } from "@/components/simulator/FeeSimulator";
 
-export const metadata = { title: "Frais · Charlie" };
-
 // Onglet « Frais » — angle comptabilité / rémunération du cabinet : rétrocessions
 // et commission d'entrée, cumulées et détaillées support par support, partage
 // assureur / société de gestion / cabinet. Supports importés en autonomie

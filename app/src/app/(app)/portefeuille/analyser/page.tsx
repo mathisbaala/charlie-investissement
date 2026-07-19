@@ -1,8 +1,6 @@
 import { Suspense } from "react";
 import { AnalyseExistant } from "@/components/existant/AnalyseExistant";
 
-export const metadata = { title: "Analyser un portefeuille · Charlie" };
-
 // Portefeuille — chemin « analyser » (docs/analyse-existant-spec.md). Deux
 // modes réunis (l'ex-onglet « Documents » y a fusionné) : un portefeuille
 // complet (relevés de situation PDF → extraction des positions + reconnaissance

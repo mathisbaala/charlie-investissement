@@ -3,8 +3,6 @@ import { Card } from "@/components/ui/Card";
 import { PageShell } from "@/components/ui/Page";
 import { TrendingUp, FileSearch, ArrowRight } from "@/components/ui/icons";
 
-export const metadata = { title: "Portefeuille · Charlie" };
-
 // Carrefour de l'onglet Portefeuille : deux chemins symétriques — créer un
 // portefeuille (profil client → allocation) ou analyser un portefeuille
 // existant (relevés client → diagnostic). Titre porté par la Topbar, pas de
