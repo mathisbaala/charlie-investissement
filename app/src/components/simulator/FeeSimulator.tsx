@@ -120,18 +120,14 @@ const H2 = ({ children, className = "mb-3" }: { children: React.ReactNode; class
   <h2 className={`text-subhead text-ink ${className}`} style={{ fontFamily: "var(--font-sans)" }}>{children}</h2>
 );
 
-// En-tête d'étape : pastille numérotée + titre + sous-titre. Structure le
-// parcours en trois temps (déposer → paramétrer → lire) pour lever l'ambiguïté
-// « d'où viennent ces chiffres ? ».
-const StepHeader = ({ n, title, subtitle }: { n: number; title: string; subtitle: string }) => (
-  <div className="flex items-start gap-3 mb-4">
+// En-tête d'étape : pastille numérotée + titre. Structure le parcours en trois
+// temps (déposer → paramétrer → lire).
+const StepHeader = ({ n, title }: { n: number; title: string }) => (
+  <div className="flex items-center gap-3 mb-4">
     <span className="shrink-0 w-7 h-7 rounded-full bg-brown text-paper text-meta font-medium flex items-center justify-center tabular-nums leading-none">
       {n}
     </span>
-    <div className="min-w-0">
-      <h2 className="text-title text-ink" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>
-      <p className="text-caption text-muted mt-0.5">{subtitle}</p>
-    </div>
+    <h2 className="text-title text-ink" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>
   </div>
 );
 
@@ -307,18 +303,10 @@ export function FeeSimulator() {
 
   return (
     <PageShell>
-      <div className="mb-7">
-        <h1 className="text-title-lg text-ink" style={{ fontFamily: "var(--font-sans)" }}>Simulateur de rémunération</h1>
-        <p className="text-meta text-muted mt-1">
-          Trois étapes : déposez vos supports, réglez les paramètres de l'étude, lisez votre rémunération.
-        </p>
-      </div>
-
       <div className="space-y-9">
         {/* ══ Étape 1 · Vos supports ══ */}
         <section>
-          <StepHeader n={1} title="Vos supports"
-            subtitle="Recherchez un fonds, déposez un relevé de compte ou une fiche DICI." />
+          <StepHeader n={1} title="Vos supports" />
           <Card className="px-5 py-5">
             <SupportSources
               onAddFund={addUC}
@@ -356,8 +344,7 @@ export function FeeSimulator() {
 
         {/* ══ Étape 2 · Paramètres de l'étude ══ */}
         <section>
-          <StepHeader n={2} title="Paramètres de l'étude"
-            subtitle="Ajustez le scénario. Les frais et rendements se pré-remplissent depuis vos supports — surchargez-les librement." />
+          <StepHeader n={2} title="Paramètres de l'étude" />
           <div className="grid md:grid-cols-2 gap-5 items-start">
             <Card className="px-5 py-5 space-y-3">
               <H2>Versement & horizon</H2>
@@ -435,17 +422,7 @@ export function FeeSimulator() {
 
         {/* ══ Étape 3 · Résultats ══ */}
         <section>
-          <StepHeader n={3} title="Résultats"
-            subtitle="Votre rémunération, le coût pour le client et la valeur projetée du contrat." />
-
-          {ucs.length === 0 && (
-            <Card className="px-5 py-3.5 mb-5 border-dashed">
-              <p className="text-meta text-ink-2">
-                Ces chiffres reposent sur des hypothèses par défaut.{" "}
-                <span className="text-muted">Déposez vos supports à l'étape 1 pour une simulation basée sur vos fonds réels.</span>
-              </p>
-            </Card>
-          )}
+          <StepHeader n={3} title="Résultats" />
 
           {final && (
             <div className="flex flex-col md:flex-row gap-3 mb-5">
@@ -620,9 +597,6 @@ export function FeeSimulator() {
                 ))}
               </tbody>
             </table>
-            <p className="text-caption text-muted-2 mt-3">
-              Fiscalité et prélèvements sociaux non inclus. Perfs passées ≠ perfs futures.
-            </p>
           </Card>
           </div>
         </section>
