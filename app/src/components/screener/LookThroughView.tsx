@@ -5,11 +5,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { pct } from "@/lib/format";
+import { CHART_FUND_SERIES as FUND_COLORS } from "@/lib/chartColors";
 import type { SelectedFund } from "@/components/SelectionProvider";
 
 // Même palette que le graphe de performance (ComparisonModal) → un fonds garde
 // sa couleur partout dans l'onglet Comparé.
-const FUND_COLORS = ["#9F4325", "#2d7d5a", "#b97c2a", "#3d5a8a"];
 
 type Expo = { label: string; weight: number };
 type Overlap = {

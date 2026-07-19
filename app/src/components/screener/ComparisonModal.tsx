@@ -9,6 +9,7 @@ import { X } from "@/components/ui/icons";
 import { useSelection, SelectedFund } from "@/components/SelectionProvider";
 import { pct, fmtAum } from "@/lib/format";
 import { LookThroughView } from "@/components/screener/LookThroughView";
+import { CHART_FUND_SERIES as FUND_COLORS } from "@/lib/chartColors";
 
 interface Row {
   label: string;
@@ -65,7 +66,6 @@ const ROWS: { section: string; rows: Row[] }[] = [
   },
 ];
 
-const FUND_COLORS = ["#9F4325", "#2d7d5a", "#b97c2a", "#3d5a8a"];
 
 function getBestWorstIdx(row: Row, funds: SelectedFund[]): { bestIdx: number; worstIdx: number } {
   if (!row.best) return { bestIdx: -1, worstIdx: -1 };

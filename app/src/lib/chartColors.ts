@@ -18,3 +18,7 @@ export const CHART_SERIES = [
 
 // Fonds comparés : teintes sourdes, distinctes du portefeuille et de l'indice.
 export const CHART_COMPARE = ["#5B7A8C", "#6E8B5E", "#8C6D9C"];
+
+// Séries « par fonds » de la comparaison de fonds et du look-through (courbes NAV
+// comparées + barres géo/secteur) : 4 teintes distinctes. Source unique partagée.
+export const CHART_FUND_SERIES = ["#9F4325", "#2d7d5a", "#b97c2a", "#3d5a8a"];
