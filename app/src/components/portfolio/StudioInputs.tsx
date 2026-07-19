@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { SESSION_KEY, type SelectedFund } from "@/components/SelectionProvider";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
+import { Chip } from "@/components/ui/Chip";
 import { X, ChevronDown, ChevronRight, ArrowLeft } from "@/components/ui/icons";
 import { PageShell } from "@/components/ui/Page";
 import { ClientProfileForm } from "@/components/profile/ClientProfileForm";
@@ -234,28 +235,12 @@ export function StudioInputs() {
                 <div className="flex flex-col gap-1">
                   <span className="text-meta text-muted">Moteur de pondération</span>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setMethod("sharpe")}
-                      className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
-                        method === "sharpe"
-                          ? "bg-brown text-paper border-brown shadow-sm"
-                          : "bg-paper text-ink-2 border-line hover:border-brown/30"
-                      }`}
-                    >
+                    <Chip active={method === "sharpe"} onClick={() => setMethod("sharpe")}>
                       Max-Sharpe
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMethod("hrp")}
-                      className={`px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
-                        method === "hrp"
-                          ? "bg-brown text-paper border-brown shadow-sm"
-                          : "bg-paper text-ink-2 border-line hover:border-brown/30"
-                      }`}
-                    >
+                    </Chip>
+                    <Chip active={method === "hrp"} onClick={() => setMethod("hrp")}>
                       HRP
-                    </button>
+                    </Chip>
                   </div>
                   <span className="text-meta text-muted">
                     {method === "sharpe"

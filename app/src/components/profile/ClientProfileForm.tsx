@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
+import { Chip as UiChip } from "@/components/ui/Chip";
 import { Upload, Loader2, X, ArrowRight, Check } from "@/components/ui/icons";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { parseProfileFromFile } from "@/lib/profileImport";
@@ -36,17 +37,9 @@ import { loadStoredCabinet } from "@/lib/cabinet";
 
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 whitespace-nowrap px-3.5 py-2 rounded-lg text-meta font-medium border transition-all ${
-        active
-          ? "bg-brown text-paper border-brown shadow-sm"
-          : "bg-paper text-ink-2 border-line hover:border-brown/30 hover:text-ink"
-      }`}
-    >
+    <UiChip active={active} onClick={onClick}>
       {label}
-    </button>
+    </UiChip>
   );
 }
 

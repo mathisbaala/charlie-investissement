@@ -8,6 +8,7 @@ import {
   Legend, ResponsiveContainer,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
 import { X, ArrowRight } from "@/components/ui/icons";
@@ -350,14 +351,13 @@ export function FeeSimulator() {
               <H2>Versement & horizon</H2>
               <FieldEur label="Versement initial" value={versementInitial} onChange={setVersementInitial} step={1000} />
               <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-meta text-ink-2">Durée</span>
-                <div className="flex rounded-md border border-line overflow-hidden">
+              <div>
+                <span className="text-meta text-ink-2 block mb-1.5">Durée</span>
+                <div className="flex flex-wrap gap-2">
                   {DUREES.map((d) => (
-                    <button key={d} onClick={() => setDuree(d)}
-                      className={`text-caption px-2 py-1 transition-colors ${duree === d ? "bg-brown text-paper" : "text-muted hover:bg-accent-soft"}`}>
+                    <Chip key={d} active={duree === d} onClick={() => setDuree(d)}>
                       {d} ans
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </div>
