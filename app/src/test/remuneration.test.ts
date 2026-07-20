@@ -69,7 +69,7 @@ describe("buildRemuneration (barème cabinet)", () => {
     expect(r.unknownRetroLines).toBe(0);
   });
 
-  it("calcule le coût client (CTD) et la part captée", () => {
+  it("calcule le coût client (CTD, contrat indicatif) et la part captée", () => {
     const r = buildRemuneration(holdings, convention(), { terMoyenPct: 1.9, contractTypes: null });
     // CTD = 1,9 % (fonds) + 0,8 % (contrat indicatif AV) = 2,7 %/an
     expect(r.clientCostPct).toBeCloseTo(2.7, 6);
@@ -79,6 +79,23 @@ describe("buildRemuneration (barème cabinet)", () => {
     // Coût client annualisé : 2,7 % × 20 000 = 540 €/an ; part captée : 310 / 540
     expect(r.clientCostAnnual).toBeCloseTo(540, 6);
     expect(r.captureSharePct).toBeCloseTo(57.41, 2);
+    // Pas de frais d'entrée contrat fourni → coût one-shot client absent.
+    expect(r.clientEntryPct).toBeNull();
+    expect(r.clientEntryOnce).toBeNull();
+  });
+
+  it("utilise le frais de gestion contrat SOURCÉ et le frais d'entrée contrat quand fournis", () => {
+    const r = buildRemuneration(holdings, convention(), {
+      terMoyenPct: 1.9, contractFeePct: 0.5, contractEntryPct: 2, contractTypes: ["av"],
+    });
+    // CTD sourcé = 1,9 % + 0,5 % = 2,4 %/an (contractSourced = true)
+    expect(r.contractPct).toBeCloseTo(0.5, 6);
+    expect(r.contractSourced).toBe(true);
+    expect(r.clientCostPct).toBeCloseTo(2.4, 6);
+    expect(r.clientCostAnnual).toBeCloseTo(480, 6);
+    // Frais d'entrée contrat (coût client one-shot) : 2 % × 20 000 = 400 €
+    expect(r.clientEntryPct).toBeCloseTo(2, 6);
+    expect(r.clientEntryOnce).toBeCloseTo(400, 6);
   });
 
   it("sans convention : estimation de place seule, part contrat et entrée nulles", () => {

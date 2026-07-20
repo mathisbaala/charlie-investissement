@@ -112,6 +112,10 @@ export interface Remuneration {
   contractPct: number;
   /** true si le frais contrat est sourcé, false s'il est indicatif (repli enveloppe). */
   contractSourced: boolean;
+  /** Frais d'entrée du contrat, %/versement (sourcé) ; null si inconnu. */
+  clientEntryPct: number | null;
+  /** Frais d'entrée du contrat payés UNE fois par le client (€) ; null si inconnu. */
+  clientEntryOnce: number | null;
   /** Part du coût client captée par le cabinet = récurrent / coût client (%). */
   captureSharePct: number | null;
   // ── Détail & qualité ──
@@ -137,12 +141,19 @@ export interface Remuneration {
  * @param holdings  supports valorisés (montant + frais)
  * @param convention  convention du contrat, ou null (repli de place seul)
  * @param opts.terMoyenPct  frais courants moyens pondérés du portefeuille (%), pour le CTD
+ * @param opts.contractFeePct  frais de gestion UC du contrat SOURCÉ (%), null = indicatif enveloppe
+ * @param opts.contractEntryPct  frais d'entrée du contrat SOURCÉ (%), pour le coût client one-shot
  * @param opts.contractTypes  enveloppe(s) du contrat, pour l'indicatif de frais contrat
  */
 export function buildRemuneration(
   holdings: RemuHolding[],
   convention: CabinetContract | null,
-  opts: { terMoyenPct: number | null; contractTypes?: ContractType[] | null },
+  opts: {
+    terMoyenPct: number | null;
+    contractFeePct?: number | null;
+    contractEntryPct?: number | null;
+    contractTypes?: ContractType[] | null;
+  },
 ): Remuneration {
   const totalAmount = holdings.reduce((s, h) => s + (h.amount > 0 ? h.amount : 0), 0);
 
@@ -175,10 +186,12 @@ export function buildRemuneration(
   const retroRatePct =
     totalAmount > 0 ? Math.round((recurringAnnual / totalAmount) * 1e4) / 1e2 : null;
 
-  // Coût client (CTD) : TER moyen (fraction) + frais de gestion du contrat.
+  // Coût client (CTD) : TER moyen (fraction) + frais de gestion du contrat. Le
+  // frais contrat SOURCÉ (contractFeePct) fait foi quand il est connu (CTD exact),
+  // sinon l'indicatif par enveloppe (contractSourced = false).
   const cost = contractTotalCost(
     opts.terMoyenPct != null ? opts.terMoyenPct / 100 : null,
-    null, // frais contrat sourcé non disponible ici → indicatif par enveloppe
+    opts.contractFeePct ?? null,
     opts.contractTypes ?? null,
   );
   const clientCostPct = cost.total;
@@ -188,6 +201,15 @@ export function buildRemuneration(
     clientCostAnnual != null && clientCostAnnual > 0
       ? Math.round((recurringAnnual / clientCostAnnual) * 1e4) / 1e2
       : null;
+
+  // Frais d'entrée du contrat : coût client PONCTUEL (payé une fois par le
+  // client), distinct de l'upfront reversé au cabinet (entryOnce).
+  const clientEntryPct =
+    opts.contractEntryPct != null && Number.isFinite(opts.contractEntryPct)
+      ? opts.contractEntryPct
+      : null;
+  const clientEntryOnce =
+    clientEntryPct != null ? Math.round((clientEntryPct / 100) * totalAmount * 100) / 100 : null;
 
   return {
     recurringAnnual,
@@ -200,6 +222,8 @@ export function buildRemuneration(
     supportsPct: cost.supportsPct,
     contractPct: cost.contractPct,
     contractSourced: cost.contractSourced,
+    clientEntryPct,
+    clientEntryOnce,
     captureSharePct,
     lines,
     totalAmount,

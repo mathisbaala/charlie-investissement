@@ -316,7 +316,7 @@ rétrocessions OPCVM, avances/avances trimestrielles*.
 | **Barème de rému du cabinet** | ~~À créer~~ **FAIT** : `lib/cabinet.ts` (localStorage `charlie_cabinet_settings`) + onglet `/cabinet` `CabinetForm`. Cascade réelle par contrat : `contractFeeShare`, `ucRetroShare`, `entryFeeShare`, `arbitrageFeeShare`, `eurosRetroShare`, `customFees`, `fundOverrides`. Résolveurs `cabinetContract` / `resolveFundRetrocession` | ✅ existant (co-construit avec le chemin « construire ») |
 | **Branchement dépôt → moteur de frais** | ~~Le simulateur était autonome~~ **FAIT** : `/portefeuille/analyser` calcule coût client + rému CGP inline via `lib/remuneration.buildRemuneration` (cascade cabinet + repli de place), positions relevé enrichies d'un repli de rétro (`retro`) | ✅ livré 20/07 |
 | **Distinction ETF (rétro = 0)** | Un ETF ne rétrocède pas ; la rétro OPCVM ne vise que les parts retail | ✅ `estimateRetroFrac` force `0` sur ETF/passif/indiciel (source unique, partagée avec `estimateRetrocession`) |
-| **Frais contrat sourcé pour le CTD** | Le coût client utilise aujourd'hui l'indicatif d'enveloppe (0,8 % AV) faute du vrai `frais_gestion_uc_pct` du contrat reconnu | Résoudre `av_contract_terms.frais_gestion_uc_pct` depuis le contrat reconnu et le passer à `contractTotalCost` (déjà prévu par la signature) |
+| **Frais contrat sourcé pour le CTD** | ~~Indicatif d'enveloppe~~ **FAIT** : le contrat reconnu résout `av_contract_terms.frais_gestion_uc_pct` + `frais_entree_pct` via `/api/contract/terms` (RPC `get_contract_overview`), passés à `buildRemuneration` → CTD exact + frais d'entrée contrat (coût client one-shot). Repli indicatif si contrat hors base. Recoupement clés relevé×termes = 701/730 avec frais sourcé | ✅ livré 20/07 |
 | **Persistance d'un portefeuille/client** | Tout est éphémère (pas de comptes). Or « métriques par client » suppose de rattacher un portefeuille à un client | Décision produit (projet « no-accounts » — cf. `no-accounts-product-direction`). Piste : stockage **local**/export, pas de compte serveur |
 | **Honoraires** | Source de revenu à consolider (Sendraise) | Champ honoraire au forfait/%, saisi par le CGP, additionné à la rému |
 | **Agrégation multi-portefeuilles** | Vue cabinet = somme des portefeuilles | Couche d'agrégation, après décision persistance |
@@ -384,9 +384,9 @@ Par portefeuille, par client, puis agrégées :
 2. ~~**Relier dépôt → calcul**~~ — ✅ FAIT 20/07 : `/portefeuille/analyser` affiche coût
    client + rému CGP via `lib/remuneration.buildRemuneration` (barème cabinet + repli),
    ETF forcés à rétro 0.
-3. **Frais contrat sourcé** — résoudre `av_contract_terms.frais_gestion_uc_pct` du contrat
-   reconnu pour un CTD exact (au lieu de l'indicatif d'enveloppe), et l'`entryFeeShare`
-   contrat pour un upfront exact.
+3. ~~**Frais contrat sourcé**~~ — ✅ FAIT 20/07 : `/api/contract/terms` (RPC
+   `get_contract_overview`) → `frais_gestion_uc_pct` (CTD exact) + `frais_entree_pct`
+   (coût client one-shot) du contrat reconnu.
 4. **Vue cabinet / métriques agrégées** — dashboard rému (récurrent, ponctuel, taux de
    rétro, projection) au-dessus du portefeuille unique — après décision persistance.
 5. **Décision persistance** — rattacher un portefeuille à un client sans compte serveur

@@ -24,6 +24,7 @@ import {
 import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
 import { buildRemuneration, retroFallbackFrac, type RemuHolding, type Remuneration } from "@/lib/remuneration";
 import { loadStoredCabinet, cabinetContract } from "@/lib/cabinet";
+import type { ContractType } from "@/lib/insurer-envelope";
 
 type AnalyseMode = "portefeuille" | "support";
 
@@ -397,7 +398,29 @@ function PortefeuilleAnalyzer() {
           retroFallbackFrac: e?.retro ?? null,
         };
       });
-      const remu = buildRemuneration(holdings, convention, { terMoyenPct: terMoyen, contractTypes: null });
+
+      // Frais du CONTRAT sourcés (av_contract_terms) pour un coût client exact :
+      // frais de gestion UC + frais d'entrée du contrat reconnu, sinon indicatif
+      // d'enveloppe (repli silencieux si le contrat n'est pas en base).
+      let contractFeePct: number | null = null;
+      let contractEntryPct: number | null = null;
+      let contractTypes: ContractType[] | null = null;
+      if (uniqueKeys.length > 0) {
+        try {
+          const tRes = await fetch(`/api/contract/terms?key=${encodeURIComponent(uniqueKeys[0])}`);
+          if (tRes.ok) {
+            const t = await tRes.json();
+            if (t.found) {
+              contractFeePct = t.frais_gestion_uc_pct ?? null;
+              contractEntryPct = t.frais_entree_pct ?? null;
+              contractTypes = (t.types ?? null) as ContractType[] | null;
+            }
+          }
+        } catch { /* repli sur l'indicatif d'enveloppe */ }
+      }
+      const remu = buildRemuneration(holdings, convention, {
+        terMoyenPct: terMoyen, contractFeePct, contractEntryPct, contractTypes,
+      });
 
       setSynthese({
         analysis, geo, sectors, recos, sri: weightedSri(sriRows), terMoyen, truncated,
@@ -789,6 +812,9 @@ function RemunerationSection({
             Coût client ~{EUR.format(remu.clientCostAnnual)}/an
             {" "}({PCT(remu.supportsPct ?? 0, 2)} frais fonds + {PCT(remu.contractPct, 2)} frais contrat
             {remu.contractSourced ? "" : " indicatif"})
+            {remu.clientEntryOnce != null && remu.clientEntryOnce > 0 && (
+              <> · + {EUR.format(remu.clientEntryOnce)} de frais d&apos;entrée du contrat ({PCT(remu.clientEntryPct ?? 0, 2)}) à la souscription</>
+            )}
             {remu.captureSharePct != null && <> · vous en captez {PCT(remu.captureSharePct, 0)}</>}.
           </p>
         )}
