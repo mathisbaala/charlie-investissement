@@ -374,6 +374,20 @@ export function partFraisDansGainBrut(h: HorizonProjection): number | null {
 }
 
 /**
+ * Réduction de rendement annualisée (« Reduction in Yield » / RIY) à un horizon :
+ * de combien, en points de %/an, les frais rabaissent la performance annualisée.
+ * Indicateur standardisé PRIIPs — c'est LA façon réglementaire de résumer
+ * « l'effet cumulé des coûts sur le rendement » (MiFID II art. 24-4, DDA art. 29)
+ * en un seul chiffre. Forme composée : le taux annuel qui, appliqué sur la durée,
+ * reconstitue l'écart entre la trajectoire brute (sans frais) et la valeur nette
+ * effectivement perçue. 0 si les valeurs ne permettent pas le calcul.
+ */
+export function reductionRendementAnnuelle(h: HorizonProjection): number {
+  if (!(h.valeurNette > 0) || !(h.valeurSansFrais > 0) || h.annees < 1) return 0;
+  return r2((Math.pow(h.valeurSansFrais / h.valeurNette, 1 / h.annees) - 1) * 100);
+}
+
+/**
  * Projection simple d'une UC seule (table « toutes les UC ») : valeur d'un
  * montant investi à N années au rendement net annualisé donné, dégradé du
  * frais de gestion du contrat. Null si la perf est absente.
@@ -444,11 +458,45 @@ export interface FraisReportSupportInput {
   retro: number | null;      // rétrocession réelle du support (null = inconnue)
 }
 
+/**
+ * Ventilation du coût total à l'horizon final PAR NATURE de frais (pas par
+ * destinataire). C'est la lecture réglementaire attendue côté client (DDA art.
+ * 29, MiFID II art. 24-4, annexe II du Règlement délégué (UE) 2017/565) : frais
+ * d'entrée, frais de gestion de l'enveloppe, frais courants des supports, frais
+ * de sortie. `dontConseil` est une part TRANSVERSE (déjà comprise dans les
+ * lignes ci-dessus) qui isole ce qui rémunère le conseil, au titre de la
+ * transparence sur les incitations. entree + gestionEnveloppe + fraisCourants +
+ * sortie = total (identité exacte, aucun frais caché).
+ */
+export interface FraisNature {
+  entree: number;           // frais d'entrée cumulés (contrat + supports)
+  gestionEnveloppe: number; // frais de gestion du contrat (UC + fonds euros), cumulés
+  fraisCourants: number;    // frais courants des supports (TER), cumulés
+  sortie: number;           // frais de sortie à l'horizon (contrat + supports)
+  total: number;            // = final.totalFrais
+  dontConseil: number;      // part rémunérant le conseil (transverse, = repart.cabinet)
+}
+
+/** Point de la trajectoire pour l'illustration de l'effet cumulé des coûts. */
+export interface FraisTrajectoirePoint {
+  annee: number;
+  versements: number;      // versements cumulés bruts
+  valeurNette: number;     // encours après frais (avant sortie)
+  valeurSansFrais: number; // même trajectoire, zéro frais
+  fraisCumules: number;    // total des frais cumulés à cette année
+}
+
 export interface FraisReport {
   horizons: HorizonProjection[];
   final: HorizonProjection;              // horizon le plus lointain simulé
-  repart: FraisParDestinataire;          // ventilation du coût à l'horizon final
+  repart: FraisParDestinataire;          // ventilation du coût à l'horizon final (par destinataire)
+  nature: FraisNature;                   // ventilation du coût à l'horizon final (par nature)
+  trajectoire: FraisTrajectoirePoint[];  // année par année (illustration effet des coûts)
   partFraisGainBrut: number | null;      // frais / gain brut (%), à l'horizon final
+  reductionRendement: number;            // réduction de rendement annualisée (%/an, RIY)
+  coutPremiereAnnee: number;             // frais cumulés fin d'année 1 (entrée + 1re année de gestion)
+  coutRecurrentMoyen: number;            // frais récurrents moyens /an (gestion + courants), hors entrée/sortie
+  coutTotalPctVersements: number | null; // coût total en % des versements cumulés
   remuTotale: number;                    // rémunération cabinet cumulée à l'horizon final
   supports: FraisReportHolding[];        // détail par support (montant + rémunération)
 }
@@ -473,6 +521,36 @@ export function buildFraisReport(
     finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee,
   );
 
+  // Ventilation par nature à l'horizon final. Les frais de sortie ne sont pas
+  // dans le cumul courant (appliqués une seule fois au rachat) → on les prend
+  // sur la projection. Identité : entree + gestion + courants + sortie = total.
+  const fc = finalPoint.fraisCumules;
+  const nature: FraisNature = {
+    entree: r2(fc.entreeContrat + fc.entreeUC),
+    gestionEnveloppe: r2(fc.gestionContratUC + fc.gestionContratFE),
+    fraisCourants: r2(fc.gestionUC),
+    sortie: r2(final.fraisSortie),
+    total: r2(final.totalFrais),
+    dontConseil: r2(repart.cabinet),
+  };
+
+  const trajectoire: FraisTrajectoirePoint[] = sim.points.map((p) => ({
+    annee: p.annee,
+    versements: p.versementsCumules,
+    valeurNette: p.valeurNette,
+    valeurSansFrais: p.valeurSansFrais,
+    fraisCumules: p.totalFraisCumules,
+  }));
+
+  // Coût de la 1re année : entrée + première année de gestion (points[1] existe
+  // toujours ici, un horizon valide impose durée ≥ 1). Récurrent moyen : ce qui
+  // reste (gestion + courants) lissé sur la durée, hors frais ponctuels.
+  const coutPremiereAnnee = r2(sim.points[1]?.totalFraisCumules ?? nature.entree);
+  const coutRecurrentMoyen = r2(Math.max(0, nature.total - nature.entree - nature.sortie) / final.annees);
+  const coutTotalPctVersements = final.versementsCumules > 0
+    ? r2((final.totalFrais / final.versementsCumules) * 100)
+    : null;
+
   const retroCgp = input.retroCgp ?? 0;
   const commissionCabinet = input.commissionCabinet ?? 0;
   const totalPoids = supports.reduce((a, s) => a + Math.max(0, s.poids), 0) || 1;
@@ -491,7 +569,13 @@ export function buildFraisReport(
     horizons: sim.horizons,
     final,
     repart,
+    nature,
+    trajectoire,
     partFraisGainBrut: partFraisDansGainBrut(final),
+    reductionRendement: reductionRendementAnnuelle(final),
+    coutPremiereAnnee,
+    coutRecurrentMoyen,
+    coutTotalPctVersements,
     remuTotale: r2(final.retroCgpCumulee + final.commCabinetCumulee + final.contractFeeCumulee),
     supports: holdings,
   };

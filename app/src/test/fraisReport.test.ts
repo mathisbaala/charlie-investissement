@@ -65,4 +65,44 @@ describe("buildFraisReport", () => {
     const r = buildFraisReport(input, [{ ...supports[0], retro: null }])!;
     expect(r.supports[0].effRetro).toBe(0.9); // retroCgp du contrat
   });
+
+  it("ventile le coût par nature sans perte (entrée + gestion + courants + sortie = total)", () => {
+    const r = buildFraisReport(input, supports)!;
+    const { entree, gestionEnveloppe, fraisCourants, sortie, total } = r.nature;
+    expect(entree + gestionEnveloppe + fraisCourants + sortie).toBeCloseTo(total, 1);
+    expect(total).toBeCloseTo(r.final.totalFrais, 1);
+    // La part conseil est un sous-ensemble transverse : ≤ total.
+    expect(r.nature.dontConseil).toBeGreaterThan(0);
+    expect(r.nature.dontConseil).toBeLessThanOrEqual(total + 0.01);
+  });
+
+  it("expose la trajectoire complète (souscription → durée) pour l'illustration", () => {
+    const r = buildFraisReport(input, supports)!;
+    // durée 10 → points 0..10 = 11 points ; sans frais ≥ nette à chaque année.
+    expect(r.trajectoire).toHaveLength(11);
+    expect(r.trajectoire[0].annee).toBe(0);
+    expect(r.trajectoire.at(-1)!.annee).toBe(10);
+    for (const p of r.trajectoire) expect(p.valeurSansFrais).toBeGreaterThanOrEqual(p.valeurNette - 0.01);
+  });
+
+  it("réduction de rendement : strictement positive avec frais, nulle sans frais", () => {
+    const r = buildFraisReport(input, supports)!;
+    expect(r.reductionRendement).toBeGreaterThan(0);
+    const sansFrais = buildFraisReport({
+      ...input,
+      frais: { contratEntree: 0, contratGestionUC: 0, contratGestionFE: 0, contratSortie: 0, ucEntree: 0, ucGestion: 0, ucSortie: 0 },
+      retroCgp: 0, commissionCabinet: 0,
+    }, [{ ...supports[0], ter: 0, retro: 0 }])!;
+    expect(sansFrais.reductionRendement).toBeCloseTo(0, 2);
+  });
+
+  it("coût 1re année et récurrent cohérents avec le total", () => {
+    const r = buildFraisReport(input, supports)!;
+    expect(r.coutPremiereAnnee).toBeGreaterThan(0);
+    expect(r.coutPremiereAnnee).toBeLessThanOrEqual(r.final.totalFrais + 0.01);
+    expect(r.coutRecurrentMoyen).toBeGreaterThanOrEqual(0);
+    // Coût total en % des versements : positif et fini.
+    expect(r.coutTotalPctVersements).not.toBeNull();
+    expect(r.coutTotalPctVersements!).toBeGreaterThan(0);
+  });
 });

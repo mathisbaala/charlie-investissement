@@ -171,12 +171,14 @@ export function HeroStat({
   value,
   sub,
   tone = "accent",
+  valueColor,
   style,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "pos" | "neg" | "accent" | "neutral";
+  valueColor?: string;
   style?: Style;
 }) {
   const map = {
@@ -188,14 +190,16 @@ export function HeroStat({
   return (
     <View style={[s.hero, { backgroundColor: map.bg }, style ?? {}]}>
       <Text style={s.heroLabel}>{label}</Text>
-      <Text style={[s.heroValue, { color: map.fg }]}>{value}</Text>
+      <Text style={[s.heroValue, { color: valueColor ?? map.fg }]}>{value}</Text>
       {sub ? <Text style={s.heroSub}>{sub}</Text> : null}
     </View>
   );
 }
 
 type Metric = { label: string; value: string; sub?: string; color?: string };
-export function MetricGrid({ items, cols = 3 }: { items: Metric[]; cols?: number }) {
+// `labelMinHeight` réserve une hauteur fixe au label pour aligner les valeurs
+// entre colonnes quand certains labels tiennent sur deux lignes (ex. grille KPI).
+export function MetricGrid({ items, cols = 3, labelMinHeight }: { items: Metric[]; cols?: number; labelMinHeight?: number }) {
   const rows = Math.ceil(items.length / cols);
   return (
     <View style={s.grid}>
@@ -216,7 +220,7 @@ export function MetricGrid({ items, cols = 3 }: { items: Metric[]; cols?: number
               },
             ]}
           >
-            <Text style={s.cellLabel}>{m.label}</Text>
+            <Text style={[s.cellLabel, labelMinHeight ? { minHeight: labelMinHeight } : {}]}>{m.label}</Text>
             <Text style={[s.cellValue, m.color ? { color: m.color } : {}]}>{m.value}</Text>
             {m.sub ? <Text style={s.cellSub}>{m.sub}</Text> : null}
           </View>
