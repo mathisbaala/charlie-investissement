@@ -4,19 +4,18 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   X, ArrowLeft, ArrowRight, Check,
-  LayoutGrid, Search, TrendingUp, Shield, Logo, UserCircle, Calculator,
+  LayoutGrid, TrendingUp, Shield, Logo, UserCircle, Calculator,
 } from "@/components/ui/icons";
 import { TOUR_STEPS, isTourDone, markTourDone, type TourStep } from "@/lib/tour";
 
 // Icône par étape — gardée hors du module de données (lib/tour) pour que
-// celui-ci reste pur et testable.
+// celui-ci reste pur et testable. Une icône par pilier, alignée sur le rail.
 function StepIcon({ stepKey, size = 20 }: { stepKey: TourStep["key"]; size?: number }) {
   switch (stepKey) {
     case "accueil":   return <LayoutGrid size={size} strokeWidth={1.7} />;
-    case "recherche": return <Search size={size} strokeWidth={1.7} />;
+    case "assureurs": return <Shield size={size} strokeWidth={1.7} />;
     case "portefeuille": return <TrendingUp size={size} strokeWidth={1.7} />;
     case "simulateur": return <Calculator size={size} strokeWidth={1.7} />;
-    case "assureurs": return <Shield size={size} strokeWidth={1.7} />;
     case "cabinet":   return <UserCircle size={size} strokeWidth={1.7} />;
     case "guide":     return <Logo size={size + 4} />;
   }

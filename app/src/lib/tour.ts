@@ -6,36 +6,33 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "recherche" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "guide";
+  key: "accueil" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "guide";
   title: string;
   body: string;
 };
 
+// Une étape par pilier, dans l'ordre du rail (Accueil, Partenaires,
+// Portefeuille, Frais), puis Mon cabinet et le guide contextuel en clôture.
 export const TOUR_STEPS: TourStep[] = [
   {
     key: "accueil",
-    title: "Partez du besoin",
-    body: "Décrivez un fonds en langage naturel pour lancer une recherche. En dessous, reprenez vos recherches récentes et vos derniers fonds consultés.",
+    title: "Trouvez le bon support",
+    body: "Décrivez ce que vous cherchez avec vos propres mots : Charlie traduit votre phrase en une recherche de fonds. Filtrez, triez et comparez les résultats pour retenir le support qui colle au besoin.",
   },
   {
-    key: "recherche",
-    title: "Recherche",
-    body: "Une phrase suffit. Affinez ensuite par risque, frais, performance et enveloppe.",
+    key: "assureurs",
+    title: "Partenaires",
+    body: "Le mapping exhaustif des assureurs et de leurs contrats : où loger fiscalement chaque support, avec qui travailler, ce que propose chaque partenaire, ses contrats, ses frais et sa rémunération.",
   },
   {
     key: "portefeuille",
     title: "Portefeuille",
-    body: "Deux chemins : construire un portefeuille optimisé (max-Sharpe ou HRP, Markowitz, back-test, restitution PDF et PowerPoint) ou analyser l'existant depuis les relevés du client, ou un DICI de support.",
+    body: "Construisez un portefeuille de A à Z à partir du profil du client, ou analysez un portefeuille existant pour repérer les trous dans la raquette et les points à optimiser.",
   },
   {
     key: "simulateur",
     title: "Frais",
-    body: "Ce que gagne le cabinet et ce que coûte le contrat : rétrocessions et commission d'entrée, cumulées et détaillées support par support. Supports importés par recherche, relevé ou fiche.",
-  },
-  {
-    key: "assureurs",
-    title: "Assurances vie",
-    body: "Chaque contrat en fiche : enveloppe, supports référencés, frais moyens et répartition. Assureur par assureur.",
+    body: "La comptabilité du portefeuille : ce qu'il rapporte, ce que gagne le cabinet, ce qu'il coûte au client, poste par poste. De quoi éditer des rapports clairs et transparents.",
   },
   {
     key: "cabinet",
@@ -55,7 +52,10 @@ export const TOUR_STEPS: TourStep[] = [
 // v5 : accueil recentré sur recherche + reprise d'activité (profil déplacé dans
 //      Portefeuille), assureurs devenus fiches-contrat.
 // v6 : onglet Documents retiré (DICI fusionné dans Portefeuille → Analyser).
-const KEY = "charlie_tour_v6_done";
+// v7 : tour recentré sur les 4 piliers du rail (Accueil / Partenaires /
+//      Portefeuille / Frais) ; étape Recherche fusionnée dans Accueil ;
+//      « Assurances vie » renommé « Partenaires ».
+const KEY = "charlie_tour_v7_done";
 
 export function isTourDone(): boolean {
   if (typeof window === "undefined") return true;

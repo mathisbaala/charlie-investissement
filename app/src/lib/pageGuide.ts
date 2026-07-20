@@ -51,9 +51,9 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
   {
     prefixes: ["/assureurs"],
     guide: {
-      title: "Assurances vie",
+      title: "Partenaires",
       intro:
-        "La cartographie du référencement. Retrouvez, assureur par assureur, quels contrats logent quels supports, et ouvrez la fiche de chaque contrat.",
+        "Le choix du partenaire : le mapping exhaustif des assureurs et de leurs contrats pour savoir où loger fiscalement chaque support, avec qui travailler, ce que chacun propose (contrats, frais, rémunération) et ses forces et limites.",
       sections: [
         {
           heading: "Sur cette page",
@@ -66,9 +66,9 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
         {
           heading: "Comment l'utiliser",
           items: [
-            "Cliquez un contrat pour ouvrir sa fiche : enveloppe, supports référencés, frais moyens et répartition (classes, zones, gestionnaires, risque).",
-            "Depuis la fiche, « Voir les supports » ouvre le screener filtré sur ce contrat.",
-            "Cliquez un assureur pour afficher directement tous ses supports au screener.",
+            "Cliquez un contrat pour ouvrir sa fiche : enveloppe, supports référencés, frais et rémunération, répartition (classes, zones, gestionnaires, risque).",
+            "Comparez les partenaires pour choisir où loger un support trouvé à la recherche.",
+            "Depuis la fiche, « Voir les supports » ouvre le screener filtré sur ce contrat ; cliquez un assureur pour afficher tous ses supports au screener.",
           ],
         },
       ],
@@ -106,7 +106,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Portefeuille",
       intro:
-        "Deux chemins pour travailler le portefeuille d'un client : le construire de A à Z (profil client + contrat → allocation optimisée max-Sharpe ou HRP, back-test historique, proposition PDF / PowerPoint) ou analyser l'existant à partir de ses relevés.",
+        "Deux chemins pour travailler le portefeuille d'un client : le construire de A à Z, cohérent avec son profil (contrat → allocation optimisée max-Sharpe ou HRP, back-test historique, proposition PDF / PowerPoint), ou analyser l'existant à partir de ses relevés pour repérer les trous dans la raquette et les points à optimiser.",
       sections: [
         {
           heading: "Sur cette page",
@@ -133,7 +133,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Frais",
       intro:
-        "La rémunération du cabinet et le coût du contrat, côté comptabilité : rétrocessions récurrentes et commission d'entrée, cumulées et détaillées support par support, avec le partage assureur / société de gestion / cabinet.",
+        "La comptabilité du portefeuille : ce qu'il rapporte, ce que gagne le cabinet et ce qu'il coûte au client. Rétrocessions récurrentes et commission d'entrée, cumulées et détaillées support par support, avec le partage assureur / société de gestion / cabinet, prêtes à éditer en rapport.",
       sections: [
         {
           heading: "Sur cette page",
@@ -213,7 +213,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
 const HOME_GUIDE: PageGuide = {
   title: "Accueil",
   intro:
-    "Le point de départ. Décrivez un fonds en langage naturel pour lancer une recherche, et reprenez le travail là où vous l'avez laissé.",
+    "Le point de départ : décrivez avec vos propres mots le fonds ou le support recherché, Charlie en fait une recherche que vous pourrez filtrer, trier et comparer jusqu'au support qui convient. Reprenez aussi le travail là où vous l'avez laissé.",
   sections: [
     {
       heading: "Sur cette page",
