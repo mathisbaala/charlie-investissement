@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   // DOMMatrix ») → tout upload PDF de relevé tombait en 422. Externe = Next ne
   // tente pas de bundler ses binaires natifs par plateforme.
   serverExternalPackages: ["pdfjs-dist", "xlsx", "@napi-rs/canvas"],
+  // Le require() de @napi-rs/canvas par pdfjs est dynamique → invisible au
+  // traceur de fichiers. On force l'inclusion du paquet ET de son binaire natif
+  // de plateforme (@napi-rs/canvas-linux-x64-gnu sur Vercel) dans les lambdas
+  // des routes qui lisent des PDF, sinon « Cannot find module '@napi-rs/canvas' ».
+  outputFileTracingIncludes: {
+    "/api/releve": ["./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/dici/parse": ["./node_modules/@napi-rs/canvas*/**/*"],
+  },
 };
 
 export default nextConfig;

@@ -7,6 +7,14 @@
 // Server-only : `pdfjs-dist/legacy` s'appuie sur des API Node — n'importer que
 // depuis des routes `runtime = "nodejs"`, jamais depuis du code client.
 
+// pdfjs-dist v6 legacy charge @napi-rs/canvas par un require() DYNAMIQUE (pour
+// fournir DOMMatrix/Path2D, sans quoi getTextContent throw en serverless). Ce
+// require dynamique est invisible au traceur de fichiers de Vercel → le paquet
+// n'était pas copié dans la lambda (« Cannot find module '@napi-rs/canvas' »).
+// Cet import statique, sans effet à l'usage, rend la dépendance VISIBLE au
+// traceur pour qu'il embarque @napi-rs/canvas + son binaire natif de plateforme.
+import "@napi-rs/canvas";
+
 /** Reconstruit des lignes de texte à partir des items pdfjs (tri Y puis X). */
 export async function pdfToLines(data: Uint8Array): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
