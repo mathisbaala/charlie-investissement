@@ -21,6 +21,7 @@ import {
 import {
   buildRecommendations, weightedSri, type Recommendation, type FeeLine,
 } from "@/lib/analyseExistant";
+import { sanitizeFundReport } from "@/lib/fundReport";
 import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
 
 type AnalyseMode = "portefeuille" | "support";
@@ -31,11 +32,15 @@ const PCT = (v: number, d = 1) => `${v.toFixed(d).replace(".", ",")} %`;
 const signTone = (v: number | null | undefined): "ok" | "bad" | null =>
   v == null ? null : v >= 0 ? "ok" : "bad";
 
+// Position côté client : celle de /api/releve, plus la provenance « document
+// déposé » (fonds hors catalogue documenté par son DIC/reporting — badge UI).
+type Position = ApiPosition & { viaReporting?: boolean };
+
 // ── Type local : un relevé côté client (positions/contrats = types /api/releve) ─
 interface Releve {
   id: string;
   fileName: string;
-  positions: ApiPosition[];
+  positions: Position[];
   matches: ApiMatch[];
   /** Index du contrat retenu dans `matches` (-1 = non rattaché). */
   chosen: number;
@@ -142,6 +147,11 @@ function PortefeuilleAnalyzer() {
   const [error, setError] = useState<string | null>(null);
   const [synthese, setSynthese] = useState<Synthese | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Dépôt du document d'UN fonds (DIC/reporting) : cible en attente + clé de la
+  // ligne en cours d'analyse (`rid:isin`, ou `rid:+` pour un ajout libre).
+  const reportInput = useRef<HTMLInputElement>(null);
+  const [reportTarget, setReportTarget] = useState<{ rid: string; isin: string | null } | null>(null);
+  const [reportBusy, setReportBusy] = useState<string | null>(null);
 
   // Dépôt de fichiers : un POST /api/releve par PDF, séquentiel (reste simple).
   async function onFiles(files: FileList | null) {
@@ -240,6 +250,77 @@ function PortefeuilleAnalyzer() {
     }));
     setSynthese(null);
     enrichPosition(rid, isin);
+  }
+
+  // Un support hors catalogue (souvent un produit structuré) finit barré et
+  // exclu de l'analyse : ce chemin permet au CGP de déposer le DOCUMENT du
+  // support (DIC/KID, reporting) — la même route que le mode « Support unique »
+  // en extrait nom/frais/SRI, et la ligne rejoint le patrimoine analysé.
+  function pickReport(rid: string, isin: string | null) {
+    setReportTarget({ rid, isin });
+    reportInput.current?.click();
+  }
+
+  async function onReportFile(files: FileList | null) {
+    const target = reportTarget;
+    const file = files?.[0];
+    if (!target || !file) return;
+    setReportBusy(`${target.rid}:${target.isin ?? "+"}`);
+    setError(null);
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < buf.length; i += 0x8000) {
+        bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      }
+      const res = await fetch("/api/dici/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // fields="fees" : lecture déterministe (gratuite) d'abord — nom, ISIN,
+        // frais courants, SRI suffisent ici ; l'IA ne sert que de repli.
+        body: JSON.stringify({ file_base64: btoa(bin), fields: "fees" }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(`${file.name} : ${json.error ?? `erreur ${res.status}`}`);
+        return;
+      }
+      const outcome = sanitizeFundReport(json, target.isin ?? undefined);
+      if (!outcome.ok) {
+        setError(`${file.name} : ${outcome.error}`);
+        return;
+      }
+      const fund = outcome.fund;
+      setReleves((prev) => prev.map((r) => {
+        if (r.id !== target.rid) return r;
+        const exists = r.positions.some((p) => p.isin === fund.isin);
+        const positions = exists
+          ? r.positions.map((p) => p.isin !== fund.isin ? p : {
+              ...p,
+              known: true,
+              viaReporting: !fund.catalogued,
+              name: fund.name ?? p.name,
+              ter: fund.ter ?? p.ter,
+              sri: fund.sri ?? p.sri,
+            })
+          : [...r.positions, {
+              isin: fund.isin, label: "", amount: null, known: true,
+              viaReporting: !fund.catalogued,
+              name: fund.name, ter: fund.ter, sri: fund.sri,
+            }];
+        return { ...r, positions };
+      }));
+      setSynthese(null);
+      // Le document révèle un fonds finalement AU catalogue : la base fait
+      // autorité sur le document, on complète depuis elle.
+      if (fund.catalogued) enrichPosition(target.rid, fund.isin);
+    } catch {
+      setError(`${file.name} : lecture du document impossible.`);
+    } finally {
+      setReportBusy(null);
+      setReportTarget(null);
+      if (reportInput.current) reportInput.current.value = "";
+    }
   }
 
   // Préremplissage par lien profond : /portefeuille/analyser?isins=&weights=&montant=
@@ -386,6 +467,15 @@ function PortefeuilleAnalyzer() {
         data-testid="releve-input"
         onChange={(e) => onFiles(e.target.files)}
       />
+      {/* Dépôt du document d'un fonds hors catalogue (un seul PDF à la fois). */}
+      <input
+        ref={reportInput}
+        type="file"
+        accept=".pdf,application/pdf"
+        className="hidden"
+        data-testid="report-input"
+        onChange={(e) => onReportFile(e.target.files)}
+      />
       {busy ? (
         <div className="flex flex-col items-center justify-center gap-4 py-20 mb-6">
           <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
@@ -483,6 +573,25 @@ function PortefeuilleAnalyzer() {
                       <td className={`py-1.5 pr-3 ${p.known ? "text-ink" : "text-muted line-through"}`}>
                         {p.name ?? p.label ?? "—"}
                         {!p.known && <span className="ml-1 no-underline">(hors catalogue)</span>}
+                        {p.viaReporting && (
+                          <span
+                            className="ml-1.5 text-caption text-accent-ink"
+                            title="Nom, frais et SRI lus dans le document déposé (fonds hors catalogue : performance et corrélations indisponibles)"
+                          >
+                            · reporting
+                          </span>
+                        )}
+                        {!p.known && (
+                          <button
+                            type="button"
+                            onClick={() => pickReport(r.id, p.isin)}
+                            disabled={reportBusy !== null}
+                            className="ml-2 no-underline text-accent-ink underline-offset-2 hover:underline disabled:opacity-50"
+                            data-testid={`report-btn-${p.isin}`}
+                          >
+                            {reportBusy === `${r.id}:${p.isin}` ? "Analyse…" : "Déposer son DIC/reporting"}
+                          </button>
+                        )}
                       </td>
                       <td className="py-1.5 pr-3 font-mono text-muted">{p.isin}</td>
                       <td className="py-1.5 pr-3 text-right">
@@ -527,6 +636,19 @@ function PortefeuilleAnalyzer() {
               onAdd={(isin, name) => addFund(r.id, isin, name)}
               existing={new Set(r.positions.map((p) => p.isin))}
             />
+            {/* Fonds introuvable dans la base (hors catalogue) : le document du
+                support prend le relais de la recherche. */}
+            <button
+              type="button"
+              onClick={() => pickReport(r.id, null)}
+              disabled={reportBusy !== null}
+              className="mt-1.5 text-caption text-muted hover:text-accent-ink transition-colors underline underline-offset-2 disabled:opacity-50"
+              data-testid="report-adder"
+            >
+              {reportBusy === `${r.id}:+`
+                ? "Analyse du document…"
+                : "Fonds introuvable ? Déposez son DIC ou son reporting"}
+            </button>
           </div>
         </Card>
       ))}
@@ -556,7 +678,7 @@ function PortefeuilleAnalyzer() {
         <p className="text-caption text-warn-dark -mt-4 mb-8" data-testid="excluded-notice">
           {/* Phrase en une seule chaîne JS : le whitespace JSX supprimait l'espace
               entre l'expression ternaire et le mot suivant (« inclusdans »). */}
-          {`${excluded.count} support${excluded.count > 1 ? "s" : ""} non reconnu${excluded.count > 1 ? "s" : ""} dans notre catalogue (${EUR.format(excluded.amount)}) : ${excluded.count > 1 ? "ils ne sont pas inclus" : "il n'est pas inclus"} dans l'analyse (performance, frais et corrélations portent sur les supports connus). Le total réconcilié par relevé les prend en compte.`}
+          {`${excluded.count} support${excluded.count > 1 ? "s" : ""} non reconnu${excluded.count > 1 ? "s" : ""} dans notre catalogue (${EUR.format(excluded.amount)}) : ${excluded.count > 1 ? "ils ne sont pas inclus" : "il n'est pas inclus"} dans l'analyse (performance, frais et corrélations portent sur les supports connus). Le total réconcilié par relevé les prend en compte. Déposez le DIC ou le reporting de chaque ligne barrée pour l'intégrer au diagnostic (frais, SRI).`}
         </p>
       )}
 
