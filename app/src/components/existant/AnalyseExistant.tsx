@@ -532,22 +532,16 @@ function PortefeuilleAnalyzer() {
       {/* ── Synthèse ── diagnostic chiffré, alertes, marché, répartition. */}
       {synthese && (
         <div className="space-y-6">
-          {/* Bandeau diagnostic : identité + risque + coût, d'un coup d'œil. */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
+          {/* Bandeau « carte d'identité » : taille · rendement · risque (SRI) ·
+              coût. Volatilité / Sharpe / perte max vivent dans « Historique du
+              portefeuille » où ils se lisent FACE à l'indice — on ne répète pas
+              ici les mêmes chiffres (ils sortent du même calcul). */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
             <Kpi label="Patrimoine" value={EUR.format(total)} />
             <Kpi
               label="Perf. annualisée"
               value={synthese.analysis?.ratios?.annual_return != null ? PCT(synthese.analysis.ratios.annual_return * 100) : "—"}
               tone={signTone(synthese.analysis?.ratios?.annual_return)}
-            />
-            <Kpi
-              label="Volatilité"
-              value={synthese.analysis?.ratios?.volatility != null ? PCT(synthese.analysis.ratios.volatility * 100) : "—"}
-            />
-            <Kpi
-              label="Perte max."
-              value={synthese.analysis?.ratios?.max_drawdown != null ? PCT(synthese.analysis.ratios.max_drawdown * 100) : "—"}
-              tone={synthese.analysis?.ratios?.max_drawdown != null ? "bad" : null}
             />
             <Kpi label="SRI pondéré" value={synthese.sri != null ? `${String(synthese.sri).replace(".", ",")} / 7` : "—"} />
             <Kpi label="Frais moyens" value={synthese.terMoyen != null ? PCT(synthese.terMoyen, 2) : "—"} />
