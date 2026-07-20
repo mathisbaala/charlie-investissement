@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Check, Plus } from "@/components/ui/icons";
+import { ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "@/components/ui/icons";
 import { Card } from "@/components/ui/Card";
 import { decodeHtml, feeFracToPct } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
-import { useContractCompare } from "@/components/ContractCompareProvider";
+import { ContractCompareToggle } from "@/components/ContractCompareToggle";
 import {
   type ContractType, type Envelope,
   typesOf, inEnvelope, realContracts,
@@ -75,36 +75,6 @@ const COLS: { key: SortCol; label: string; get: (c: ComparisonContract) => numbe
   { key: "fonds_euros_taux_pct", label: "Fonds euros",    get: (c) => c.fonds_euros_taux_pct, firstDir: "desc", render: (c) => c.fonds_euros_taux_pct == null ? "—" : `${fmtPct(c.fonds_euros_taux_pct)}${c.fonds_euros_annee ? ` (${c.fonds_euros_annee})` : ""}` },
   { key: "sri_avg",              label: "SRI moyen",      get: (c) => c.sri_avg,              firstDir: "asc",  render: (c) => fmtSri(c.sri_avg) },
 ];
-
-// Bouton « ajouter au comparateur transversal ». En <button> (pas checkbox) avec
-// preventDefault + stopPropagation pour rester fiable à l'intérieur d'une carte-lien
-// (mobile) : on toggle sans déclencher la navigation de la fiche.
-function CompareToggle({ c }: { c: ComparisonContract }) {
-  const { isCompared, toggle, atMax } = useContractCompare();
-  const on = isCompared(c.key);
-  const disabled = !on && atMax;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle({ key: c.key, company: c.company, contract: c.contract });
-      }}
-      title={on ? "Retirer du comparateur" : disabled ? `Maximum atteint` : "Ajouter au comparateur"}
-      aria-pressed={on}
-      aria-label={on ? `Retirer ${c.contract} du comparateur` : `Ajouter ${c.contract} au comparateur`}
-      className={`inline-flex items-center justify-center w-6 h-6 rounded-md border transition-colors shrink-0 ${
-        on
-          ? "bg-accent border-accent text-paper"
-          : "bg-paper border-line text-muted-2 hover:border-accent/50 hover:text-accent-ink"
-      } disabled:opacity-40 disabled:cursor-not-allowed`}
-    >
-      {on ? <Check size={13} /> : <Plus size={13} />}
-    </button>
-  );
-}
 
 // Badges d'enveloppe + statut, réutilisés entre la ligne desktop et la carte mobile.
 function EnvBadges({ c }: { c: ComparisonContract }) {
@@ -240,7 +210,7 @@ export default function ContractComparison({
                   {filtered.map((c) => (
                     <tr key={c.key} className="border-b border-line-soft last:border-0 hover:bg-accent/[0.03] transition-colors group">
                       <td className="pl-3 pr-0 py-3 align-middle">
-                        <CompareToggle c={c} />
+                        <ContractCompareToggle c={c} />
                       </td>
                       <td className="px-4 py-3 max-w-[320px]">
                         <Link href={contractHref(c.key)} className="block">
@@ -281,7 +251,7 @@ export default function ContractComparison({
                       <span className="text-body-lg text-ink font-semibold truncate">{decodeHtml(c.contract)}</span>
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
-                      <CompareToggle c={c} />
+                      <ContractCompareToggle c={c} />
                       <ChevronRight size={15} className="text-muted-2 mt-1" />
                     </span>
                   </div>

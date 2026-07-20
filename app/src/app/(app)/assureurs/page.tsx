@@ -12,6 +12,7 @@ import {
   type ContractType, type Envelope,
   visibleContracts, isInsurerVisible,
 } from "@/lib/insurer-envelope";
+import { ContractCompareToggle } from "@/components/ContractCompareToggle";
 
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
 
@@ -125,27 +126,28 @@ function InsurerCard(
               ].filter(Boolean).join(" · ") || undefined;
               return (
                 <li key={c.key}>
-                  <Link
-                    href={contractHref(c.key)}
-                    title={title}
-                    className="grid grid-cols-[1fr_auto] items-center gap-3 py-2 min-h-[44px] -mx-1 px-1 rounded-md hover:bg-accent/[0.03] transition-colors"
-                  >
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      {/* Pastille de statut : pleine = ouvert, creuse = fermé.
-                          Le label « fermé » fournit le cue non-couleur (daltonisme). */}
-                      <span
-                        aria-hidden
-                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          c.closed ? "border-[1.5px] border-muted-2" : "bg-ok"
-                        }`}
-                      />
+                  {/* Le carré à gauche sélectionne le contrat pour le comparateur
+                      transversal (barre flottante en bas) ; le reste de la ligne
+                      ouvre toujours la fiche-contrat. Le statut « fermé » reste
+                      signalé par le label italique (cue non-couleur). */}
+                  <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 py-2 min-h-[44px] -mx-1 px-1 rounded-md hover:bg-accent/[0.03] transition-colors">
+                    <ContractCompareToggle c={{ key: c.key, company: c.company, contract: c.contract }} />
+                    <Link
+                      href={contractHref(c.key)}
+                      title={title}
+                      className="flex items-center gap-2 min-w-0"
+                    >
                       <span className="text-body text-ink-2 font-medium truncate">{c.contract}</span>
                       {c.closed && <span className="text-meta text-muted-2 italic shrink-0">fermé</span>}
-                    </span>
-                    <span className="text-body text-muted tabular-nums text-right">
+                    </Link>
+                    <Link
+                      href={contractHref(c.key)}
+                      title={title}
+                      className="text-body text-muted tabular-nums text-right"
+                    >
                       {c.funds.toLocaleString("fr-FR")}
-                    </span>
-                  </Link>
+                    </Link>
+                  </div>
                 </li>
               );
             })}
