@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import {
   remunerationSupport, HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type DiciSupport } from "./SupportSources";
+import { loadStoredCabinet, cabinetContract, resolveFundRetrocession } from "@/lib/cabinet";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
@@ -153,8 +154,12 @@ export function FeeSimulator() {
   const [ucEntreeManuel, setUcEntreeManuel] = useState<number | null>(null);
   const [ucSortieManuel, setUcSortieManuel] = useState<number | null>(null);
   const [retroManuel, setRetroManuel] = useState<number | null>(null);
-  // Commission upfront du cabinet (%/versement) : seedée aux frais d'entrée.
-  const [commissionCabinet, setCommissionCabinet] = useState(FRAIS_DEFAUT.contratEntree);
+  // Rémunération cabinet : par défaut dérivée du barème « Mon cabinet » (quand un
+  // contrat est passé en lien profond) ou des taux de place ; surchargeable à la
+  // main (null = valeur dérivée). commManuel = commission d'entrée cabinet,
+  // contractFeeManuel = part des frais de gestion du contrat reversée.
+  const [commManuel, setCommManuel] = useState<number | null>(null);
+  const [contractFeeManuel, setContractFeeManuel] = useState<number | null>(null);
   const [ucs, setUcs] = useState<UcRow[]>([]);
   // Export PDF (document client conforme DDA / fiche interne cabinet).
   const [clientRef, setClientRef] = useState("");
@@ -248,18 +253,51 @@ export function FeeSimulator() {
   const ucEntree = ucEntreeManuel ?? entreePonderee ?? FRAIS_DEFAUT.ucEntree;
   const ucSortie = ucSortieManuel ?? sortiePonderee ?? FRAIS_DEFAUT.ucSortie;
 
-  // Rétrocession : réelle pondérée, sinon estimation de place (50 % du TER).
+  // Barème « Mon cabinet » : si un contrat est passé en lien profond
+  // (?contract=Assureur::Contrat), on résout la convention et on en DÉRIVE la
+  // rémunération (rétro par la cascade, commission d'entrée, part gestion
+  // contrat). Le simulateur s'aligne alors sur les mêmes taux que le bloc
+  // « Coût client & rémunération » du portefeuille. Sans contrat : taux de place.
+  const contractKey = searchParams.get("contract");
+  const convention = useMemo(
+    () => (contractKey && contractKey.includes("::") ? cabinetContract(loadStoredCabinet(), contractKey) : null),
+    [contractKey],
+  );
+
+  // Rétrocession effective d'un support (%/an) : cascade du barème (exception
+  // fonds → taux UC du contrat → repli du fonds) si convention, sinon rétro du fonds.
+  const effRetroPct = useCallback((u: UcRow): number | null => {
+    if (convention) {
+      const frac = resolveFundRetrocession(
+        convention, u.isin, u.ter != null ? u.ter / 100 : null, u.retro != null ? u.retro / 100 : null,
+      );
+      return frac != null ? Math.round(frac * 1e4) / 1e2 : null;
+    }
+    return u.retro ?? null;
+  }, [convention]);
+
+  // Rétrocession pondérée : cascade du barème (si convention) ou réelle des
+  // supports, sinon estimation de place (50 % du TER).
   const retroPonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.retro, poids: u.poids }))), [ucs]);
+    () => rendementPondere(ucs.map((u) => ({ perf: effRetroPct(u), poids: u.poids }))), [ucs, effRetroPct]);
   const retroEstimee = Math.round(ucGestion * 0.5 * 100) / 100;
   const retroCgp = retroManuel ?? retroPonderee ?? retroEstimee;
+
+  // Commission d'entrée cabinet : convention (entryFeeShare) sinon frais d'entrée du contrat.
+  const commissionCabinet = commManuel ?? (
+    convention?.entryFeeShare != null ? Math.round(convention.entryFeeShare * 1e4) / 1e2 : frais.contratEntree
+  );
+  // Part des frais de gestion du contrat reversée au cabinet (%/an) : convention (contractFeeShare) sinon 0.
+  const contractFeeShare = contractFeeManuel ?? (
+    convention?.contractFeeShare != null ? Math.round(convention.contractFeeShare * 1e4) / 1e2 : 0
+  );
 
   const input: SimulationInput = useMemo(() => ({
     versementInitial, versementAnnuel, dureeAnnees: duree, partUC,
     rendementUC, rendementFE,
     frais: { ...frais, ucGestion, ucEntree, ucSortie },
-    retroCgp, commissionCabinet,
-  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet]);
+    retroCgp, commissionCabinet, contractFeeShare,
+  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet, contractFeeShare]);
 
   const horizons = useMemo(
     () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b), [duree]);
@@ -267,10 +305,10 @@ export function FeeSimulator() {
   const final = sim.horizons[sim.horizons.length - 1];
   const finalPoint = final ? sim.points[final.annees] : null;
   const repart = final && finalPoint
-    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee)
+    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee)
     : null;
 
-  const remuTotale = final ? final.retroCgpCumulee + final.commCabinetCumulee : 0;
+  const remuTotale = final ? final.retroCgpCumulee + final.commCabinetCumulee + final.contractFeeCumulee : 0;
 
   // Courbe de rémunération cumulée du cabinet : upfront + rétrocessions.
   const remuCurve = useMemo(() => sim.points.map((p) => ({
@@ -293,7 +331,9 @@ export function FeeSimulator() {
   const ucPot = versementInitial * (partUC / 100);
   const supportRows = ucs.map((u) => {
     const montant = ucPot * (Math.max(0, u.poids) / totalPoids);
-    const effRetro = u.retro ?? retroCgp;
+    // Cascade du barème si convention (aligné sur le portefeuille), sinon rétro
+    // du fonds ; repli sur le taux agrégé quand rien n'est exploitable.
+    const effRetro = effRetroPct(u) ?? retroCgp;
     const remu = remunerationSupport(montant, effRetro, commissionCabinet);
     return { u, montant, effRetro, ...remu };
   });
@@ -439,12 +479,24 @@ export function FeeSimulator() {
 
             <Card className="px-5 py-5 space-y-3">
               <H2>Ma rémunération (cabinet)</H2>
+              {convention && (
+                <p className="text-caption text-muted-2 -mt-1">
+                  Selon vos conventions « Mon cabinet » pour {contractKey?.split("::")[1]} (surchargeable).
+                </p>
+              )}
               <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel}
                 note={retroManuel != null ? undefined
+                  : convention ? "taux de votre convention (cascade)"
                   : retroPonderee != null ? "taux réel pondéré des supports"
                   : "estimation : 50 % des frais courants"} />
-              <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommissionCabinet}
-                note="part des frais d'entrée reversée au cabinet" />
+              <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommManuel}
+                note={commManuel == null && convention?.entryFeeShare != null
+                  ? "frais d'entrée reversés (votre convention)"
+                  : "part des frais d'entrée reversée au cabinet"} />
+              <FieldPct label="Part gestion contrat (par an)" value={contractFeeShare} onChange={setContractFeeManuel}
+                note={contractFeeManuel == null && convention?.contractFeeShare != null
+                  ? "part des frais de gestion contrat (votre convention)"
+                  : "part des frais de gestion du contrat reversée"} />
             </Card>
 
             <Card className="px-5 py-5 space-y-3">
@@ -530,6 +582,13 @@ export function FeeSimulator() {
                   <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
                   <p className="text-caption text-muted-2">à la souscription</p>
                 </div>
+                {final.contractFeeCumulee > 0 && (
+                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                    <p className="text-caption text-muted">Part gestion contrat</p>
+                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
+                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an</p>
+                  </div>
+                )}
               </div>
             )}
             <ResponsiveContainer width="100%" height={200}>

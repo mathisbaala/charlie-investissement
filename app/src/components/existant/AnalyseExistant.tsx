@@ -440,10 +440,18 @@ function PortefeuilleAnalyzer() {
   const simulateurHref = useMemo(() => {
     const top = consolidated.slice(0, 10);
     if (top.length === 0) return "/simulateur";
+    // Contrat reconnu (unique) → passé au simulateur pour qu'il applique le même
+    // barème « Mon cabinet » que le bloc de rému ci-dessus (mêmes taux).
+    const keys = new Set<string>();
+    for (const r of releves) {
+      const m = r.chosen >= 0 ? r.matches[r.chosen] : undefined;
+      if (m) keys.add(`${m.company}::${m.contract}`);
+    }
+    const contractParam = keys.size === 1 ? `&contract=${encodeURIComponent([...keys][0])}` : "";
     return `/simulateur?isins=${top.map((p) => p.isin).join(",")}&weights=${top
       .map((p) => Math.round(p.weight * 1000) / 10)
-      .join(",")}&montant=${Math.round(total)}`;
-  }, [consolidated, total]);
+      .join(",")}&montant=${Math.round(total)}${contractParam}`;
+  }, [consolidated, total, releves]);
 
   return (
     <>

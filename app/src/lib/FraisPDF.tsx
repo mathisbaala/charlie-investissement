@@ -181,7 +181,7 @@ function Projections({ report, mode }: { report: FraisReport; mode: "client" | "
           </Text>
           <Text style={S.cNum}>{nfEur(h.totalFrais)}</Text>
           {mode === "cabinet" && (
-            <Text style={[S.cNum, { color: C.gold }]}>{nfEur(h.retroCgpCumulee + h.commCabinetCumulee)}</Text>
+            <Text style={[S.cNum, { color: C.gold }]}>{nfEur(h.retroCgpCumulee + h.commCabinetCumulee + h.contractFeeCumulee)}</Text>
           )}
         </View>
       ))}
@@ -293,6 +293,7 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report }: FraisP
               <Text style={S.calloutLabel}>Votre rémunération sur {final.annees} ans</Text>
               <Text style={S.calloutSub}>
                 Rétrocessions {nfEur(final.retroCgpCumulee)} · commission d'entrée {nfEur(final.commCabinetCumulee)}
+                {final.contractFeeCumulee > 0 ? ` · part gestion contrat ${nfEur(final.contractFeeCumulee)}` : ""}
               </Text>
             </View>
             <Text style={S.calloutValue}>{nfEur(remuTotale)}</Text>

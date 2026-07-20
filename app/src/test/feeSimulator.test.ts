@@ -344,6 +344,47 @@ describe('commission upfront du cabinet', () => {
   })
 })
 
+describe('part frais de gestion contrat reversée au cabinet', () => {
+  it('cumule un flux positif, sans toucher à la trajectoire (répartition)', () => {
+    const avec = simulate({ ...base, frais: FRAIS_TYPES, contractFeeShare: 0.4 })
+    const sans = simulate({ ...base, frais: FRAIS_TYPES })
+    expect(avec.points[15].contractFeeCumulee).toBeGreaterThan(0)
+    // pas un frais en plus : valeur nette et total des frais inchangés
+    expect(avec.points[15].valeurNette).toBe(sans.points[15].valeurNette)
+    expect(avec.points[15].totalFraisCumules).toBe(sans.points[15].totalFraisCumules)
+    // reportée sur les horizons
+    const h = avec.horizons.find((x) => x.annees === 15)!
+    expect(h.contractFeeCumulee).toBeCloseTo(avec.points[15].contractFeeCumulee, 2)
+  })
+
+  it('croît avec le taux et avec le temps', () => {
+    const bas = simulate({ ...base, frais: FRAIS_TYPES, contractFeeShare: 0.2 })
+    const haut = simulate({ ...base, frais: FRAIS_TYPES, contractFeeShare: 0.5 })
+    expect(haut.points[15].contractFeeCumulee).toBeGreaterThan(bas.points[15].contractFeeCumulee)
+    expect(haut.points[15].contractFeeCumulee).toBeGreaterThan(haut.points[5].contractFeeCumulee)
+  })
+
+  it('absente ou nulle → 0', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    expect(sim.points[15].contractFeeCumulee).toBe(0)
+    expect(sim.horizons.find((x) => x.annees === 15)!.contractFeeCumulee).toBe(0)
+  })
+
+  it('répartition : la part contrat sort de la poche assureur, va au cabinet, total conservé', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.4 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const p = sim.points[15]
+    const avec = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee, p.contractFeeCumulee)
+    const sans = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee)
+    const cf = Math.min(p.contractFeeCumulee, p.fraisCumules.gestionContratUC)
+    // le cabinet gagne la part contrat en plus, l'assureur la perd d'autant
+    expect(avec.cabinet).toBeCloseTo(sans.cabinet + cf, 1)
+    expect(avec.assureur).toBeCloseTo(sans.assureur - cf, 1)
+    // total conservé
+    expect(avec.assureur + avec.societeGestion + avec.cabinet).toBeCloseTo(h.totalFrais, 0)
+  })
+})
+
 describe('remunerationSupport', () => {
   it('rétro annuelle et commission upfront sur le montant investi', () => {
     const r = remunerationSupport(20_000, 0.9, 2)
