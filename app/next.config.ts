@@ -12,13 +12,21 @@ const nextConfig: NextConfig = {
   // DOMMatrix ») → tout upload PDF de relevé tombait en 422. Externe = Next ne
   // tente pas de bundler ses binaires natifs par plateforme.
   serverExternalPackages: ["pdfjs-dist", "xlsx", "@napi-rs/canvas"],
-  // Le require() de @napi-rs/canvas par pdfjs est dynamique → invisible au
-  // traceur de fichiers. On force l'inclusion du paquet ET de son binaire natif
-  // de plateforme (@napi-rs/canvas-linux-x64-gnu sur Vercel) dans les lambdas
-  // des routes qui lisent des PDF, sinon « Cannot find module '@napi-rs/canvas' ».
+  // pdfjs-dist charge par import DYNAMIQUE (invisible au traceur de fichiers)
+  // deux choses absentes de la lambda sinon :
+  //   • son worker `pdf.worker.mjs` (« Setting up fake worker failed: Cannot
+  //     find module …/pdf.worker.mjs ») → le VRAI blocage du 422 ;
+  //   • @napi-rs/canvas + son binaire natif de plateforme (DOMMatrix/Path2D).
+  // On force l'inclusion des deux dans les lambdas des routes qui lisent des PDF.
   outputFileTracingIncludes: {
-    "/api/releve": ["./node_modules/@napi-rs/canvas*/**/*"],
-    "/api/dici/parse": ["./node_modules/@napi-rs/canvas*/**/*"],
+    "/api/releve": [
+      "./node_modules/pdfjs-dist/legacy/build/**/*",
+      "./node_modules/@napi-rs/canvas*/**/*",
+    ],
+    "/api/dici/parse": [
+      "./node_modules/pdfjs-dist/legacy/build/**/*",
+      "./node_modules/@napi-rs/canvas*/**/*",
+    ],
   },
 };
 
