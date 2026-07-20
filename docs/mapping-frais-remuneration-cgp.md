@@ -311,14 +311,15 @@ rétrocessions OPCVM, avances/avances trimestrielles*.
 
 ### 6.2 Manques à combler pour la vision « traçabilité par portefeuille »
 
-| Manque | Pourquoi | Piste |
+| Manque | Pourquoi | Piste / état |
 |---|---|---|
-| **Taux de rétro par contrat/plateforme** | La rétro dépend surtout du **couple contrat×plateforme**, pas seulement du fonds. Aujourd'hui `retroCgp` est saisi à la main dans le simulateur | Ajouter `retro_gestion_uc_pct` (part rétrocédée des frais de gestion contrat) sur `av_contract_terms`, paramétrable par cabinet |
-| **Barème de rému du cabinet** | Chaque cabinet a **ses** accords (upfront %, part de rétro) par partenaire | Table `cabinet_remuneration_terms` (partenaire → upfront %, rétro %) — profil cabinet |
-| **Persistance d'un portefeuille/client** | Aujourd'hui tout est éphémère (pas de comptes). Or « métriques par client » suppose de rattacher un portefeuille à un client | Voir §7 : décision produit (le projet est « no-accounts » — cf. `no-accounts-product-direction`). Piste : stockage **local**/export, pas de compte serveur |
-| **Distinction ETF (rétro = 0)** | Un ETF ne rétrocède pas ; la rétro OPCVM ne s'applique qu'aux parts retail | Utiliser `product_type` pour forcer `retro = 0` sur ETF/clean shares |
+| **Barème de rému du cabinet** | ~~À créer~~ **FAIT** : `lib/cabinet.ts` (localStorage `charlie_cabinet_settings`) + onglet `/cabinet` `CabinetForm`. Cascade réelle par contrat : `contractFeeShare`, `ucRetroShare`, `entryFeeShare`, `arbitrageFeeShare`, `eurosRetroShare`, `customFees`, `fundOverrides`. Résolveurs `cabinetContract` / `resolveFundRetrocession` | ✅ existant (co-construit avec le chemin « construire ») |
+| **Branchement dépôt → moteur de frais** | ~~Le simulateur était autonome~~ **FAIT** : `/portefeuille/analyser` calcule coût client + rému CGP inline via `lib/remuneration.buildRemuneration` (cascade cabinet + repli de place), positions relevé enrichies d'un repli de rétro (`retro`) | ✅ livré 20/07 |
+| **Distinction ETF (rétro = 0)** | Un ETF ne rétrocède pas ; la rétro OPCVM ne vise que les parts retail | ✅ `estimateRetroFrac` force `0` sur ETF/passif/indiciel (source unique, partagée avec `estimateRetrocession`) |
+| **Frais contrat sourcé pour le CTD** | Le coût client utilise aujourd'hui l'indicatif d'enveloppe (0,8 % AV) faute du vrai `frais_gestion_uc_pct` du contrat reconnu | Résoudre `av_contract_terms.frais_gestion_uc_pct` depuis le contrat reconnu et le passer à `contractTotalCost` (déjà prévu par la signature) |
+| **Persistance d'un portefeuille/client** | Tout est éphémère (pas de comptes). Or « métriques par client » suppose de rattacher un portefeuille à un client | Décision produit (projet « no-accounts » — cf. `no-accounts-product-direction`). Piste : stockage **local**/export, pas de compte serveur |
 | **Honoraires** | Source de revenu à consolider (Sendraise) | Champ honoraire au forfait/%, saisi par le CGP, additionné à la rému |
-| **Agrégation multi-portefeuilles** | Vue cabinet = somme des portefeuilles | Couche d'agrégation (au-dessus du simulateur), après décision persistance |
+| **Agrégation multi-portefeuilles** | Vue cabinet = somme des portefeuilles | Couche d'agrégation, après décision persistance |
 
 ---
 
@@ -379,19 +380,19 @@ Par portefeuille, par client, puis agrégées :
 
 ## 9. Prochaines étapes (chantier Frais)
 
-1. **Barème de rému cabinet** — modéliser le fait que la rému dépend du couple
-   contrat×plateforme×accords cabinet, pas d'une saisie manuelle par simulation. Table +
-   UI de profil cabinet.
-2. **Rétro par contrat** — enrichir `av_contract_terms` avec la part rétrocédée des frais
-   de gestion UC ; forcer `retro = 0` sur ETF/clean shares.
-3. **Relier dépôt → calcul** — brancher `/portefeuille/analyser` sur le moteur de frais
-   pour que le coût client + la rému CGP tombent directement d'un relevé déposé.
-4. **Vue cabinet / métriques** — sortir le tableau de bord rému (récurrent, ponctuel,
-   taux de rétro, projection) par portefeuille.
-5. **Décision persistance** — trancher comment rattacher un portefeuille à un client sans
-   compte serveur (cf. `no-accounts-product-direction`) : stockage local, export, ou
-   revisite de la décision.
-6. **(V2) Agrégation + réconciliation bordereaux** — la vraie convergence avec Sendraise :
+1. ~~**Barème de rému cabinet**~~ — ✅ FAIT (`lib/cabinet.ts` + `/cabinet`).
+2. ~~**Relier dépôt → calcul**~~ — ✅ FAIT 20/07 : `/portefeuille/analyser` affiche coût
+   client + rému CGP via `lib/remuneration.buildRemuneration` (barème cabinet + repli),
+   ETF forcés à rétro 0.
+3. **Frais contrat sourcé** — résoudre `av_contract_terms.frais_gestion_uc_pct` du contrat
+   reconnu pour un CTD exact (au lieu de l'indicatif d'enveloppe), et l'`entryFeeShare`
+   contrat pour un upfront exact.
+4. **Vue cabinet / métriques agrégées** — dashboard rému (récurrent, ponctuel, taux de
+   rétro, projection) au-dessus du portefeuille unique — après décision persistance.
+5. **Décision persistance** — rattacher un portefeuille à un client sans compte serveur
+   (cf. `no-accounts-product-direction`) : stockage local, export, ou revisite.
+6. **Honoraires** — champ de facturation directe, consolidé avec les rétro (Sendraise).
+7. **(V2) Agrégation + réconciliation bordereaux** — la vraie convergence avec Sendraise :
    comparer le modélisé (ex-ante) au réel encaissé (ex-post) → détection d'écarts.
 
 ---

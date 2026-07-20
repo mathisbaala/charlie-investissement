@@ -22,6 +22,8 @@ import {
   buildRecommendations, weightedSri, type Recommendation, type FeeLine,
 } from "@/lib/analyseExistant";
 import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
+import { buildRemuneration, retroFallbackFrac, type RemuHolding, type Remuneration } from "@/lib/remuneration";
+import { loadStoredCabinet, cabinetContract } from "@/lib/cabinet";
 
 type AnalyseMode = "portefeuille" | "support";
 
@@ -52,6 +54,12 @@ interface Synthese {
   sri: number | null;
   terMoyen: number | null;
   truncated: boolean;
+  /** Coût client + rémunération cabinet (barème « Mon cabinet » + repli de place). */
+  remu: Remuneration | null;
+  /** Libellé du contrat dont la convention est appliquée (null = aucun rattaché). */
+  conventionLabel: string | null;
+  /** Plusieurs contrats distincts reconnus (la convention du 1er est appliquée). */
+  multiContract: boolean;
 }
 
 // ── Composant ────────────────────────────────────────────────────────────────
@@ -219,10 +227,19 @@ function PortefeuilleAnalyzer() {
         const terPct = f.ongoing_charges ?? f.ter;
         const ter = terPct != null ? Math.round(Number(terPct) * 100) / 100 : null;
         const sri = f.risk_score ?? null;
+        // Repli de rétrocession (FRACTION/an) pour la rémunération cabinet : les
+        // frais de /api/funds sont en % (feeFracToPct à la frontière) → on
+        // repasse en fraction avant d'estimer.
+        const retro = retroFallbackFrac(
+          f.retrocession_cgp != null ? Number(f.retrocession_cgp) / 100 : null,
+          terPct != null ? Number(terPct) / 100 : null,
+          f.product_type ?? null,
+          f.management_style ?? null,
+        );
         setReleves((prev) => prev.map((r) => r.id !== rid ? r : {
           ...r,
           positions: r.positions.map((p) =>
-            p.isin === isin ? { ...p, ter, sri, name: f.name ?? p.name } : p),
+            p.isin === isin ? { ...p, ter, sri, retro, name: f.name ?? p.name } : p),
         }));
       })
       .catch(() => {});
@@ -357,7 +374,37 @@ function PortefeuilleAnalyzer() {
         fees,
       });
 
-      setSynthese({ analysis, geo, sectors, recos, sri: weightedSri(sriRows), terMoyen, truncated });
+      // ── Coût client + rémunération cabinet ──
+      // Convention appliquée : le contrat reconnu (choisi) rattaché dans « Mon
+      // cabinet ». Un portefeuille peut couvrir plusieurs relevés/contrats ; on
+      // applique la convention du premier contrat reconnu et on le signale.
+      const chosen: { key: string; label: string }[] = [];
+      for (const r of releves) {
+        const m = r.chosen >= 0 ? r.matches[r.chosen] : undefined;
+        if (m) chosen.push({ key: `${m.company}::${m.contract}`, label: `${m.company} · ${m.contract}` });
+      }
+      const uniqueKeys = [...new Set(chosen.map((c) => c.key))];
+      const convention =
+        uniqueKeys.length > 0 ? cabinetContract(loadStoredCabinet(), uniqueKeys[0]) : null;
+      const holdings: RemuHolding[] = consolidated.map((p) => {
+        const e = enriched.get(p.isin);
+        return {
+          isin: p.isin,
+          name: p.name,
+          amount: p.amount,
+          // TER des positions = %, la rému raisonne en fraction.
+          terFrac: e?.ter != null ? (e.ter as number) / 100 : null,
+          retroFallbackFrac: e?.retro ?? null,
+        };
+      });
+      const remu = buildRemuneration(holdings, convention, { terMoyenPct: terMoyen, contractTypes: null });
+
+      setSynthese({
+        analysis, geo, sectors, recos, sri: weightedSri(sriRows), terMoyen, truncated,
+        remu,
+        conventionLabel: convention ? (chosen.find((c) => c.key === uniqueKeys[0])?.label ?? null) : null,
+        multiContract: uniqueKeys.length > 1,
+      });
     } catch {
       setError("L'analyse a échoué, réessayer.");
     } finally {
@@ -578,6 +625,15 @@ function PortefeuilleAnalyzer() {
             <Kpi label="Frais moyens" value={synthese.terMoyen != null ? PCT(synthese.terMoyen, 2) : "—"} />
           </div>
 
+          {/* Coût client & rémunération cabinet — la traçabilité par portefeuille. */}
+          {synthese.remu && (
+            <RemunerationSection
+              remu={synthese.remu}
+              conventionLabel={synthese.conventionLabel}
+              multiContract={synthese.multiContract}
+            />
+          )}
+
           {/* Points d'attention — anomalies détectées, le cœur de la valeur CGP. */}
           <section>
             <h2 className="text-title text-ink mb-3">Points d&apos;attention</h2>
@@ -674,6 +730,112 @@ function RecoCard({ reco }: { reco: Recommendation }) {
       <h3 className="text-body font-semibold text-ink mb-1">{reco.title}</h3>
       <p className="text-meta text-muted leading-relaxed">{reco.detail}</p>
     </Card>
+  );
+}
+
+/**
+ * Coût client & rémunération cabinet du portefeuille consolidé : ce que le
+ * portefeuille coûte au client (CTD) et ce qu'il rapporte au CGP (récurrent +
+ * ponctuel), selon le barème « Mon cabinet » (ou l'estimation de place à défaut).
+ * C'est la traçabilité par portefeuille demandée — la rému est toujours une
+ * tranche du coût client (cf. lib/remuneration).
+ */
+function RemunerationSection({
+  remu,
+  conventionLabel,
+  multiContract,
+}: {
+  remu: Remuneration;
+  conventionLabel: string | null;
+  multiContract: boolean;
+}) {
+  return (
+    <section data-testid="remu-section">
+      <h2 className="text-title text-ink mb-1">Coût client &amp; rémunération cabinet</h2>
+      <p className="text-caption text-muted mb-3">
+        {conventionLabel ? (
+          <>
+            Selon la convention de <strong className="text-ink-2">{conventionLabel}</strong> saisie dans Mon cabinet
+            {multiContract && " (plusieurs contrats reconnus — convention du premier appliquée)"}. Non contractuel.
+          </>
+        ) : (
+          <>
+            Estimation de place —{" "}
+            <Link href="/cabinet" className="underline underline-offset-2 hover:text-ink">
+              rattachez ce contrat dans Mon cabinet
+            </Link>{" "}
+            pour vos vrais taux. Non contractuel.
+          </>
+        )}
+      </p>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-3">
+        <Kpi label="Rému. récurrente" value={`${EUR.format(remu.recurringAnnual)}/an`} />
+        <Kpi label="Taux de rétro" value={remu.retroRatePct != null ? PCT(remu.retroRatePct, 2) : "—"} />
+        <Kpi label="Coût client (CTD)" value={remu.clientCostPct != null ? `${PCT(remu.clientCostPct, 2)}/an` : "—"} />
+        <Kpi label="Part du coût captée" value={remu.captureSharePct != null ? PCT(remu.captureSharePct, 0) : "—"} />
+      </div>
+
+      <Card className="p-4 space-y-2">
+        <p className="text-meta text-ink-2" data-testid="remu-summary">
+          Récurrent : <strong>{EUR.format(remu.recurringAnnual)}/an</strong>{" "}
+          ({EUR.format(remu.ucAnnual)} rétrocessions UC + {EUR.format(remu.contractAnnual)} part contrat)
+          {remu.entryOnce > 0 && (
+            <>, + {EUR.format(remu.entryOnce)} à la souscription (frais d&apos;entrée reversés)</>
+          )}
+        </p>
+        {remu.clientCostAnnual != null && (
+          <p className="text-caption text-muted">
+            Coût client ~{EUR.format(remu.clientCostAnnual)}/an
+            {" "}({PCT(remu.supportsPct ?? 0, 2)} frais fonds + {PCT(remu.contractPct, 2)} frais contrat
+            {remu.contractSourced ? "" : " indicatif"})
+            {remu.captureSharePct != null && <> · vous en captez {PCT(remu.captureSharePct, 0)}</>}.
+          </p>
+        )}
+        {remu.unknownRetroLines > 0 && (
+          <p className="text-caption text-muted-2">
+            {remu.unknownRetroLines} ligne{remu.unknownRetroLines > 1 ? "s" : ""} sans donnée de rétrocession.
+          </p>
+        )}
+
+        {remu.lines.some((l) => l.retroFrac != null) && (
+          <div className="overflow-x-auto pt-1">
+            <table className="w-full text-caption">
+              <thead>
+                <tr className="text-left text-muted border-b border-line-soft">
+                  <th className="py-1.5 pr-3 font-medium">Support</th>
+                  <th className="py-1.5 pr-3 font-medium text-right">Montant</th>
+                  <th className="py-1.5 pr-3 font-medium text-right">Rétro.</th>
+                  <th className="py-1.5 font-medium text-right">Rému./an</th>
+                </tr>
+              </thead>
+              <tbody>
+                {remu.lines.map((l) => (
+                  <tr key={l.isin} className="border-b border-line-soft/60">
+                    <td className="py-1.5 pr-3 text-ink truncate max-w-[16rem]" title={l.name}>{l.name}</td>
+                    <td className="py-1.5 pr-3 text-right text-muted">{EUR.format(l.amount)}</td>
+                    <td className="py-1.5 pr-3 text-right text-muted">
+                      {l.retroFrac != null ? (
+                        <>
+                          {PCT(l.retroFrac * 100, 2)}
+                          {!l.sourced && <span className="text-muted-2"> ~</span>}
+                        </>
+                      ) : "—"}
+                    </td>
+                    <td className="py-1.5 text-right text-ink-2">
+                      {l.retroAnnual > 0 ? `${EUR.format(l.retroAnnual)}/an` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-caption text-muted-2 mt-1.5">
+              « ~ » = estimation de place (taux non fixé par votre convention).
+            </p>
+          </div>
+        )}
+      </Card>
+    </section>
   );
 }
 

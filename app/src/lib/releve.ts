@@ -380,6 +380,8 @@ export interface ReleveApiPosition {
   name: string | null;
   ter: number | null;
   sri: number | null;
+  /** Rétrocession de repli du fonds (FRACTION/an), hors convention cabinet ; null si inconnue. */
+  retro?: number | null;
 }
 
 /** Contrat reconnu pour un relevé, renvoyé par /api/releve. */

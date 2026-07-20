@@ -9,6 +9,7 @@ import {
   mergePositions, sanitizeAiPositions, type ExtractedPosition,
   type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
 } from "@/lib/releve";
+import { retroFallbackFrac } from "@/lib/remuneration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -221,7 +222,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const [fundsRes, eligRes] = await Promise.all([
     supabase
       .from("investissement_funds")
-      .select("isin, name, ter, sri, srri")
+      .select("isin, name, ter, sri, srri, ongoing_charges, retrocession_cgp, product_type, management_style")
       .in("isin", isins),
     supabase
       .from("investissement_av_lux_eligibility")
@@ -241,6 +242,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // TER stocké en fraction (0.018) → % pour l'affichage/diagnostic.
         ter: f.ter !== null && f.ter !== undefined ? Math.round(Number(f.ter) * 10000) / 100 : null,
         sri: (f.sri ?? f.srri ?? null) as number | null,
+        // Repli de rétrocession (FRACTION/an) pour le calcul de rémunération
+        // cabinet : valeur sourcée en base sinon estimation de place. Les frais
+        // en base sont en fraction (pas de conversion, contrairement au TER %).
+        retro: retroFallbackFrac(
+          f.retrocession_cgp as number | null,
+          (f.ongoing_charges ?? f.ter) as number | null,
+          f.product_type as string | null,
+          f.management_style as string | null,
+        ),
       },
     ]),
   );
@@ -257,6 +267,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       name: f?.name ?? null,
       ter: f?.ter ?? null,
       sri: f?.sri ?? null,
+      retro: f?.retro ?? null,
     };
   });
 

@@ -6,6 +6,7 @@
 // Fonctions pures et testables (aucun accès DB).
 
 import { annualizeCumul } from "./format";
+import { estimateRetroFrac } from "./remuneration";
 import type { FundInput, AssetClass } from "./optimizer";
 
 /** Ligne de fonds telle qu'exposée par le RPC screener (unités base). */
@@ -91,12 +92,8 @@ export function expectedAnnualReturnPct(row: FundRow): number | null {
  * `null` si les frais sont inconnus (aucune estimation possible).
  */
 export function estimateRetrocession(row: FundRow): number | null {
-  const style = (row.management_style ?? "").trim().toLowerCase();
-  const product = (row.product_type ?? "").trim().toLowerCase();
-  if (style.includes("passi") || style.includes("indiciel") || product === "etf") return 0;
-  const fees = row.ongoing_charges ?? row.ter ?? null;
-  if (fees == null) return null;
-  return fees * 0.5;
+  // Règle de place mutualisée avec lib/remuneration (source de vérité unique).
+  return estimateRetroFrac(row.ongoing_charges ?? row.ter ?? null, row.product_type, row.management_style);
 }
 
 /**
