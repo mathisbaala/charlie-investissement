@@ -9,13 +9,15 @@ import React from "react";
 export function PageShell({
   children,
   className = "",
+  maxWidth = "1040px",
 }: {
   children: React.ReactNode;
   className?: string;
+  maxWidth?: string;
 }) {
   return (
     <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
-      <div className={`max-w-[1040px] mx-auto ${className}`}>{children}</div>
+      <div className={`mx-auto ${className}`} style={{ maxWidth }}>{children}</div>
     </div>
   );
 }

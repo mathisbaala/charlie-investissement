@@ -9,10 +9,9 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
-import { Kpi } from "@/components/ui/Kpi";
 import { Btn } from "@/components/ui/Btn";
 import { PageShell } from "@/components/ui/Page";
-import { X, ArrowRight, Download } from "@/components/ui/icons";
+import { X, ArrowRight, Download, ChevronDown } from "@/components/ui/icons";
 import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
@@ -123,16 +122,28 @@ const H2 = ({ children, className = "mb-3" }: { children: React.ReactNode; class
   <h2 className={`text-subhead text-ink ${className}`} style={{ fontFamily: "var(--font-sans)" }}>{children}</h2>
 );
 
-// En-tête d'étape : pastille numérotée + titre. Structure le parcours en trois
-// temps (déposer → paramétrer → lire).
-const StepHeader = ({ n, title }: { n: number; title: string }) => (
-  <div className="flex items-center gap-3 mb-4">
-    <span className="shrink-0 w-7 h-7 rounded-full bg-brown text-paper text-meta font-medium flex items-center justify-center tabular-nums leading-none">
-      {n}
-    </span>
-    <h2 className="text-title text-ink" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>
-  </div>
-);
+// Tiroir repliable — un groupe de réglages de la colonne gauche. En-tête
+// cliquable (titre + chevron), corps masquable. Compacte la colonne : on ouvre
+// seulement les leviers qu'on veut ajuster, et l'impact se lit à droite.
+function Drawer({
+  title, defaultOpen = false, bodyClassName = "space-y-3", children,
+}: {
+  title: string; defaultOpen?: boolean; bodyClassName?: string; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card className="px-5 py-4">
+      <button
+        type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="text-subhead text-ink" style={{ fontFamily: "var(--font-sans)" }}>{title}</span>
+        <ChevronDown size={16} className={`shrink-0 text-muted transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open && <div className={`mt-3 ${bodyClassName}`}>{children}</div>}
+    </Card>
+  );
+}
 
 /**
  * Onglet « Frais » — angle COMPTABILITÉ / rémunération du cabinet (CGP). Deux
@@ -419,12 +430,11 @@ export function FeeSimulator() {
   }, [ucs, versementInitial]);
 
   return (
-    <PageShell>
-      <div className="space-y-9">
-        {/* ══ Étape 1 · Vos supports ══ */}
-        <section>
-          <StepHeader n={1} title="Vos supports" />
-          <Card className="px-5 py-5">
+    <PageShell maxWidth="1240px">
+      <div className="grid gap-6 items-start lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* ═══ Colonne gauche · réglages (paramètres, supports, données) ═══ */}
+        <aside className="space-y-4">
+          <Drawer title="Supports" defaultOpen bodyClassName="">
             <SupportSources
               onAddFund={addUC}
               existingIsins={ucIsins}
@@ -456,15 +466,9 @@ export function FeeSimulator() {
                 ))}
               </div>
             )}
-          </Card>
-        </section>
+          </Drawer>
 
-        {/* ══ Étape 2 · Paramètres de l'étude ══ */}
-        <section>
-          <StepHeader n={2} title="Paramètres de l'étude" />
-          <div className="grid md:grid-cols-2 gap-5 items-start">
-            <Card className="px-5 py-5 space-y-3">
-              <H2>Versement & horizon</H2>
+          <Drawer title="Versement & horizon" defaultOpen>
               <FieldEur label="Versement initial" value={versementInitial} onChange={setVersementInitial} step={1000} />
               <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
               <div>
@@ -504,10 +508,9 @@ export function FeeSimulator() {
                   <span className="text-meta text-muted w-3">%</span>
                 </span>
               </label>
-            </Card>
+            </Drawer>
 
-            <Card className="px-5 py-5 space-y-3">
-              <H2>Ma rémunération (cabinet)</H2>
+          <Drawer title="Ma rémunération (cabinet)" defaultOpen>
               {convention && (
                 <p className="text-caption text-muted-2 -mt-1">
                   Selon vos conventions « Mon cabinet » pour {contractKey?.split("::")[1]} (surchargeable).
@@ -533,70 +536,44 @@ export function FeeSimulator() {
                   note={honoraireAnnuelManuel == null && cabinetHonoraires.annuelPct != null
                     ? "votre barème « Mon cabinet »" : "% de l'encours par an"} />
               </div>
-            </Card>
+            </Drawer>
 
-            <Card className="px-5 py-5 space-y-3">
-              <H2>Frais du contrat</H2>
+          <Drawer title="Frais du contrat">
               <FieldPct label="Entrée / versement" value={frais.contratEntree} onChange={setF("contratEntree")} />
               <FieldPct label="Gestion UC (par an)" value={frais.contratGestionUC} onChange={setF("contratGestionUC")} />
               <FieldPct label="Gestion fonds euros (par an)" value={frais.contratGestionFE} onChange={setF("contratGestionFE")} />
               <FieldPct label="Sortie / rachat" value={frais.contratSortie} onChange={setF("contratSortie")} />
-            </Card>
+            </Drawer>
 
-            <Card className="px-5 py-5 space-y-3">
-              <H2>Frais des supports</H2>
+          <Drawer title="Frais des supports">
               <FieldPct label="Entrée" value={ucEntree} onChange={setUcEntreeManuel}
                 note={ucEntreeManuel == null && entreePonderee != null ? "pondéré des supports" : undefined} />
               <FieldPct label="Frais courants (par an)" value={ucGestion} onChange={setTerManuel}
                 note={terManuel == null && terPondere != null ? "TER pondéré des supports" : undefined} />
               <FieldPct label="Sortie" value={ucSortie} onChange={setUcSortieManuel}
                 note={ucSortieManuel == null && sortiePonderee != null ? "pondéré des supports" : undefined} />
-            </Card>
-          </div>
-        </section>
+          </Drawer>
+        </aside>
 
-        {/* ══ Étape 3 · Résultats ══ */}
-        <section>
-          <StepHeader n={3} title="Résultats" />
-
+        {/* ═══ Colonne droite · résultats (dense) ═══ */}
+        <main className="min-w-0 space-y-5">
+          {/* Synthèse épinglée : l'impact d'un réglage de gauche se lit ici sans défiler. */}
           {final && (
-            <Card className="px-5 py-4 mb-5">
-              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
-                <label className="flex-1 min-w-0">
-                  <span className="text-caption text-muted block mb-1">Référence client (facultatif)</span>
-                  <input
-                    type="text" value={clientRef} onChange={(e) => setClientRef(e.target.value)}
-                    placeholder="M. et Mme Dupont — contrat n°…"
-                    className="w-full text-meta border border-line rounded-md px-2.5 py-1.5 bg-paper focus:outline-none focus:border-accent"
-                  />
-                </label>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Btn variant="primary" size="sm" loading={exporting === "client"}
-                    disabled={exporting !== null} onClick={() => exportPdf("client")}>
-                    <Download size={14} /> Document client
-                  </Btn>
-                  <Btn variant="outline" size="sm" loading={exporting === "cabinet"}
-                    disabled={exporting !== null} onClick={() => exportPdf("cabinet")}>
-                    <Download size={14} /> Fiche cabinet
-                  </Btn>
-                </div>
+            <div className="sticky top-0 z-20 -mx-1 border-b border-line-soft bg-cream/95 px-1 pt-1 pb-3 backdrop-blur-sm">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {([
+                  { label: `Rémunération cabinet à ${final.annees} ans`, value: EUR.format(remuTotale), tone: "ok" },
+                  { label: "Coût total client", value: EUR.format(final.totalFrais), tone: null },
+                  { label: `Valeur nette à ${final.annees} ans`, value: EUR.format(final.valeurNette), tone: null },
+                  { label: "Gain net client", value: EUR.format(final.gainNet), tone: final.gainNet >= 0 ? "ok" : "bad" },
+                  { label: "Frais / gain brut", value: partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final)), tone: null },
+                ] as { label: string; value: string; tone: "ok" | "bad" | null }[]).map((k) => (
+                  <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2">
+                    <p className="text-caption uppercase tracking-wide text-muted font-semibold truncate">{k.label}</p>
+                    <p className={`text-body font-semibold tabular-nums leading-tight mt-0.5 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-caption text-muted-2 mt-2">
-                Le <span className="text-ink-2">document client</span> présente les coûts et la transparence des frais de conseil (DDA). La{" "}
-                <span className="text-ink-2">fiche cabinet</span> ajoute le détail de votre rémunération — usage interne.
-              </p>
-              {exportError && <p className="text-caption text-danger mt-1">{exportError}</p>}
-            </Card>
-          )}
-
-          {final && (
-            <div className="flex flex-col md:flex-row gap-3 mb-5">
-              <Kpi label={`Rémunération cabinet à ${final.annees} ans`} value={EUR.format(remuTotale)} tone="ok" />
-              <Kpi label="Coût total client" value={EUR.format(final.totalFrais)} />
-              <Kpi label={`Valeur nette à ${final.annees} ans`} value={EUR.format(final.valeurNette)} />
-              <Kpi label="Gain net client" value={EUR.format(final.gainNet)} tone={final.gainNet >= 0 ? "ok" : "bad"} />
-              <Kpi label="Frais / gain brut"
-                value={partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final))} />
             </div>
           )}
 
@@ -784,7 +761,38 @@ export function FeeSimulator() {
             </table>
           </Card>
           </div>
-        </section>
+
+          {/* Export documentaire (client DDA / fiche interne cabinet) */}
+          {final && (
+            <Card className="px-5 py-4">
+              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                <label className="flex-1 min-w-0">
+                  <span className="text-caption text-muted block mb-1">Référence client (facultatif)</span>
+                  <input
+                    type="text" value={clientRef} onChange={(e) => setClientRef(e.target.value)}
+                    placeholder="M. et Mme Dupont — contrat n°…"
+                    className="w-full text-meta border border-line rounded-md px-2.5 py-1.5 bg-paper focus:outline-none focus:border-accent"
+                  />
+                </label>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Btn variant="primary" size="sm" loading={exporting === "client"}
+                    disabled={exporting !== null} onClick={() => exportPdf("client")}>
+                    <Download size={14} /> Document client
+                  </Btn>
+                  <Btn variant="outline" size="sm" loading={exporting === "cabinet"}
+                    disabled={exporting !== null} onClick={() => exportPdf("cabinet")}>
+                    <Download size={14} /> Fiche cabinet
+                  </Btn>
+                </div>
+              </div>
+              <p className="text-caption text-muted-2 mt-2">
+                Le <span className="text-ink-2">document client</span> présente les coûts et la transparence des frais de conseil (DDA). La{" "}
+                <span className="text-ink-2">fiche cabinet</span> ajoute le détail de votre rémunération — usage interne.
+              </p>
+              {exportError && <p className="text-caption text-danger mt-1">{exportError}</p>}
+            </Card>
+          )}
+        </main>
       </div>
     </PageShell>
   );
