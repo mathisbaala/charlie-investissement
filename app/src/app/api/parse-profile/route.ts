@@ -62,39 +62,61 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (bot) return bot;
   const burst = await dataRateLimit(req, 1);
   if (burst) return burst;
+
+  let body: { text?: string; file_base64?: string; file_type?: string };
   try {
-    const body = (await req.json()) as {
-      text?: string;
-      file_base64?: string;
-      file_type?: string;
-    };
+    body = (await req.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "Corps de requête invalide" }, { status: 400 });
+  }
 
-    const limited = await aiRateLimit(req, AI_COST.profile);
-    if (limited) return limited;
+  // Construit + VALIDE le contenu avant de consommer le quota IA (sinon une
+  // requête vide ou un PDF hors gabarit gaspillerait une unité de quota).
+  let messageContent: Anthropic.MessageParam["content"];
 
-    let messageContent: Anthropic.MessageParam["content"];
-
-    if (body.file_base64 && body.file_type === "application/pdf") {
-      messageContent = [
-        {
-          type: "document",
-          source: {
-            type: "base64",
-            media_type: "application/pdf",
-            data: body.file_base64,
-          },
-        } as Anthropic.DocumentBlockParam,
-        {
-          type: "text",
-          text: "Extrais les informations du profil client de ce document.",
-        },
-      ];
-    } else if (body.text?.trim()) {
-      messageContent = `Extrais les informations du profil client depuis ce contenu :\n\n${body.text.slice(0, 8000)}`;
-    } else {
-      return NextResponse.json({}, { status: 400 });
+  if (body.file_base64 && body.file_type === "application/pdf") {
+    // Garde-fou COÛT (aligné sur /api/dici/parse) : un PDF est facturé par Claude
+    // au prorata du nombre de pages → on plafonne la taille AVANT tout appel au
+    // modèle (taille brute ≈ longueur base64 × 3/4) et on exige la signature %PDF
+    // (sinon un blob arbitraire étiqueté PDF serait facturé).
+    const MAX_PDF_BYTES = Number(process.env.PROFILE_MAX_BYTES ?? 4_000_000); // ~4 Mo
+    if (Math.floor((body.file_base64.length * 3) / 4) > MAX_PDF_BYTES) {
+      return NextResponse.json(
+        { error: "Fichier trop volumineux", code: "too_large", max_mb: Math.round(MAX_PDF_BYTES / 1_000_000) },
+        { status: 413 },
+      );
     }
+    const head = Buffer.from(body.file_base64.slice(0, 16), "base64").toString("latin1");
+    if (!head.startsWith("%PDF")) {
+      return NextResponse.json(
+        { error: "Le fichier n'est pas un PDF valide", code: "not_pdf" },
+        { status: 422 },
+      );
+    }
+    messageContent = [
+      {
+        type: "document",
+        source: {
+          type: "base64",
+          media_type: "application/pdf",
+          data: body.file_base64,
+        },
+      } as Anthropic.DocumentBlockParam,
+      {
+        type: "text",
+        text: "Extrais les informations du profil client de ce document.",
+      },
+    ];
+  } else if (body.text?.trim()) {
+    messageContent = `Extrais les informations du profil client depuis ce contenu :\n\n${body.text.slice(0, 8000)}`;
+  } else {
+    return NextResponse.json({ error: "Aucun contenu à analyser" }, { status: 400 });
+  }
 
+  const limited = await aiRateLimit(req, AI_COST.profile);
+  if (limited) return limited;
+
+  try {
     const response = await client.messages.create({
       model: EXTRACTION_MODEL,
       max_tokens: 512,
@@ -107,6 +129,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(JSON.parse(json));
   } catch (e) {
     console.error("parse-profile error:", e);
-    return NextResponse.json({}, { status: 500 });
+    // Panne Claude (indispo, quota SDK) → 503 pour que l'UI propose un retry ;
+    // le reste (JSON illisible) → 500 générique, sans exposer la cause.
+    if (e instanceof Anthropic.APIError) {
+      return NextResponse.json(
+        { error: "Service d'analyse indisponible", code: "ai_unavailable" },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ error: "Analyse impossible" }, { status: 500 });
   }
 }

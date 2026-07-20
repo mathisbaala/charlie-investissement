@@ -95,17 +95,25 @@ export function findSri(text: string): number | null {
 function findPointFee(text: string, kind: "entree" | "sortie"): string | null {
   const label = kind === "entree" ? "entr[ée]e" : "sortie";
   // « Frais d'entrée : 2 % » / « Coûts de sortie 0,00 % » / « Frais d'entrée Néant ».
-  const withPct = new RegExp(
-    `(?:frais|co[uû]ts?)\\s+(?:d['e]\\s*)?${label}[^%\\n]{0,40}?(\\d{1,2}(?:[.,]\\d{1,2})?)\\s*%`,
-    "i",
+  const labelRe = new RegExp(`(?:frais|co[uû]ts?)\\s+(?:d['e]\\s*)?${label}`, "i");
+  const m = labelRe.exec(text);
+  if (!m) return null;
+  // Fenêtre APRÈS le libellé, bornée au prochain libellé de frais entrée/sortie
+  // (sinon on happe le taux du poste VOISIN : « entrée : Néant. sortie : 2 % »
+  // faisait lire « 2 % » pour l'entrée) ou à la fin de ligne, 40 caractères max.
+  const rest = text.slice(m.index + m[0].length);
+  const stop = rest.search(
+    /\n|(?:frais|co[uû]ts?)\s+(?:d['e]\s*)?(?:entr[ée]e|sortie)/i,
   );
-  const m = text.match(withPct);
-  if (m) return `${m[1].replace(",", ".")} %`;
-  const neant = new RegExp(
-    `(?:frais|co[uû]ts?)\\s+(?:d['e]\\s*)?${label}[^\\n]{0,40}?(n[ée]ant|aucun|sans\\s+frais)`,
-    "i",
-  );
-  if (neant.test(text)) return "Néant";
+  const window = (stop === -1 ? rest : rest.slice(0, stop)).slice(0, 40);
+  const pct = window.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*%/);
+  const neantIdx = window.search(/n[ée]ant|aucun|sans\s+frais/i);
+  // Le token le plus proche du libellé l'emporte (si les deux figurent).
+  if (pct && neantIdx !== -1) {
+    return pct.index! < neantIdx ? `${pct[1].replace(",", ".")} %` : "Néant";
+  }
+  if (pct) return `${pct[1].replace(",", ".")} %`;
+  if (neantIdx !== -1) return "Néant";
   return null;
 }
 

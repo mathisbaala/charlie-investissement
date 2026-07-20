@@ -148,6 +148,11 @@ function PortefeuilleAnalyzer() {
     if (!files || files.length === 0) return;
     setBusy(true);
     setError(null);
+    // Un nouveau relevé change le patrimoine consolidé : on invalide la synthèse
+    // affichée (sinon le diagnostic — perf/SRI/frais/expositions — resterait
+    // calculé sur l'ancien ensemble alors que la KPI « Patrimoine » inclut déjà
+    // le nouveau relevé, d'où un diagnostic incohérent avec le total affiché).
+    setSynthese(null);
     try {
       for (const file of Array.from(files)) {
         const form = new FormData();
@@ -630,7 +635,10 @@ function PortefeuilleAnalyzer() {
  * euros sans ISIN, support raté), avec l'écart chiffré pour guider la saisie.
  */
 function ReconciliationBadge({ releve }: { releve: Releve }) {
-  const sum = releve.positions.reduce((s, p) => s + (p.amount ?? 0), 0);
+  const sum = releve.positions.reduce(
+    (s, p) => s + (Number.isFinite(p.amount) ? (p.amount as number) : 0),
+    0,
+  );
   const rec = reconcileTotal(sum, releve.documentTotal);
   if (!rec) return null;
   if (rec.status === "ok") {

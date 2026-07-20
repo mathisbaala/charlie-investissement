@@ -86,6 +86,18 @@ describe("extractDiciFields", () => {
     expect(d.entry_fees_max).toBe("3 %");
     expect(d.exit_fees_max).toBe("Néant");
   });
+  // Régression : sur un tableau de coûts PRIIPs compact, un frais « Néant » ne
+  // doit PAS emprunter le taux du poste voisin sur la même ligne logique.
+  it("n'attribue pas le % du poste voisin à un frais « Néant » (même ligne)", () => {
+    const d = extractDiciFields("Frais d'entrée : Néant. Frais de sortie : 2 %");
+    expect(d.entry_fees_max).toBe("Néant");
+    expect(d.exit_fees_max).toBe("2 %");
+  });
+  it("lit correctement une entrée chiffrée suivie d'une sortie « Néant » (même ligne)", () => {
+    const d = extractDiciFields("Frais d'entrée : 2 %. Frais de sortie : Néant");
+    expect(d.entry_fees_max).toBe("2 %");
+    expect(d.exit_fees_max).toBe("Néant");
+  });
 });
 
 describe("diciFeesComplete", () => {
