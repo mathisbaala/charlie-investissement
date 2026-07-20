@@ -7,8 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { Btn } from "@/components/ui/Btn";
 import { Kpi } from "@/components/ui/Kpi";
 import { PageShell } from "@/components/ui/Page";
-import { Upload, X, ArrowLeft, FileSearch, FileText } from "@/components/ui/icons";
+import { Upload, X, ArrowLeft, FileSearch, FileText, Check } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
+import { PortfolioBacktest } from "@/components/portfolio/PortfolioBacktest";
+import { PortfolioExposure } from "@/components/portfolio/PortfolioExposure";
 import { SupportUnique } from "./SupportUnique";
 import { weightedExposure, type ExpoRow, type Expo } from "@/lib/lookthrough";
 import {
@@ -25,6 +27,9 @@ type AnalyseMode = "portefeuille" | "support";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const PCT = (v: number, d = 1) => `${v.toFixed(d).replace(".", ",")} %`;
+// Teinte d'un ratio signé : vert si positif, rouge si négatif (perf, Sharpe).
+const signTone = (v: number | null | undefined): "ok" | "bad" | null =>
+  v == null ? null : v >= 0 ? "ok" : "bad";
 
 // ── Type local : un relevé côté client (positions/contrats = types /api/releve) ─
 interface Releve {
@@ -520,71 +525,73 @@ function PortefeuilleAnalyzer() {
         </div>
       )}
 
-      {/* ── Synthèse ── */}
+      {/* ── Synthèse ── diagnostic chiffré, alertes, marché, répartition. */}
       {synthese && (
-        <>
-          <div className="flex flex-col md:flex-row gap-3 mb-6">
-            <Kpi label="Patrimoine analysé" value={EUR.format(total)} />
+        <div className="space-y-6">
+          {/* Bandeau diagnostic : identité + risque + coût, d'un coup d'œil. */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
+            <Kpi label="Patrimoine" value={EUR.format(total)} />
             <Kpi
-              label="Perf. annualisée 5 ans"
-              value={
-                synthese.analysis?.ratios?.annual_return != null
-                  ? PCT(synthese.analysis.ratios.annual_return * 100)
-                  : "—"
-              }
+              label="Perf. annualisée"
+              value={synthese.analysis?.ratios?.annual_return != null ? PCT(synthese.analysis.ratios.annual_return * 100) : "—"}
+              tone={signTone(synthese.analysis?.ratios?.annual_return)}
             />
-            <Kpi label="Frais courants moyens" value={synthese.terMoyen != null ? PCT(synthese.terMoyen, 2) : "—"} />
-            <Kpi label="SRI pondéré" value={synthese.sri != null ? `${String(synthese.sri).replace(".", ",")}/7` : "—"} />
-          </div>
-          {synthese.truncated && (
-            <p className="text-caption text-muted mb-4">
-              Ratios et corrélations calculés sur les 20 premières lignes (limite du moteur) ;
-              les répartitions couvrent l&apos;ensemble.
-            </p>
-          )}
-
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <ExpoCard title="Répartition géographique" slices={synthese.geo} />
-            <ExpoCard title="Répartition sectorielle" slices={synthese.sectors} />
+            <Kpi
+              label="Volatilité"
+              value={synthese.analysis?.ratios?.volatility != null ? PCT(synthese.analysis.ratios.volatility * 100) : "—"}
+            />
+            <Kpi
+              label="Perte max."
+              value={synthese.analysis?.ratios?.max_drawdown != null ? PCT(synthese.analysis.ratios.max_drawdown * 100) : "—"}
+              tone={synthese.analysis?.ratios?.max_drawdown != null ? "bad" : null}
+            />
+            <Kpi label="SRI pondéré" value={synthese.sri != null ? `${String(synthese.sri).replace(".", ",")} / 7` : "—"} />
+            <Kpi label="Frais moyens" value={synthese.terMoyen != null ? PCT(synthese.terMoyen, 2) : "—"} />
           </div>
 
-          {/* Recommandations ciblées — le cœur du parcours (spec §5). */}
-          <h2 className="text-title text-ink mb-3">Recommandations</h2>
-          {synthese.recos.length === 0 ? (
-            <Card className="p-5 mb-6">
-              <p className="text-body text-ink">
-                Aucune recommandation : corrélations maîtrisées, frais homogènes et pas de
-                concentration excessive.
-              </p>
-            </Card>
-          ) : (
-            <div className="flex flex-col gap-3 mb-6">
-              {synthese.recos.map((reco) => (
-                <Card key={`${reco.kind}-${reco.title}`} className="p-5" data-testid="reco-card">
-                  <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1">
-                    {reco.kind === "correlation" ? "Diversification" : reco.kind === "frais" ? "Frais" : "Concentration"}
-                  </p>
-                  <h3 className="text-body font-semibold text-ink mb-1">{reco.title}</h3>
-                  <p className="text-body text-muted">{reco.detail}</p>
-                </Card>
-              ))}
-            </div>
-          )}
+          {/* Points d'attention — anomalies détectées, le cœur de la valeur CGP. */}
+          <section>
+            <h2 className="text-title text-ink mb-3">Points d&apos;attention</h2>
+            {synthese.recos.length === 0 ? (
+              <Card className="p-4 flex items-center gap-2.5">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-ok-soft text-ok shrink-0">
+                  <Check size={15} />
+                </span>
+                <p className="text-meta text-ink-2">
+                  Corrélations, frais et concentration maîtrisés — aucune anomalie détectée.
+                </p>
+              </Card>
+            ) : (
+              <div className="grid gap-2.5">
+                {synthese.recos.map((reco) => (
+                  <RecoCard key={`${reco.kind}-${reco.title}`} reco={reco} />
+                ))}
+              </div>
+            )}
+          </section>
 
-          {/* Matrice de corrélation (R1) — l'illustration demandée. */}
+          {/* Performance & risque face au marché : indice de référence au choix
+              du conseiller (sélecteur), courbe rejouée aux poids réels. */}
+          <PortfolioBacktest holdings={consolidated.slice(0, 20).map((p) => ({ isin: p.isin, weight: p.weight * 100 }))} />
+
+          {/* Répartition par transparence (look-through) : géo + secteurs agrégés. */}
+          <PortfolioExposure lines={consolidated.slice(0, 40).map((p) => ({ isin: p.isin, weight: p.weight * 100 }))} />
+
+          {/* Corrélations entre supports : doubles emplois en un coup d'œil. */}
           {synthese.analysis && synthese.analysis.correlation.length > 0 && (
             <CorrelationMatrix analysis={synthese.analysis} />
           )}
 
-          <div className="flex items-center gap-4 flex-wrap mt-6">
-            <Link href={simulateurHref} className="text-body text-ink underline underline-offset-4">
-              Simuler ma rémunération
-            </Link>
-            <Link href="/portefeuille/construire" className="text-caption text-muted underline underline-offset-4">
-              Simuler une réallocation complète (chemin secondaire)
-            </Link>
-          </div>
-        </>
+          {synthese.truncated && (
+            <p className="text-caption text-muted-2">
+              Perf, risque et corrélations portent sur les 20 supports principaux ; les répartitions couvrent l&apos;ensemble.
+            </p>
+          )}
+
+          <Link href={simulateurHref} className="inline-block text-meta text-ink underline underline-offset-4 hover:text-accent-ink transition-colors">
+            Simuler ma rémunération sur ce portefeuille
+          </Link>
+        </div>
       )}
     </>
   );
@@ -618,25 +625,22 @@ function ReconciliationBadge({ releve }: { releve: Releve }) {
   );
 }
 
-function ExpoCard({ title, slices }: { title: string; slices: Expo[] }) {
+// Style par nature d'alerte : liseré + pastille colorés, pour hiérarchiser le
+// diagnostic visuellement (diversification / concentration / frais).
+const RECO_META: Record<Recommendation["kind"], { label: string; border: string; badge: string }> = {
+  correlation: { label: "Diversification", border: "border-l-accent", badge: "text-accent" },
+  concentration: { label: "Concentration", border: "border-l-brown", badge: "text-brown" },
+  frais: { label: "Frais", border: "border-l-warn", badge: "text-warn-dark" },
+};
+
+/** Carte d'alerte : constat chiffré + conseil, colorée selon la nature. */
+function RecoCard({ reco }: { reco: Recommendation }) {
+  const m = RECO_META[reco.kind];
   return (
-    <Card className="p-5">
-      <h3 className="text-body font-semibold text-ink mb-3">{title}</h3>
-      {slices.length === 0 ? (
-        <p className="text-caption text-muted">Pas de données de composition pour ces supports.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {slices.map((s) => (
-            <div key={s.label} className="flex items-center gap-2">
-              <span className="text-caption text-ink w-40 truncate" title={s.label}>{s.label}</span>
-              <div className="flex-1 h-2 rounded bg-line-soft overflow-hidden">
-                <div className="h-full bg-ink/70" style={{ width: `${Math.min(100, s.weight)}%` }} />
-              </div>
-              <span className="text-caption text-muted w-12 text-right">{PCT(s.weight, 0)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+    <Card className={`p-4 border-l-4 ${m.border}`} data-testid="reco-card">
+      <p className={`text-caption uppercase tracking-widest font-semibold mb-1 ${m.badge}`}>{m.label}</p>
+      <h3 className="text-body font-semibold text-ink mb-1">{reco.title}</h3>
+      <p className="text-meta text-muted leading-relaxed">{reco.detail}</p>
     </Card>
   );
 }
