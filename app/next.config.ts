@@ -6,8 +6,12 @@ const nextConfig: NextConfig = {
   devIndicators: { position: "bottom-right" },
   // pdfjs et xlsx (extraction des relevés, /api/releve) restent des modules
   // Node externes : bundlés par Next, leurs imports dynamiques cassent
-  // (résolution worker pour pdfjs ; cpexcel pour xlsx).
-  serverExternalPackages: ["pdfjs-dist", "xlsx"],
+  // (résolution worker pour pdfjs ; cpexcel pour xlsx). @napi-rs/canvas est
+  // requis DYNAMIQUEMENT par pdfjs-dist v6 legacy pour fournir DOMMatrix/Path2D :
+  // sans lui en serverless, l'extraction texte throw (« Cannot polyfill
+  // DOMMatrix ») → tout upload PDF de relevé tombait en 422. Externe = Next ne
+  // tente pas de bundler ses binaires natifs par plateforme.
+  serverExternalPackages: ["pdfjs-dist", "xlsx", "@napi-rs/canvas"],
 };
 
 export default nextConfig;
