@@ -18,7 +18,12 @@ import "@napi-rs/canvas";
 /** Reconstruit des lignes de texte à partir des items pdfjs (tri Y puis X). */
 export async function pdfToLines(data: Uint8Array): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const loadingTask = pdfjs.getDocument({ data });
+  // pdfjs TRANSFÈRE (neuter) l'ArrayBuffer de `data` vers son worker : au retour,
+  // le buffer de l'APPELANT est détaché (byteLength 0). La route relevé réutilise
+  // ces octets juste après (base64 → Claude Vision) ; sans copie, elle envoyait
+  // un PDF vide à l'IA (« PDF cannot be empty », 400, escalade Vision perdue sur
+  // les relevés scannés/éclatés). On passe une COPIE pour préserver l'appelant.
+  const loadingTask = pdfjs.getDocument({ data: data.slice() });
   const doc = await loadingTask.promise;
   const lines: string[] = [];
   try {
