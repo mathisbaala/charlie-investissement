@@ -11,6 +11,28 @@
 
 ---
 
+## 🔄 Sprint 20/07 (soir) — Analyse IA relevé (gated), export PDF frais, revue & durcissement
+
+**Tout EN PROD au 20/07.** Santé : `tsc` = 0, **796 tests verts** (53→55 fichiers), working tree propre, `main` seule branche, 0 issue, CI verte.
+
+**Lecture IA du relevé — coût mis sous contrôle (`a4941f7`)** : `/api/releve` réconcilie d'abord le total imprimé **en déterministe (0 token)** et n'appelle **Claude Vision QUE si** ça ne colle pas (PDF scanné / mise en page atypique). **CSV/Excel = 0 token toujours** (garde `isPdf`). Signalement des **supports hors catalogue** (fonds du relevé absents de la base) dans l'avis. Fix ISSUE-001 (espace manquant « inclus / dans … hors catalogue », `07506b0`/`a96dfb3`).
+
+**Export PDF frais (`538125e`)** : depuis le simulateur, génération de **2 documents PDF** — client (façon annexe DDA) + cabinet interne — via `buildFraisReport` → `/api/frais/pdf`, **0 IA** (rendu déterministe). En parallèle, **optimisation des coûts IA** : parse DICI déterministe d'abord (`diciParse` + `pdfText`, `fields:"fees"`) ; **`botGuard` + anti-burst posés sur TOUTES les routes IA** (`/api/parse`, `/api/parse-profile`, `/api/dici/parse` les avaient perdus). 2 PDF vérifiés live via /recul.
+
+**PDF relevé illisible en prod (422) corrigé (`ba1ecd2` → `3c4d598`)** : cause racine = worker `pdfjs` non embarqué dans la lambda serverless Vercel + `@napi-rs/canvas` non tracé → forcés via `next.config.ts`. Vérifié live 20/07.
+
+**Polish** : bandeau d'analyse en carte d'identité (`ef915d0`), épure du texte profil + départage rétrocessions clarifié (`a3b9b36`).
+
+**Revue adversariale + durcissement (30ᵉ passe /chantier)** — revue approfondie des 11 commits ci-dessus (2 agents parallèles) → **5 défauts réels corrigés** (`tsc` = 0, 796 tests, +2 régression) :
+1. `api/parse-profile` : PDF envoyé à Claude **sans cap taille ni check `%PDF`** (trou de coût, seule route IA sans garde) → cap `PROFILE_MAX_BYTES` + signature `%PDF` avant appel, quota IA après validation, catch 503/500 propre (aligné sur `dici/parse`).
+2. `lib/diciParse.ts` `findPointFee` : un frais « Néant » happait le **% du poste voisin** (entrée 0 % lue 2 %) → fenêtre bornée au libellé suivant + tests de régression.
+3. `AnalyseExistant` `onFiles` : synthèse **non réinitialisée** à l'import d'un 2ᵉ relevé (diagnostic ≠ patrimoine) → `setSynthese(null)`.
+4. `ReconciliationBadge` : « NaN € » possible → garde `Number.isFinite`.
+
+**Run SFDR planifié** : garde `if: github.event_name != 'schedule'` confirmé en place → le tir du mardi 21/07 04:20 UTC ne lancera que l'étape annexe (rapide) et passera vert. Dernier point de surveillance.
+
+---
+
 ## 🔄 Journal 16-20/07 — Densification AV, PEA courtiers, Portefeuille carrefour & refonte Frais
 
 **Tout EN PROD au 20/07.** Santé re-certifiée le 20/07 : `tsc --noEmit` = 0 erreur, `vitest run` = **765/765 verts** (53 fichiers), working tree propre, `main`/`origin/main` seules branches (les 3 remote + 1 locale mergées **élaguées le 20/07**), 0 issue GitHub, CI verte.
