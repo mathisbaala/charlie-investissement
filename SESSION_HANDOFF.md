@@ -1,13 +1,44 @@
-# 📋 Session Handoff — 14 juillet 2026
+# 📋 Session Handoff — 20 juillet 2026
 
 > Base du document : journée dense du **19 juin** (26 commits, sprints DDA), réconciliée
 > le **22 juin**, auditée le **23 juin**, **gros chantier PORTEFEUILLE le 25 juin**
 > (retour client CGP — Partie 2), **sprint complétude + sécurité/conformité 28-29 juin**,
-> puis **plateforme ALLOCATION + onglet CABINET (07-13 juillet)** et **audit chantier +
-> data-quality (14 juillet)**. Voir journal 07-14/07 ci-dessous, puis 28-29/06, puis
-> 25/06, + `CHANTIERS.md`.
+> puis **plateforme ALLOCATION + onglet CABINET (07-13 juillet)**, **audit chantier +
+> data-quality (14 juillet)**, et **gros sprint AV / PEA / Portefeuille / Frais (16-20 juillet)**.
+> Voir journal 16-20/07 ci-dessous, puis 07-14/07, puis 28-29/06, puis 25/06, + `CHANTIERS.md`.
 >
 > Doc précédente (19 mai) archivée dans `docs/bilans/`.
+
+---
+
+## 🔄 Journal 16-20/07 — Densification AV, PEA courtiers, Portefeuille carrefour & refonte Frais
+
+**Tout EN PROD au 20/07.** Santé re-certifiée le 20/07 : `tsc --noEmit` = 0 erreur, `vitest run` = **765/765 verts** (53 fichiers), working tree propre, `main`/`origin/main` seules branches (les 3 remote + 1 locale mergées **élaguées le 20/07**), 0 issue GitHub, CI verte.
+
+**Assurance-vie (17/07)**
+- **Densification** : solidité assureur via **SFCR** (solvabilité / notation / PPB / encours, 49/55) + table `av_fonds_euros_history` (204 taux) câblées sur la fiche-contrat. 14 profils assureurs manquants comblés (carte « L'assureur » réparée sur 59 fiches). Gotcha : notation = groupe, AEP = Antin→Cardif.
+- **Coût total de détention (CTD)** (`lib/av-cost.ts`) + **comparateur transversal multi-assureurs** : RPC `get_contracts_comparison`, page `/assureurs/comparateur` partageable, panier `ContractCompareProvider` (max 4).
+- **Système de logos assureurs** (onglet + fiche-contrat + fiche assureur) : script favicon → `/public/insurers` + `InsurerLogo` (repli monogramme). Gotcha : placeholders gris Google exclus (26 empreintes), Clearbit mort.
+- **Fiabilisation des frais AV** (indicative → curated via DIC officiels). Pivot : 240/455 indicative = gabarit AG2R « La Mondiale Partenaire » (grille de marché, non sourçable) ; tail retail sourçable (Suravenir/Spirica/AXA/Cardif/Natixis). Ne PAS écraser `fonds_euros_taux`. + passe éditoriale complète des fiches, normalisation casse `options_gestion`.
+- **Fix attribution** « Natixis Life::Liberalys » = APICIL/Intencial (`7204093`).
+- **Perf** : onglet Partenaires 8 s → ~4 ms (matview `get_insurers_list` + cache edge `force-static`/revalidate).
+
+**PEA & Analyse de l'existant — intégration stagiaires (18/07)** — 2 branches mergées, peaufinées, déployées.
+- **Analyse de l'existant** : import de relevés **multi-format (PDF + CSV + Excel)**, anonymisation déterministe (`scrubLabel`), réconciliation avec le total imprimé, ajout manuel de fonds oubliés, moteur de recommandations.
+- **PEA** : univers PEA des courtiers (vague 2 — easybourse, LCL, Yomoni, CE/BP, Trade Republic, BoursoBank), flag ETF autoritaire (JustETF), vocabulaire courtier vs assureur, **PEA assurance AXA Théma Coralis** (scraper + cron), 6 bassins La Mondiale Partenaire ratés par la regex LMP.
+- **Backtest** : historique **15 ans** + comparaison de fonds + vue par support (borné par la donnée, fonds ~9 ans max). Modules partagés `chartColors` / `PORTFOLIO_PERIODS` / `ReleveApi*`. Gotcha : `npm install` requis (pdfjs-dist + xlsx).
+
+**Portefeuille — carrefour à 2 chemins (18/07)** : `/portefeuille` devient une page-carrefour → `/portefeuille/construire` (ex-`/portefeuille`) + `/portefeuille/analyser` (ex-`/analyse-existant`). Un seul onglet dans le rail, terminologie symétrique. Redirects `/analyse-existant` + `/allocation`. `PortfolioStudioContext` re-scopé sur `construire/`.
+
+**Refonte de l'onglet « Frais » (18-19/07)**
+- **Chantier A** : l'onglet Frais devient un **simulateur de rémunération CGP pur**, autonome (dépôt + recherche indépendants), commission upfront + rémunération par support, parcours vertical numéroté (déposer → paramétrer → lire), textes décoratifs retirés.
+- **Chantier B** (QA validé 19/07) : l'onglet **Documents fusionné dans Portefeuille → Analyser** (sélecteur mode Portefeuille / Support-DICI, préchargement `?isins=&weights=&montant=`, redirect `/documents` → `?mode=support`, retrait du rail, visite guidée v6).
+
+**Perf (19/07)** : comparaison d'un assureur **4 s → ~180 ms** via matview `investissement_contract_metrics_mv` (refresh dans `inv_refresh_fund_insurers_mv`, migration `20260719120000`). Gotcha : précalculer, jamais à la volée (spill disque instable sur petite instance).
+
+**Design/polish (19-20/07)** : primitive `Chip` partagée pour les sélecteurs d'option, palette de graphes des fonds comparés centralisée, titre d'onglet constant « Charlie Investissement ».
+
+**Hygiène (20/07)** : audit `/chantier` (27ᵉ passe) → `CHANTIERS.md` rafraîchi ; élagage des 4 branches mergées (`fix/liberalys-apicil-attribution` local + remote, `claude/elegant-pike-78de33`, `joseph/backtest-comparaison-pea`) → `main` seule. Reste 1 surveillance : run SFDR planifié du 21/07 à voir vert.
 
 ---
 

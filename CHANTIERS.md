@@ -1,5 +1,7 @@
 # Chantiers — Charlie Investissement
 
+> Dernier audit : 2026-07-20 (27ᵉ passe — reprise après 4 jours de sprint AV/PEA/Portefeuille/Frais). **Santé : excellente** — working tree **propre**, `main` synchro `origin/main`, **0 marqueur `TODO/FIXME/HACK` réel dans `app/src`**, **0 test désactivé**, **0 `console.log` hors test**, **0 issue GitHub ouverte**, **CI verte** (drains compo + AV vague 2 + hebdo tous success). **Santé re-certifiée cette passe : `tsc --noEmit` = 0 erreur, `vitest run` = 765/765 verts (53 fichiers)** — soit +99 tests depuis la 26ᵉ passe (le sprint 17-19/07 a ajouté ses tests, tous verts). **Livré depuis le 16/07 (tout en prod, voir « ✅ Réglés »)** : (1) **densification AV** — solidité assureur SFCR + historique fonds euros sur la fiche-contrat, 14 profils manquants comblés ; (2) **système de logos assureurs** (onglet + fiches) ; (3) **coût total de détention + comparateur transversal multi-assureurs** (`/assureurs/comparateur` partageable) ; (4) **onglet « Analyse de l'existant »** (import relevés PDF/CSV/Excel + recommandations, travail stagiaires) puis **fusionné dans Portefeuille** (carrefour construire/analyser) ; (5) **univers PEA des courtiers** (vague 2 : easybourse, LCL, Yomoni, CE/BP, Trade Republic, BoursoBank…) + **PEA assurance AXA Théma Coralis** ; (6) **historique 15 ans + comparaison de fonds + vue par support** au portefeuille ; (7) **refonte de l'onglet Frais** (Chantier A : simulateur de rémunération CGP autonome ; Chantier B : Documents fusionné dans Portefeuille→Analyser) ; (8) **perf** — onglet Partenaires 8 s→~4 ms (matview) + comparaison d'un assureur 4 s→~180 ms (matview métriques contrat) ; (9) **fiabilisation frais AV** (indicative→curated via DIC) + **fix attribution Liberalys=APICIL**. **Aucun chantier bloquant, aucun bug ouvert.** Reste : 1 surveillance SFDR (run planifié 21/07 à confirmer vert), drains auto passifs, décisions tranchées (won't-do/différés) et **hygiène git** (1 branche locale + 3 remote mergées à élaguer).
+>
 > Dernier audit : 2026-07-16 (26ᵉ passe — re-vérification de fin de journée, rien de neuf depuis la 25ᵉ). **Santé : excellente** — working tree **propre**, **`origin/main` seule branche restante** (les 3 branches remote mergées ont été **élaguées** — plus rien à nettoyer), **0 marqueur `TODO/FIXME/HACK` dans `app/src`**, **0 test désactivé**, **0 issue GitHub ouverte**. Depuis la 25ᵉ passe (11:56) : (a) sweep AV porté à **100 % couvert** (coquille catalogue « Patrimoine Privé » corrigée, commit `8380a49`) ; (b) **nettoyage git** — suppression du dump salvage superseded de 449 Ko (`59112a5`). **Aucun chantier bloquant, aucun bug ouvert.** Reste = surveillances passives (drains auto) + décisions tranchées (won't-do/différés). **Santé re-certifiée cette passe (16:29) : `tsc --noEmit` = 0 erreur, `vitest run` = 666/666 verts (47 fichiers).**
 >
 > Dernier audit : 2026-07-16 (25ᵉ passe — reprise & clôture du sweep AV + réconciliation post-14/07). **Santé : excellente** — working tree propre, `main` seule branche locale, 3 branches remote mergées élaguées depuis, 3 marqueurs `TODO/FIXME` = **faux positifs connus** (commentaire `/fonds/XXX`, `CRYPTO_XXX` chaîne d'usage, heuristique PEA notée), 0 test désactivé. **Livré depuis le 14/07 (tout en prod)** : (1) **Référencement Partie 1 — récolte** : 5 assureurs absents + **Mutavie** (41 ISIN via contournement WAF TLS) + **Sogécap** (19 via navigateur local) = **613 ISIN** + workflow d'apply CI ; (2) **6 nouveaux scrapers AV** (BPCE Vie, Prépar Vie, AFI ESCA, Garance, Monceau, Asac Fapes) ; (3) **univers complet exposé au screener** (actions, crypto, FPS, structurés, PE) ; (4) **simulateur de frais lisibles CGP** (répartition + rétrocessions) ; (5) **restitution PDF/PPTX refondue** + camemberts géo/secteurs + **sélecteur de contrat** sur référencement réel ; (6) **sweep conditions de contrats AV CLOS ~99 %** (192 → **468 contrats** documentés, tranches 3+4+finale ≈ 9,2 M tokens ; reste **5 irréductibles** CGP-only/banque privée → relais scraper DIC mensuel). **Rien de bloquant. Aucun bug ouvert.** Reste = surveillances passives (drains auto), décisions tranchées (won't-do/différés) et hygiène git mineure.
@@ -83,12 +85,12 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🐛 Bugs & fragilités
 
-### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (à re-vérifier vert)
+### Workflow SFDR/DDA annulé chaque semaine à 2h — ✅ CORRIGÉ 14/07 (fix confirmé en place, 1 run planifié encore à voir vert)
 - **Priorité** : 🟡 → **résolu**, sous observation d'un run planifié
 - **Détecté le** : 2026-07-14 · **Corrigé le** : 2026-07-14 (voir « ✅ Réglés »)
 - **Ce qui était cassé** : le run hebdo (mardi 04:00 UTC) était **`cancelled` à ~2h chaque semaine** (30/06, 07/07, 14/07) — l'étape KID `--limit 4000` débordait le `timeout-minutes: 120`. Silencieux car `cancelled` ≠ `failure` (aucune alerte).
-- **Fix** : étape KID **retirée du cron hebdo** (`if: github.event_name != 'schedule'`), gardée en manuel + `monthly-pipeline`. Le run planifié = étape annexe seule (utile, rapide).
-- **Reste à faire** : **confirmer 1 run planifié vert** au prochain mardi (04:00 UTC).
+- **Fix** : étape KID **retirée du cron hebdo** (`if: github.event_name != 'schedule'`, vérifié en place dans `sfdr-refresh.yml` ligne 68 au 20/07), gardée en manuel + `monthly-pipeline`. Le run planifié = étape annexe seule (utile, rapide).
+- **Reste à faire (20/07)** : le dernier run *planifié* (14/07 06:11) était **antérieur au fix** (cancelled) ; aucun run planifié n'a encore tourné depuis. **Confirmer 1 run planifié vert au mardi 21/07 (04:00 UTC)** — ensuite basculer ce point en « ✅ Réglés ». (Le run manuel `workflow_dispatch` du 14/07 12:51 est déjà vert.)
 
 ---
 
@@ -175,6 +177,9 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🧹 Dette technique
 
+### (élagage 4 branches mergées — réglé le 20/07)
+Les 3 branches remote mergées (`claude/elegant-pike-78de33`, `joseph/backtest-comparaison-pea`, `fix/liberalys-apicil-attribution`) **et** la locale `fix/liberalys-apicil-attribution` sont **supprimées le 20/07** après re-vérif (0 commit en avance sur `main`, `--no-merged` vide) + `git remote prune`. Reste `main`/`origin/main` seules. Voir « ✅ Réglés ».
+
 ### (élagage 3 branches remote — réglé le 16/07)
 Les 3 branches distantes mergées (`data/av-assureurs-sacha`, `feat/referencement-partie1-harvest`, `feat/simulateur-frais-cgp-univers`) sont **supprimées le 16/07** après vérif (0 commit en avance + `--merged`). Reste `origin/main` seule. Voir « ✅ Réglés ».
 
@@ -191,7 +196,10 @@ Le reliquat des ~6 séries NAV à corruption systématique est **réglé le 24/0
 
 ## 📄 Doc à mettre à jour (écarts détectés — proposer, ne pas modifier)
 
-### (aucun écart ouvert)
+### (`SESSION_HANDOFF.md` rattrapé — réglé le 20/07)
+Le journal de handoff était figé au 14/07. **Rattrapé le 20/07** (sur accord explicite de Mathis) : bloc « Journal 16-20/07 » ajouté en tête (densification AV, logos, CTD + comparateur, analyse-existant, PEA courtiers, backtest 15 ans, Portefeuille carrefour, refonte Frais A+B, perfs matviews, élagage branches) + titre daté 20/07. Doc alignée sur la prod.
+
+### (aucun autre écart ouvert)
 La coquille catalogue « Spirica::Patrimoine Privée » a été **tracée et corrigée le 16/07** (vrai nom = « Patrimoine Privé », PDF officiel AF-9901 ; cause = libellé fautif de la page listing Sylvéa) → voir « ✅ Réglés ». Le sweep AV est **100 % couvert**.
 `CHANTIERS.md` et `SESSION_HANDOFF.md` sont à jour au 14/07 (23ᵉ passe : journal du soir ajouté, livrables du jour reflétés). Voir « ✅ Réglés ».
 
@@ -200,6 +208,26 @@ La coquille catalogue « Spirica::Patrimoine Privée » a été **tracée et cor
 ## ✅ Réglés
 
 > Historique repris de `SESSION_HANDOFF.md` (réconciliation 22/06). Le plus récent en haut.
+
+- **Perf — comparaison d'un assureur 4 s → ~180 ms (matview métriques contrat)** — *Réglé le 2026-07-19* : le clic sur un assureur recalculait à la volée les métriques de chaque contrat (~4 s, spill disque instable sur petite instance). Précalcul via la matview `investissement_contract_metrics_mv` (refresh dans `inv_refresh_fund_insurers_mv`, migration `20260719120000`). **Gotcha noté** : précalculer, jamais à la volée (le spill disque est instable sous petite instance). Cf. [[insurer-comparison-metrics-mv-speedup]].
+
+- **Refonte de l'onglet « Frais » (Chantiers A + B)** — *Réglé les 2026-07-18/19* (Chantier B QA validé le 19/07) : **A** = l'onglet Frais devient un **simulateur de rémunération CGP pur**, autonome (dépôt + recherche indépendants), commission upfront + rémunération par support, parcours vertical numéroté (déposer → paramétrer → lire), textes décoratifs retirés. **B** = l'onglet **Documents fusionné dans Portefeuille → Analyser** (sélecteur mode Portefeuille / Support-DICI, préchargement `?isins=&weights=&montant=`, redirect `/documents` → `?mode=support`, retrait du rail, visite guidée v6). Cf. [[frais-refonte-onglet]].
+
+- **Portefeuille = carrefour à 2 chemins (fusion « Analyse de l'existant »)** — *Réglé le 2026-07-18* : `/portefeuille` devient une **page-carrefour** → `/portefeuille/construire` (ex-`/portefeuille`) + `/portefeuille/analyser` (ex-`/analyse-existant`), un seul onglet dans le rail, terminologie symétrique. Redirects `/analyse-existant` + `/allocation`. `PortfolioStudioContext` re-scopé sur `construire/`. Cf. [[portefeuille-carrefour-fusion-analyse]].
+
+- **Intégration stagiaires — « Analyse de l'existant » + PEA courtiers + backtest 15 ans** — *Réglé le 2026-07-18* : 2 branches stagiaires mergées, peaufinées et déployées prod. **(a) Analyse de l'existant** : import de relevés **multi-format (PDF + CSV + Excel)**, anonymisation déterministe (`scrubLabel`), réconciliation avec le total imprimé, ajout manuel de fonds oubliés, moteur de recommandations. **(b) PEA** : univers PEA des courtiers (vague 2 — easybourse, LCL, Yomoni, CE/BP, Trade Republic, BoursoBank), flag ETF autoritaire (JustETF), vocabulaire courtier vs assureur, **PEA assurance AXA Théma Coralis** (scraper + cron), 6 bassins La Mondiale Partenaire ratés par la regex LMP. **(c) Backtest** : historique **15 ans** + comparaison de fonds + vue par support (backtest borné par la donnée dispo, fonds ~9 ans max). Modules partagés `chartColors` / `PORTFOLIO_PERIODS` / `ReleveApi*`. **Gotcha** : `npm install` requis (pdfjs-dist + xlsx). Cf. [[interns-integration-20260718]].
+
+- **Densification AV — solidité assureur (SFCR) + historique fonds euros sur la fiche-contrat** — *Réglé le 2026-07-17* : solidité assureur via SFCR (solvabilité / notation / PPB / encours, 49/55) + table `av_fonds_euros_history` (204 taux) câblées sur la fiche-contrat. L1 = 38 contrats indicative→scraped. 14 profils assureurs manquants comblés (carte « L'assureur » réparée sur 59 fiches). **Gotcha** : notation = groupe, AEP = Antin→Cardif. Cf. [[av-solidity-fonds-euros-densification]].
+
+- **Coût total de détention + comparateur transversal multi-assureurs** — *Réglé le 2026-07-17* : **CTD** (`lib/av-cost.ts`) + **comparateur multi-assureurs** (RPC `get_contracts_comparison`, page `/assureurs/comparateur` partageable, panier `ContractCompareProvider` max 4). Cf. [[av-ctd-comparateur-transversal]].
+
+- **Système de logos assureurs (onglet + fiche-contrat + fiche assureur)** — *Réglé le 2026-07-17* : script favicon → `/public/insurers` + composant `InsurerLogo` (repli monogramme). Vrais PNG APICIL / Caisse d'Épargne / Bourse Direct / Allianz / Swiss Life Lux (source Wikimedia). **Gotcha** : placeholders gris Google exclus (26 empreintes réf), Clearbit mort. Co-dev agent parallèle (RPC `get_insurer_comparison` sans migration). Cf. [[insurer-logos-system]].
+
+- **Fiabilisation des frais AV (indicative → curated via DIC officiels)** — *Réglé le 2026-07-17* : passage indicative→curated via DIC. **Pivot** : 240 des 455 indicative = 1 gabarit AG2R « La Mondiale Partenaire » (non sourçable, grille de marché) ; tail retail sourçable (Suravenir / Spirica / AXA / Cardif / Natixis). Ne PAS écraser `fonds_euros_taux`. + passe éditoriale complète des fiches assureurs/contrats, normalisation casse `options_gestion`. Cf. [[av-frais-fiabilisation]].
+
+- **Fix attribution « Natixis Life::Liberalys » = APICIL/Intencial** — *Réglé le 2026-07-17* (`7204093`) : contrat Liberalys mal attribué → corrigé vers APICIL/Intencial (branche `fix/liberalys-apicil-attribution`, mergée).
+
+- **Perf — onglet Partenaires 8 s → ~4 ms (matview `get_insurers_list`)** — *Réglé le 2026-07-17* : liste des assureurs précalculée en matview + cache edge (`force-static` + revalidate), garde section Lux vide. Comble fonds_euros et seuils Lux des 14 profils ajoutés.
 
 - **Sweep AV → 100 % : coquille catalogue « Patrimoine Privé » résolue + newcomer sourcé** — *Réglé le 2026-07-16* : enquête sur le dernier contrat non documenté (« Spirica::Patrimoine Privée », 205 UC). **Tracé** à la source (`investissement_av_lux_eligibility` → scraper `av-fr-spirica-catalog.py`, produit Sylvéa 9901). Le PDF officiel **AF-9901** donne le vrai nom **« Patrimoine Privé »** (masculin) — la page listing Sylvéa affichait « Privée » (fautif) que le scraper recopiait. **Corrigé** : (1) rename des 208 lignes d'éligibilité `Patrimoine Privée → Patrimoine Privé` + REFRESH des 2 matviews (`fund_insurers_mv`, `contract_groups_mv`) ; (2) fiche de conditions écrite (curated, frais gestion UC 0,98 %, univers 205 UC dont 77,67 % art.8 / 9,77 % art.9, plafond FE 5 M€, source PDF officiel) ; (3) **fix durable dans le scraper** (`NAME_FIXES` : « Patrimoine Privée » → « Patrimoine Privé », py_compile OK) pour ne plus réintroduire la coquille au run trimestriel. Corrigé au passage : **apostrophe** de `BPCE Vie::Fonds des mandats d'arbitrages` (`'`→`’`) réalignée sur la clé catalogue ; **Sogécap::PER Acacia** (newcomer refresh, 54 UC) sourcé (curated : entrée 2,50 %, gestion 0,84 %, FE 3,25 %, ticket 150 €, gestion pilotée Horizon). **Univers AV désormais couvert à 100 %** (467/467 contrats représentatifs, 473 lignes terms). Cf. [[av-contract-terms-sweep-tranches]].
 
