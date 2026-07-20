@@ -77,6 +77,7 @@ export const AI_COST = {
   parse: 1,         // recherche en langage naturel
   profile: 1,       // parsing d'un profil client
   dici: 3,          // extraction d'un DICI (vision + gros prompt)
+  releve: 3,        // extraction d'un relevé de portefeuille (vision multi-pages)
 } as const;
 
 export function clientIp(req: NextRequest): string {

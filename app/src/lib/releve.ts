@@ -200,6 +200,74 @@ export function extractPositions(text: string): ExtractedPosition[] {
   return Array.from(byIsin.values());
 }
 
+// ── Lecture IA (Claude Vision) : validation + fusion avec la regex ──────────
+// La regex ne lit pas les PDF scannés et éclate parfois les lignes/colonnes.
+// On double donc la lecture des PDF par le modèle, mais SANS lui faire aveugle
+// confiance : sa sortie repasse par la clé Luhn (anti-hallucination) puis est
+// FUSIONNÉE avec la regex (union par ISIN). Les deux helpers sont purs (testés
+// sans appeler le modèle) ; la route se contente d'orchestrer.
+
+/** Position brute renvoyée par l'extraction IA d'un relevé (avant validation). */
+export interface AiRawPosition {
+  isin?: unknown;
+  label?: unknown;
+  amount?: unknown;
+}
+
+/**
+ * Valide la sortie de l'extraction IA : ne retient que les ISIN réellement
+ * valides (clé Luhn — filet anti-hallucination : le modèle peut inventer un
+ * code ou mal lire un caractère), nettoie/anonymise le libellé, et coerce le
+ * montant (nombre JS, ou chaîne « à la française » via parseFrenchAmount ; les
+ * valorisations négatives sont écartées). Fusionne les doublons d'ISIN en
+ * sommant, comme extractPositions. Fonction PURE.
+ */
+export function sanitizeAiPositions(raw: unknown): ExtractedPosition[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  const byIsin = new Map<string, ExtractedPosition>();
+  for (const item of arr) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as AiRawPosition;
+    const isin = typeof r.isin === "string" ? r.isin.trim().toUpperCase() : "";
+    if (!isValidIsin(isin)) continue;
+    let amount: number | null = null;
+    if (typeof r.amount === "number" && Number.isFinite(r.amount)) amount = r.amount;
+    else if (typeof r.amount === "string") amount = parseFrenchAmount(r.amount);
+    if (amount !== null && amount < 0) amount = null; // une valorisation est ≥ 0
+    const label = typeof r.label === "string" ? scrubLabel(r.label).slice(0, 120) : "";
+    const prev = byIsin.get(isin);
+    if (prev) {
+      if (amount !== null) prev.amount = (prev.amount ?? 0) + amount;
+      if (!prev.label && label) prev.label = label;
+    } else {
+      byIsin.set(isin, { isin, label, amount });
+    }
+  }
+  return Array.from(byIsin.values());
+}
+
+/**
+ * Fusionne deux jeux de positions (union par ISIN). `primary` fait AUTORITÉ sur
+ * le montant ; `secondary` COMPLÈTE — il comble les montants manquants et les
+ * libellés vides, et ajoute les ISIN que `primary` n'a pas vus. Sert à réunir
+ * la lecture IA (primary : comprend les colonnes, gère le scanné) et la lecture
+ * regex déterministe (secondary : filet de rattrapage). Fonction PURE.
+ */
+export function mergePositions(
+  primary: ExtractedPosition[],
+  secondary: ExtractedPosition[],
+): ExtractedPosition[] {
+  const byIsin = new Map<string, ExtractedPosition>();
+  for (const p of primary) byIsin.set(p.isin, { ...p });
+  for (const s of secondary) {
+    const prev = byIsin.get(s.isin);
+    if (!prev) { byIsin.set(s.isin, { ...s }); continue; }
+    if (prev.amount === null && s.amount !== null) prev.amount = s.amount;
+    if (!prev.label && s.label) prev.label = s.label;
+  }
+  return Array.from(byIsin.values());
+}
+
 // ── Ingestion multi-format : CSV / grilles Excel → texte « lignes » ─────────
 // Les extranets partenaires exportent les positions en tableur. On convertit
 // vers le même texte ligne-à-ligne que les PDF (cellules jointes par double

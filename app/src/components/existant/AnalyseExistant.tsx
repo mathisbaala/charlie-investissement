@@ -283,6 +283,23 @@ function PortefeuilleAnalyzer() {
 
   const total = useMemo(() => consolidated.reduce((s, p) => s + p.amount, 0), [consolidated]);
 
+  // Supports LUS mais absents de notre catalogue : valorisés, donc comptés dans
+  // la réconciliation du relevé, mais EXCLUS de l'analyse (perf/frais/corrélation
+  // reposent sur nos données). On les signale explicitement — sinon le patrimoine
+  // analysé paraît complet à tort et le CGP ne voit pas ce qu'il manque.
+  const excluded = useMemo(() => {
+    const byIsin = new Map<string, number>();
+    for (const r of releves) {
+      for (const p of r.positions) {
+        if (p.known || p.amount === null || p.amount <= 0) continue;
+        byIsin.set(p.isin, (byIsin.get(p.isin) ?? 0) + p.amount);
+      }
+    }
+    let amount = 0;
+    for (const v of byIsin.values()) amount += v;
+    return { count: byIsin.size, amount };
+  }, [releves]);
+
   async function analyse() {
     if (consolidated.length < 2) return;
     setAnalysing(true);
@@ -527,6 +544,16 @@ function PortefeuilleAnalyzer() {
               : `${consolidated.length} supports valorisés · ${nbLignes} ligne${nbLignes > 1 ? "s" : ""} extraite${nbLignes > 1 ? "s" : ""} · total ${EUR.format(total)}`}
           </p>
         </div>
+      )}
+
+      {/* Supports lus mais hors catalogue : signalés, jamais écartés en silence. */}
+      {excluded.count > 0 && (
+        <p className="text-caption text-warn-dark -mt-4 mb-8" data-testid="excluded-notice">
+          {excluded.count} support{excluded.count > 1 ? "s" : ""} non reconnu{excluded.count > 1 ? "s" : ""} dans notre
+          catalogue ({EUR.format(excluded.amount)}) : {excluded.count > 1 ? "ils ne sont pas inclus" : "il n'est pas inclus"} dans
+          l&apos;analyse (performance, frais et corrélations portent sur les supports connus). Le total réconcilié par relevé les
+          prend en compte.
+        </p>
       )}
 
       {/* ── Synthèse ── diagnostic chiffré, alertes, marché, répartition. */}

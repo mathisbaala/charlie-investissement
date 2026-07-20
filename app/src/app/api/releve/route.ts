@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
+import { aiRateLimit, botGuard, AI_COST } from "@/lib/rateLimit";
+import { EXTRACTION_MODEL } from "@/lib/claude";
 import {
-  csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, rowsToText,
+  csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, reconcileTotal, rowsToText,
+  mergePositions, sanitizeAiPositions, type ExtractedPosition,
   type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
 } from "@/lib/releve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Analyse d'un relevé de situation PDF (onglet « Analyse de l'existant ») :
 //   1. extraction du texte (pdfjs, reconstruction des lignes par ordonnée Y —
@@ -21,6 +27,11 @@ export const dynamic = "force-dynamic";
 
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 const MAX_ISINS = 200;
+// Plafond de taille SPÉCIFIQUE à la lecture IA : le coût Vision croît avec le
+// nombre de pages. Un relevé fait 2-10 pages (< ~2 Mo) ; au-delà on ne double
+// PAS la lecture par l'IA (regex seule) — borne dure de dépense par appel.
+// Réglable par env sans redéploiement de code.
+const AI_MAX_BYTES = Number(process.env.RELEVE_AI_MAX_BYTES ?? 8_000_000);
 
 
 /** Reconstruit des lignes de texte à partir des items pdfjs (tri Y puis X). */
@@ -82,7 +93,71 @@ function decodeCsv(data: Uint8Array): string {
   return csvToText(raw);
 }
 
+// Lecture IA d'un relevé (Claude Vision). Le modèle comprend la STRUCTURE que la
+// regex ignore : la bonne colonne (valorisation, pas la VL ni les parts), les
+// lignes éclatées sur plusieurs cellules, et surtout les PDF SCANNÉS (image) où
+// la regex ne voit aucun texte. Sa sortie est ensuite validée par la clé Luhn
+// (sanitizeAiPositions) puis fusionnée avec la regex.
+const RELEVE_SYSTEM = `Tu es un expert en lecture de relevés de situation d'assurance-vie, de comptes-titres et de contrats de capitalisation français. On te fournit un relevé (parfois scanné). Extrais CHAQUE ligne de support/fonds détenu.
+
+Retourne UNIQUEMENT un objet JSON valide :
+{
+  "positions": [ { "isin": string, "label": string|null, "amount": number|null } ],
+  "total": number|null
+}
+
+Règles STRICTES :
+- Une position = une ligne portant un code ISIN valide (2 lettres pays + 10 caractères, ex: FR0010959676, LU1234567890, IE00B4L5Y983).
+- "amount" = la VALORISATION en euros de la ligne (ce que vaut la position aujourd'hui). JAMAIS le nombre de parts, JAMAIS la valeur liquidative unitaire, JAMAIS un pourcentage (perf/frais), JAMAIS le versement initial. En cas de plusieurs colonnes chiffrées, prends la valeur/valorisation ACTUELLE.
+- Convertis les montants français en nombre JS : "12 345,67 €" -> 12345.67 (point décimal, sans espace ni symbole monétaire).
+- N'invente JAMAIS d'ISIN. Si tu n'es pas certain d'un code, OMETS la ligne plutôt que de deviner (mieux vaut la manquer qu'inventer un faux code).
+- Ignore les supports sans ISIN (fonds en euros parfois sans code) : ils seront ajoutés à la main.
+- "total" = la valorisation totale du contrat imprimée sur le relevé (null si absente). Pas un total de frais, de versements ou de plus-values.
+- N'extrais QUE les lignes de support : ignore l'état civil, l'adresse, les numéros de contrat/adhérent.
+- Réponds en JSON pur, sans markdown, sans commentaire.`;
+
+/** Extraction IA d'un PDF de relevé → positions validées + total. `null` si le
+ *  service IA est indisponible (panne, clé, quota) : l'appelant retombe alors
+ *  proprement sur la regex seule — jamais d'échec dur. */
+async function extractPdfWithClaude(
+  base64: string,
+): Promise<{ positions: ExtractedPosition[]; total: number | null } | null> {
+  try {
+    const resp = await client.messages.create({
+      model: EXTRACTION_MODEL,
+      max_tokens: 4096,
+      system: RELEVE_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+            { type: "text", text: "Extrais toutes les lignes de support de ce relevé et retourne le JSON." },
+          ],
+        },
+      ],
+    });
+    const text = resp.content[0]?.type === "text" ? resp.content[0].text : "";
+    const json = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim().match(/\{[\s\S]*\}/)?.[0];
+    if (!json) return null;
+    const parsed = JSON.parse(json) as { positions?: unknown; total?: unknown };
+    const total =
+      typeof parsed.total === "number" && Number.isFinite(parsed.total) && parsed.total > 0
+        ? parsed.total
+        : null;
+    return { positions: sanitizeAiPositions(parsed.positions), total };
+  } catch (e) {
+    console.error("[releve] extraction IA échouée (repli regex):", e);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Anti-abus, EN AMONT de tout : un client non-navigateur (script d'aspiration)
+  // est refusé avant la moindre lecture — a fortiori avant tout appel IA facturé.
+  const bot = botGuard(req);
+  if (bot) return bot;
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -125,12 +200,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const extracted = extractPositions(text).slice(0, MAX_ISINS);
+  // Extraction déterministe (regex + clé Luhn) : gratuite, fiable sur les PDF
+  // « texte » et les tableurs. Sert de base ET de filet de validation.
+  const regexPositions = extractPositions(text).slice(0, MAX_ISINS);
   // Total de valorisation imprimé sur le document (contrôle de cohérence UI).
-  const documentTotal = extractDocumentTotal(text);
+  let documentTotal = extractDocumentTotal(text);
+
+  // Doubler la lecture par Claude Vision coûte cher (facturé à la page) et l'outil
+  // est en libre-service (pas de compte, pas de paiement) : on ne l'appelle QUE
+  // quand la regex — gratuite — ne peut pas PROUVER qu'elle a tout lu. Le juge de
+  // paix est objectif : la réconciliation avec le total imprimé sur le relevé.
+  //   • regex réconcilie au centime près (rec.status === "ok") → on a capté 100 %
+  //     de la valeur du document : inutile de payer un 2ᵉ avis, on garde la regex ;
+  //   • écart, ou pas de total exploitable, ou 0 ISIN (relevé scanné) → c'est
+  //     EXACTEMENT là que l'IA apporte de la valeur → on escalade.
+  // Ainsi la majorité des relevés « texte » bien formés ne consomment AUCUN appel
+  // IA, sans dégrader la qualité sur les cas douteux. Repli silencieux sur la
+  // regex seule si l'IA est indisponible/quota atteint — jamais d'échec dur.
+  const regexSum = regexPositions.reduce((s, p) => s + (p.amount ?? 0), 0);
+  const rec = reconcileTotal(regexSum, documentTotal);
+  const regexIsComplete = rec !== null && rec.status === "ok";
+
+  let extracted = regexPositions;
+  if (isPdf && !regexIsComplete && buf.length <= AI_MAX_BYTES) {
+    const limited = await aiRateLimit(req, AI_COST.releve);
+    if (!limited) {
+      const ai = await extractPdfWithClaude(Buffer.from(buf).toString("base64"));
+      if (ai) {
+        // L'IA fait autorité sur le montant (comprend les colonnes), la regex
+        // complète (montants manquants, ISIN qu'elle seule a vus). Union par ISIN.
+        extracted = mergePositions(ai.positions, regexPositions).slice(0, MAX_ISINS);
+        if (documentTotal === null) documentTotal = ai.total;
+      }
+    }
+  }
+
   if (extracted.length === 0) {
     return NextResponse.json(
-      { positions: [], matches: [], warning: "Aucun ISIN détecté — relevé scanné ou format inattendu ?" },
+      { positions: [], matches: [], warning: "Aucun ISIN détecté — relevé scanné illisible ou format inattendu ?" },
     );
   }
   const isins = extracted.map((p) => p.isin);

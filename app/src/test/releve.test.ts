@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isValidIsin, parseFrenchAmount, extractPositions, consolidate, scrubLabel,
   looksLikeFeeDocument, extractDocumentTotal, reconcileTotal, csvToText, rowsToText,
+  sanitizeAiPositions, mergePositions, type ExtractedPosition,
 } from "@/lib/releve";
 
 describe("csvToText (ingestion CSV)", () => {
@@ -210,5 +211,66 @@ describe("consolidate", () => {
   it("ignore les montants nuls/négatifs et rend [] si rien de valorisé", () => {
     expect(consolidate([{ isin: "A", name: "A", amount: 0 }])).toHaveLength(0);
     expect(consolidate([])).toHaveLength(0);
+  });
+});
+
+describe("sanitizeAiPositions (validation de la sortie IA)", () => {
+  it("ne retient que les ISIN à clé Luhn valide (filet anti-hallucination)", () => {
+    const out = sanitizeAiPositions([
+      { isin: "FR0000295230", label: "Comgest Europe", amount: 5000 },
+      { isin: "FR0000295231", label: "code inventé", amount: 9999 }, // check digit faux
+      { isin: "pas un isin", amount: 1 },
+      "chaîne parasite",
+    ]);
+    expect(out.map((p) => p.isin)).toEqual(["FR0000295230"]);
+  });
+  it("coerce les montants nombre ET chaîne française, écarte les négatifs", () => {
+    const out = sanitizeAiPositions([
+      { isin: "FR0000295230", amount: "12 345,67 €" },
+      { isin: "FR0010959676", amount: 1000 },
+      { isin: "IE00B4L5Y983", amount: -50 },
+    ]);
+    const by = Object.fromEntries(out.map((p) => [p.isin, p.amount]));
+    expect(by["FR0000295230"]).toBeCloseTo(12345.67);
+    expect(by["FR0010959676"]).toBe(1000);
+    expect(by["IE00B4L5Y983"]).toBeNull();
+  });
+  it("fusionne les doublons d'ISIN en sommant (multi-poches)", () => {
+    const out = sanitizeAiPositions([
+      { isin: "FR0000295230", amount: 100 },
+      { isin: "FR0000295230", amount: 250 },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].amount).toBeCloseTo(350);
+  });
+  it("normalise la casse de l'ISIN et anonymise le libellé", () => {
+    const out = sanitizeAiPositions([{ isin: "fr0000295230", label: "M. Dupont — Fonds X", amount: 10 }]);
+    expect(out[0].isin).toBe("FR0000295230");
+    expect(out[0].label).not.toContain("Dupont");
+  });
+  it("entrée non-tableau → tableau vide", () => {
+    expect(sanitizeAiPositions(null)).toEqual([]);
+    expect(sanitizeAiPositions({})).toEqual([]);
+  });
+});
+
+describe("mergePositions (fusion IA primary + regex filet)", () => {
+  const P = (isin: string, amount: number | null, label = ""): ExtractedPosition => ({ isin, amount, label });
+  it("union par ISIN : ajoute les ISIN vus par la seule regex", () => {
+    const merged = mergePositions([P("FR0000295230", 100)], [P("FR0010959676", 200)]);
+    expect(merged.map((p) => p.isin).sort()).toEqual(["FR0000295230", "FR0010959676"]);
+  });
+  it("primary (IA) fait autorité sur le montant en cas de conflit", () => {
+    const merged = mergePositions([P("FR0000295230", 100)], [P("FR0000295230", 999)]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].amount).toBe(100);
+  });
+  it("le filet regex comble un montant manquant de l'IA", () => {
+    const merged = mergePositions([P("FR0000295230", null)], [P("FR0000295230", 500)]);
+    expect(merged[0].amount).toBe(500);
+  });
+  it("le filet regex comble un libellé vide de l'IA", () => {
+    const merged = mergePositions([P("FR0000295230", 100, "")], [P("FR0000295230", 100, "Comgest")]);
+    expect(merged[0].label).toBe("Comgest");
   });
 });
