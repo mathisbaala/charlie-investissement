@@ -161,7 +161,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } else {
       text = decodeCsv(buf);
     }
-  } catch {
+  } catch (e) {
+    // On loggue la cause réelle (le message générique côté client masquait, par
+    // ex., un souci d'environnement pdfjs en serverless).
+    console.error("[releve] extraction texte échouée:", e);
     return NextResponse.json(
       {
         error: isPdf
