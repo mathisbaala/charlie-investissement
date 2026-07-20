@@ -207,8 +207,12 @@ function PortefeuilleAnalyzer() {
       .then((json) => {
         const f = json?.data?.[0];
         if (!f) return;
-        const terFrac = f.ongoing_charges ?? f.ter;
-        const ter = terFrac != null ? Math.round(Number(terFrac) * 10000) / 100 : null;
+        // /api/funds renvoie déjà les frais EN POURCENTAGE (conversion
+        // feeFracToPct à la frontière API) : on arrondit à 0,01 pt, sans
+        // re-multiplier (le ×100 précédent gonflait un TER de 1,7 % en 170 %,
+        // d'où des « frais moyens » et alertes de frais absurdes).
+        const terPct = f.ongoing_charges ?? f.ter;
+        const ter = terPct != null ? Math.round(Number(terPct) * 100) / 100 : null;
         const sri = f.risk_score ?? null;
         setReleves((prev) => prev.map((r) => r.id !== rid ? r : {
           ...r,
