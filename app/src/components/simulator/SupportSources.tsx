@@ -157,7 +157,9 @@ export function SupportSources({
         const res = await fetch("/api/dici/parse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_base64: b64 }),
+          // fields="fees" : ici on ne consomme que les FRAIS du support → la route
+          // tente une lecture déterministe gratuite avant tout appel IA (coût).
+          body: JSON.stringify({ file_base64: b64, fields: "fees" }),
         });
         if (await handledRateLimit(res)) return;
         const data = (await res.json().catch(() => null)) as DiciParseResult | null;

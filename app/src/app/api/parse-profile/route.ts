@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { aiRateLimit, botGuard, dataRateLimit, AI_COST } from "@/lib/rateLimit";
 import { EXTRACTION_MODEL } from "@/lib/claude";
 
 export const runtime = "nodejs";
@@ -57,6 +57,11 @@ Règles de mapping :
 Retourne UNIQUEMENT l'objet JSON valide. Pas d'explication.`;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Anti-bot + anti-burst en amont du quota IA journalier (défense en profondeur).
+  const bot = botGuard(req);
+  if (bot) return bot;
+  const burst = await dataRateLimit(req, 1);
+  if (burst) return burst;
   try {
     const body = (await req.json()) as {
       text?: string;

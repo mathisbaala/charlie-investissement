@@ -391,3 +391,84 @@ export function remunerationSupport(
     commissionUpfront: r2(m * (clampFrais(commissionUpfrontPct ?? 0) / 100)),
   };
 }
+
+// ── Rapport de frais (export PDF client / cabinet) ───────────────────────────
+// Vue-modèle CANONIQUE de l'onglet Frais : reprend EXACTEMENT les calculs de
+// l'écran (mêmes appels simulate / repartitionFrais / remunerationSupport) pour
+// que le document remis au client et l'écran ne divergent jamais. Fonction pure :
+// la route /api/frais/pdf lui passe l'entrée brute et rend le résultat, l'écran
+// pourrait s'y adosser à l'identique.
+
+/** Un support dans le rapport : son montant alloué et la rémunération qu'il porte. */
+export interface FraisReportHolding {
+  isin: string;
+  name: string;
+  montant: number;           // € alloué au support (part UC × poids renormalisé)
+  ter: number | null;        // % frais courants
+  entryFee: number | null;   // % frais d'entrée du support
+  effRetro: number | null;   // % rétrocession effective (support ou taux du contrat)
+  retroAnnuelle: number;     // €/an récurrent
+  commissionUpfront: number; // € à la souscription
+}
+
+/** Support en ENTRÉE du rapport (ce que le simulateur connaît de chaque UC). */
+export interface FraisReportSupportInput {
+  isin: string;
+  name: string;
+  poids: number;             // % du compartiment UC
+  ter: number | null;
+  entryFee: number | null;
+  retro: number | null;      // rétrocession réelle du support (null = inconnue)
+}
+
+export interface FraisReport {
+  horizons: HorizonProjection[];
+  final: HorizonProjection;              // horizon le plus lointain simulé
+  repart: FraisParDestinataire;          // ventilation du coût à l'horizon final
+  partFraisGainBrut: number | null;      // frais / gain brut (%), à l'horizon final
+  remuTotale: number;                    // rémunération cabinet cumulée à l'horizon final
+  supports: FraisReportHolding[];        // détail par support (montant + rémunération)
+}
+
+/**
+ * Construit le rapport de frais à partir de l'entrée de simulation et de la liste
+ * des supports. `null` si aucun horizon n'est exploitable (durée < 1). Les
+ * montants par support suivent la même règle que l'écran : la poche UC
+ * (versement initial × part UC) répartie au prorata des poids.
+ */
+export function buildFraisReport(
+  input: SimulationInput,
+  supports: FraisReportSupportInput[],
+  horizons: number[] = HORIZONS_DEFAUT,
+): FraisReport | null {
+  const sim = simulate(input, horizons);
+  const final = sim.horizons[sim.horizons.length - 1];
+  if (!final) return null;
+  const finalPoint = sim.points[final.annees];
+  const repart = repartitionFrais(
+    finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee,
+  );
+
+  const retroCgp = input.retroCgp ?? 0;
+  const commissionCabinet = input.commissionCabinet ?? 0;
+  const totalPoids = supports.reduce((a, s) => a + Math.max(0, s.poids), 0) || 1;
+  const ucPot = input.versementInitial * (Math.min(100, Math.max(0, input.partUC)) / 100);
+  const holdings: FraisReportHolding[] = supports.map((s) => {
+    const montant = ucPot * (Math.max(0, s.poids) / totalPoids);
+    const effRetro = s.retro ?? retroCgp;
+    const remu = remunerationSupport(montant, effRetro, commissionCabinet);
+    return {
+      isin: s.isin, name: s.name, montant: Math.round(montant * 100) / 100,
+      ter: s.ter, entryFee: s.entryFee, effRetro, ...remu,
+    };
+  });
+
+  return {
+    horizons: sim.horizons,
+    final,
+    repart,
+    partFraisGainBrut: partFraisDansGainBrut(final),
+    remuTotale: r2(final.retroCgpCumulee + final.commCabinetCumulee),
+    supports: holdings,
+  };
+}

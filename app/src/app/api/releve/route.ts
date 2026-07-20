@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
-import { aiRateLimit, botGuard, AI_COST } from "@/lib/rateLimit";
+import { aiRateLimit, botGuard, dataRateLimit, AI_COST } from "@/lib/rateLimit";
 import { EXTRACTION_MODEL } from "@/lib/claude";
+import { pdfToLines } from "@/lib/pdfText";
 import {
   csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, reconcileTotal, rowsToText,
   mergePositions, sanitizeAiPositions, type ExtractedPosition,
@@ -33,39 +34,6 @@ const MAX_ISINS = 200;
 // Réglable par env sans redéploiement de code.
 const AI_MAX_BYTES = Number(process.env.RELEVE_AI_MAX_BYTES ?? 8_000_000);
 
-
-/** Reconstruit des lignes de texte à partir des items pdfjs (tri Y puis X). */
-async function pdfToLines(data: Uint8Array): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const loadingTask = pdfjs.getDocument({ data });
-  const doc = await loadingTask.promise;
-  const lines: string[] = [];
-  try {
-    for (let p = 1; p <= doc.numPages; p++) {
-      const page = await doc.getPage(p);
-      const content = await page.getTextContent();
-      // Regroupe les items par ordonnée arrondie (tolérance 2pt) : une « ligne ».
-      const rows = new Map<number, { x: number; str: string }[]>();
-      for (const item of content.items) {
-        if (!("str" in item) || !item.str.trim()) continue;
-        const y = Math.round((item.transform?.[5] ?? 0) / 2) * 2;
-        const x = item.transform?.[4] ?? 0;
-        const row = rows.get(y) ?? [];
-        row.push({ x, str: item.str });
-        rows.set(y, row);
-      }
-      const ys = Array.from(rows.keys()).sort((a, b) => b - a); // haut → bas
-      for (const y of ys) {
-        const row = rows.get(y)!;
-        row.sort((a, b) => a.x - b.x);
-        lines.push(row.map((r) => r.str).join("  "));
-      }
-    }
-  } finally {
-    await loadingTask.destroy();
-  }
-  return lines.join("\n");
-}
 
 /** Classeur Excel → texte lignes (toutes les feuilles, cellules brutes). */
 async function workbookToLines(data: Uint8Array): Promise<string> {
@@ -157,6 +125,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // est refusé avant la moindre lecture — a fortiori avant tout appel IA facturé.
   const bot = botGuard(req);
   if (bot) return bot;
+  // Anti-burst : borne les rafales d'une même IP avant toute lecture/appel IA
+  // (défense en profondeur, distincte du quota IA journalier).
+  const burst = await dataRateLimit(req, 1);
+  if (burst) return burst;
 
   let form: FormData;
   try {

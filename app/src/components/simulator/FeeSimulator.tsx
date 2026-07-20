@@ -10,8 +10,9 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Kpi } from "@/components/ui/Kpi";
+import { Btn } from "@/components/ui/Btn";
 import { PageShell } from "@/components/ui/Page";
-import { X, ArrowRight } from "@/components/ui/icons";
+import { X, ArrowRight, Download } from "@/components/ui/icons";
 import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
@@ -155,6 +156,10 @@ export function FeeSimulator() {
   // Commission upfront du cabinet (%/versement) : seedée aux frais d'entrée.
   const [commissionCabinet, setCommissionCabinet] = useState(FRAIS_DEFAUT.contratEntree);
   const [ucs, setUcs] = useState<UcRow[]>([]);
+  // Export PDF (document client conforme DDA / fiche interne cabinet).
+  const [clientRef, setClientRef] = useState("");
+  const [exporting, setExporting] = useState<null | "client" | "cabinet">(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
@@ -295,6 +300,48 @@ export function FeeSimulator() {
   const remuAnnuelleTotale = supportRows.reduce((a, r) => a + r.retroAnnuelle, 0);
   const upfrontTotal = supportRows.reduce((a, r) => a + r.commissionUpfront, 0);
 
+  // Génère et télécharge le document de frais (mode client ou cabinet). 100 %
+  // déterministe côté serveur (aucun appel IA) : on POST l'entrée de simulation
+  // et les supports, la route renvoie le PDF.
+  const exportPdf = async (mode: "client" | "cabinet") => {
+    if (!final || exporting) return;
+    setExporting(mode);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/frais/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          clientRef: clientRef.trim() || null,
+          input,
+          supports: ucs.map((u) => ({
+            isin: u.isin, name: u.name, poids: u.poids,
+            ter: u.ter, entryFee: u.entryFee, retro: u.retro,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        setExportError("Génération du document impossible. Réessayez dans un instant.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const date = new Date().toISOString().split("T")[0];
+      a.download = `frais-${mode}-${date}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError("Génération du document impossible. Réessayez dans un instant.");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const portfolioHref = useMemo(() => {
     if (!ucs.length) return null;
     const isins = ucs.map((u) => u.isin).join(",");
@@ -423,6 +470,36 @@ export function FeeSimulator() {
         {/* ══ Étape 3 · Résultats ══ */}
         <section>
           <StepHeader n={3} title="Résultats" />
+
+          {final && (
+            <Card className="px-5 py-4 mb-5">
+              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                <label className="flex-1 min-w-0">
+                  <span className="text-caption text-muted block mb-1">Référence client (facultatif)</span>
+                  <input
+                    type="text" value={clientRef} onChange={(e) => setClientRef(e.target.value)}
+                    placeholder="M. et Mme Dupont — contrat n°…"
+                    className="w-full text-meta border border-line rounded-md px-2.5 py-1.5 bg-paper focus:outline-none focus:border-accent"
+                  />
+                </label>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Btn variant="primary" size="sm" loading={exporting === "client"}
+                    disabled={exporting !== null} onClick={() => exportPdf("client")}>
+                    <Download size={14} /> Document client
+                  </Btn>
+                  <Btn variant="outline" size="sm" loading={exporting === "cabinet"}
+                    disabled={exporting !== null} onClick={() => exportPdf("cabinet")}>
+                    <Download size={14} /> Fiche cabinet
+                  </Btn>
+                </div>
+              </div>
+              <p className="text-caption text-muted-2 mt-2">
+                Le <span className="text-ink-2">document client</span> présente les coûts et la transparence des frais de conseil (DDA). La{" "}
+                <span className="text-ink-2">fiche cabinet</span> ajoute le détail de votre rémunération — usage interne.
+              </p>
+              {exportError && <p className="text-caption text-danger mt-1">{exportError}</p>}
+            </Card>
+          )}
 
           {final && (
             <div className="flex flex-col md:flex-row gap-3 mb-5">

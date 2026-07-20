@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
-import { aiRateLimit, AI_COST } from "@/lib/rateLimit";
+import { aiRateLimit, botGuard, dataRateLimit, AI_COST } from "@/lib/rateLimit";
 import { logEvent } from "@/lib/analytics";
 import { EXTRACTION_MODEL } from "@/lib/claude";
+import { pdfToLines } from "@/lib/pdfText";
+import { extractDiciFields, diciFeesComplete } from "@/lib/diciParse";
 
 export const runtime = "nodejs";
 
@@ -96,9 +98,18 @@ async function matchFund(
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-abus, EN AMONT de tout appel facturable : un client non-navigateur est
+  // refusé avant la moindre lecture, a fortiori avant tout appel IA. Le garde
+  // anti-burst borne les rafales d'une même IP (défense en profondeur, distincte
+  // du quota IA journalier).
+  const bot = botGuard(req);
+  if (bot) return bot;
+  const burst = await dataRateLimit(req, 1);
+  if (burst) return burst;
+
   try {
     const body = await req.json();
-    const { file_base64 } = body as { file_base64?: string };
+    const { file_base64, fields } = body as { file_base64?: string; fields?: string };
 
     if (!file_base64) {
       return NextResponse.json({ error: "file_base64 requis" }, { status: 400 });
@@ -131,6 +142,42 @@ export async function POST(req: NextRequest) {
         { error: "Le fichier n'est pas un PDF valide", code: "not_pdf" },
         { status: 422 },
       );
+    }
+
+    // ── Chemin DÉTERMINISTE (gratuit) d'abord, quand l'appelant n'a besoin que
+    // des FRAIS du support (onglet Frais, fields="fees"). Les DICI/KID sont
+    // réglementés : une lecture regex de la couche texte suffit le plus souvent
+    // à rattacher le support et lire ses frais, SANS appel Vision facturé. On
+    // n'escalade vers l'IA que si le déterministe ne réconcilie pas l'essentiel
+    // (ISIN + frais courants) — PDF scanné, gabarit exotique. L'analyse complète
+    // (scénarios, SFDR, risques : fields != "fees") passe toujours par l'IA.
+    if (fields === "fees") {
+      try {
+        const buf = Buffer.from(file_base64, "base64");
+        const text = await pdfToLines(new Uint8Array(buf));
+        const det = extractDiciFields(text);
+        if (diciFeesComplete(det)) {
+          const match = await matchFund(det.isin, det.name);
+          logEvent(req, {
+            event_type: "dici",
+            isin: match?.isin ?? det.isin,
+            meta: { matched: Boolean(match), source: "deterministic", product_type: null },
+          });
+          return NextResponse.json({
+            name: det.name,
+            isin: det.isin,
+            ongoing_charges: det.ongoing_charges,
+            sri: det.sri,
+            entry_fees_max: det.entry_fees_max,
+            exit_fees_max: det.exit_fees_max,
+            matched_isin: match?.isin ?? null,
+            matched_name: match?.name ?? null,
+          });
+        }
+      } catch (e) {
+        // Couche texte illisible (PDF scanné) : on retombe proprement sur l'IA.
+        console.error("[dici] lecture déterministe échouée (repli IA):", e);
+      }
     }
 
     const limited = await aiRateLimit(req, AI_COST.dici);
