@@ -18,7 +18,7 @@
 // Wikimedia Commons (voir CURATED). Tous les fichiers sont normalisés en vrai
 // PNG (`sips`) car les sources peuvent renvoyer du JPEG/ICO renommé .png.
 
-import { writeFile, mkdir, stat, rm } from "node:fs/promises";
+import { writeFile, readFile, mkdir, stat, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
@@ -30,6 +30,7 @@ const execFileP = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_DIR = join(__dirname, "..");
 const OUT_DIR = join(APP_DIR, "public", "insurers");
+const CURATED_LOCAL_DIR = join(__dirname, "curated-logos");
 const GENERATED_TS = join(APP_DIR, "src", "lib", "insurer-logos.generated.ts");
 
 // slug déterministe — DOIT rester identique à slugifyInsurer() du helper runtime.
@@ -131,6 +132,20 @@ const CURATED = {
   "bourse-direct": "https://fr.wikipedia.org/wiki/Special:FilePath/Bourse-Direct-Logo.jpg?width=400",
 };
 
+// Logos curés LOCAUX (par slug) : fichiers fournis à la main et commités dans
+// scripts/curated-logos/{slug}.png. PRÉCÉDENCE ABSOLUE sur le favicon car ces
+// marques renvoient soit un placeholder gris que la détection laisse passer
+// (Sogécap, Oradéa Vie, Le Conservateur), soit aucun logo libre exploitable
+// (Spirica, Selencia). La source de vérité est le fichier local, jamais re-sourcé.
+// Clés = slug(company) EXACT.
+const CURATED_LOCAL = new Set([
+  "selencia",
+  "le-conservateur",
+  "sogecap",
+  "oradea-vie",
+  "spirica",
+]);
+
 const faviconUrl = (domain) =>
   `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=256`;
 const iconHorseUrl = (domain) => `https://icon.horse/icon/${encodeURIComponent(domain)}`;
@@ -203,6 +218,7 @@ async function main() {
   for (const [company, domain] of Object.entries(DOMAINS)) {
     const slug = slugify(company);
     const out = join(OUT_DIR, `${slug}.png`);
+    if (CURATED_LOCAL.has(slug)) continue; // logo local prioritaire (passe dédiée)
     const buf = await sourceLogo(domain, placeholders);
     if (!buf) {
       skipped.push(company);
@@ -225,6 +241,22 @@ async function main() {
     await normalizeToPng(out);
     ok.push(slug);
     console.log(`✓ ${company.padEnd(34)} ${domain.padEnd(28)} ${buf.length} o`);
+  }
+
+  // Logos curés LOCAUX (fichiers commités) — précédence absolue, jamais re-sourcés.
+  for (const slug of CURATED_LOCAL) {
+    const src = join(CURATED_LOCAL_DIR, `${slug}.png`);
+    const out = join(OUT_DIR, `${slug}.png`);
+    try {
+      const buf = await readFile(src);
+      if (buf.length < 300) throw new Error("trop petit");
+      await writeFile(out, buf);
+      await normalizeToPng(out);
+      if (!ok.includes(slug)) ok.push(slug);
+      console.log(`✓ ${slug.padEnd(34)} ${"curé local".padEnd(28)} ${buf.length} o`);
+    } catch (e) {
+      console.log(`○ ${slug.padEnd(34)} ${"curé local".padEnd(28)} ${e?.message ?? e}`);
+    }
   }
 
   // Logos curés (Wikimedia) pour les marques dont le favicon est inexploitable.

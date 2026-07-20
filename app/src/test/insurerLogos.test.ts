@@ -47,11 +47,18 @@ describe("insurerLogoSrc", () => {
     expect(insurerLogoSrc("Apicil / OneLife")).toBe("/insurers/apicil.png");
     expect(insurerLogoSrc("APICIL Luxembourg")).toBe("/insurers/apicil.png");
   });
+  it("résout les logos curés LOCAUX (fichiers commités)", () => {
+    // Spirica, Selencia, Sogécap, Oradéa Vie, Le Conservateur : logos fournis à la
+    // main (le favicon ne renvoyait qu'un placeholder gris ou rien).
+    expect(INSURER_LOGO_SLUGS.has("spirica")).toBe(true);
+    expect(insurerLogoSrc("Spirica")).toBe("/insurers/spirica.png");
+    expect(insurerLogoSrc("Selencia")).toBe("/insurers/selencia.png");
+    expect(insurerLogoSrc("Sogécap")).toBe("/insurers/sogecap.png");
+    expect(insurerLogoSrc("Oradéa Vie")).toBe("/insurers/oradea-vie.png");
+    expect(insurerLogoSrc("Le Conservateur")).toBe("/insurers/le-conservateur.png");
+  });
   it("renvoie null quand aucun logo n'a été sourcé (repli monogramme)", () => {
-    // Spirica et Selencia : aucun logo libre trouvé → monogramme.
-    expect(INSURER_LOGO_SLUGS.has("spirica")).toBe(false);
-    expect(insurerLogoSrc("Spirica")).toBeNull();
-    expect(insurerLogoSrc("Selencia")).toBeNull();
+    expect(insurerLogoSrc("Assureur Sans Logo XYZ")).toBeNull();
   });
   it("renvoie null pour une valeur vide/absente", () => {
     expect(insurerLogoSrc("")).toBeNull();
