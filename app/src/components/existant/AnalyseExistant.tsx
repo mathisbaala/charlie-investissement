@@ -549,10 +549,9 @@ function PortefeuilleAnalyzer() {
       {/* Supports lus mais hors catalogue : signalés, jamais écartés en silence. */}
       {excluded.count > 0 && (
         <p className="text-caption text-warn-dark -mt-4 mb-8" data-testid="excluded-notice">
-          {excluded.count} support{excluded.count > 1 ? "s" : ""} non reconnu{excluded.count > 1 ? "s" : ""} dans notre
-          catalogue ({EUR.format(excluded.amount)}) :{" "}
-          {excluded.count > 1 ? "ils ne sont pas inclus" : "il n'est pas inclus"} dans l&apos;analyse (performance, frais et
-          corrélations portent sur les supports connus). Le total réconcilié par relevé les prend en compte.
+          {/* Phrase en une seule chaîne JS : le whitespace JSX supprimait l'espace
+              entre l'expression ternaire et le mot suivant (« inclusdans »). */}
+          {`${excluded.count} support${excluded.count > 1 ? "s" : ""} non reconnu${excluded.count > 1 ? "s" : ""} dans notre catalogue (${EUR.format(excluded.amount)}) : ${excluded.count > 1 ? "ils ne sont pas inclus" : "il n'est pas inclus"} dans l'analyse (performance, frais et corrélations portent sur les supports connus). Le total réconcilié par relevé les prend en compte.`}
         </p>
       )}
 
