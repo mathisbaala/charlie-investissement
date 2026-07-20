@@ -71,16 +71,12 @@ function FieldGroup({ label, hint, children }: { label: string; hint?: string; c
 // Section repliable du profil : en-tête cliquable (chevron + titre), corps
 // masquable. Repliée par défaut sauf « Le client », pour que le formulaire ne
 // ressemble plus à une liste de courses — on n'ouvre que la catégorie utile.
-// Un compteur « N renseigné(s) » signale, section fermée, qu'elle contient déjà
-// des réponses (utile après un import de document qui pré-remplit tout).
 function SectionCard({
   title,
-  filled = 0,
   defaultOpen = false,
   children,
 }: {
   title: string;
-  filled?: number;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -101,11 +97,6 @@ function SectionCard({
         <span className="flex-1 text-caption uppercase tracking-[0.08em] text-muted font-semibold">
           {title}
         </span>
-        {filled > 0 && (
-          <span className={`text-caption tabular-nums shrink-0 ${open ? "text-muted-2" : "text-accent-ink"}`}>
-            {filled} renseigné{filled > 1 ? "s" : ""}
-          </span>
-        )}
       </button>
       {open && <div className="px-5 pb-5 space-y-5">{children}</div>}
     </Card>
@@ -413,15 +404,6 @@ export function ClientProfileForm({
 
   const active = isProfileActive(profile);
 
-  // Nombre de critères renseignés par section : alimente le badge de l'en-tête
-  // repliable (une réponse = un tableau non vide, un scalaire non nul, une préf
-  // non « indifférente »).
-  const has = (v: unknown) => (Array.isArray(v) ? v.length > 0 : v != null && v !== "");
-  const filledClient = [profile.age, profile.amount_eur, profile.horizon_years, profile.objectif, profile.income_need, profile.versements].filter(has).length;
-  const filledRisk = [profile.risk_profile, profile.experience, profile.reaction_baisse, profile.perte_max].filter(has).length;
-  const filledPref = [profile.asset_classes, profile.geographies, profile.management, profile.esg !== "indifferent" ? profile.esg : null].filter(has).length;
-  const filledFees = [profile.envelopes, profile.exclusions, profile.max_ter, profile.no_entry_fee || null, profile.tmi].filter(has).length;
-
   const inputCls =
     "w-full border border-line rounded-lg px-3 py-2 text-body bg-paper text-ink placeholder:text-muted focus:outline-none focus:border-brown/50 transition-colors";
 
@@ -479,7 +461,7 @@ export function ClientProfileForm({
       <div className="space-y-4">
 
         {/* 1 — Le client (ouverte par défaut : l'essentiel) */}
-        <SectionCard title="Le client" filled={filledClient} defaultOpen>
+        <SectionCard title="Le client" defaultOpen>
           <div className="grid grid-cols-2 gap-4">
             <FieldGroup label="Âge">
               <input
@@ -531,7 +513,7 @@ export function ClientProfileForm({
         </SectionCard>
 
         {/* 2 — Profil de risque */}
-        <SectionCard title="Profil de risque" filled={filledRisk}>
+        <SectionCard title="Profil de risque">
           <FieldGroup label="Profil de risque MIF">
             <ChipRow>
               {RISK_OPTIONS.map(({ value, label, desc, color }) => (
@@ -580,7 +562,7 @@ export function ClientProfileForm({
         </SectionCard>
 
         {/* 3 — Préférences d'investissement */}
-        <SectionCard title="Préférences d'investissement" filled={filledPref}>
+        <SectionCard title="Préférences d'investissement">
           <FieldGroup label="Classes d'actifs souhaitées">
             <ChipRow>
               {ASSET_OPTIONS.map(({ value, label }) => (
@@ -616,7 +598,7 @@ export function ClientProfileForm({
         </SectionCard>
 
         {/* 4 — Frais, fiscalité & enveloppes */}
-        <SectionCard title="Frais, fiscalité & enveloppes" filled={filledFees}>
+        <SectionCard title="Frais, fiscalité & enveloppes">
           <FieldGroup label="Enveloppes disponibles">
             <ChipRow>
               {ENVELOPE_OPTIONS.map(({ value, label }) => (
@@ -657,13 +639,7 @@ export function ClientProfileForm({
             montant cible, un horizon, une priorité et les moyens affectés. Vient
             EN PLUS du profil de risque (rien n'est remplacé) : la page allocation
             calcule le rendement requis et la probabilité d'atteinte par projet. */}
-        <SectionCard title="Projets du client" filled={profile.goals.length}>
-            {profile.goals.length === 0 && (
-              <p className="text-meta text-muted">
-                Ajoutez un objectif chiffré (montant + horizon) : le portefeuille
-                en calcule la probabilité d&apos;atteinte.
-              </p>
-            )}
+        <SectionCard title="Projets du client">
             {profile.goals.map((g, gi) => (
               <div key={g.id} className="rounded-xl border border-line p-4 space-y-3">
                 <div className="flex items-center gap-3">
@@ -733,7 +709,7 @@ export function ClientProfileForm({
             fonds n'est recommandable que s'il est référencé chez l'un d'eux ;
             sinon le CGP ne peut pas le loger au client. Vide = pas de contrainte
             (tout l'univers reste consultable). */}
-        <SectionCard title="Distribution du cabinet" filled={profile.insurers.length}>
+        <SectionCard title="Distribution du cabinet">
             <FieldGroup label="Assureurs dont vous disposez">
               {/* Typeahead : on tape, une liste des assureurs correspondants
                   s'affiche, on sélectionne. On n'affiche jamais tout le catalogue

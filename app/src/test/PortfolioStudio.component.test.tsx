@@ -54,7 +54,7 @@ describe("PortfolioStudio", () => {
     fireEvent.click(toggle);
     expect(screen.getByText("Max-Sharpe")).toBeTruthy();
     expect(screen.getByText("HRP")).toBeTruthy();
-    expect(screen.getByText(/Départage rémunération cabinet/)).toBeTruthy();
+    expect(screen.getByText(/Privilégier les fonds les mieux rémunérés/)).toBeTruthy();
   });
 
   it("génère le portefeuille depuis le profil au clic", async () => {

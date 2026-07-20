@@ -249,8 +249,8 @@ export function StudioInputs() {
                   </span>
                 </div>
 
-                {/* Départage rémunération cabinet : l'adéquation client reste première,
-                    la rétrocession ne départage que des fonds quasi équivalents. */}
+                {/* À adéquation égale pour le client, on préfère le fonds qui
+                    rémunère le mieux le cabinet — jamais au détriment du client. */}
                 <div className="flex flex-col gap-1">
                   <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                     <input
@@ -260,11 +260,11 @@ export function StudioInputs() {
                       style={{ accentColor: "var(--color-accent)" }}
                     />
                     <span className="text-meta text-ink font-medium">
-                      Départage rémunération cabinet (rétrocessions)
+                      Privilégier les fonds les mieux rémunérés pour le cabinet
                     </span>
                   </label>
                   <span className="text-meta text-muted">
-                    À adéquation équivalente, retient la meilleure rétrocession, jamais au détriment du client.
+                    Entre deux fonds aussi adaptés au client, retient celui qui rapporte le plus au cabinet.
                   </span>
                 </div>
               </div>
