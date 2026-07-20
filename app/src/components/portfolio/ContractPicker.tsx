@@ -23,9 +23,14 @@ export interface ContractOption {
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+// Libellé affiché pour le contrat d'exemple : nom réaliste, présenté comme un
+// exemple (préfixe « Ex. » + gris à l'affichage, cf. ContractPicker) — même
+// registre que le placeholder « Ex. Charlie Gestion Privée » du champ Cabinet.
+export const SAMPLE_CONTRACT_LABEL = "Ex. Charlie Vie Premium";
+
 /** Libellé lisible d'une clé « Assureur::Contrat ». */
 export function contractLabel(key: string): string {
-  if (key === SAMPLE_CONTRACT) return "Contrat démo (univers d'exemple)";
+  if (key === SAMPLE_CONTRACT) return SAMPLE_CONTRACT_LABEL;
   return key.includes("::") ? key.replace("::", " — ") : key;
 }
 
@@ -177,7 +182,9 @@ export function ContractPicker({
               : "Rechercher un contrat…"
           }
           autoComplete="off"
-          className="flex-1 min-w-0 bg-transparent text-meta text-ink placeholder:text-muted focus:outline-none truncate"
+          className={`flex-1 min-w-0 bg-transparent text-meta placeholder:text-muted focus:outline-none truncate ${
+            !open && value === SAMPLE_CONTRACT ? "text-muted" : "text-ink"
+          }`}
         />
       </div>
 
@@ -205,7 +212,7 @@ export function ContractPicker({
                 onClick={() => pick(SAMPLE_CONTRACT)}
                 className="w-full text-left px-3 py-2 text-meta text-muted hover:bg-accent-soft/40 border-t border-line-soft transition-colors"
               >
-                Contrat démo (univers d&apos;exemple)
+                {SAMPLE_CONTRACT_LABEL} · univers d&apos;exemple
               </button>
             </>
           )}

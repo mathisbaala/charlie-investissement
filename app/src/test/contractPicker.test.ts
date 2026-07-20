@@ -44,8 +44,9 @@ describe("rankContracts (périmètre STRICT : l'allocation ne sort jamais des pa
 });
 
 describe("contractLabel", () => {
-  it("rend la clé composite lisible et nomme le contrat démo", () => {
+  it("rend la clé composite lisible et nomme le contrat d'exemple", () => {
     expect(contractLabel("Axa::Coralis Sélection")).toBe("Axa — Coralis Sélection");
-    expect(contractLabel(SAMPLE_CONTRACT)).toBe("Contrat démo (univers d'exemple)");
+    // Contrat d'exemple : libellé réaliste préfixé « Ex. » (affiché grisé).
+    expect(contractLabel(SAMPLE_CONTRACT)).toBe("Ex. Charlie Vie Premium");
   });
 });
