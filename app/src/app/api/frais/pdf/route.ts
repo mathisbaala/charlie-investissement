@@ -39,7 +39,14 @@ function parseInput(raw: Record<string, unknown>): SimulationInput {
     },
     retroCgp: n(raw.retroCgp),
     commissionCabinet: n(raw.commissionCabinet),
+    contractFeeShare: n(raw.contractFeeShare),
   };
+}
+
+/** Honoraires de conseil (facturation directe, hors rétrocession) pour le doc cabinet. */
+function parseHonoraires(raw: unknown): { forfait: number; cumule: number } {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  return { forfait: Math.max(0, n(o.forfait)), cumule: Math.max(0, n(o.cumule)) };
 }
 
 function parseSupports(raw: unknown): FraisReportSupportInput[] {
@@ -77,6 +84,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     : null;
   const input = parseInput((body.input ?? {}) as Record<string, unknown>);
   const supports = parseSupports(body.supports);
+  const honoraires = parseHonoraires(body.honoraires);
 
   const horizons = Array.from(new Set([...HORIZONS_DEFAUT, input.dureeAnnees]))
     .filter((h) => h >= 1 && h <= input.dureeAnnees)
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(FraisPDF as any, { mode, clientRef, hypotheses, report });
+  const element = React.createElement(FraisPDF as any, { mode, clientRef, hypotheses, report, honoraires });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 

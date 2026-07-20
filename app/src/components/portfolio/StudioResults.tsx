@@ -15,7 +15,7 @@ import { SupportsHistory } from "@/components/portfolio/SupportsHistory";
 import { DEFAULT_CONSTRAINTS } from "@/lib/optimizer";
 import { GOAL_PRIORITY_LABELS, type ClientGoal } from "@/lib/clientProfile";
 import { goalToPlan, requiredAnnualReturn, goalSuccessProbabilityMC } from "@/lib/goalPlanning";
-import { hasAnyConvention } from "@/lib/cabinet";
+import { hasAnyConvention, loadStoredCabinet } from "@/lib/cabinet";
 import { buildRemuneration } from "@/lib/remuneration";
 import { RemunerationSummary } from "@/components/portfolio/RemunerationSummary";
 import type { ContractType } from "@/lib/insurer-envelope";
@@ -243,11 +243,14 @@ export function StudioResults() {
     const terMoyenPct = wSum > 0
       ? (terKnown.reduce((s, l) => s + (l.ter as number) * Math.max(0, l.weight), 0) / wSum) * 100
       : null;
+    const cab = loadStoredCabinet();
     return buildRemuneration(holdings, convention, {
       terMoyenPct,
       contractFeePct: contractTerms.fee,
       contractEntryPct: contractTerms.entry,
       contractTypes: contractTerms.types,
+      honoraireForfait: cab.honoraireForfait,
+      honoraireAnnuel: cab.honoraireAnnuel,
     });
   }, [shownLines, amountEur, convention, contractTerms]);
   const conventionLabel = hasAnyConvention(convention)

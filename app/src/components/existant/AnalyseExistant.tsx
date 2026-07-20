@@ -386,8 +386,8 @@ function PortefeuilleAnalyzer() {
         if (m) chosen.push({ key: `${m.company}::${m.contract}`, label: `${m.company} · ${m.contract}` });
       }
       const uniqueKeys = [...new Set(chosen.map((c) => c.key))];
-      const convention =
-        uniqueKeys.length > 0 ? cabinetContract(loadStoredCabinet(), uniqueKeys[0]) : null;
+      const cab = loadStoredCabinet();
+      const convention = uniqueKeys.length > 0 ? cabinetContract(cab, uniqueKeys[0]) : null;
       const holdings: RemuHolding[] = consolidated.map((p) => {
         const e = enriched.get(p.isin);
         return {
@@ -421,6 +421,7 @@ function PortefeuilleAnalyzer() {
       }
       const remu = buildRemuneration(holdings, convention, {
         terMoyenPct: terMoyen, contractFeePct, contractEntryPct, contractTypes,
+        honoraireForfait: cab.honoraireForfait, honoraireAnnuel: cab.honoraireAnnuel,
       });
 
       setSynthese({

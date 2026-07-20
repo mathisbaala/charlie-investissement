@@ -59,6 +59,18 @@ export function RemunerationSummary({
             <>, + {EUR.format(remu.entryOnce)} à la souscription (frais d&apos;entrée reversés)</>
           )}
         </p>
+        {(remu.honoraireAnnuel > 0 || remu.honoraireForfait > 0) && (
+          <p className="text-meta text-ink-2" data-testid="remu-honoraires">
+            Honoraires de conseil :{" "}
+            {remu.honoraireAnnuel > 0 && <strong>{EUR.format(remu.honoraireAnnuel)}/an</strong>}
+            {remu.honoraireForfait > 0 && (
+              <>{remu.honoraireAnnuel > 0 ? " + " : ""}<strong>{EUR.format(remu.honoraireForfait)}</strong> (forfait)</>
+            )}
+            {" "}facturés en sus (hors rétrocession). Revenu cabinet total :{" "}
+            <strong>{EUR.format(remu.revenuRecurrentTotal)}/an</strong>
+            {remu.revenuPonctuelTotal > 0 && <> + {EUR.format(remu.revenuPonctuelTotal)} ponctuel</>}.
+          </p>
+        )}
         {remu.clientCostAnnual != null && (
           <p className="text-caption text-muted">
             Coût client ~{EUR.format(remu.clientCostAnnual)}/an

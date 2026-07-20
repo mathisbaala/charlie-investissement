@@ -118,6 +118,15 @@ export interface Remuneration {
   clientEntryOnce: number | null;
   /** Part du coût client captée par le cabinet = récurrent / coût client (%). */
   captureSharePct: number | null;
+  // ── Honoraires de conseil (facturation directe, hors rétrocession) ──
+  /** Honoraire ponctuel facturé au client (€, une fois). */
+  honoraireForfait: number;
+  /** Honoraire récurrent facturé au client (€/an). */
+  honoraireAnnuel: number;
+  /** Revenu cabinet récurrent TOTAL (rétrocessions + honoraire annuel), €/an. */
+  revenuRecurrentTotal: number;
+  /** Revenu cabinet ponctuel TOTAL (upfront + honoraire forfait), €. */
+  revenuPonctuelTotal: number;
   // ── Détail & qualité ──
   lines: RemuLine[];
   /** Encours total pris en compte (€). */
@@ -153,6 +162,10 @@ export function buildRemuneration(
     contractFeePct?: number | null;
     contractEntryPct?: number | null;
     contractTypes?: ContractType[] | null;
+    /** Honoraire de conseil ponctuel facturé au client (€, hors rétrocession). */
+    honoraireForfait?: number | null;
+    /** Honoraire de conseil récurrent (FRACTION de l'encours/an, 0.005 = 0,50 %/an). */
+    honoraireAnnuel?: number | null;
   },
 ): Remuneration {
   const totalAmount = holdings.reduce((s, h) => s + (h.amount > 0 ? h.amount : 0), 0);
@@ -211,6 +224,21 @@ export function buildRemuneration(
   const clientEntryOnce =
     clientEntryPct != null ? Math.round((clientEntryPct / 100) * totalAmount * 100) / 100 : null;
 
+  // Honoraires de conseil : facturation directe au client, en SUS des frais du
+  // contrat, 100 % revenu cabinet. Le forfait est un montant ponctuel ; l'annuel
+  // est une fraction de l'encours/an. On les CONSOLIDE avec les rétrocessions
+  // pour le vrai revenu cabinet (« commissions et facturation réunies »).
+  const honoraireForfait =
+    opts.honoraireForfait != null && opts.honoraireForfait > 0
+      ? Math.round(opts.honoraireForfait * 100) / 100
+      : 0;
+  const honoraireAnnuel =
+    opts.honoraireAnnuel != null && opts.honoraireAnnuel > 0
+      ? Math.round(opts.honoraireAnnuel * totalAmount * 100) / 100
+      : 0;
+  const revenuRecurrentTotal = Math.round((recurringAnnual + honoraireAnnuel) * 100) / 100;
+  const revenuPonctuelTotal = Math.round((entryOnce + honoraireForfait) * 100) / 100;
+
   return {
     recurringAnnual,
     ucAnnual,
@@ -225,6 +253,10 @@ export function buildRemuneration(
     clientEntryPct,
     clientEntryOnce,
     captureSharePct,
+    honoraireForfait,
+    honoraireAnnuel,
+    revenuRecurrentTotal,
+    revenuPonctuelTotal,
     lines,
     totalAmount,
     hasConvention: hasAnyConvention(convention),

@@ -572,6 +572,52 @@ export function CabinetForm() {
           </p>
         )}
       </Card>
+
+      {/* Honoraires de conseil : facturation DIRECTE au client (hors
+          rétrocession), 100 % revenu cabinet. Consolidés avec les commissions
+          dans la rémunération par portefeuille. Politique par défaut du cabinet. */}
+      <Card className="p-5 space-y-4">
+        <div>
+          <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
+            Honoraires de conseil
+          </p>
+          <p className="text-caption text-muted-2 mt-1 leading-snug">
+            Facturés directement au client, en sus des frais du contrat. Consolidés
+            avec vos rétrocessions dans la rémunération par portefeuille.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-caption text-muted">Forfait ponctuel (bilan, mission)</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                step={100}
+                value={cabinet.honoraireForfait == null ? "" : cabinet.honoraireForfait}
+                onChange={(e) => {
+                  const n = e.target.value === "" ? null : Number(e.target.value);
+                  setCabinet((c) => ({ ...c, honoraireForfait: n == null || !Number.isFinite(n) ? null : Math.max(0, n) }));
+                }}
+                placeholder="ex : 1 500"
+                aria-label="Honoraire forfaitaire (€)"
+                className={`${inputCls} w-28`}
+              />
+              <span className="text-meta text-muted">€</span>
+            </div>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-caption text-muted">Récurrent (suivi, mandat) — %/an de l&apos;encours</span>
+            <PctInput
+              value={cabinet.honoraireAnnuel}
+              onChange={(v) => setCabinet((c) => ({ ...c, honoraireAnnuel: v }))}
+              placeholder="ex : 0,50"
+              ariaLabel="Honoraire annuel (% de l'encours)"
+              max={5}
+            />
+          </label>
+        </div>
+      </Card>
     </div>
   );
 }

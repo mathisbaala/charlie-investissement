@@ -160,6 +160,10 @@ export function FeeSimulator() {
   // contractFeeManuel = part des frais de gestion du contrat reversée.
   const [commManuel, setCommManuel] = useState<number | null>(null);
   const [contractFeeManuel, setContractFeeManuel] = useState<number | null>(null);
+  // Honoraires de conseil (facturation directe, hors rétrocession) : forfait € et
+  // récurrent %/an. Préremplis du barème « Mon cabinet », surchargeables (null).
+  const [honoraireForfaitManuel, setHonoraireForfaitManuel] = useState<number | null>(null);
+  const [honoraireAnnuelManuel, setHonoraireAnnuelManuel] = useState<number | null>(null);
   const [ucs, setUcs] = useState<UcRow[]>([]);
   // Export PDF (document client conforme DDA / fiche interne cabinet).
   const [clientRef, setClientRef] = useState("");
@@ -292,6 +296,18 @@ export function FeeSimulator() {
     convention?.contractFeeShare != null ? Math.round(convention.contractFeeShare * 1e4) / 1e2 : 0
   );
 
+  // Honoraires de conseil (facturation directe, hors rétrocession) : préremplis
+  // du barème « Mon cabinet » (forfait € + récurrent %/an de l'encours).
+  const cabinetHonoraires = useMemo(() => {
+    const cab = loadStoredCabinet();
+    return {
+      forfait: cab.honoraireForfait,
+      annuelPct: cab.honoraireAnnuel != null ? Math.round(cab.honoraireAnnuel * 1e4) / 1e2 : null,
+    };
+  }, []);
+  const honoraireForfait = honoraireForfaitManuel ?? cabinetHonoraires.forfait ?? 0;
+  const honoraireAnnuelPct = honoraireAnnuelManuel ?? cabinetHonoraires.annuelPct ?? 0;
+
   const input: SimulationInput = useMemo(() => ({
     versementInitial, versementAnnuel, dureeAnnees: duree, partUC,
     rendementUC, rendementFE,
@@ -309,6 +325,18 @@ export function FeeSimulator() {
     : null;
 
   const remuTotale = final ? final.retroCgpCumulee + final.commCabinetCumulee + final.contractFeeCumulee : 0;
+
+  // Honoraires cumulés sur l'horizon : forfait (une fois) + honoraire annuel
+  // appliqué à l'encours de chaque année. Facturés en SUS des frais du contrat,
+  // 100 % revenu cabinet → consolidés avec les rétrocessions (« revenu total »).
+  const honoraireCumule = useMemo(() => {
+    if (!final) return 0;
+    const annuel = sim.points
+      .slice(1, final.annees + 1)
+      .reduce((s, p) => s + p.valeurNette * (honoraireAnnuelPct / 100), 0);
+    return Math.round((honoraireForfait + annuel) * 100) / 100;
+  }, [sim, final, honoraireForfait, honoraireAnnuelPct]);
+  const revenuCabinetTotal = remuTotale + honoraireCumule;
 
   // Courbe de rémunération cumulée du cabinet : upfront + rétrocessions.
   const remuCurve = useMemo(() => sim.points.map((p) => ({
@@ -355,6 +383,7 @@ export function FeeSimulator() {
           mode,
           clientRef: clientRef.trim() || null,
           input,
+          honoraires: { forfait: honoraireForfait, cumule: honoraireCumule },
           supports: ucs.map((u) => ({
             isin: u.isin, name: u.name, poids: u.poids,
             ter: u.ter, entryFee: u.entryFee, retro: u.retro,
@@ -497,6 +526,13 @@ export function FeeSimulator() {
                 note={contractFeeManuel == null && convention?.contractFeeShare != null
                   ? "part des frais de gestion contrat (votre convention)"
                   : "part des frais de gestion du contrat reversée"} />
+              <div className="pt-2 mt-1 border-t border-line-soft space-y-3">
+                <p className="text-caption text-muted-2">Honoraires de conseil (facturés en sus, hors rétrocession)</p>
+                <FieldEur label="Forfait (ponctuel)" value={honoraireForfait} onChange={setHonoraireForfaitManuel} step={100} />
+                <FieldPct label="Récurrent (par an)" value={honoraireAnnuelPct} onChange={setHonoraireAnnuelManuel}
+                  note={honoraireAnnuelManuel == null && cabinetHonoraires.annuelPct != null
+                    ? "votre barème « Mon cabinet »" : "% de l'encours par an"} />
+              </div>
             </Card>
 
             <Card className="px-5 py-5 space-y-3">
@@ -589,6 +625,19 @@ export function FeeSimulator() {
                     <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an</p>
                   </div>
                 )}
+                {honoraireCumule > 0 && (
+                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                    <p className="text-caption text-muted">Honoraires de conseil</p>
+                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
+                    <p className="text-caption text-muted-2">facturés en sus (hors rétro)</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {final && honoraireCumule > 0 && (
+              <div className="flex items-baseline justify-between gap-3 mb-4 rounded-lg bg-accent-soft/40 px-3 py-2.5">
+                <p className="text-meta text-ink-2 font-medium">Revenu cabinet total (commissions + honoraires)</p>
+                <span className="text-meta text-ok font-semibold tabular-nums">{EUR.format(revenuCabinetTotal)}</span>
               </div>
             )}
             <ResponsiveContainer width="100%" height={200}>

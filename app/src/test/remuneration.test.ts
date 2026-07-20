@@ -98,6 +98,27 @@ describe("buildRemuneration (barème cabinet)", () => {
     expect(r.clientEntryOnce).toBeCloseTo(400, 6);
   });
 
+  it("consolide les honoraires de conseil (forfait + annuel) avec les rétrocessions", () => {
+    const r = buildRemuneration(holdings, convention(), {
+      terMoyenPct: 1.9, honoraireForfait: 1500, honoraireAnnuel: 0.005, // 0,50 %/an
+    });
+    // annuel : 0,50 % × 20 000 = 100 €/an ; forfait : 1 500 €
+    expect(r.honoraireAnnuel).toBeCloseTo(100, 6);
+    expect(r.honoraireForfait).toBe(1500);
+    // revenu récurrent total = récurrent (310) + honoraire annuel (100) = 410 €/an
+    expect(r.revenuRecurrentTotal).toBeCloseTo(410, 6);
+    // revenu ponctuel total = entrée reversée (200) + forfait (1 500) = 1 700 €
+    expect(r.revenuPonctuelTotal).toBeCloseTo(1700, 6);
+  });
+
+  it("honoraires absents → 0, revenus = rétrocessions seules", () => {
+    const r = buildRemuneration(holdings, convention(), { terMoyenPct: 1.9 });
+    expect(r.honoraireForfait).toBe(0);
+    expect(r.honoraireAnnuel).toBe(0);
+    expect(r.revenuRecurrentTotal).toBeCloseTo(r.recurringAnnual, 6);
+    expect(r.revenuPonctuelTotal).toBeCloseTo(r.entryOnce, 6);
+  });
+
   it("sans convention : estimation de place seule, part contrat et entrée nulles", () => {
     const r = buildRemuneration(holdings, null, { terMoyenPct: 1.9, contractTypes: null });
     // Repli : FR1 = 0,50 % → 50 €, FR2 = 0,90 % → 90 € = 140 €/an

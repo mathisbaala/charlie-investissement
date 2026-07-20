@@ -56,12 +56,25 @@ export interface CabinetSettings {
   insurers: string[];
   /** Contrats distribués, avec leur convention. */
   contracts: CabinetContract[];
+  /**
+   * Honoraire de conseil PONCTUEL facturé au client (€, hors rétrocession) —
+   * bilan patrimonial, mission de conseil. 100 % revenu cabinet, en SUS des
+   * frais du contrat. Politique par défaut du cabinet, surchargeable par étude.
+   */
+  honoraireForfait: number | null;
+  /**
+   * Honoraire de conseil RÉCURRENT (fraction de l'encours/an, 0.005 = 0,50 %/an) —
+   * suivi annuel, mandat de conseil. 100 % revenu cabinet, facturé en SUS.
+   */
+  honoraireAnnuel: number | null;
 }
 
 export const EMPTY_CABINET: CabinetSettings = {
   cabinetName: "",
   insurers: [],
   contracts: [],
+  honoraireForfait: null,
+  honoraireAnnuel: null,
 };
 
 export function emptyContract(key: string): CabinetContract {

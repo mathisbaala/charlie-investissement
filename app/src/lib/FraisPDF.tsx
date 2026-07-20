@@ -24,6 +24,8 @@ export interface FraisPdfProps {
   clientRef: string | null;
   hypotheses: FraisPdfHypotheses;
   report: FraisReport;
+  /** Honoraires de conseil (facturation directe) pour le doc cabinet : forfait + cumul. */
+  honoraires?: { forfait: number; cumule: number };
 }
 
 const S = StyleSheet.create({
@@ -228,9 +230,11 @@ function DetailSupports({ report }: { report: FraisReport }) {
   );
 }
 
-export default function FraisPDF({ mode, clientRef, hypotheses, report }: FraisPdfProps) {
+export default function FraisPDF({ mode, clientRef, hypotheses, report, honoraires }: FraisPdfProps) {
   const { final, partFraisGainBrut, remuTotale } = report;
   const isCabinet = mode === "cabinet";
+  const honoraireCumule = honoraires?.cumule ?? 0;
+  const revenuTotal = remuTotale + honoraireCumule;
   const titleDoc = isCabinet ? "Frais & rémunération" : "Vos frais, en transparence";
   const eyebrowDoc = isCabinet ? "Analyse cabinet — usage interne" : "Information sur les frais";
   const subDoc = clientRef
@@ -290,13 +294,16 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report }: FraisP
         {isCabinet && (
           <View style={S.callout}>
             <View>
-              <Text style={S.calloutLabel}>Votre rémunération sur {final.annees} ans</Text>
+              <Text style={S.calloutLabel}>
+                {honoraireCumule > 0 ? "Revenu cabinet total" : "Votre rémunération"} sur {final.annees} ans
+              </Text>
               <Text style={S.calloutSub}>
                 Rétrocessions {nfEur(final.retroCgpCumulee)} · commission d'entrée {nfEur(final.commCabinetCumulee)}
                 {final.contractFeeCumulee > 0 ? ` · part gestion contrat ${nfEur(final.contractFeeCumulee)}` : ""}
+                {honoraireCumule > 0 ? ` · honoraires ${nfEur(honoraireCumule)}` : ""}
               </Text>
             </View>
-            <Text style={S.calloutValue}>{nfEur(remuTotale)}</Text>
+            <Text style={S.calloutValue}>{nfEur(revenuTotal)}</Text>
           </View>
         )}
 
