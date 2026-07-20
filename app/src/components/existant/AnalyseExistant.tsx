@@ -23,6 +23,7 @@ import {
 } from "@/lib/analyseExistant";
 import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
 import { buildRemuneration, retroFallbackFrac, type RemuHolding, type Remuneration } from "@/lib/remuneration";
+import { RemunerationSummary } from "@/components/portfolio/RemunerationSummary";
 import { loadStoredCabinet, cabinetContract } from "@/lib/cabinet";
 import type { ContractType } from "@/lib/insurer-envelope";
 
@@ -648,9 +649,11 @@ function PortefeuilleAnalyzer() {
             <Kpi label="Frais moyens" value={synthese.terMoyen != null ? PCT(synthese.terMoyen, 2) : "—"} />
           </div>
 
-          {/* Coût client & rémunération cabinet — la traçabilité par portefeuille. */}
+          {/* Coût client & rémunération cabinet — la traçabilité par portefeuille.
+              Composant PARTAGÉ avec le parcours « construire » : même moteur, même
+              rendu, un résultat identique quel que soit le chemin d'entrée. */}
           {synthese.remu && (
-            <RemunerationSection
+            <RemunerationSummary
               remu={synthese.remu}
               conventionLabel={synthese.conventionLabel}
               multiContract={synthese.multiContract}
@@ -697,7 +700,7 @@ function PortefeuilleAnalyzer() {
           )}
 
           <Link href={simulateurHref} className="inline-block text-meta text-ink underline underline-offset-4 hover:text-accent-ink transition-colors">
-            Simuler ma rémunération sur ce portefeuille
+            Projeter les frais dans le temps et exporter un PDF →
           </Link>
         </div>
       )}
@@ -753,115 +756,6 @@ function RecoCard({ reco }: { reco: Recommendation }) {
       <h3 className="text-body font-semibold text-ink mb-1">{reco.title}</h3>
       <p className="text-meta text-muted leading-relaxed">{reco.detail}</p>
     </Card>
-  );
-}
-
-/**
- * Coût client & rémunération cabinet du portefeuille consolidé : ce que le
- * portefeuille coûte au client (CTD) et ce qu'il rapporte au CGP (récurrent +
- * ponctuel), selon le barème « Mon cabinet » (ou l'estimation de place à défaut).
- * C'est la traçabilité par portefeuille demandée — la rému est toujours une
- * tranche du coût client (cf. lib/remuneration).
- */
-function RemunerationSection({
-  remu,
-  conventionLabel,
-  multiContract,
-}: {
-  remu: Remuneration;
-  conventionLabel: string | null;
-  multiContract: boolean;
-}) {
-  return (
-    <section data-testid="remu-section">
-      <h2 className="text-title text-ink mb-1">Coût client &amp; rémunération cabinet</h2>
-      <p className="text-caption text-muted mb-3">
-        {conventionLabel ? (
-          <>
-            Selon la convention de <strong className="text-ink-2">{conventionLabel}</strong> saisie dans Mon cabinet
-            {multiContract && " (plusieurs contrats reconnus — convention du premier appliquée)"}. Non contractuel.
-          </>
-        ) : (
-          <>
-            Estimation de place —{" "}
-            <Link href="/cabinet" className="underline underline-offset-2 hover:text-ink">
-              rattachez ce contrat dans Mon cabinet
-            </Link>{" "}
-            pour vos vrais taux. Non contractuel.
-          </>
-        )}
-      </p>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-3">
-        <Kpi label="Rému. récurrente" value={`${EUR.format(remu.recurringAnnual)}/an`} />
-        <Kpi label="Taux de rétro" value={remu.retroRatePct != null ? PCT(remu.retroRatePct, 2) : "—"} />
-        <Kpi label="Coût client (CTD)" value={remu.clientCostPct != null ? `${PCT(remu.clientCostPct, 2)}/an` : "—"} />
-        <Kpi label="Part du coût captée" value={remu.captureSharePct != null ? PCT(remu.captureSharePct, 0) : "—"} />
-      </div>
-
-      <Card className="p-4 space-y-2">
-        <p className="text-meta text-ink-2" data-testid="remu-summary">
-          Récurrent : <strong>{EUR.format(remu.recurringAnnual)}/an</strong>{" "}
-          ({EUR.format(remu.ucAnnual)} rétrocessions UC + {EUR.format(remu.contractAnnual)} part contrat)
-          {remu.entryOnce > 0 && (
-            <>, + {EUR.format(remu.entryOnce)} à la souscription (frais d&apos;entrée reversés)</>
-          )}
-        </p>
-        {remu.clientCostAnnual != null && (
-          <p className="text-caption text-muted">
-            Coût client ~{EUR.format(remu.clientCostAnnual)}/an
-            {" "}({PCT(remu.supportsPct ?? 0, 2)} frais fonds + {PCT(remu.contractPct, 2)} frais contrat
-            {remu.contractSourced ? "" : " indicatif"})
-            {remu.clientEntryOnce != null && remu.clientEntryOnce > 0 && (
-              <> · + {EUR.format(remu.clientEntryOnce)} de frais d&apos;entrée du contrat ({PCT(remu.clientEntryPct ?? 0, 2)}) à la souscription</>
-            )}
-            {remu.captureSharePct != null && <> · vous en captez {PCT(remu.captureSharePct, 0)}</>}.
-          </p>
-        )}
-        {remu.unknownRetroLines > 0 && (
-          <p className="text-caption text-muted-2">
-            {remu.unknownRetroLines} ligne{remu.unknownRetroLines > 1 ? "s" : ""} sans donnée de rétrocession.
-          </p>
-        )}
-
-        {remu.lines.some((l) => l.retroFrac != null) && (
-          <div className="overflow-x-auto pt-1">
-            <table className="w-full text-caption">
-              <thead>
-                <tr className="text-left text-muted border-b border-line-soft">
-                  <th className="py-1.5 pr-3 font-medium">Support</th>
-                  <th className="py-1.5 pr-3 font-medium text-right">Montant</th>
-                  <th className="py-1.5 pr-3 font-medium text-right">Rétro.</th>
-                  <th className="py-1.5 font-medium text-right">Rému./an</th>
-                </tr>
-              </thead>
-              <tbody>
-                {remu.lines.map((l) => (
-                  <tr key={l.isin} className="border-b border-line-soft/60">
-                    <td className="py-1.5 pr-3 text-ink truncate max-w-[16rem]" title={l.name}>{l.name}</td>
-                    <td className="py-1.5 pr-3 text-right text-muted">{EUR.format(l.amount)}</td>
-                    <td className="py-1.5 pr-3 text-right text-muted">
-                      {l.retroFrac != null ? (
-                        <>
-                          {PCT(l.retroFrac * 100, 2)}
-                          {!l.sourced && <span className="text-muted-2"> ~</span>}
-                        </>
-                      ) : "—"}
-                    </td>
-                    <td className="py-1.5 text-right text-ink-2">
-                      {l.retroAnnual > 0 ? `${EUR.format(l.retroAnnual)}/an` : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-caption text-muted-2 mt-1.5">
-              « ~ » = estimation de place (taux non fixé par votre convention).
-            </p>
-          </div>
-        )}
-      </Card>
-    </section>
   );
 }
 

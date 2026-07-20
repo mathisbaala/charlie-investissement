@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
@@ -15,7 +15,10 @@ import { SupportsHistory } from "@/components/portfolio/SupportsHistory";
 import { DEFAULT_CONSTRAINTS } from "@/lib/optimizer";
 import { GOAL_PRIORITY_LABELS, type ClientGoal } from "@/lib/clientProfile";
 import { goalToPlan, requiredAnnualReturn, goalSuccessProbabilityMC } from "@/lib/goalPlanning";
-import { resolveFundRetrocession, hasAnyConvention } from "@/lib/cabinet";
+import { hasAnyConvention } from "@/lib/cabinet";
+import { buildRemuneration } from "@/lib/remuneration";
+import { RemunerationSummary } from "@/components/portfolio/RemunerationSummary";
+import type { ContractType } from "@/lib/insurer-envelope";
 import { usePortfolioStudio, shortName, type PocketStats } from "@/components/portfolio/PortfolioStudioContext";
 
 // ─── Matrice de corrélation des lignes retenues ───────────────────────────────
@@ -186,7 +189,7 @@ export function StudioResults() {
     corr, summary, amountEur, horizon, lastRemoved, excluded, profile,
     removeFund, includeFund, restoreFund,
     resultCov, effectiveResult, effectivePresentation, projected,
-    pdfBusy, pptBusy, downloadPdf, downloadPptx, retroTilt, convention, source,
+    pdfBusy, pptBusy, downloadPdf, downloadPptx, convention, contract, source,
     errorMsg,
   } = usePortfolioStudio();
 
@@ -194,6 +197,62 @@ export function StudioResults() {
   useEffect(() => {
     if (!result || !presentation) router.replace("/portefeuille/construire");
   }, [result, presentation, router]);
+
+  // Frais du contrat SÉLECTIONNÉ (av_contract_terms) pour un coût client exact,
+  // comme le parcours « déposer » : mêmes données, même calcul. Repli indicatif
+  // si le contrat n'est pas en base (ou mode démo sans clé "::").
+  const [contractTerms, setContractTerms] = useState<{
+    fee: number | null; entry: number | null; types: ContractType[] | null;
+  }>({ fee: null, entry: null, types: null });
+  useEffect(() => {
+    if (!contract || !contract.includes("::")) {
+      setContractTerms({ fee: null, entry: null, types: null });
+      return;
+    }
+    let alive = true;
+    fetch(`/api/contract/terms?key=${encodeURIComponent(contract)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((t) => {
+        if (!alive) return;
+        setContractTerms(
+          t?.found
+            ? { fee: t.frais_gestion_uc_pct ?? null, entry: t.frais_entree_pct ?? null, types: (t.types ?? null) as ContractType[] | null }
+            : { fee: null, entry: null, types: null },
+        );
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [contract]);
+
+  const shownLines = (effectiveResult ?? result)?.lines ?? [];
+  // Coût client + rémunération cabinet, MÊME moteur (lib/remuneration) et MÊME
+  // rendu (RemunerationSummary) que le parcours « déposer ». Snapshot au montant
+  // du projet client ; null tant qu'aucun montant n'est saisi.
+  const remu = useMemo(() => {
+    if (amountEur == null || amountEur <= 0 || shownLines.length === 0) return null;
+    const totalW = shownLines.reduce((s, l) => s + Math.max(0, l.weight), 0) || 1;
+    const holdings = shownLines.map((l) => ({
+      isin: l.isin,
+      name: l.name,
+      amount: amountEur * (Math.max(0, l.weight) / totalW),
+      terFrac: l.ter ?? null,
+      retroFallbackFrac: l.retrocession ?? null,
+    }));
+    const terKnown = shownLines.filter((l) => l.ter != null);
+    const wSum = terKnown.reduce((s, l) => s + Math.max(0, l.weight), 0);
+    const terMoyenPct = wSum > 0
+      ? (terKnown.reduce((s, l) => s + (l.ter as number) * Math.max(0, l.weight), 0) / wSum) * 100
+      : null;
+    return buildRemuneration(holdings, convention, {
+      terMoyenPct,
+      contractFeePct: contractTerms.fee,
+      contractEntryPct: contractTerms.entry,
+      contractTypes: contractTerms.types,
+    });
+  }, [shownLines, amountEur, convention, contractTerms]);
+  const conventionLabel = hasAnyConvention(convention)
+    ? (contract.includes("::") ? contract.split("::")[1] : contract)
+    : null;
 
   if (!presentation || !result) return null;
 
@@ -287,41 +346,12 @@ export function StudioResults() {
         </Card>
       )}
 
-      {/* Rémunération cabinet (visible seulement si le départage est activé). */}
-      {retroTilt && amountEur != null && amountEur > 0 && (() => {
-        const lines = shown.lines;
-        const known = lines.filter((l) => l.retrocession != null);
-        if (known.length === 0 && convention?.contractFeeShare == null && convention?.entryFeeShare == null) return null;
-        const ucAnnual = lines.reduce((s, l) => {
-          const retro = resolveFundRetrocession(convention, l.isin, l.ter ?? null, l.retrocession ?? null);
-          return s + (l.weight / 100) * (retro ?? 0) * amountEur;
-        }, 0);
-        const contractAnnual = (convention?.contractFeeShare ?? 0) * amountEur;
-        const total = ucAnnual + contractAnnual;
-        // Frais d'entrée reversés : montant UNE FOIS, à la souscription (pas
-        // annualisé — il ne s'additionne donc pas au récurrent).
-        const entryOnce = (convention?.entryFeeShare ?? 0) * amountEur;
-        const hasConvention = hasAnyConvention(convention);
-        return (
-          <Card className="px-5 py-4 bg-paper-2">
-            <span className="text-meta text-ink-2">
-              Rémunération cabinet estimée : <strong>~{Math.round(total).toLocaleString("fr-FR")} €/an</strong>
-              {" "}sur {amountEur.toLocaleString("fr-FR")} € investis
-              {contractAnnual > 0 && (
-                <> ({Math.round(contractAnnual).toLocaleString("fr-FR")} € part contrat
-                {" "}+ {Math.round(ucAnnual).toLocaleString("fr-FR")} € rétrocessions UC)</>
-              )}
-              {entryOnce > 0 && (
-                <>, + {Math.round(entryOnce).toLocaleString("fr-FR")} € à la souscription (frais d&apos;entrée reversés)</>
-              )}
-              {known.length < lines.length ? `, ${lines.length - known.length} ligne(s) sans donnée` : ""}
-              {" "}: {hasConvention
-                ? "selon vos conventions saisies dans Mon cabinet, non contractuel."
-                : "estimation à défaut des conventions réelles (à saisir dans Mon cabinet), non contractuelle."}
-            </span>
-          </Card>
-        );
-      })()}
+      {/* Coût client & rémunération cabinet — bloc PARTAGÉ avec le parcours
+          « déposer » (même moteur, même rendu). Visible dès qu'un montant de
+          projet client est saisi ; indépendant du départage rémunération. */}
+      {remu && (
+        <RemunerationSummary remu={remu} conventionLabel={conventionLabel} />
+      )}
 
       {/* Projets du client : une poche dédiée par projet. */}
       <GoalsCard
