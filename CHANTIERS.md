@@ -117,7 +117,7 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ### Exclusions sectorielles ESG réelles (EET) — code livré, collecte à lancer
 - **Priorité** : 🟡 Moyenne
 - **Détecté le** : 2026-07-21
-- **Où** : `supabase/migrations/20260721140000_esg_exclusions.sql` + `scripts/scrapers/esg-exclusions-enricher.py` + `app/src/lib/profileToConstraints.ts` (`passesSectorExclusions`, `EXCLUSION_GUARANTEE_LABELS`)
+- **Où** : `supabase/migrations/20260721160000_esg_exclusions.sql` + `scripts/scrapers/esg-exclusions-enricher.py` + `app/src/lib/profileToConstraints.ts` (`passesSectorExclusions`, `EXCLUSION_GUARANTEE_LABELS`)
 - **Le problème** : le générateur d'allocation applique les exclusions client (tabac/armes/fossiles/jeux/alcool) sans donnée fonds par fonds — `investissement_funds` ne portait rien. Livré (21/07) : colonne `esg_exclusions` jsonb (+ source + date), ingestion des fichiers EET (FinDatEx) par pattern-matching d'en-têtes, moteur branché (donnée EET prioritaire, repli proxy labels ISR/Greenfin, best-effort jeux/alcool), exclusions jamais levées par l'assouplissement gracieux. `tsc` 0, 840 tests verts.
 - **Comment l'aborder** : 1) **appliquer la migration** via MCP Supabase (`apply_migration`, project `dehigtgzizsdehyhmjxn`) AVANT tout déploiement du code app (la vue `_ref` doit porter la colonne) ; 2) récupérer des fichiers EET de SGP (pages « informations durabilité » SFDR, doc centers, fundinfo.com, fundkis.com/disclose — cf. `data/eet/README.md`) ; 3) `python3 scripts/scrapers/esg-exclusions-enricher.py --dir data/eet/ --apply`.
 - **Effort estimé** : moyen (la collecte des fichiers EET est le gros du travail restant)

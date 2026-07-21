@@ -244,11 +244,11 @@ def run(files: list[Path], apply: bool, overwrite: bool, limit: int | None,
         try:
             r = client.table("investissement_funds").select(cols).in_("isin", chunk).execute()
         except Exception as e:
-            # Migration 20260721140000 pas encore appliquée : on peut dry-runner,
+            # Migration 20260721160000 pas encore appliquée : on peut dry-runner,
             # mais pas écrire.
             if has_column and "esg_exclusions" in str(e):
                 has_column = False
-                print("  ⚠️  Colonne esg_exclusions absente en base — appliquer la migration 20260721140000 avant --apply.")
+                print("  ⚠️  Colonne esg_exclusions absente en base — appliquer la migration 20260721160000 avant --apply.")
                 r = client.table("investissement_funds").select("isin").in_("isin", chunk).execute()
             else:
                 raise

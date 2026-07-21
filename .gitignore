@@ -45,3 +45,8 @@ Thumbs.db
 .gstack/
 .claude/
 .vercel
+
+# Fichiers EET (données vendeur, volumineuses) — gardés en local pour l’ingestion
+data/eet/*.xlsx
+data/eet/*.csv
+data/eet/*.zip
