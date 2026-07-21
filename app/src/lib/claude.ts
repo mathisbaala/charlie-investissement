@@ -14,9 +14,12 @@ function getClient(): Anthropic {
 // Modèle pour les tâches d'extraction structurée (phrase / PDF → JSON).
 // Haiku 4.5 : ~3× moins cher que Sonnet en entrée comme en sortie, largement
 // suffisant pour du mapping déterministe vers des filtres.
-// NB : le prompt caching n'est PAS activé ici — les system prompts (~500-2500 tokens)
-// restent sous le seuil minimum cachable de Haiku (4096 tokens), le cache ne se
-// déclencherait donc jamais. Le gain de coût vient entièrement du choix du modèle.
+// PROMPT CACHING : le seuil minimum cachable de Haiku est de 4096 tokens ; en
+// dessous, `cache_control` est un no-op silencieux. Seul le prompt de
+// parseFrenchQuery (~4900 tokens, système figé et réutilisé à chaque recherche NL)
+// dépasse ce seuil → on l'active LÀ uniquement (voir plus bas). Les prompts DICI
+// (~850), profil (~800) et relevé (~440 tokens) restent sous le seuil : inutile
+// de les cacher, ce serait sans effet.
 export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
 // ─── Validation / nettoyage de la sortie LLM ────────────────────────────────
@@ -161,7 +164,23 @@ export function sanitizeParsedFilters(raw: unknown): ParsedFilters {
   return out;
 }
 
+// Résultat discriminé de l'interprétation NL. `ok` distingue un vrai succès du
+// modèle (même si les filtres sont vides — le modèle a bien répondu « rien à
+// filtrer ») d'un repli sur erreur (clé manquante / rate-limit / timeout / JSON
+// illisible). Seul un succès doit être mis en cache : mémoriser un repli `{}`
+// empoisonnerait le cache avec une interprétation ratée.
+export type ParseOutcome = { filters: ParsedFilters; ok: boolean };
+
+/**
+ * Interprète une requête NL et renvoie les filtres AVEC l'information de succès.
+ * `parseFrenchQuery` reste le point d'entrée simple ; cette variante sert aux
+ * appelants qui décident de mettre en cache (uniquement sur `ok === true`).
+ */
 export async function parseFrenchQuery(query: string): Promise<ParsedFilters> {
+  return (await parseFrenchQueryResult(query)).filters;
+}
+
+export async function parseFrenchQueryResult(query: string): Promise<ParseOutcome> {
   const sanitized = query.slice(0, 500).replace(/[<>]/g, "");
 
   const SYSTEM = `Tu es un assistant qui convertit des requêtes en langage naturel français en filtres JSON pour un screener de fonds d'investissement.
@@ -357,18 +376,25 @@ Retourne UNIQUEMENT l'objet JSON. Pas d'explication.`;
     const response = await getClient().messages.create({
       model: EXTRACTION_MODEL,
       max_tokens: 512,
-      system: SYSTEM,
+      // Le system prompt (~4900 tokens) est identique à chaque recherche NL ; seule
+      // la requête (dans `messages`, donc après le préfixe) change. On met en cache
+      // le préfixe figé : dans une fenêtre de 5 min (TTL éphémère), les recherches
+      // distinctes suivantes le relisent à ~0,1× au lieu de le repayer plein tarif
+      // (écriture +25% la 1re fois, rentable dès la 2e requête). Se cumule au cache
+      // applicatif de /api/parse, qui lui évite carrément l'appel sur les répétitions.
+      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: sanitized }],
     });
     const text = response.content[0].type === "text" ? response.content[0].text : "{}";
     const json = text.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
     // Validation : on n'expose que des champs/valeurs connus (cf. sanitizeParsedFilters).
-    return sanitizeParsedFilters(JSON.parse(json));
+    return { filters: sanitizeParsedFilters(JSON.parse(json)), ok: true };
   } catch (e) {
     // Repli {} = « Filtres intelligents indisponibles » côté UI. Le log permet
     // de distinguer clé manquante / rate-limit / timeout d'un vrai 0 résultat.
+    // ok:false → l'appelant NE met PAS ce repli en cache.
     console.error("[claude] parseFrenchQuery a échoué (repli sur {}):", e);
-    return {};
+    return { filters: {}, ok: false };
   }
 }
 
