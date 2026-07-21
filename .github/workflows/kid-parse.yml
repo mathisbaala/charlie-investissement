@@ -17,6 +17,12 @@ name: Parsing KID (frais/SRI)
 # structurés à frais embarqués (0%). Lancer d'abord un canary (limit bas) pour
 # mesurer le rendement réel avant un run complet.
 on:
+  # Cron mensuel : sweep DÉTERMINISTE (regex seule, 0 token IA) des KID jamais
+  # lus, pour rattraper les nouveaux ISIN sans intervention manuelle. Le fallback
+  # LLM reste réservé aux runs manuels (llm=true). 22 du mois → jour-du-mois seul
+  # (pas de piège cron dom/dow), décalé des refresh AV (12) et SFDR (mardi).
+  schedule:
+    - cron: "30 4 22 * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -64,11 +70,13 @@ jobs:
       - name: Parser les KID
         run: |
           set -euo pipefail
-          SEL=""
-          if [ "${{ inputs.mode }}" = "ter-null" ]; then SEL="--ter-null"; fi
-          LLM=""
-          if [ "${{ inputs.llm }}" = "true" ]; then LLM="--llm"; fi
-          LIM=""
-          if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
+          # Sur cron, les inputs sont vides → défauts déterministes (unparsed,
+          # regex seule, borné). Sur dispatch, les valeurs saisies priment et le
+          # comportement historique (ter-null + LLM + limit 60) est préservé.
+          MODE="${{ inputs.mode }}";      [ -z "$MODE" ]   && MODE="unparsed"
+          MINAUM="${{ inputs.min_aum }}"; [ -z "$MINAUM" ] && MINAUM="0"
+          LIMIT="${{ inputs.limit }}";    [ -z "$LIMIT" ]  && LIMIT="800"
+          SEL=""; [ "$MODE" = "ter-null" ] && SEL="--ter-null"
+          LLM=""; [ "${{ inputs.llm }}" = "true" ] && LLM="--llm"
           python3 scripts/scrapers/kid-bulk-parser.py \
-            --apply $SEL $LLM $LIM --min-aum "${{ inputs.min_aum }}" --workers 10
+            --apply $SEL $LLM --limit "$LIMIT" --min-aum "$MINAUM" --workers 10
