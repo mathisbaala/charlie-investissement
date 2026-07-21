@@ -52,6 +52,9 @@ jobs:
   kid-parse:
     runs-on: ubuntu-latest
     timeout-minutes: 300
+    permissions:
+      contents: read
+      issues: write # ouvrir/commenter une issue d'alerte en cas d'échec
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -80,3 +83,23 @@ jobs:
           LLM=""; [ "${{ inputs.llm }}" = "true" ] && LLM="--llm"
           python3 scripts/scrapers/kid-bulk-parser.py \
             --apply $SEL $LLM --limit "$LIMIT" --min-aum "$MINAUM" --workers 10
+
+      # Alerte persistante si le parsing a échoué : réutilise l'issue ouverte
+      # (pas de spam) ou en crée une. GITHUB_TOKEN intégré, aucun secret externe.
+      - name: Alerte en cas d'échec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MARKER="[alerte-kid-parse]"
+          EXISTING=$(gh issue list --state open --search "$MARKER in:title" --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "Nouvel échec le $(date -u '+%Y-%m-%d %H:%MZ') — $RUN_URL"
+          else
+            printf '%s\n\n%s\n\n%s\n' \
+              "Le parsing KID (frais/SRI) a échoué." \
+              "Run : $RUN_URL" \
+              "À investiguer puis refermer cette issue (elle sera réutilisée si l'échec se répète)." \
+              | gh issue create --title "$MARKER Parsing KID en échec" --body-file -
+          fi

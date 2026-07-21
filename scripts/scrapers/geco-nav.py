@@ -440,7 +440,13 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
         print(f"  {len(errors)} erreurs (5 premières) : "
               + ", ".join(f"{e['isin']}:{e['error']}" for e in errors[:5]))
 
-    if apply:
+    # On ne trace un pipeline_run QUE pour les runs batch. En mode mono-ISIN
+    # (test, ou probe ciblée de prune-unenriched-seeds qui lance geco-nav --isin
+    # par seed), chaque appel écrirait une ligne processed=0/failed=1 : des
+    # centaines de lignes parasites/semaine qui faussent les agrégats de suivi
+    # (et avaient fait passer les seeds sans VL GECO pour un « fetch cassé »).
+    # La série VL est écrite dans tous les cas ; seul le bookkeeping est sauté.
+    if apply and not isin_arg:
         status = "success" if state["ok"] else "partial"
         log_run(SOURCE, status, records_processed=state["ok"],
                 records_failed=state["no_share"] + state["no_nav"],

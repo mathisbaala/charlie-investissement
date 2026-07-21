@@ -513,13 +513,16 @@ def run(apply: bool, limit: int | None, isin_filter: str | None):
         print(f"  Écriture dans Supabase ({len(updates)} fonds)...", end=" ", flush=True)
         ok, fail = update_funds_bulk(updates, batch_size=200)
         print(f"✓ {ok} OK, {fail} échec")
-        log_run(
-            scraper="compute-metrics",
-            status="success",
-            records_processed=ok,
-            records_failed=fail,
-            started_at=started,
-        )
+        # Pas de pipeline_run en mode mono-ISIN (probe ciblée de
+        # prune-unenriched-seeds) : évite des centaines de lignes parasites/semaine.
+        if not isin_filter:
+            log_run(
+                scraper="compute-metrics",
+                status="success",
+                records_processed=ok,
+                records_failed=fail,
+                started_at=started,
+            )
     elif not apply and updates:
         print("\n  Aperçu (3 premiers) :")
         for r in updates[:3]:

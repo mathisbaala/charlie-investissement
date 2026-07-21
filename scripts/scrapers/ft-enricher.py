@@ -836,14 +836,19 @@ def run(apply: bool, limit: int | None, isin_arg: str | None, workers: int,
         bstats = write_breakdowns(client, results, replace=refresh_breakdowns)
         print(f"    {bstats}")
 
-    log_run(
-        scraper="ft-enricher",
-        status="success" if not errors else "partial",
-        records_processed=found,
-        records_failed=len(errors),
-        errors=errors[:50],
-        started_at=started,
-    )
+    # Pas de pipeline_run en mode mono-ISIN (test / probe ciblée de
+    # prune-unenriched-seeds) : sinon des centaines de lignes parasites/semaine
+    # qui faussent les agrégats de suivi. L'enrichissement est écrit dans tous
+    # les cas ; seul le bookkeeping batch est sauté.
+    if not isin_arg:
+        log_run(
+            scraper="ft-enricher",
+            status="success" if not errors else "partial",
+            records_processed=found,
+            records_failed=len(errors),
+            errors=errors[:50],
+            started_at=started,
+        )
     print("\n  ✓ Terminé. Lancez ensuite :")
     print("    python3 scripts/enrichers/compute-metrics.py --apply")
 
