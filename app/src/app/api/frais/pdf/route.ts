@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import FraisPDF, { type FraisPdfHypotheses } from "@/lib/FraisPDF";
@@ -17,6 +19,21 @@ export const runtime = "nodejs";
 // consommateur de CPU.
 
 const MAX_SUPPORTS = 20;
+
+// Logo officiel Charlie (« C ») embarqué en data URI : lecture disque au rendu
+// (route Node), sans dépendance réseau. Mémoïsé entre requêtes (module scope).
+// En cas d'échec, le document retombe sur la pastille clay (fallback BrandHeader).
+let logoCache: string | null | undefined;
+async function loadLogo(): Promise<string | null> {
+  if (logoCache !== undefined) return logoCache;
+  try {
+    const png = await readFile(join(process.cwd(), "public", "charlie-logo.png"));
+    logoCache = `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    logoCache = null;
+  }
+  return logoCache;
+}
 
 const n = (v: unknown, def = 0): number => {
   const x = Number(v);
@@ -108,8 +125,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     commissionCabinet: input.commissionCabinet ?? 0,
   };
 
+  const logo = await loadLogo();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(FraisPDF as any, { mode, clientRef, hypotheses, report });
+  const element = React.createElement(FraisPDF as any, { mode, clientRef, hypotheses, report, logo });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 

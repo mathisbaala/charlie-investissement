@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import { C, FONT, perfColor } from "./theme";
 
@@ -37,6 +37,17 @@ export const nfEur = (v: number) =>
 export const dateFr = (d?: string | number | Date) =>
   new Date(d ?? Date.now()).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
+// DM Mono a un zéro barré : parfait pour aligner des colonnes de chiffres, mais
+// sur une valeur nulle isolée (« 0 € », « 0,00 % », « n.c. ») le glyphe barré
+// surprend dans un document client. On rebascule alors ces seules valeurs en
+// Inter (zéro non barré). À appliquer en dernier dans un tableau de styles pour
+// écraser le fontFamily mono.
+const NIL_RE = /^[+-]?0([.,]0+)?\s*(€|%)?$/;
+export function sansIfNil(value: string): Style {
+  const t = value.trim();
+  return t === "n.c." || NIL_RE.test(t) ? { fontFamily: FONT.sans } : {};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitives visuelles
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,10 +61,14 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     color: C.muted,
   },
-  // En-tête de marque (haut de page)
-  brand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  wordmark: { flexDirection: "row", alignItems: "center", gap: 8 },
-  wordmarkText: { fontFamily: FONT.sans, fontSize: 16, color: C.ink },
+  // En-tête de marque (letterhead) — vrai logo « C » + logotype Charlie
+  brand: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    borderBottomWidth: 0.75, borderBottomColor: C.lineSoft, paddingBottom: 10, marginBottom: 18,
+  },
+  wordmark: { flexDirection: "row", alignItems: "center", gap: 7 },
+  logoImg: { width: 17, height: 17 },
+  wordmarkText: { fontFamily: FONT.sans, fontWeight: 600, fontSize: 15, letterSpacing: -0.2, color: C.ink },
   dot: { width: 5, height: 5, borderRadius: 5, backgroundColor: C.clay },
   // Chips / badges
   chip: {
@@ -106,13 +121,14 @@ export function Eyebrow({ children, style }: { children: React.ReactNode; style?
   return <Text style={style ? [s.eyebrow, style] : s.eyebrow}>{children}</Text>;
 }
 
-export function BrandHeader({ right }: { right?: React.ReactNode }) {
+/** En-tête letterhead. `logo` = data URI du « C » officiel (chargé côté serveur) ;
+    à défaut, on retombe sur la pastille clay historique. */
+export function BrandHeader({ right, logo }: { right?: React.ReactNode; logo?: string }) {
   return (
     <View style={s.brand}>
       <View style={s.wordmark}>
-        <View style={s.dot} />
+        {logo ? <Image src={logo} style={s.logoImg} /> : <View style={s.dot} />}
         <Text style={s.wordmarkText}>Charlie</Text>
-        <Eyebrow style={{ color: C.muted }}>CGP</Eyebrow>
       </View>
       {right ?? null}
     </View>
@@ -161,7 +177,7 @@ export function Row({ label, value, tone }: { label: string; value: string; tone
   return (
     <View style={s.row}>
       <Text style={s.rowLabel}>{label}</Text>
-      <Text style={[s.rowValue, { color }]}>{value}</Text>
+      <Text style={[s.rowValue, { color }, sansIfNil(value)]}>{value}</Text>
     </View>
   );
 }
