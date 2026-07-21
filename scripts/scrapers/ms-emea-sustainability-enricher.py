@@ -112,38 +112,40 @@ def load_targets(client, only_isins: set[str] | None = None) -> list[str]:
 
 
 def probe(sample: int):
-    """Teste chaque champ candidat sur un échantillon d'Article 9 et rapporte
-    le taux de remplissage — sert à identifier les vrais securityDataPoints."""
-    client = get_client()
-    rows = (client.table("investissement_funds").select("isin")
-            .in_("product_type", ["opcvm", "etf"]).eq("sfdr_article", 9)
-            .limit(sample).execute().data or [])
-    target = {r["isin"] for r in rows}
-    print(f"  Probe sur {len(target)} fonds Article 9\n")
+    """Teste la présence des champs candidats sur la page 1 COMPLÈTE (2000 fonds)
+    de chaque univers, avec KID_SRI en témoin (doit remonter → prouve que l'appel
+    marche). Conclusif : si seul le témoin remonte, le screener n'expose PAS la
+    durabilité SFDR (→ basculer sur le document annexe doctype=398)."""
     token = get_token()
+    control = "KID_SRI"
+    all_fields = [control] + [f for fs in CANDIDATE_FIELDS.values() for f in fs]
 
-    for col, candidates in CANDIDATE_FIELDS.items():
-        print(f"── {col} ──")
-        for field in candidates:
-            hits, examples = 0, []
-            for universe in UNIVERSES:
+    for universe in UNIVERSES:
+        print(f"── univers {universe} (page 1 = {PAGE_SIZE} fonds) ──", flush=True)
+        rows = None
+        try:  # 1 seul appel avec tous les champs (MS ignore les inconnus en principe)
+            rows = _screener_page(token, universe, "ISIN|" + "|".join(all_fields), 1).get("rows", [])
+        except Exception as e:
+            print(f"    appel combiné en échec ({str(e)[:60]}) → champ par champ")
+        if rows is not None:
+            n = len(rows)
+            for f in all_fields:
+                hits = sum(1 for r in rows if r.get(f) not in (None, ""))
+                ex = next((f"{r.get('ISIN')}={r.get(f)}" for r in rows if r.get(f) not in (None, "")), "")
+                tag = "  ← TÉMOIN" if f == control else ("  ✅" if hits else "")
+                print(f"    {f:45s}: {hits:4d}/{n}{tag}   {ex}")
+        else:
+            for f in all_fields:
                 try:
-                    data = _screener_page(token, universe, f"ISIN|{field}", 1)
+                    rws = _screener_page(token, universe, f"ISIN|{f}", 1).get("rows", [])
+                    hits = sum(1 for r in rws if r.get(f) not in (None, ""))
+                    print(f"    {f:45s}: {hits:4d}/{len(rws)}")
                 except Exception as e:
-                    print(f"    {field:45s} : ERREUR {str(e)[:60]}")
-                    break
-                for row in data.get("rows", []):
-                    isin = (row.get("ISIN") or "").strip()
-                    val  = row.get(field)
-                    if isin in target and val is not None and val != "":
-                        hits += 1
-                        if len(examples) < 3:
-                            examples.append(f"{isin}={val}")
+                    print(f"    {f:45s}: ERREUR {str(e)[:50]}")
                 time.sleep(0.2)
-            flag = "  ✅" if hits else ""
-            print(f"    {field:45s} : {hits:3d} valeurs{flag}   {', '.join(examples)}")
-        print()
-    print("→ Renseigner CONFIRMED_FIELDS avec les IDs ✅, puis lancer --apply.")
+        print(flush=True)
+    print("→ Champ SFDR avec des hits = exploitable (figer dans CONFIRMED_FIELDS, puis --apply).")
+    print("  Si SEUL KID_SRI (témoin) remonte → screener sans durabilité SFDR → plan B doctype=398.")
 
 
 def _coerce(col: str, val):
