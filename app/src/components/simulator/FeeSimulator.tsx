@@ -12,7 +12,7 @@ import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
   simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
-  reductionRendementAnnuelle, coutAnnuelMoyenPct, remunerationSupport, HORIZONS_DEFAUT,
+  reductionRendementAnnuelle, remunerationSupport, HORIZONS_DEFAUT,
   type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
@@ -437,10 +437,6 @@ export function FeeSimulator() {
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
   const riy = final ? reductionRendementAnnuelle(final) : 0;
-  // Coût annuel moyen en % de l'encours (« taux de frais annuel » façon OGC) :
-  // le langage du CGP pour comparer deux enveloppes. Remplace l'ancien « gain
-  // net » (projection de performance, hors-mission et sensible côté DDA).
-  const coutAnnuelMoyen = final ? coutAnnuelMoyenPct(sim.points, final) : null;
   const coutPctVersements = final && final.versementsCumules > 0
     ? (coutTotalClient / final.versementsCumules) * 100 : null;
   // Ventilation du coût client par NATURE (DDA/MIF2) à l'horizon final.
@@ -675,7 +671,7 @@ export function FeeSimulator() {
                 {
                   titre: "Ce que je gagne",
                   tiles: [
-                    { label: "Rému cabinet", value: EUR.format(revenuCabinet), tone: "ok" },
+                    { label: "Rémunération", value: EUR.format(revenuCabinet), tone: "ok" },
                     { label: "À l'entrée", value: EUR.format(revenuUpfront), tone: "ok" },
                     { label: "Récurrent", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok" },
                   ],
@@ -683,8 +679,7 @@ export function FeeSimulator() {
                 {
                   titre: "Côté client",
                   tiles: [
-                    { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
-                    { label: "Coût annuel moyen", value: coutAnnuelMoyen != null ? `${pct(coutAnnuelMoyen)}/an` : "—", tone: null },
+                    { label: "Coût total", value: EUR.format(coutTotalClient), tone: null },
                     { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
                   ],
                 },
