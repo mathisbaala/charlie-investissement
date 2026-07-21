@@ -40,23 +40,20 @@ function keyFor(norm: string): string {
 
 /**
  * Renvoie les filtres mémorisés pour cette requête normalisée, ou `null` (miss /
- * périmé / erreur). Sur hit, incrémente le compteur en fire-and-forget (n'attend
- * pas — la réponse n'est jamais ralentie par la télémétrie).
+ * périmé / erreur). Lecture ATOMIQUE : la RPC lit ET compte le hit en un seul
+ * aller-retour (UPDATE ... RETURNING). Attendue par l'appelant → le compteur est
+ * fiable même sur Vercel serverless (un fire-and-forget serait perdu au gel du
+ * Lambda). Un miss ne met rien à jour et renvoie `null`.
  */
 export async function getCachedFilters(norm: string): Promise<ParsedFilters | null> {
   if (!norm) return null;
   try {
-    const key = keyFor(norm);
-    const freshAfter = new Date(Date.now() - TTL_DAYS * 86_400_000).toISOString();
-    const { data, error } = await supabase
-      .from("investissement_nlp_cache")
-      .select("filters")
-      .eq("query_key", key)
-      .gte("created_at", freshAfter)
-      .maybeSingle();
-    if (error || !data) return null;
-    void supabase.rpc("inv_nlp_cache_touch", { p_key: key }); // fire-and-forget
-    return data.filters as ParsedFilters;
+    const { data, error } = await supabase.rpc("inv_nlp_cache_get", {
+      p_key: keyFor(norm),
+      p_max_age_days: TTL_DAYS,
+    });
+    if (error || data == null) return null;
+    return data as ParsedFilters;
   } catch {
     return null; // best-effort : un cache indisponible = simple miss
   }
