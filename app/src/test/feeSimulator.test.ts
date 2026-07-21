@@ -386,6 +386,56 @@ describe('part frais de gestion contrat reversée au cabinet', () => {
   })
 })
 
+describe('rétrocession fonds euros', () => {
+  it('cumule un flux sur le compartiment euros, sans toucher la trajectoire', () => {
+    const avec = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES, eurosRetroShare: 0.2 })
+    const sans = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES })
+    expect(avec.points[15].eurosRetroCumulee).toBeGreaterThan(0)
+    // répartition, pas un frais en plus : valeur nette et total frais inchangés
+    expect(avec.points[15].valeurNette).toBe(sans.points[15].valeurNette)
+    expect(avec.points[15].totalFraisCumules).toBe(sans.points[15].totalFraisCumules)
+    // reportée sur les horizons
+    const h = avec.horizons.find((x) => x.annees === 15)!
+    expect(h.eurosRetroCumulee).toBeCloseTo(avec.points[15].eurosRetroCumulee, 2)
+  })
+
+  it('nulle quand tout est en UC (pas de compartiment euros)', () => {
+    const sim = simulate({ ...base, partUC: 100, frais: FRAIS_TYPES, eurosRetroShare: 0.3 })
+    expect(sim.points[15].eurosRetroCumulee).toBe(0)
+  })
+
+  it('plafonnée aux frais de gestion du contrat sur le fonds euros', () => {
+    const sim = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES, eurosRetroShare: 99 })
+    const p = sim.points[15]
+    expect(p.eurosRetroCumulee).toBeLessThanOrEqual(p.fraisCumules.gestionContratFE + 0.01)
+  })
+
+  it('part gestion contrat + rétro euros réunies ≤ frais de gestion du contrat (cap conjoint)', () => {
+    const sim = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES, contractFeeShare: 99, eurosRetroShare: 99 })
+    const p = sim.points[15]
+    const capContrat = p.fraisCumules.gestionContratUC + p.fraisCumules.gestionContratFE
+    expect(p.contractFeeCumulee + p.eurosRetroCumulee).toBeLessThanOrEqual(capContrat + 0.02)
+  })
+
+  it('répartition : la rétro euros sort de la poche assureur, va au cabinet, total conservé', () => {
+    const sim = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES, retroCgp: 0.9, eurosRetroShare: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const p = sim.points[15]
+    const avec = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee, p.contractFeeCumulee, p.eurosRetroCumulee)
+    const sans = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee, p.contractFeeCumulee)
+    expect(avec.cabinet).toBeCloseTo(sans.cabinet + p.eurosRetroCumulee, 1)
+    expect(avec.assureur).toBeCloseTo(sans.assureur - p.eurosRetroCumulee, 1)
+    expect(avec.assureur + avec.societeGestion + avec.cabinet).toBeCloseTo(h.totalFrais, 0)
+  })
+
+  it('revenuCabinet inclut la rétro euros (5 composantes)', () => {
+    const sim = simulate({ ...base, partUC: 50, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.2, eurosRetroShare: 0.2, honoraireForfait: 200 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.revenuCabinet).toBeCloseTo(
+      h.retroCgpCumulee + h.commCabinetCumulee + h.contractFeeCumulee + h.eurosRetroCumulee + h.honoraireCumule, 2)
+  })
+})
+
 describe('part gestion contrat — plafond sur les frais de gestion du contrat (UC + FE)', () => {
   it('plafonne l’accrual à la somme gestion contrat UC + FE (jamais plus que ce que le contrat prélève)', () => {
     // Taux délirant (99 %) : la part reversée est bornée aux frais de gestion

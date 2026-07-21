@@ -73,6 +73,16 @@ export interface SimulationInput {
    */
   contractFeeShare?: number;
   /**
+   * Rétrocession sur le compartiment FONDS EUROS (%/an de l'encours euros) : la
+   * part des frais de gestion du fonds euros que l'assureur reverse au cabinet.
+   * Comme la part gestion contrat, c'est une TRANCHE des frais de gestion du
+   * contrat sur le fonds euros (déjà payés par le client), pas un frais en plus.
+   * L'asymétrie €/UC est structurelle : le fonds euros rétrocède peu (0–0,30 %,
+   * souvent 0), l'assureur n'ayant pas de marge dessus (Solvabilité II). Vient du
+   * barème « Mon cabinet » (eurosRetroShare). 0 ou absent = non suivie.
+   */
+  eurosRetroShare?: number;
+  /**
    * Honoraires de conseil facturés DIRECTEMENT au client (facturation en sus,
    * hors rétrocession), 100 % revenu du cabinet. Contrairement aux frais du
    * contrat, ils ne sont PAS prélevés sur l'encours : ils ne dégradent donc pas
@@ -110,6 +120,7 @@ export interface YearPoint {
   retroCgpCumulee: number;   // rémunération CGP cumulée (tranche de gestionUC, 0 si non suivie)
   commCabinetCumulee: number; // commission upfront cumulée (tranche des frais d'entrée, 0 si non suivie)
   contractFeeCumulee: number; // part frais de gestion contrat reversée au cabinet, cumulée (0 si non suivie)
+  eurosRetroCumulee: number;  // rétrocession sur le fonds euros reversée au cabinet, cumulée (0 si non suivie)
   honoraireCumule: number;    // honoraires de conseil facturés en sus, cumulés (0 si non suivis)
 }
 
@@ -128,10 +139,11 @@ export interface HorizonProjection {
   retroCgpCumulee: number;   // rémunération CGP cumulée à cet horizon (0 si non suivie)
   commCabinetCumulee: number; // commission upfront cumulée à cet horizon (0 si non suivie)
   contractFeeCumulee: number; // part frais de gestion contrat reversée, cumulée à cet horizon (0 si non suivie)
+  eurosRetroCumulee: number;  // rétrocession fonds euros reversée, cumulée à cet horizon (0 si non suivie)
   honoraireCumule: number;    // honoraires de conseil facturés en sus, cumulés à cet horizon (0 si non suivis)
   // Agrégats prêts à l'affichage (source unique — l'UI et le PDF s'y adossent
   // pour ne jamais diverger) :
-  revenuCabinet: number;    // TOTAL encaissé par le cabinet = rétro + commission + part gestion contrat + honoraires
+  revenuCabinet: number;    // TOTAL encaissé par le cabinet = rétro + commission + part gestion contrat + rétro fonds euros + honoraires
   coutTotalClient: number;  // TOTAL supporté par le client = totalFrais (structure) + honoraires facturés en sus
 }
 
@@ -221,6 +233,10 @@ export function simulate(
   // puisse jamais dépasser ce que le contrat prélève réellement (assiette dont
   // il est censé n'être qu'une tranche).
   const contractFeeShare = clampFrais(input.contractFeeShare ?? 0);
+  // Rétrocession fonds euros (%/an d'encours euros). Comme la part gestion
+  // contrat, l'accrual est plafonné aux frais de gestion du contrat sur le fonds
+  // euros de l'année : elle en est une tranche.
+  const eurosRetroShare = clampFrais(input.eurosRetroShare ?? 0);
   // Honoraires de conseil facturés en sus (hors rétrocession) : forfait ponctuel
   // à la souscription + récurrent %/an de l'encours net. N'altèrent jamais la
   // trajectoire du contrat (facturés à côté) ; suivis pour le coût total client
@@ -238,7 +254,7 @@ export function simulate(
   const factBrutUC = (1 + rUC / 100) / (1 - gUC);
   const factBrutFE = (1 + rFE / 100) / (1 - gFE);
 
-  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0, commCumulee = 0, contractFeeCumulee = 0, honoraireCumulee = 0;
+  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0, commCumulee = 0, contractFeeCumulee = 0, eurosRetroCumulee = 0, honoraireCumulee = 0;
   const cumul = zeroBreakdown();
   const points: YearPoint[] = [];
 
@@ -279,6 +295,7 @@ export function simulate(
       retroCgpCumulee: r2(retroCumulee),
       commCabinetCumulee: r2(commCumulee),
       contractFeeCumulee: r2(contractFeeCumulee),
+      eurosRetroCumulee: r2(eurosRetroCumulee),
       honoraireCumule: r2(honoraireCumulee),
     });
   };
@@ -311,9 +328,20 @@ export function simulate(
     // TOTAL de début d'année (porté au brut, même convention que la rétro),
     // PLAFONNÉE aux frais de gestion du contrat de l'année (UC + fonds euros) :
     // elle ne peut pas reverser plus que ce que le contrat prélève.
-    contractFeeCumulee += Math.min(
+    const contractFeeAn = Math.min(
       (uc * factBrutUC + fe * factBrutFE) * (contractFeeShare / 100),
       gestionContratUCan + gestionContratFEan,
+    );
+    contractFeeCumulee += contractFeeAn;
+    // Rétrocession fonds euros : tranche des frais de gestion du contrat sur le
+    // compartiment euros de l'année, plafonnée à ceux-ci ET à ce qui reste après
+    // la part gestion contrat déjà prélevée sur le contrat — pour que les deux
+    // reversements réunis n'excèdent jamais les frais de gestion du contrat
+    // (invariant revenuCabinet == poche cabinet de la répartition).
+    eurosRetroCumulee += Math.min(
+      fe * factBrutFE * (eurosRetroShare / 100),
+      gestionContratFEan,
+      Math.max(0, gestionContratUCan + gestionContratFEan - contractFeeAn),
     );
 
     uc *= factNetUC;
@@ -353,10 +381,12 @@ export function simulate(
       retroCgpCumulee: p.retroCgpCumulee,
       commCabinetCumulee: p.commCabinetCumulee,
       contractFeeCumulee: p.contractFeeCumulee,
+      eurosRetroCumulee: p.eurosRetroCumulee,
       honoraireCumule: p.honoraireCumule,
-      // Le contractFeeCumulee est déjà plafonné à l'accrual (≤ frais de gestion
-      // du contrat), donc sommer directement les 4 flux ne double-compte rien.
-      revenuCabinet: r2(p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.honoraireCumule),
+      // contractFeeCumulee et eurosRetroCumulee sont déjà plafonnés à l'accrual
+      // (≤ frais de gestion du contrat), donc sommer directement les flux ne
+      // double-compte rien.
+      revenuCabinet: r2(p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.eurosRetroCumulee + p.honoraireCumule),
       coutTotalClient: r2(totalFrais + p.honoraireCumule),
     });
   }
@@ -391,27 +421,28 @@ export function repartitionFrais(
   retroCgpCumulee: number,
   commCabinetCumulee = 0,
   contractFeeCumulee = 0,
+  eurosRetroCumulee = 0,
 ): FraisParDestinataire {
   const retro = Math.min(retroCgpCumulee, fraisCumules.gestionUC);
   const comm = Math.min(commCabinetCumulee, fraisCumules.entreeContrat);
-  // La part de gestion contrat sort des frais de gestion du contrat (poche
-  // assureur, UC + fonds euros) : plafonnée à leur somme, elle ne peut pas les
-  // excéder — même base que le plafond d'accrual dans simulate().
-  const contractFee = Math.min(
-    contractFeeCumulee,
-    fraisCumules.gestionContratUC + fraisCumules.gestionContratFE,
-  );
+  // La part de gestion contrat ET la rétro fonds euros sortent des frais de
+  // gestion du contrat (poche assureur, UC + fonds euros) : plafonnées à leur
+  // somme, cumulativement — même base et même ordre que le plafond d'accrual
+  // dans simulate(). Elles ne peuvent pas excéder ce que le contrat prélève.
+  const gestionContrat = fraisCumules.gestionContratUC + fraisCumules.gestionContratFE;
+  const contractFee = Math.min(contractFeeCumulee, gestionContrat);
+  const eurosRetro = Math.min(eurosRetroCumulee, Math.max(0, gestionContrat - contractFee));
   return {
     assureur: r2(
       fraisCumules.entreeContrat + fraisCumules.gestionContratUC +
       fraisCumules.gestionContratFE + fraisCumules.sortieContrat +
-      h.fraisSortieContrat - comm - contractFee,
+      h.fraisSortieContrat - comm - contractFee - eurosRetro,
     ),
     societeGestion: r2(
       fraisCumules.entreeUC + fraisCumules.gestionUC + fraisCumules.sortieUC +
       h.fraisSortieUC - retro,
     ),
-    cabinet: r2(retro + comm + contractFee),
+    cabinet: r2(retro + comm + contractFee + eurosRetro),
   };
 }
 
@@ -582,6 +613,7 @@ export function buildFraisReport(
   const repart = repartitionFrais(
     finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee,
     finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee,
+    finalPoint.eurosRetroCumulee,
   );
 
   // Ventilation par nature à l'horizon final. Les frais de sortie ne sont pas

@@ -16,10 +16,12 @@ import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
   simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
-  remunerationSupport, HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
+  reductionRendementAnnuelle, remunerationSupport, HORIZONS_DEFAUT,
+  type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
 import { loadStoredCabinet, cabinetContract, resolveFundRetrocession, EMPTY_CABINET } from "@/lib/cabinet";
+import { retroFallbackFrac } from "@/lib/remuneration";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
@@ -31,6 +33,7 @@ const REMU_LABELS: Record<string, string> = {
   upfront: "Commission d'entrée",
   retro: "Rétrocessions",
   contractFee: "Part gestion contrat",
+  eurosRetro: "Rétro fonds euros",
   honoraires: "Honoraires de conseil",
 };
 
@@ -44,6 +47,10 @@ const FRAIS_DEFAUT: FeeParams = {
 };
 const RENDEMENT_UC_DEFAUT = 5;   // %/an, faute d'UC sélectionnées
 const RENDEMENT_FE_DEFAUT = 2.5; // %/an, taux servi moyen récent
+// Part des frais d'entrée acquise à l'assureur (non reversée au cabinet), en
+// l'absence de convention chargée : le CGP touche « frais d'entrée − cette
+// part ». Convention de place ~0,5 % (jusqu'à 1 %). Éditable via le champ rému.
+const PART_INCOMPRESSIBLE_ASSUREUR = 0.5;
 
 // Support (UC) enrichi depuis /api/funds : perf 5 ans annualisée + frais.
 interface UcRow {
@@ -54,13 +61,16 @@ interface UcRow {
   ter: number | null;          // % (frais courants)
   entryFee: number | null;     // %
   exitFee: number | null;      // %
-  retro: number | null;        // %/an — rétrocession CGP
+  retro: number | null;        // %/an — rétrocession CGP (base, null = inconnue)
+  productType: string | null;  // etf / opcvm / … (pour la règle passif → rétro 0)
+  managementStyle: string | null; // actif / passif / indiciel (idem)
 }
 
 interface ApiFund {
   isin: string; name?: string | null; product_type?: string | null;
   performance_5y?: number | null; ter?: number | null; ongoing_charges?: number | null;
   entry_fee_max?: number | null; exit_fee_max?: number | null; retrocession_cgp?: number | null;
+  management_style?: string | null;
 }
 
 const fetchFund = async (isin: string): Promise<ApiFund | null> => {
@@ -80,6 +90,8 @@ const toUcRow = (isin: string, name: string, poids: number, f: ApiFund | null): 
   entryFee: feeFracToPct(f?.entry_fee_max ?? null),
   exitFee: feeFracToPct(f?.exit_fee_max ?? null),
   retro: feeFracToPct(f?.retrocession_cgp ?? null),
+  productType: f?.product_type ?? null,
+  managementStyle: f?.management_style ?? null,
 });
 
 const num = (s: string): number => {
@@ -179,6 +191,7 @@ export function FeeSimulator() {
   // contractFeeManuel = part des frais de gestion du contrat reversée.
   const [commManuel, setCommManuel] = useState<number | null>(null);
   const [contractFeeManuel, setContractFeeManuel] = useState<number | null>(null);
+  const [eurosRetroManuel, setEurosRetroManuel] = useState<number | null>(null);
   // Honoraires de conseil (facturation directe, hors rétrocession) : forfait € et
   // récurrent %/an. Préremplis du barème « Mon cabinet », surchargeables (null).
   const [honoraireForfaitManuel, setHonoraireForfaitManuel] = useState<number | null>(null);
@@ -282,32 +295,46 @@ export function FeeSimulator() {
     [contractKey, storedCabinet],
   );
 
-  // Rétrocession effective d'un support (%/an) : cascade du barème (exception
-  // fonds → taux UC du contrat → repli du fonds) si convention, sinon rétro du fonds.
+  // Rétrocession effective d'un support (%/an). Repli HONNÊTE d'abord
+  // (retroFallbackFrac) : rétro sourcée en base si connue, sinon estimation de
+  // place — mais 0 sur la gestion passive/indicielle et les ETF, qui ne
+  // rétrocèdent RIEN (règle de place, cf. lib/remuneration). Puis cascade du
+  // barème par-dessus si une convention est chargée (exception fonds → taux UC).
   const effRetroPct = useCallback((u: UcRow): number | null => {
-    if (convention) {
-      const frac = resolveFundRetrocession(
-        convention, u.isin, u.ter != null ? u.ter / 100 : null, u.retro != null ? u.retro / 100 : null,
-      );
-      return frac != null ? Math.round(frac * 1e4) / 1e2 : null;
-    }
-    return u.retro ?? null;
+    const fallbackFrac = retroFallbackFrac(
+      u.retro != null ? u.retro / 100 : null,
+      u.ter != null ? u.ter / 100 : null,
+      u.productType, u.managementStyle,
+    );
+    const frac = convention
+      ? resolveFundRetrocession(convention, u.isin, u.ter != null ? u.ter / 100 : null, fallbackFrac)
+      : fallbackFrac;
+    return frac != null ? Math.round(frac * 1e4) / 1e2 : null;
   }, [convention]);
 
-  // Rétrocession pondérée : cascade du barème (si convention) ou réelle des
-  // supports, sinon estimation de place (50 % du TER).
+  // Rétrocession pondérée des supports (déjà ETF-aware via effRetroPct). À défaut
+  // de supports, estimation de place générique (50 % du TER, gestion active).
   const retroPonderee = useMemo(
     () => rendementPondere(ucs.map((u) => ({ perf: effRetroPct(u), poids: u.poids }))), [ucs, effRetroPct]);
   const retroEstimee = Math.round(ucGestion * 0.5 * 100) / 100;
   const retroCgp = retroManuel ?? retroPonderee ?? retroEstimee;
 
-  // Commission d'entrée cabinet : convention (entryFeeShare) sinon frais d'entrée du contrat.
+  // Commission d'entrée cabinet : convention (entryFeeShare) sinon frais d'entrée
+  // du contrat MOINS la part incompressible acquise à l'assureur (le CGP ne
+  // touche pas 100 % des droits d'entrée).
   const commissionCabinet = commManuel ?? (
-    convention?.entryFeeShare != null ? Math.round(convention.entryFeeShare * 1e4) / 1e2 : frais.contratEntree
+    convention?.entryFeeShare != null
+      ? Math.round(convention.entryFeeShare * 1e4) / 1e2
+      : Math.max(0, Math.round((frais.contratEntree - PART_INCOMPRESSIBLE_ASSUREUR) * 100) / 100)
   );
   // Part des frais de gestion du contrat reversée au cabinet (%/an) : convention (contractFeeShare) sinon 0.
   const contractFeeShare = contractFeeManuel ?? (
     convention?.contractFeeShare != null ? Math.round(convention.contractFeeShare * 1e4) / 1e2 : 0
+  );
+  // Rétrocession fonds euros (%/an) : convention (eurosRetroShare) sinon 0
+  // (asymétrie €/UC : le fonds euros rétrocède peu, souvent rien).
+  const eurosRetroShare = eurosRetroManuel ?? (
+    convention?.eurosRetroShare != null ? Math.round(convention.eurosRetroShare * 1e4) / 1e2 : 0
   );
 
   // Honoraires de conseil (facturation directe, hors rétrocession) : préremplis
@@ -323,9 +350,9 @@ export function FeeSimulator() {
     versementInitial, versementAnnuel, dureeAnnees: duree, partUC,
     rendementUC, rendementFE,
     frais: { ...frais, ucGestion, ucEntree, ucSortie },
-    retroCgp, commissionCabinet, contractFeeShare,
+    retroCgp, commissionCabinet, contractFeeShare, eurosRetroShare,
     honoraireForfait, honoraireAnnuelPct,
-  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet, contractFeeShare, honoraireForfait, honoraireAnnuelPct]);
+  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet, contractFeeShare, eurosRetroShare, honoraireForfait, honoraireAnnuelPct]);
 
   const horizons = useMemo(
     () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b), [duree]);
@@ -333,7 +360,7 @@ export function FeeSimulator() {
   const final = sim.horizons[sim.horizons.length - 1];
   const finalPoint = final ? sim.points[final.annees] : null;
   const repart = final && finalPoint
-    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee)
+    ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee, finalPoint.eurosRetroCumulee)
     : null;
 
   // Agrégats prêts à l'affichage, TOUS issus du moteur (source unique) — plus
@@ -344,6 +371,47 @@ export function FeeSimulator() {
   const revenuCabinet = final ? final.revenuCabinet : 0;
   const coutTotalClient = final ? final.coutTotalClient : 0;
 
+  // ── KPI CGP « faire sa compta » ────────────────────────────────────────────
+  // Taux moyen de rétrocession = commissions RÉCURRENTES annuelles moyennes /
+  // encours moyen. C'est le repère de place du CGP (~0,47 % chez Sendraise).
+  // Récurrent = rétro supports + part gestion contrat + rétro fonds euros (les
+  // flux « trailer » sur l'encours) ; hors commission d'entrée (ponctuelle) et
+  // honoraires (facturés, pas rétrocédés).
+  const encoursMoyen = useMemo(() => {
+    if (!final || final.annees < 1) return 0;
+    const enc = sim.points.slice(1, final.annees + 1);
+    return enc.length ? enc.reduce((s, p) => s + p.valeurNette, 0) / enc.length : 0;
+  }, [sim, final]);
+  const recurrentCumule = final ? final.retroCgpCumulee + final.contractFeeCumulee + final.eurosRetroCumulee : 0;
+  const tauxMoyenRetro = final && encoursMoyen > 0
+    ? (recurrentCumule / final.annees / encoursMoyen) * 100 : null;
+  // Mix du revenu cabinet en 3 natures (repère marché 60/28/12 : upfront /
+  // récurrent / honoraires). En % du revenu cabinet total.
+  const mix = useMemo(() => {
+    if (!final || revenuCabinet <= 0) return null;
+    return {
+      upfront: (final.commCabinetCumulee / revenuCabinet) * 100,
+      recurrent: (recurrentCumule / revenuCabinet) * 100,
+      honoraires: (honoraireCumule / revenuCabinet) * 100,
+    };
+  }, [final, revenuCabinet, recurrentCumule, honoraireCumule]);
+
+  // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
+  const riy = final ? reductionRendementAnnuelle(final) : 0;
+  const coutPctVersements = final && final.versementsCumules > 0
+    ? (coutTotalClient / final.versementsCumules) * 100 : null;
+  // Ventilation du coût client par NATURE (DDA/MIF2) à l'horizon final.
+  const nature = final && finalPoint ? (() => {
+    const fc = finalPoint.fraisCumules;
+    return [
+      { nom: "Frais d'entrée", montant: fc.entreeContrat + fc.entreeUC },
+      { nom: "Gestion de l'enveloppe", montant: fc.gestionContratUC + fc.gestionContratFE },
+      { nom: "Frais courants des supports", montant: fc.gestionUC },
+      { nom: "Frais de sortie", montant: final.fraisSortie },
+      ...(honoraireCumule > 0 ? [{ nom: "Honoraires de conseil (en sus)", montant: honoraireCumule }] : []),
+    ];
+  })() : null;
+
   // Courbe de rémunération cumulée du cabinet : toutes les composantes empilées
   // (commission d'entrée + rétrocessions + part gestion contrat + honoraires),
   // pour que l'aire totale corresponde exactement au revenu cabinet affiché.
@@ -352,6 +420,7 @@ export function FeeSimulator() {
     upfront: p.commCabinetCumulee,
     retro: p.retroCgpCumulee,
     contractFee: p.contractFeeCumulee,
+    eurosRetro: p.eurosRetroCumulee,
     honoraires: p.honoraireCumule,
   })), [sim]);
 
@@ -393,9 +462,12 @@ export function FeeSimulator() {
           mode,
           clientRef: null,
           input,
+          // On envoie la rétro RÉSOLUE (cascade barème + repli ETF-aware : 0 sur
+          // l'indiciel), pas la valeur brute — pour que le PDF ne réinvente pas
+          // une rétro sur un ETF et reste aligné sur l'écran.
           supports: ucs.map((u) => ({
             isin: u.isin, name: u.name, poids: u.poids,
-            ter: u.ter, entryFee: u.entryFee, retro: u.retro,
+            ter: u.ter, entryFee: u.entryFee, retro: effRetroPct(u),
           })),
         }),
       });
@@ -512,6 +584,7 @@ export function FeeSimulator() {
               <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel} />
               <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommManuel} />
               <FieldPct label="Part gestion contrat (par an)" value={contractFeeShare} onChange={setContractFeeManuel} />
+              <FieldPct label="Rétro fonds euros (par an)" value={eurosRetroShare} onChange={setEurosRetroManuel} />
               <div className="pt-2 mt-1 border-t border-line-soft space-y-3">
                 <p className="text-caption text-muted-2">Honoraires de conseil</p>
                 <FieldEur label="Forfait (ponctuel)" value={honoraireForfait} onChange={setHonoraireForfaitManuel} step={100} />
@@ -562,7 +635,7 @@ export function FeeSimulator() {
           <Card className="px-5 py-5">
             <div className="flex items-baseline justify-between gap-3 mb-3">
               <H2 className="">Ma rémunération</H2>
-              {final && <span className="text-meta text-ok font-medium tabular-nums" title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + honoraires">{EUR.format(revenuCabinet)}</span>}
+              {final && <span className="text-meta text-ok font-medium tabular-nums" title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</span>}
             </div>
             {final && (
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -583,11 +656,38 @@ export function FeeSimulator() {
                     <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an en moyenne</p>
                   </div>
                 )}
+                {final.eurosRetroCumulee > 0 && (
+                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                    <p className="text-caption text-muted">Rétro fonds euros</p>
+                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
+                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.eurosRetroCumulee / final.annees)}/an en moyenne</p>
+                  </div>
+                )}
                 {honoraireCumule > 0 && (
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Honoraires de conseil</p>
                     <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
                     <p className="text-caption text-muted-2">facturés en sus (hors rétro)</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {final && (tauxMoyenRetro != null || mix) && (
+              <div className="mb-4 rounded-lg bg-accent-soft/30 px-3 py-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                {tauxMoyenRetro != null && (
+                  <div className="min-w-0">
+                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Taux moyen de rétrocession</p>
+                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">
+                      {pct(Math.round(tauxMoyenRetro * 100) / 100)}<span className="text-caption text-muted font-normal"> /an · repère place ~0,47 %</span>
+                    </p>
+                  </div>
+                )}
+                {mix && (
+                  <div className="min-w-0 text-right">
+                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Mix du revenu · repère 60/28/12</p>
+                    <p className="text-meta tabular-nums text-ink-2 leading-tight mt-0.5">
+                      Upfront {Math.round(mix.upfront)}% · Récurrent {Math.round(mix.recurrent)}% · Honoraires {Math.round(mix.honoraires)}%
+                    </p>
                   </div>
                 )}
               </div>
@@ -607,6 +707,7 @@ export function FeeSimulator() {
                 <Area type="monotone" dataKey="upfront" stackId="r" stroke="#7A5C3E" fill="#7A5C3E" fillOpacity={0.35} />
                 <Area type="monotone" dataKey="retro" stackId="r" stroke="#B0613F" fill="#B0613F" fillOpacity={0.55} />
                 <Area type="monotone" dataKey="contractFee" stackId="r" stroke="#C08552" fill="#C08552" fillOpacity={0.45} />
+                <Area type="monotone" dataKey="eurosRetro" stackId="r" stroke="#9C8B5E" fill="#9C8B5E" fillOpacity={0.45} />
                 <Area type="monotone" dataKey="honoraires" stackId="r" stroke="#5E7A6B" fill="#5E7A6B" fillOpacity={0.45} />
               </AreaChart>
             </ResponsiveContainer>
@@ -694,6 +795,46 @@ export function FeeSimulator() {
                 Réparti sur le coût total client de {EUR.format(coutTotalClient)} à {final.annees} ans.
                 {honoraireCumule > 0 && <> La part cabinet inclut {EUR.format(honoraireCumule)} d&apos;honoraires facturés en sus (hors frais du contrat).</>}
               </p>
+            </Card>
+          )}
+
+          {final && nature && (
+            <Card className="px-5 py-5">
+              <div className="flex items-baseline justify-between gap-3 mb-3">
+                <H2 className="">La nature du coût (client)</H2>
+                <span className="text-meta text-ink font-medium tabular-nums">{EUR.format(coutTotalClient)}</span>
+              </div>
+              <div className="space-y-2">
+                {nature.filter((l) => l.montant > 0).map((l) => {
+                  const part = coutTotalClient > 0 ? (l.montant / coutTotalClient) * 100 : 0;
+                  return (
+                    <div key={l.nom}>
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-meta text-ink-2">{l.nom}</p>
+                        <div className="text-right shrink-0">
+                          <span className="text-meta tabular-nums text-ink">{EUR.format(l.montant)}</span>
+                          <span className="text-caption text-muted tabular-nums ml-2">{Math.round(part)} %</span>
+                        </div>
+                      </div>
+                      <div className="mt-1 h-1 rounded-full bg-line-soft overflow-hidden">
+                        <div className="h-full bg-accent/60" style={{ width: `${Math.min(100, part)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 pt-3 border-t border-line-soft grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-caption uppercase tracking-wide text-muted font-semibold">Réduction de rendement</p>
+                  <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(riy)}<span className="text-caption text-muted font-normal"> /an (type PRIIPs)</span></p>
+                </div>
+                {coutPctVersements != null && (
+                  <div className="text-right">
+                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Coût total</p>
+                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(Math.round(coutPctVersements * 10) / 10)}<span className="text-caption text-muted font-normal"> des versements</span></p>
+                  </div>
+                )}
+              </div>
             </Card>
           )}
 
