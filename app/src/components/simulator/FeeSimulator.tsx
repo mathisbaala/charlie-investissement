@@ -19,7 +19,7 @@ import {
   remunerationSupport, HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
-import { loadStoredCabinet, cabinetContract, resolveFundRetrocession } from "@/lib/cabinet";
+import { loadStoredCabinet, cabinetContract, resolveFundRetrocession, EMPTY_CABINET } from "@/lib/cabinet";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
@@ -264,6 +264,13 @@ export function FeeSimulator() {
   const ucEntree = ucEntreeManuel ?? entreePonderee ?? FRAIS_DEFAUT.ucEntree;
   const ucSortie = ucSortieManuel ?? sortiePonderee ?? FRAIS_DEFAUT.ucSortie;
 
+  // Barème « Mon cabinet » lu APRÈS montage (localStorage) : l'état initial vaut
+  // EMPTY_CABINET côté serveur ET au 1er rendu client → aucun mismatch d'hydratation
+  // (même pattern que SupportSources). L'effet le remplace par le barème stocké,
+  // qui réalimente convention + honoraires.
+  const [storedCabinet, setStoredCabinet] = useState(EMPTY_CABINET);
+  useEffect(() => { setStoredCabinet(loadStoredCabinet()); }, []);
+
   // Barème « Mon cabinet » : si un contrat est passé en lien profond
   // (?contract=Assureur::Contrat), on résout la convention et on en DÉRIVE la
   // rémunération (rétro par la cascade, commission d'entrée, part gestion
@@ -271,8 +278,8 @@ export function FeeSimulator() {
   // « Coût client & rémunération » du portefeuille. Sans contrat : taux de place.
   const contractKey = searchParams.get("contract");
   const convention = useMemo(
-    () => (contractKey && contractKey.includes("::") ? cabinetContract(loadStoredCabinet(), contractKey) : null),
-    [contractKey],
+    () => (contractKey && contractKey.includes("::") ? cabinetContract(storedCabinet, contractKey) : null),
+    [contractKey, storedCabinet],
   );
 
   // Rétrocession effective d'un support (%/an) : cascade du barème (exception
@@ -305,13 +312,10 @@ export function FeeSimulator() {
 
   // Honoraires de conseil (facturation directe, hors rétrocession) : préremplis
   // du barème « Mon cabinet » (forfait € + récurrent %/an de l'encours).
-  const cabinetHonoraires = useMemo(() => {
-    const cab = loadStoredCabinet();
-    return {
-      forfait: cab.honoraireForfait,
-      annuelPct: cab.honoraireAnnuel != null ? Math.round(cab.honoraireAnnuel * 1e4) / 1e2 : null,
-    };
-  }, []);
+  const cabinetHonoraires = useMemo(() => ({
+    forfait: storedCabinet.honoraireForfait,
+    annuelPct: storedCabinet.honoraireAnnuel != null ? Math.round(storedCabinet.honoraireAnnuel * 1e4) / 1e2 : null,
+  }), [storedCabinet]);
   const honoraireForfait = honoraireForfaitManuel ?? cabinetHonoraires.forfait ?? 0;
   const honoraireAnnuelPct = honoraireAnnuelManuel ?? cabinetHonoraires.annuelPct ?? 0;
 
