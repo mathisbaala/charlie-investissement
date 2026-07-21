@@ -673,14 +673,14 @@ export function FeeSimulator() {
                     { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
                   ],
                 },
-              ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | "bad" | null }[] }[]).map((g) => (
+              ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | null }[] }[]).map((g) => (
                 <section key={g.titre}>
                   <p className="text-label uppercase tracking-widest text-muted font-semibold px-0.5 mb-1.5">{g.titre}</p>
                   <div className="grid grid-cols-3 gap-2.5">
                     {g.tiles.map((k) => (
                       <div key={k.label} className="min-w-0 rounded-xl border border-line bg-paper px-3.5 py-3">
                         <p className="text-label uppercase tracking-wide text-muted font-semibold leading-tight truncate" title={k.label}>{k.label}</p>
-                        <p className={`text-display font-semibold tabular-nums leading-none mt-1.5 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
+                        <p className={`text-display font-semibold tabular-nums leading-none mt-1.5 ${k.tone === "ok" ? "text-ok" : "text-ink"}`}>{k.value}</p>
                       </div>
                     ))}
                   </div>
