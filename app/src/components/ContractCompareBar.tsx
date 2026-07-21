@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useContractCompare, CONTRACT_COMPARE_MAX } from "@/components/ContractCompareProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X } from "@/components/ui/icons";
@@ -13,7 +14,10 @@ import { X } from "@/components/ui/icons";
 // Aligné sur SelectionBar (fonds) : fixe en bas, décalé du rail 60px.
 export function ContractCompareBar() {
   const { items, remove, clear } = useContractCompare();
-  if (items.length === 0) return null;
+  const pathname = usePathname();
+  // Sur la page comparateur elle-même, le panier flottant est redondant (les
+  // mêmes contrats sont déjà côte à côte) et masquait le bas du tableau.
+  if (items.length === 0 || pathname === "/assureurs/comparateur") return null;
 
   const compareHref =
     "/assureurs/comparateur?" + items.map((c) => `key=${encodeURIComponent(c.key)}`).join("&");

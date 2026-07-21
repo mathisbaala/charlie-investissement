@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { decodeHtml, feeFracToPct } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
 import { ContractCompareToggle } from "@/components/ContractCompareToggle";
+import { useContractCompare } from "@/components/ContractCompareProvider";
 import {
   type ContractType, type Envelope,
   typesOf, inEnvelope, realContracts,
@@ -65,11 +66,13 @@ function fmtCtd(c: ComparisonContract): string {
 }
 
 // Colonnes triables : clé d'accès + sens « meilleur » par défaut au 1er clic.
-type SortCol = "funds" | "avg_fee" | "ctd" | "frais_entree_pct" | "frais_gestion_uc_pct" | "fonds_euros_taux_pct" | "sri_avg";
+// « Gestion (UC) » n'a pas sa colonne : elle est déjà intégrée dans « Coût
+// total » (frais supports + gestion contrat) → on évite le doublon et une
+// colonne de plus qui forçait le scroll horizontal. Le détail reste sur la fiche-contrat.
+type SortCol = "funds" | "avg_fee" | "ctd" | "frais_entree_pct" | "fonds_euros_taux_pct" | "sri_avg";
 const COLS: { key: SortCol; label: string; get: (c: ComparisonContract) => number | null; firstDir: "asc" | "desc"; render: (c: ComparisonContract) => string; emphasis?: boolean }[] = [
   { key: "funds",                label: "Supports",       get: (c) => c.funds,                firstDir: "desc", render: (c) => c.funds.toLocaleString("fr-FR") },
   { key: "avg_fee",              label: "Frais supports", get: (c) => c.avg_fee,              firstDir: "asc",  render: (c) => fmtFee(c.avg_fee) },
-  { key: "frais_gestion_uc_pct", label: "Gestion (UC)",   get: (c) => c.frais_gestion_uc_pct, firstDir: "asc",  render: (c) => fmtPct(c.frais_gestion_uc_pct) },
   { key: "ctd",                  label: "Coût total",     get: (c) => contractTotalCost(c.avg_fee, c.frais_gestion_uc_pct, typesOf(c)).total, firstDir: "asc", render: fmtCtd, emphasis: true },
   { key: "frais_entree_pct",     label: "Frais d'entrée", get: (c) => c.frais_entree_pct,     firstDir: "asc",  render: (c) => fmtPct(c.frais_entree_pct) },
   { key: "fonds_euros_taux_pct", label: "Fonds euros",    get: (c) => c.fonds_euros_taux_pct, firstDir: "desc", render: (c) => c.fonds_euros_taux_pct == null ? "—" : `${fmtPct(c.fonds_euros_taux_pct)}${c.fonds_euros_annee ? ` (${c.fonds_euros_annee})` : ""}` },
@@ -99,6 +102,9 @@ export default function ContractComparison({
 }) {
   const [env, setEnv] = useState<Envelope | "all">(initialEnv);
   const [hideClosed, setHideClosed] = useState(false);
+  // Marge basse quand le panier flottant est visible, pour qu'il ne masque pas
+  // la dernière ligne du tableau.
+  const { items: compareItems } = useContractCompare();
   const [sort, setSort] = useState<{ col: SortCol; dir: "asc" | "desc" } | null>(null);
 
   // Contrats « réels » (on retire le cas Lux redondant : unique contrat nommé
@@ -149,7 +155,7 @@ export default function ContractComparison({
   const hasClosed = real.some((c) => c.closed);
 
   return (
-    <div>
+    <div className={compareItems.length > 0 ? "pb-20" : undefined}>
       {/* Filtres : enveloppe (axe de lecture) + statut commercial */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-4">
         <div role="tablist" aria-label="Enveloppe" className="flex flex-wrap gap-1.5">
@@ -191,9 +197,9 @@ export default function ContractComparison({
                 <thead>
                   <tr className="border-b border-line">
                     <th className="w-10 px-3 py-3" aria-hidden />
-                    <th className="text-caption uppercase tracking-widest text-muted-2 font-semibold px-4 py-3">Contrat</th>
+                    <th className="text-caption uppercase tracking-widest text-muted-2 font-semibold px-3 py-3">Contrat</th>
                     {COLS.map((col) => (
-                      <th key={col.key} className="px-4 py-3">
+                      <th key={col.key} className="px-2.5 py-3">
                         <button
                           onClick={() => toggleSort(col.key)}
                           className="group inline-flex items-center gap-1.5 text-caption uppercase tracking-widest text-muted-2 font-semibold hover:text-ink-2 transition-colors w-full justify-end"
@@ -212,19 +218,16 @@ export default function ContractComparison({
                       <td className="pl-3 pr-0 py-3 align-middle">
                         <ContractCompareToggle c={c} />
                       </td>
-                      <td className="px-4 py-3 max-w-[320px]">
+                      <td className="px-3 py-3 max-w-[320px]">
                         <Link href={contractHref(c.key)} className="block">
-                          <span className="flex items-center gap-2.5">
-                            <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.closed ? "border-[1.5px] border-muted-2" : "bg-ok"}`} />
-                            <span className="text-body text-ink font-medium group-hover:text-accent-ink truncate">{decodeHtml(c.contract)}</span>
-                          </span>
-                          <span className="flex items-center gap-2 mt-1 pl-4">
+                          <span className="block text-body text-ink font-medium group-hover:text-accent-ink truncate">{decodeHtml(c.contract)}</span>
+                          <span className="flex items-center gap-2 mt-1">
                             <EnvBadges c={c} />
                           </span>
                         </Link>
                       </td>
                       {COLS.map((col) => (
-                        <td key={col.key} className={`px-4 py-3 text-right tabular-nums whitespace-nowrap ${col.emphasis ? "text-body text-ink font-semibold" : "text-body text-ink-2"}`}>
+                        <td key={col.key} className={`px-2.5 py-3 text-right tabular-nums whitespace-nowrap ${col.emphasis ? "text-body text-ink font-semibold" : "text-body text-ink-2"}`}>
                           {col.render(c)}
                         </td>
                       ))}
@@ -247,7 +250,6 @@ export default function ContractComparison({
                 <Card className="px-4 py-4 hover:border-accent/40 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <span className="flex items-center gap-2 min-w-0">
-                      <span aria-hidden className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.closed ? "border-[1.5px] border-muted-2" : "bg-ok"}`} />
                       <span className="text-body-lg text-ink font-semibold truncate">{decodeHtml(c.contract)}</span>
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
