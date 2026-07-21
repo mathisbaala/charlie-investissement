@@ -37,6 +37,7 @@ export function StudioInputs() {
     retroTilt, setRetroTilt, cabinet, sriOverride, setSriOverride, effectiveSri,
     included, setIncluded, includeFund, unreferencedIsins, source, linesIsins,
     profile, onProfileChange, busy, errorMsg, compute,
+    aiVerify, setAiVerify,
   } = usePortfolioStudio();
 
   // Import des fonds sélectionnés au screener : la barre de sélection redirige
@@ -265,6 +266,27 @@ export function StudioInputs() {
                   </label>
                   <span className="text-meta text-muted">
                     À adéquation équivalente, retient la meilleure rétrocession, jamais au détriment du client.
+                  </span>
+                </div>
+
+                {/* Vérification IA : le moteur alloue, l'IA relit (grille type
+                    Finary — diversification, adéquation horizon/profil,
+                    redondances) et fait re-calculer si besoin. Coût affiché. */}
+                <div className="flex flex-col gap-1">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={aiVerify}
+                      onChange={(e) => setAiVerify(e.target.checked)}
+                      style={{ accentColor: "var(--color-accent)" }}
+                    />
+                    <span className="text-meta text-ink font-medium">
+                      Vérification IA du portefeuille
+                    </span>
+                  </label>
+                  <span className="text-meta text-muted">
+                    Après le calcul, une IA contrôle diversification, adéquation horizon/profil et
+                    redondances, corrige si besoin (via le moteur) et affiche le coût de l&apos;appel.
                   </span>
                 </div>
               </div>

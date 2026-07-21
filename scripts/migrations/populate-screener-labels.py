@@ -46,6 +46,13 @@ PRESERVED_LABELS = frozenset([
     "established", "large-fund", "risk-adjusted-top", "low-drawdown",
     "ISR", "Greenfin", "Finansol", "Climat", "Water", "Healthcare",
     "Technology", "Impact",
+    # Labels officiels normalisés (registres BdF / lelabelisr.fr via
+    # labels-registries.py) — en minuscules, consommés par le moteur
+    # (EXCLUSION_GUARANTEE_LABELS teste "isr"/"greenfin"/"finansol").
+    "isr", "greenfin", "finansol",
+    # Politique d'exclusion déclarée (annexe SFDR, sfdr-annex-enricher) —
+    # consommée par le moteur d'allocation (exclusions éthiques du client).
+    "excl-fossiles", "excl-tabac", "excl-armes", "excl-jeux", "excl-alcool",
 ])
 
 

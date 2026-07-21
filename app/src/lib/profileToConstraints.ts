@@ -121,11 +121,104 @@ export function regionsForGeographies(geographies: string[]): Set<string> | null
   return out.size > 0 ? out : null;
 }
 
+// ─── Exclusions ÉTHIQUES du client (armes, tabac, fossiles, jeux, alcool) ────
+// Contrainte de MANDAT, pas une préférence : un client qui refuse l'armement ne
+// veut pas « moins d'armement si possible », il n'en veut PAS. Ces exclusions ne
+// sont donc JAMAIS assouplies (contrairement aux zones/frais/ESG quand l'univers
+// devient trop étroit). Limite assumée : sans inventaires ligne à ligne, on
+// écarte les fonds DONT LE MANDAT MÊME porte sur le thème exclu (secteur
+// normalisé, nom, catégorie) — un fonds généraliste peut détenir une position
+// marginale ; la revue IA et le look-through servent de contrôles complémentaires.
+
+/** Vocabulaire d'exclusion du profil client (cf. EXCLUSION_OPTIONS du formulaire). */
+export const ETHICAL_EXCLUSIONS = ["tabac", "armes", "fossiles", "jeux", "alcool"] as const;
+export type EthicalExclusion = (typeof ETHICAL_EXCLUSIONS)[number];
+
+// Mots-clés par thème, appliqués au nom + catégorie du fonds (français/anglais).
+// Volontairement CIBLÉS pour ne pas écarter à tort : « gaming » (jeux vidéo)
+// n'est pas « gambling » ; « energy transition »/« renewables » n'est pas du
+// pétrole — mais le SECTEUR normalisé « Énergie » (qui couvre l'énergie classique)
+// tombe avec « fossiles », comme dans le screener.
+const ETHICAL_KEYWORDS: Record<EthicalExclusion, RegExp> = {
+  tabac: /tabac|tobacco/i,
+  armes: /d[ée]fen[cs]e|armement|\bmilitary\b|weapon|aerospace/i,
+  fossiles: /p[ée]trole|petroleum|\boil\b|\bgas\b|fossil|charbon|\bcoal\b/i,
+  jeux: /casino|gambling|betting|jeux\s+d['’]argent/i,
+  alcool: /alcool|alcohol|spirits|brewer|\bwines?\b|\bvins?\b/i,
+};
+
+// Secteur normalisé de la base → thème exclu (fonds sectoriels dédiés).
+const ETHICAL_SECTOR: Partial<Record<EthicalExclusion, string>> = {
+  fossiles: "Énergie",
+};
+
+/** Exclusion du profil → tag de politique déclarée (labels du fonds). */
+export const EXCLUSION_TO_POLICY_TAG: Record<EthicalExclusion, string> = {
+  tabac: "excl-tabac",
+  armes: "excl-armes",
+  fossiles: "excl-fossiles",
+  jeux: "excl-jeux",
+  alcool: "excl-alcool",
+};
+
+// Classes d'actifs structurellement NON exposées aux thèmes éthiques (pas
+// d'entreprises en portefeuille) : le mode « politique déclarée » ne leur
+// demande pas d'annexe — un fonds monétaire n'a pas à déclarer qu'il exclut
+// le tabac pour être conforme.
+const POLICY_EXEMPT_CLASSES = new Set(["monetaire", "fonds_euros", "immobilier", "crypto"]);
+
+/**
+ * true si le fonds satisfait les exclusions demandées PAR SA POLITIQUE DÉCLARÉE
+ * (annexe SFDR → tags excl-*) — ou n'a structurellement pas besoin d'en avoir
+ * (classe non exposée). Fonction pure (testable).
+ */
+export function satisfiesDeclaredExclusions(
+  fund: Pick<FundInput, "assetClass" | "exclusionPolicies">,
+  exclusions: string[] | null | undefined,
+): boolean {
+  if (!exclusions?.length) return true;
+  if (POLICY_EXEMPT_CLASSES.has(fund.assetClass)) return true;
+  const declared = new Set(fund.exclusionPolicies ?? []);
+  return exclusions.every((e) => {
+    const tag = EXCLUSION_TO_POLICY_TAG[e as EthicalExclusion];
+    return tag ? declared.has(tag) : true; // valeur inconnue : pas d'exigence
+  });
+}
+
+/**
+ * Thème d'exclusion violé par le MANDAT du fonds (secteur, nom ou catégorie),
+ * ou null si le fonds est compatible. Fonction pure (testable).
+ */
+export function ethicalExclusionViolation(
+  fund: Pick<FundInput, "name" | "category" | "sector">,
+  exclusions: string[] | null | undefined,
+): EthicalExclusion | null {
+  if (!exclusions?.length) return null;
+  const text = `${fund.name ?? ""} ${fund.category ?? ""}`;
+  for (const raw of exclusions) {
+    const excl = raw as EthicalExclusion;
+    const re = ETHICAL_KEYWORDS[excl];
+    if (!re) continue; // valeur inconnue : ignorée (pas de sur-exclusion)
+    if (ETHICAL_SECTOR[excl] && fund.sector === ETHICAL_SECTOR[excl]) return excl;
+    if (re.test(text)) return excl;
+  }
+  return null;
+}
+
 export interface UniverseFilterOptions {
   /** Frais courants maximum, en pourcentage (0.5 = 0,5 %). */
   maxTer?: number | null;
   /** Préférence ESG (art8 → SFDR 8/9 ; art9 → SFDR 9 ; sinon tout). */
   esg?: string | null;
+  /** Exclusions éthiques du client (tabac, armes, fossiles, jeux, alcool) —
+   *  contrainte de mandat, jamais assouplie. */
+  exclusions?: string[] | null;
+  /** Mode STRICT des exclusions éthiques : en plus d'écarter les mandats
+   *  contraires, exige que les fonds exposés (actions, obligations, diversifié,
+   *  alternatif) DÉCLARENT chaque exclusion demandée dans leur politique
+   *  (tags excl-*). À n'activer que si l'univers restant le permet — le
+   *  service essaie strict d'abord, puis retombe sur le mandat seul. */
+  declaredPolicyStrict?: boolean;
   /** Zones géographiques du profil (vocabulaire UI, cf. GEO_TO_REGIONS). */
   geographies?: string[] | null;
   /** Plafond SRI par fonds (adéquation MIF : jamais plus risqué que la tolérance). */
@@ -155,6 +248,8 @@ export function filterUniverse(
   const excluded = new Set((opts.exclude ?? []).map((s) => s.toUpperCase()));
   const kept = funds.filter((f) => {
     if (excluded.has(f.isin.toUpperCase())) return false;
+    if (ethicalExclusionViolation(f, opts.exclusions) !== null) return false;
+    if (opts.declaredPolicyStrict && !satisfiesDeclaredExclusions(f, opts.exclusions)) return false;
     if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
     if (esg === "art8" && !(f.sfdr === 8 || f.sfdr === 9)) return false;
     if (esg === "art9" && f.sfdr !== 9) return false;

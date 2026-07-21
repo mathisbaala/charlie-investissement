@@ -35,6 +35,9 @@ import {
   cabinetContract,
   type CabinetSettings,
 } from "@/lib/cabinet";
+// Types UNIQUEMENT (import type = effacé au build) : le module serveur
+// allocationReview importe le SDK Anthropic, qui ne doit pas partir au client.
+import type { AllocationReview, ReviewIssue, ReviewClientContext } from "@/lib/allocationReview";
 
 // Contexte de l'atelier Portefeuille : porte TOUT l'état et le moteur d'optimisation,
 // monté au niveau du layout /portefeuille/construire pour survivre à la navigation
@@ -109,11 +112,17 @@ function demoPocketStats(
     geographies: p.geographies,
     sriMax: pocketCap,
     exclude: excludedIsins,
+    exclusions: p.exclusions,
   }).funds;
   if (funds.length < 4) {
     // Préférences trop restrictives pour cette poche : on ne garde que le
-    // plafond SRI (contrainte de la poche) et les exclusions manuelles.
-    funds = filterUniverse(SAMPLE_UNIVERSE, { sriMax: pocketCap, exclude: excludedIsins }).funds;
+    // plafond SRI (contrainte de la poche), les exclusions manuelles et les
+    // exclusions éthiques (mandat du client, jamais assouplies).
+    funds = filterUniverse(SAMPLE_UNIVERSE, {
+      sriMax: pocketCap,
+      exclude: excludedIsins,
+      exclusions: p.exclusions,
+    }).funds;
   }
   if (funds.length < 2) return null;
   const res = optimizeAllocation(funds, sampleCorrelation, {
@@ -146,6 +155,47 @@ type OptimizeApiResponse = {
   meta?: { droppedByPreferences?: number; universe?: number };
 };
 
+// ─── Vérification IA ──────────────────────────────────────────────────────────
+// Après le moteur, l'IA relit l'allocation (grille type Finary) et peut demander
+// des corrections (exclusions, cibles de classes) que le MOTEUR ré-exécute.
+// L'état ci-dessous résume la revue pour l'affichage : verdict, constats,
+// corrections appliquées et coût API cumulé (transparence dépense).
+
+export interface AiReviewState {
+  status: "done" | "unavailable";
+  /** conforme = validé tel quel ; corrige = corrections appliquées par le moteur ;
+   *  reserves = corrections demandées mais re-calcul impossible (allocation initiale). */
+  verdict?: "conforme" | "corrige" | "reserves";
+  /** Constats de la revue — journal des corrections (et signalements « info »). */
+  issues: ReviewIssue[];
+  /** Corrections appliquées, en clair pour le CGP. */
+  corrections: string[];
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Nombre d'appels LLM effectués (1 seul : pas de contre-vérification). */
+  calls: number;
+  model?: string;
+  /** Raison si status = unavailable (clé absente, service en erreur…). */
+  error?: string;
+}
+
+async function postReview(body: {
+  allocation: AllocationResult;
+  client: ReviewClientContext;
+  engineTargets?: Record<string, number>;
+  mustInclude: string[];
+}): Promise<AllocationReview> {
+  const res = await fetch("/api/portfolio/review", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const j = (await res.json().catch(() => null)) as { review?: AllocationReview; error?: string } | null;
+  if (!res.ok || !j?.review) throw new Error(j?.error ?? "Vérification IA indisponible.");
+  return j.review;
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 function useStudioState() {
@@ -160,6 +210,10 @@ function useStudioState() {
   // Départage rémunération cabinet : à adéquation client équivalente, préférer
   // le fonds à la meilleure rétrocession (estimée). Choix du CONSEILLER.
   const [retroTilt, setRetroTilt] = useState(false);
+  // Vérification IA post-moteur (revue + corrections). Activée par défaut :
+  // se dégrade en « indisponible » si la clé API n'est pas configurée.
+  const [aiVerify, setAiVerify] = useState(true);
+  const [aiReview, setAiReview] = useState<AiReviewState | null>(null);
 
   // Données CABINET (onglet « Mon cabinet », localStorage) : contrats distribués
   // → sélecteur de contrat direct ; conventions → rémunération sur vrais taux ;
@@ -252,8 +306,8 @@ function useStudioState() {
   // se déclenche que si quelque chose a réellement changé depuis.
   const lastSigRef = useRef<string | null>(null);
   const inputsSig = useMemo(
-    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet }),
-    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet],
+    () => JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, aiVerify }),
+    [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, aiVerify],
   );
 
   // Renvoie true quand une allocation a été produite (→ affichage / navigation),
@@ -263,7 +317,7 @@ function useStudioState() {
     // génération (y compris le recalcul auto) tant qu'il n'est pas retiré.
     if (included.some((f) => unreferencedIsins.has(f.isin))) return false;
     const runId = ++runIdRef.current;
-    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet });
+    lastSigRef.current = JSON.stringify({ profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, aiVerify });
     setBusy(true);
     setErrorMsg(null);
     // Le profil de l'état est déjà synchronisé par le formulaire ; on relit le
@@ -301,6 +355,9 @@ function useStudioState() {
       if (sriMaxParam != null) qs.set("sriMax", String(sriMaxParam));
       if (p.geographies.length) qs.set("geo", p.geographies.join(","));
       if (p.esg === "art8" || p.esg === "art9") qs.set("esg", p.esg);
+      // Exclusions éthiques du client (armes, tabac, fossiles…) : contrainte de
+      // mandat appliquée par le moteur, jamais assouplie.
+      if (p.exclusions.length) qs.set("exclusions", p.exclusions.join(","));
       if (p.max_ter != null) qs.set("terMax", String(p.max_ter));
       if (must.length) qs.set("must", must.join(","));
       if (excludedIsins.length) qs.set("exclude", excludedIsins.join(","));
@@ -351,7 +408,80 @@ function useStudioState() {
     if (runId !== runIdRef.current) return false; // un recalcul plus récent a pris la main
 
     if (api) {
-      const alloc = api;
+      let alloc = api;
+
+      // ── Vérification IA (post-moteur) ────────────────────────────────────
+      // Un SEUL appel : l'IA relit l'allocation et, si elle demande des
+      // corrections (exclusions / cibles), le MOTEUR est ré-exécuté avec ces
+      // contraintes — le CGP reçoit un portefeuille déjà corrigé, pas des
+      // recommandations. Pas de contre-vérification (latence et coût divisés
+      // par deux) ; toute erreur IA laisse l'allocation intacte.
+      let reviewState: AiReviewState | null = null;
+      if (aiVerify) {
+        const clientCtx: ReviewClientContext = {
+          age: p.age,
+          horizonYears: p.horizon_years,
+          objectif: p.objectif,
+          riskProfile: p.risk_profile,
+          perteMax: p.perte_max,
+          incomeNeed: p.income_need,
+          esg: p.esg,
+          geographies: p.geographies,
+          exclusions: p.exclusions,
+        };
+        try {
+          const first = await postReview({
+            allocation: alloc.allocation,
+            client: clientCtx,
+            engineTargets: base.classTargets as Record<string, number> | undefined,
+            mustInclude: mustIsins,
+          });
+          let verdict: NonNullable<AiReviewState["verdict"]> = "conforme";
+          const corrections: string[] = [];
+
+          if (first.verdict === "a_corriger") {
+            const qs2 = buildQs(base.maxWeightedSri ?? null, sriMax, mustIsins);
+            if (first.actions.exclude.length) {
+              qs2.set("exclude", [...excludedIsins, ...first.actions.exclude].join(","));
+              const names = first.actions.exclude.map(
+                (i) => alloc.allocation.lines.find((l) => l.isin === i)?.name ?? i,
+              );
+              corrections.push(`Fonds écartés : ${names.join(", ")}`);
+            }
+            if (first.actions.classTargets) {
+              const entries = Object.entries(first.actions.classTargets).filter(([, v]) => (v ?? 0) > 0);
+              qs2.set("targets", entries.map(([k, v]) => `${k}:${v}`).join(","));
+              corrections.push(`Cibles ajustées : ${entries.map(([k, v]) => `${k} ${v} %`).join(", ")}`);
+            }
+            const res2 = await fetch(`/api/portfolio/optimize?${qs2.toString()}`);
+            if (res2.ok) {
+              alloc = (await res2.json()) as OptimizeApiResponse;
+              verdict = "corrige";
+            } else {
+              verdict = "reserves";
+              corrections.push(
+                "Correction impossible avec l'univers de ce contrat : allocation initiale conservée.",
+              );
+            }
+          }
+          reviewState = {
+            status: "done", verdict, issues: first.issues, corrections,
+            costUsd: first.usage.costUsd, inputTokens: first.usage.inputTokens,
+            outputTokens: first.usage.outputTokens, calls: 1, model: first.model,
+          };
+        } catch (e) {
+          reviewState = {
+            status: "unavailable", issues: [], corrections: [],
+            costUsd: 0, inputTokens: 0, outputTokens: 0, calls: 0,
+            error: e instanceof Error ? e.message : "Vérification IA indisponible.",
+          };
+        }
+      }
+      // La revue n'est PAS montrée au CGP (le portefeuille arrive déjà
+      // corrigé) : trace console pour l'équipe — verdict, constats, coût.
+      if (reviewState) console.info("[vérification IA]", reviewState);
+      if (runId !== runIdRef.current) return false;
+      setAiReview(reviewState);
       setResult(alloc.allocation);
       setPresentation(alloc.presentation);
       setSimWeights(null); // nouvelle allocation → simulation remise à zéro
@@ -419,6 +549,7 @@ function useStudioState() {
       geographies: p.geographies,
       sriMax,
       exclude: excludedIsins,
+      exclusions: p.exclusions,
     };
     const notes: string[] = [];
     let geoActive = p.geographies.length > 0;
@@ -432,7 +563,8 @@ function useStudioState() {
       }
     }
     if (filtered.funds.length < 4) {
-      const bare = filterUniverse(SAMPLE_UNIVERSE, { exclude: excludedIsins });
+      // Comme côté API : les exclusions éthiques survivent au repli.
+      const bare = filterUniverse(SAMPLE_UNIVERSE, { exclude: excludedIsins, exclusions: p.exclusions });
       filtered = bare;
       geoActive = false;
       notes.push("Filtres du profil trop restrictifs sur l'univers d'exemple : portefeuille calculé sur l'univers complet.");
@@ -474,6 +606,7 @@ function useStudioState() {
     const pres = buildPresentation(res, demoPresOpts);
 
     if (runId !== runIdRef.current) return false;
+    setAiReview(null); // pas de vérification IA sur l'univers d'exemple
     setResult(res);
     setPresentation(pres);
     setSimWeights(null); // nouvelle allocation → simulation remise à zéro
@@ -508,7 +641,7 @@ function useStudioState() {
     setBusy(false);
     setHasGenerated(true);
     return true;
-  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, convention, unreferencedIsins]);
+  }, [profile, sriOverride, excluded, included, maxAssets, maxPerFund, contract, advisor, method, retroTilt, cabinet, convention, unreferencedIsins, aiVerify]);
 
   // Recalcul automatique (débouncé) après la première génération : jouer avec le
   // SRI, les zones géographiques, les frais, l'ESG ou la composition met le
@@ -685,6 +818,7 @@ function useStudioState() {
     maxPerFund, setMaxPerFund, maxAssets, setMaxAssets, advisor, setAdvisor,
     contract, setContract, method, setMethod, showAdvanced, setShowAdvanced,
     retroTilt, setRetroTilt, cabinet, sriOverride, setSriOverride, effectiveSri,
+    aiVerify, setAiVerify, aiReview,
     included, setIncluded, includeFund, unreferencedIsins, source, linesIsins,
     profile, onProfileChange,
     // Moteur

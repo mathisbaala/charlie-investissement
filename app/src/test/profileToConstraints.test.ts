@@ -6,6 +6,8 @@ import {
   filterFundsByProfile,
   filterUniverse,
   regionsForGeographies,
+  ethicalExclusionViolation,
+  satisfiesDeclaredExclusions,
   GEO_TO_REGIONS,
 } from "../lib/profileToConstraints";
 import type { FundInput } from "../lib/optimizer";
@@ -191,5 +193,99 @@ describe("filterUniverse", () => {
     const { funds, dropped } = filterUniverse(universe, {});
     expect(funds).toHaveLength(4);
     expect(dropped).toBe(0);
+  });
+
+  it("écarte les fonds au mandat contraire aux exclusions éthiques", () => {
+    const ethical: FundInput[] = [
+      f({ isin: "DEF", name: "Global Aerospace & Defence Fund" }),
+      f({ isin: "OIL", name: "World Oil & Gas Leaders" }),
+      f({ isin: "NRJ", name: "Fonds Energie Classique", sector: "Énergie" }),
+      f({ isin: "TAB", name: "Consumer Brands", category: "Tobacco & Spirits" }),
+      f({ isin: "CAS", name: "Casino Resorts Equity" }),
+      f({ isin: "OKF", name: "Fonds Actions Monde" }),
+      // Pièges : jeux vidéo ≠ jeux d'argent, renouvelable ≠ pétrole.
+      f({ isin: "GAM", name: "Video Gaming & Esports" }),
+      f({ isin: "REN", name: "Renewable Transition Equity", sector: "Environnement" }),
+    ];
+    const { funds } = filterUniverse(ethical, {
+      exclusions: ["armes", "fossiles", "tabac", "jeux", "alcool"],
+    });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["GAM", "OKF", "REN"]);
+  });
+});
+
+describe("ethicalExclusionViolation", () => {
+  const fund = (name: string, sector: string | null = null, category: string | null = null) =>
+    ({ name, sector, category });
+
+  it("détecte chaque thème via le nom, la catégorie ou le secteur", () => {
+    expect(ethicalExclusionViolation(fund("Défense Europe"), ["armes"])).toBe("armes");
+    expect(ethicalExclusionViolation(fund("Brent Oil Tracker"), ["fossiles"])).toBe("fossiles");
+    expect(ethicalExclusionViolation(fund("Fonds sectoriel", "Énergie"), ["fossiles"])).toBe("fossiles");
+    expect(ethicalExclusionViolation(fund("X", null, "Tobacco"), ["tabac"])).toBe("tabac");
+    expect(ethicalExclusionViolation(fund("Gambling & Betting"), ["jeux"])).toBe("jeux");
+    expect(ethicalExclusionViolation(fund("Wine & Spirits"), ["alcool"])).toBe("alcool");
+  });
+
+  it("ne signale rien sans exclusion demandée ou pour un fonds neutre", () => {
+    expect(ethicalExclusionViolation(fund("Défense Europe"), [])).toBeNull();
+    expect(ethicalExclusionViolation(fund("Actions Monde"), ["armes", "fossiles"])).toBeNull();
+  });
+
+  it("ne confond pas les faux amis (jeux vidéo, renouvelables, cybersécurité)", () => {
+    expect(ethicalExclusionViolation(fund("Video Gaming & Esports"), ["jeux"])).toBeNull();
+    expect(ethicalExclusionViolation(fund("Renewable Energy Transition", "Environnement"), ["fossiles"])).toBeNull();
+    expect(ethicalExclusionViolation(fund("Cybersecurity Leaders"), ["armes"])).toBeNull();
+  });
+
+  it("ignore les valeurs d'exclusion inconnues sans sur-exclure", () => {
+    expect(ethicalExclusionViolation(fund("Défense Europe"), ["nucleaire"])).toBeNull();
+  });
+});
+
+describe("satisfiesDeclaredExclusions (mode strict)", () => {
+  const f = (assetClass: FundInput["assetClass"], policies: string[] | null) =>
+    ({ assetClass, exclusionPolicies: policies });
+
+  it("exige la déclaration de CHAQUE exclusion demandée pour les classes exposées", () => {
+    expect(satisfiesDeclaredExclusions(f("actions", ["excl-fossiles", "excl-armes"]), ["fossiles", "armes"])).toBe(true);
+    expect(satisfiesDeclaredExclusions(f("actions", ["excl-fossiles"]), ["fossiles", "armes"])).toBe(false);
+    expect(satisfiesDeclaredExclusions(f("obligations", []), ["tabac"])).toBe(false);
+    expect(satisfiesDeclaredExclusions(f("actions", null), ["jeux"])).toBe(false);
+  });
+
+  it("exempte les classes structurellement non exposées (monétaire, fonds euros, immobilier, crypto)", () => {
+    for (const cls of ["monetaire", "fonds_euros", "immobilier", "crypto"] as const) {
+      expect(satisfiesDeclaredExclusions(f(cls, null), ["fossiles", "armes"])).toBe(true);
+    }
+  });
+
+  it("sans exclusion demandée, tout passe", () => {
+    expect(satisfiesDeclaredExclusions(f("actions", null), [])).toBe(true);
+  });
+});
+
+describe("filterUniverse — mode strict des exclusions", () => {
+  function f(over: Partial<FundInput> & { isin: string }): FundInput {
+    return { name: over.isin, assetClass: "actions", expectedReturn: 0.08, volatility: 0.12, ...over };
+  }
+  const universe: FundInput[] = [
+    f({ isin: "DECL", exclusionPolicies: ["excl-fossiles"] }),
+    f({ isin: "NODECL" }),
+    f({ isin: "MON", assetClass: "monetaire" }),
+    f({ isin: "OIL", name: "World Oil Fund" }), // mandat contraire
+  ];
+
+  it("strict : garde les déclarants et les classes exemptées, écarte le reste", () => {
+    const { funds } = filterUniverse(universe, {
+      exclusions: ["fossiles"],
+      declaredPolicyStrict: true,
+    });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["DECL", "MON"]);
+  });
+
+  it("non strict : seul le mandat contraire est écarté (comportement de repli)", () => {
+    const { funds } = filterUniverse(universe, { exclusions: ["fossiles"] });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["DECL", "MON", "NODECL"]);
   });
 });

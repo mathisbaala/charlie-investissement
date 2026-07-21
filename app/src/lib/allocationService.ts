@@ -11,7 +11,7 @@ import {
 } from "./optimizer";
 import { toFundInputs, type FundRow } from "./allocationInput";
 import { buildPresentation, type AllocationPresentation } from "./allocationRationale";
-import { filterUniverse, GEO_TO_REGIONS } from "./profileToConstraints";
+import { filterUniverse, GEO_TO_REGIONS, ETHICAL_EXCLUSIONS } from "./profileToConstraints";
 
 // Service serveur du moteur d'allocation : partagé par la route JSON
 // (/api/portfolio/optimize) et la route PDF (…/pdf) pour ne pas dupliquer la
@@ -21,7 +21,7 @@ import { filterUniverse, GEO_TO_REGIONS } from "./profileToConstraints";
 const VIEW = "investissement_funds_cgp_ref";
 const COLS =
   "isin, name, product_type, asset_class_broad, category_normalized, " +
-  "region_normalized, management_style, gestionnaire, risk_score, sfdr_article, " +
+  "region_normalized, sector, labels, management_style, gestionnaire, risk_score, sfdr_article, " +
   "morningstar_rating, ter, ongoing_charges, performance_1y, performance_3y, " +
   "performance_5y, volatility_1y, volatility_3y, data_completeness";
 
@@ -46,6 +46,9 @@ export interface OptimizeParams {
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller. */
   exclude?: string[];
+  /** Exclusions éthiques du client (tabac, armes, fossiles, jeux, alcool) —
+   *  contrainte de mandat : appliquée à TOUS les replis, jamais assouplie. */
+  exclusions?: string[];
   /** Méthode de pondération : max-Sharpe (défaut) ou HRP. */
   method?: AllocationMethod;
   /** Départage rétrocession à adéquation client équivalente (choix conseiller). */
@@ -102,6 +105,23 @@ export interface OptimizeError {
   error: string;
   detail?: string;
   status: number;
+}
+
+/**
+ * true si l'univers `funds` peut servir CHAQUE classe cible demandée (au moins
+ * un fonds par classe à poids > 0). Garde du mode strict des exclusions : sans
+ * elle, un univers strict réduit à une seule classe (ex. immobilier, exempté de
+ * déclaration) passerait le seuil minAssets et produirait un portefeuille
+ * dégénéré à 100 % sur cette classe. Fonction pure (testable).
+ */
+export function coversClassTargets(
+  funds: Pick<FundInput, "assetClass">[],
+  targets: Partial<Record<AssetClass, number>> | undefined,
+): boolean {
+  if (!targets) return true;
+  return Object.entries(targets).every(
+    ([cls, w]) => (w ?? 0) <= 0 || funds.some((f) => f.assetClass === cls),
+  );
 }
 
 /**
@@ -214,13 +234,31 @@ export async function optimizeContract(
     geographies: params.geographies ?? [],
     sriMax: params.sriMax ?? null,
     exclude: params.exclude ?? [],
+    exclusions: params.exclusions ?? [],
   };
   const filterNotes: string[] = [];
   // Tant que la contrainte géographique est active, chaque zone demandée devra
   // aussi être REPRÉSENTÉE dans la sélection (cf. coverRegions). Si elle est
   // levée pour préserver la diversification, la couverture l'est aussi.
   let geoActive = (params.geographies?.length ?? 0) > 0;
+  // Exclusions éthiques : d'abord en mode STRICT (les fonds exposés doivent
+  // DÉCLARER l'exclusion dans leur politique — annexe SFDR), qui garantit la
+  // conformité ligne à ligne. Si la couverture de données ne laisse pas assez
+  // de fonds, repli sur le filtre de mandat seul (toujours actif, lui).
   let filtered = filterUniverse(inputs, filterOpts);
+  if ((params.exclusions?.length ?? 0) > 0) {
+    const strict = filterUniverse(inputs, { ...filterOpts, declaredPolicyStrict: true });
+    if (strict.funds.length >= minAssets && coversClassTargets(strict.funds, classTargets)) {
+      filtered = strict;
+      filterNotes.push(
+        "Exclusions du client appliquées en mode strict : fonds à politique d'exclusion déclarée (annexe SFDR) ou structurellement non exposés.",
+      );
+    } else {
+      filterNotes.push(
+        "Trop peu de fonds à politique d'exclusion déclarée dans ce contrat : exclusions appliquées sur le mandat des fonds (secteur/nom).",
+      );
+    }
+  }
   if (filtered.funds.length < minAssets && geoActive) {
     const retry = filterUniverse(inputs, { ...filterOpts, geographies: [] });
     if (retry.funds.length >= minAssets) {
@@ -232,7 +270,12 @@ export async function optimizeContract(
     }
   }
   if (filtered.funds.length < minAssets) {
-    const bare = filterUniverse(inputs, { exclude: params.exclude ?? [] });
+    // Repli « univers complet » : on lève les PRÉFÉRENCES, jamais les exclusions
+    // manuelles ni les exclusions ÉTHIQUES (mandat du client).
+    const bare = filterUniverse(inputs, {
+      exclude: params.exclude ?? [],
+      exclusions: params.exclusions ?? [],
+    });
     if (bare.funds.length >= minAssets) {
       filtered = bare;
       geoActive = false;
@@ -425,6 +468,11 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
         ? Math.min(Math.max(Math.round(Number(sriMaxRaw)), 1), 7)
         : null,
     exclude: isinList(p.get("exclude")),
+    // Exclusions éthiques : seules les valeurs du vocabulaire du profil passent.
+    exclusions: (p.get("exclusions") ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => (ETHICAL_EXCLUSIONS as readonly string[]).includes(s)),
     method: p.get("method")?.trim().toLowerCase() === "hrp" ? "hrp" : "sharpe",
     retroTieBreak: p.get("retro") === "1",
     // ucShare : taux de convention UC en POURCENTAGE (50 = 50 % des frais).

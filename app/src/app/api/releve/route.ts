@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import {
   csvToText, extractDocumentTotal, extractPositions, looksLikeFeeDocument, rowsToText,
+  type ExtractedPosition,
   type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
 } from "@/lib/releve";
+import { extractPositionsAi, scrubDocumentText, type ReleveAiUsage } from "@/lib/releveAi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +13,11 @@ export const dynamic = "force-dynamic";
 // Analyse d'un relevé de situation PDF (onglet « Analyse de l'existant ») :
 //   1. extraction du texte (pdfjs, reconstruction des lignes par ordonnée Y —
 //      les invariants ISIN+montants vivent sur une même ligne visuelle) ;
-//   2. extraction des positions (lib/releve, pur) ;
+//   2. extraction des positions : l'IA (GLM 5.2, lib/releveAi) lit le texte
+//      ANONYMISÉ en lecteur principal — chaque assureur ayant son template, le
+//      déterministe (lib/releve) échoue sur les mises en page exotiques ; il
+//      reste le repli (pas de clé, erreur IA) et complète l'IA (union des ISIN
+//      qu'elle aurait manqués) ;
 //   3. enrichissement catalogue (nom, TER, SRI) + RECONNAISSANCE DU CONTRAT :
 //      les ISIN extraits sont confrontés au référencement UC↔contrat
 //      (investissement_av_lux_eligibility) — le contrat dont l'univers couvre
@@ -125,9 +131,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const extracted = extractPositions(text).slice(0, MAX_ISINS);
-  // Total de valorisation imprimé sur le document (contrôle de cohérence UI).
-  const documentTotal = extractDocumentTotal(text);
+  // Déterministe d'abord (gratuit, instantané) : repli et complément de l'IA.
+  const deterministic = extractPositions(text).slice(0, MAX_ISINS);
+  let extracted: ExtractedPosition[] = deterministic;
+  let documentTotal = extractDocumentTotal(text);
+  let ai: (ReleveAiUsage & { model: string; positions: number }) | null = null;
+
+  if (process.env.ZAI_API_KEY) {
+    try {
+      const aiRes = await extractPositionsAi(scrubDocumentText(text));
+      if (aiRes.positions.length > 0) {
+        // L'IA devient la source principale ; les ISIN qu'elle aurait manqués
+        // mais que le déterministe a vus sont réinjectés (union, jamais moins
+        // bien que l'existant).
+        const seen = new Set(aiRes.positions.map((p) => p.isin));
+        extracted = [
+          ...aiRes.positions,
+          ...deterministic.filter((p) => !seen.has(p.isin)),
+        ].slice(0, MAX_ISINS);
+        if (aiRes.documentTotal !== null) documentTotal = aiRes.documentTotal;
+        ai = { ...aiRes.usage, model: aiRes.model, positions: aiRes.positions.length };
+      }
+    } catch (e) {
+      // IA indisponible → le déterministe fait le travail, comme avant.
+      console.error("[releve] lecture IA échouée (repli déterministe):", e);
+    }
+  }
+
   if (extracted.length === 0) {
     return NextResponse.json(
       { positions: [], matches: [], warning: "Aucun ISIN détecté — relevé scanné ou format inattendu ?" },
@@ -208,5 +238,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       "Déposez le relevé de situation (celui qui valorise chaque support), ou saisissez les montants à la main."
     : undefined;
 
-  return NextResponse.json({ positions, matches, knownCount, warning, documentTotal });
+  // `ai` : télémétrie de lecture (modèle, tokens, coût) — null si repli
+  // déterministe. Consommée pour le suivi de dépense, pas affichée au CGP.
+  return NextResponse.json({ positions, matches, knownCount, warning, documentTotal, ai });
 }

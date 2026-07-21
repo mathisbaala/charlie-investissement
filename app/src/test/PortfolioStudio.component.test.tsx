@@ -63,7 +63,8 @@ describe("PortfolioStudio", () => {
 
     expect(await screen.findByText("Portefeuille détaillé")).toBeTruthy();
     expect(screen.getByText("Contexte et objectifs")).toBeTruthy();
-    expect(screen.getByText("Analyse et justification par support")).toBeTruthy();
+    // Réservée au PDF client : absente de la restitution écran.
+    expect(screen.queryByText("Analyse et justification par support")).toBeNull();
     // Résumé du profil utilisé + boutons d'export.
     expect(screen.getByText(/Profil utilisé/)).toBeTruthy();
     expect(screen.getByText(/Télécharger \(PowerPoint\)/)).toBeTruthy();
@@ -127,16 +128,23 @@ describe("PortfolioStudio", () => {
     expect(screen.queryByText(/Fonds écartés/)).toBeNull();
   });
 
-  it("baisser le plafond SRI relance le calcul (filtre trop strict → note d'assouplissement)", async () => {
+  it("baisser le plafond SRI relance le calcul (SRI pondéré suit, notes techniques masquées)", async () => {
     renderStudio();
     fireEvent.click(screen.getByText("Générer le portefeuille"));
     await screen.findByText("Portefeuille détaillé");
 
+    // Le recalcul (débouncé) se voit sur le SRI pondéré affiché, qui change
+    // quand le plafond passe à 2 (l'univers d'exemple ne permet pas toujours
+    // d'ATTEINDRE 2 — contrainte assouplie par le moteur — mais il bouge).
+    const before = screen.getByTestId("simulated-sri").textContent;
     fireEvent.change(screen.getByLabelText("Plafond SRI par fonds"), { target: { value: "2" } });
 
     await waitFor(() => {
-      expect(screen.getByText(/trop restrictifs sur l'univers d'exemple/)).toBeTruthy();
+      expect(screen.getByTestId("simulated-sri").textContent).not.toBe(before);
     }, { timeout: 2000 });
+    // Les diagnostics techniques du moteur (assouplissement de filtres…) ne
+    // sont volontairement plus montrés au CGP.
+    expect(screen.queryByText(/trop restrictifs sur l'univers d'exemple/)).toBeNull();
   });
 
   it("impose un fonds choisi dans l'univers d'exemple (mode démo)", async () => {

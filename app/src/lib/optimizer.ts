@@ -64,6 +64,13 @@ export interface FundInput {
   managementStyle?: string | null;
   gestionnaire?: string | null;
   region?: string | null;
+  /** Secteur normalisé (fonds sectoriels : « Énergie », « Santé »…) — sert aux
+   *  exclusions éthiques du client (fossiles, armes…). */
+  sector?: string | null;
+  /** Politique d'exclusion DÉCLARÉE du fonds (annexe SFDR), tags normalisés
+   *  « excl-fossiles », « excl-tabac », « excl-armes », « excl-jeux »,
+   *  « excl-alcool ». Vide/absent = politique inconnue (≠ refus). */
+  exclusionPolicies?: string[] | null;
   /** Notation Morningstar 1–5 étoiles (null si non noté, ex. SCPI). */
   rating?: number | null;
   /** Complétude 0–100 — pénalise les fonds mal renseignés à la sélection. */
