@@ -13,6 +13,9 @@ interface FilterPanelProps {
   onApply: () => void;
   onReset: () => void;
   onClose: () => void;
+  // Libellé du bouton primaire du pied. « Appliquer » dans le screener (on reste
+  // sur place) ; « Lancer la recherche » depuis l'accueil (on navigue vers /recherche).
+  applyLabel?: string;
 }
 
 function Divider() {
@@ -175,7 +178,7 @@ export function orderInsurersByPartners<T extends { company: string }>(
 }
 
 export function FilterPanel({
-  filters, onChange, onApply, onReset, onClose,
+  filters, onChange, onApply, onReset, onClose, applyLabel = "Appliquer",
 }: FilterPanelProps) {
   const f = filters;
 
@@ -322,7 +325,7 @@ export function FilterPanel({
         <Divider />
 
         {/* Perf */}
-        <Section title="Perf 1Y / 3Y / 5Y min">
+        <Section title="Perf 1A / 3A / 5A min">
           <div className="space-y-2.5">
             <NumPairInputs
               labelA="Perf 1A ≥" labelB="Perf 3A ≥"
@@ -392,7 +395,7 @@ export function FilterPanel({
         {/* Taille / Track record */}
         <Section title="Taille / Ancienneté">
           <NumPairInputs
-            labelA="AUM ≥ (M€)" labelB="Track rec. ≥"
+            labelA="Encours ≥ (M€)" labelB="Ancienneté ≥"
             valueA={String(f.aum_min ?? "")} valueB={String(f.track_record_min ?? "")}
             onChangeA={(v) => set("aum_min", v ? +v : undefined)}
             onChangeB={(v) => set("track_record_min", v ? +v : undefined)}
@@ -702,7 +705,7 @@ export function FilterPanel({
         <Section title="Style de gestion">
           <div className="flex gap-2 flex-wrap">
             {[
-              { val: "passif",     label: "Passif (index)" },
+              { val: "passif",     label: "Passif (indiciel)" },
               { val: "actif",      label: "Actif" },
               { val: "smart_beta", label: "Smart beta" },
               { val: "alternatif", label: "Alternatif" },
@@ -826,7 +829,7 @@ export function FilterPanel({
           Réinitialiser
         </Btn>
         <Btn variant="primary" size="sm" onClick={onApply} className="flex-1">
-          Appliquer
+          {applyLabel}
         </Btn>
       </div>
     </div>

@@ -4,18 +4,30 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
+import { FilterPanel } from "@/components/screener/FilterPanel";
 import { Btn } from "@/components/ui/Btn";
-import { Search, Clock, RotateCcw, ChevronRight } from "@/components/ui/icons";
+import { Search, Clock, RotateCcw, ChevronRight, SlidersHorizontal, ArrowRight } from "@/components/ui/icons";
 import { addSearch, getRecentSearches } from "@/lib/searches";
 import { getViewedFunds, type ViewedFund } from "@/lib/viewedFunds";
+import { buildParams, countActiveFilters, DEFAULT_SORT } from "@/lib/screenerParams";
+import type { ParsedFilters } from "@/lib/types";
 
-// Accueil = vrai point d'entrée : une seule chose à faire, chercher. En dessous,
-// la « Reprise d'activité » (recherches récentes + derniers fonds vus) permet de
-// reprendre le travail là où on l'a laissé — sans profil client (qui vit
-// désormais dans Portefeuille) ni compte. Rien ne s'affiche à la 1re visite.
+// Accueil = vrai point d'entrée. Deux chemins pour arriver aux fonds, côte à côte :
+//   1. écrire ce qu'on cherche en langage naturel (barre + « Lancer la recherche ») ;
+//   2. quand on n'a pas de phrase en tête, raisonner par filtres (« Gérer mes
+//      filtres » ouvre le panneau du screener directement ici).
+// En dessous, la « Reprise d'activité » (recherches récentes + derniers fonds vus)
+// permet de reprendre le travail là où on l'a laissé. Pas de profil client (il vit
+// dans Portefeuille) ni de compte. Rien ne s'affiche à la 1re visite.
 export default function AccueilPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+
+  // Filtres réglés à la main (panneau) avant de lancer la recherche. Ils voyagent
+  // vers /recherche via l'URL, seuls ou combinés à la requête texte.
+  const [filters, setFilters] = useState<ParsedFilters>({});
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = countActiveFilters(filters);
 
   // Historique lu après montage (localStorage) pour éviter tout écart d'hydratation.
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -26,12 +38,29 @@ export default function AccueilPage() {
     setViewedFunds(getViewedFunds().slice(0, 6));
   }, []);
 
-  function runSearch(q: string) {
-    const trimmed = q.trim();
-    if (!trimmed) {
+  // Lance la recherche depuis l'un ou l'autre chemin (texte, filtres, ou les deux).
+  function launchSearch() {
+    const trimmed = query.trim();
+    const hasFilters = activeFilterCount > 0;
+    if (!trimmed && !hasFilters) {
       router.push("/recherche");
       return;
     }
+    if (trimmed) addSearch({ query: trimmed, chips: [], count: 0 });
+    // Chemin pur langage naturel (cas courant) → URL propre `?q=`.
+    if (!hasFilters) {
+      router.push("/recherche?q=" + encodeURIComponent(trimmed));
+      return;
+    }
+    // Filtres manuels (± texte) → tout est sérialisé dans l'URL.
+    const params = buildParams(filters, 1, DEFAULT_SORT.sort_by, DEFAULT_SORT.sort_dir);
+    if (trimmed) params.set("q", trimmed);
+    router.push(`/recherche?${params.toString()}`);
+  }
+
+  function runRecent(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) { router.push("/recherche"); return; }
     addSearch({ query: trimmed, chips: [], count: 0 });
     router.push("/recherche?q=" + encodeURIComponent(trimmed));
   }
@@ -39,21 +68,50 @@ export default function AccueilPage() {
   const hasHistory = recentSearches.length > 0 || viewedFunds.length > 0;
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-10">
-      <div className="max-w-[1040px] mx-auto">
+    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-14 sm:py-20">
+      <div className="max-w-[960px] mx-auto">
 
-        {/* Recherche en langage naturel (le titre « Charlie » vit dans la Topbar) */}
-        <div className="bg-paper rounded-xl border border-line shadow-sm px-5 py-3.5 flex items-center gap-3 focus-within:border-accent/50 transition-colors">
-          <Search size={16} className="text-muted shrink-0" />
-          <TypingPrompt value={query} onChange={setQuery} onSubmit={() => runSearch(query)} className="flex-1" />
-          <Btn variant="primary" size="sm" onClick={() => runSearch(query)}>
-            Rechercher
-          </Btn>
+        {/* Une seule grande phrase : ce à quoi l'outil sert. Rien de plus —
+            l'espace fait le reste. (Le titre « Charlie » vit dans la Topbar.) */}
+        <h1
+          className="text-display-lg sm:text-display-xl text-ink tracking-[-0.025em] leading-[1.05] mb-9 sm:mb-11"
+          style={{ fontFamily: "var(--font-sans)" }}
+        >
+          Trouver le bon{" "}
+          <em className="not-italic" style={{ color: "var(--color-accent)" }}>
+            support
+          </em>
+          .
+        </h1>
+
+        {/* Carte de recherche : saisie en haut, deux actions en pied
+            (« Gérer mes filtres » à gauche, « Lancer la recherche » à droite) */}
+        <div className="bg-paper rounded-2xl border border-line shadow-sm px-5 sm:px-6 py-5">
+          <div className="flex items-center gap-3">
+            <Search size={18} className="text-muted shrink-0" />
+            <TypingPrompt value={query} onChange={setQuery} onSubmit={launchSearch} className="flex-1" />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 pt-4 mt-4 border-t border-line-soft">
+            <Btn variant="outline" size="md" onClick={() => setShowFilters(true)} className="gap-2">
+              <SlidersHorizontal size={14} strokeWidth={1.7} />
+              Gérer mes filtres
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full bg-brown text-paper text-caption font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Btn>
+            <Btn variant="accent" size="md" onClick={launchSearch} className="gap-2">
+              Lancer la recherche
+              <ArrowRight size={15} />
+            </Btn>
+          </div>
         </div>
 
         {/* Reprise d'activité — n'apparaît que s'il y a un historique local */}
         {hasHistory && (
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+          <div className="mt-14 sm:mt-16 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
 
             {recentSearches.length > 0 && (
               <section>
@@ -67,7 +125,7 @@ export default function AccueilPage() {
                   {recentSearches.map((q) => (
                     <li key={q}>
                       <button
-                        onClick={() => runSearch(q)}
+                        onClick={() => runRecent(q)}
                         className="group w-full flex items-center gap-2.5 py-2 min-h-[40px] -mx-2 px-2 rounded-lg hover:bg-paper transition-colors text-left"
                       >
                         <Search size={13} className="text-muted-2 shrink-0" />
@@ -111,6 +169,29 @@ export default function AccueilPage() {
         )}
 
       </div>
+
+      {/* Panneau de filtres du screener, ouvert en tiroir depuis l'accueil.
+          « Lancer la recherche » (pied du panneau) navigue vers /recherche avec
+          les filtres réglés. La croix ferme sans perdre la sélection. */}
+      {showFilters && (
+        <>
+          <div
+            className="fixed inset-0 z-[55] bg-ink/20"
+            onClick={() => setShowFilters(false)}
+            aria-hidden
+          />
+          <div className="fixed inset-y-0 right-0 z-[60] flex md:p-3">
+            <FilterPanel
+              filters={filters}
+              onChange={setFilters}
+              onApply={() => { setShowFilters(false); launchSearch(); }}
+              onReset={() => setFilters({})}
+              onClose={() => setShowFilters(false)}
+              applyLabel="Rechercher"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -180,6 +180,21 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
 // le catalogue et le badge « Supports référencés chez… » disparaît). Ces deux
 // helpers isolent la logique, réutilisée au montage et dans le handler de recherche.
 
+// Nombre de filtres « durs » actifs (catégories contraintes) dans un ParsedFilters.
+// Alimente le badge « Gérer mes filtres » de l'accueil, où l'on peut raisonner par
+// filtres avant même d'écrire une requête. On ignore ce qui n'est pas un filtre de
+// screener : requête texte, chips d'affichage, intention de tri, préférences douces.
+const NON_FILTER_KEYS = new Set(["free_text", "chips", "sort_intent", "prefs"]);
+export function countActiveFilters(f: ParsedFilters): number {
+  let n = 0;
+  for (const [k, v] of Object.entries(f)) {
+    if (NON_FILTER_KEYS.has(k)) continue;
+    if (Array.isArray(v)) { if (v.length > 0) n++; }
+    else if (v != null && v !== "" && v !== false) n++;
+  }
+  return n;
+}
+
 // Ne conserve QUE les clés de référencement effectivement présentes.
 export function pickReferencing(f: ParsedFilters): ParsedFilters {
   const ref: ParsedFilters = {};

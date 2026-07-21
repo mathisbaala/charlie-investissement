@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
-import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER, pickReferencing, searchUrlWithReferencing } from '../lib/screenerParams'
+import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER, pickReferencing, searchUrlWithReferencing, countActiveFilters } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -343,5 +343,38 @@ describe('searchUrlWithReferencing — URL de recherche préservant l\'assureur'
     const f = filtersFromParams(new URLSearchParams(url.split('?')[1]))
     expect(f.insurers).toEqual(['Spirica'])
     expect(f.free_text).toBeUndefined() // `q=` n'est pas un filtre dur, il repart en NLP
+  })
+})
+
+// countActiveFilters : compte les catégories de filtres DURS actives — pour le
+// badge « Gérer mes filtres » de l'accueil, où l'on peut raisonner par filtres.
+// Doit ignorer requête texte, chips d'affichage, intention de tri et préférences
+// douces (qui ne sont pas des contraintes de screener).
+describe('countActiveFilters — badge accueil', () => {
+  it('renvoie 0 pour un objet vide', () => {
+    expect(countActiveFilters({})).toBe(0)
+  })
+
+  it('compte une catégorie par filtre dur (tableau, scalaire, booléen)', () => {
+    const f: ParsedFilters = { sfdr: [8, 9], region: ['usa'], ter_max: 2, no_entry_fee: true }
+    expect(countActiveFilters(f)).toBe(4) // sfdr, region, ter_max, no_entry_fee
+  })
+
+  it('un tableau vide ne compte pas', () => {
+    expect(countActiveFilters({ envelopes: [], sri_max: 4 })).toBe(1)
+  })
+
+  it('ignore le texte, les chips, le tri d\'intention et les préférences douces', () => {
+    const f: ParsedFilters = {
+      free_text: 'amundi',
+      chips: ['Article 9'],
+      sort_intent: { field: 'ter', dir: 'asc' },
+      prefs: { income: true, novice: true },
+    }
+    expect(countActiveFilters(f)).toBe(0)
+  })
+
+  it('ne compte pas un booléen à false', () => {
+    expect(countActiveFilters({ has_kid: false })).toBe(0)
   })
 })

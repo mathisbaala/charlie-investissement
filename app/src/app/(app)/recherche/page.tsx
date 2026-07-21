@@ -168,23 +168,22 @@ function RechercheInner() {
     // Arrivée avec des filtres déjà décidés (enveloppe/assureur/contrat depuis
     // l'onglet Assurances vie, lien partagé) : on amorce directement, sans NLP.
     if (hasUrlFilters) {
-      // Cas d'un rechargement / lien après une recherche partie de l'onglet
-      // Assurances vie : l'URL combine une requête texte `q=` et un filtre de
-      // référencement (assureur/contrat). On parse le texte ET on conserve le
-      // filtre de référencement (overlay), pour que le badge et le périmètre
-      // survivent au reload — comme en session.
-      const refOverlay = pickReferencing(initialUrlFilters);
-      const hasRef = !!(refOverlay.insurers || refOverlay.contracts);
-      if (initialQ && hasRef) {
+      // L'URL combine parfois une requête texte `q=` et des filtres décidés en
+      // amont : référencement assureur/contrat depuis l'onglet Assurances vie
+      // (rechargement / lien), OU filtres manuels réglés sur l'accueil avant
+      // « Lancer la recherche ». On parse alors le texte ET on superpose les
+      // filtres d'URL, qui priment sur ce que le NLP a pu produire — pour que le
+      // périmètre et les badges survivent au reload comme en session.
+      if (initialQ) {
         setQuery(initialQ);
         if (asExactIsin(initialQ)) {
-          setFilters({ free_text: initialQ, ...refOverlay });
+          setFilters({ free_text: initialQ, ...initialUrlFilters });
           setNlpFailed(false);
         } else {
           setParsing(true);
           parseQuery(initialQ).then((parsed) => {
             const hasFilters = Object.keys(parsed).length > 0;
-            setFilters(hasFilters ? { ...parsed, ...refOverlay } : { free_text: initialQ, ...refOverlay });
+            setFilters(hasFilters ? { ...parsed, ...initialUrlFilters } : { free_text: initialQ, ...initialUrlFilters });
             setNlpFailed(!hasFilters);
             setParsing(false);
           });
