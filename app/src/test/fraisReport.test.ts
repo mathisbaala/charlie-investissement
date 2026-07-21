@@ -96,6 +96,20 @@ describe("buildFraisReport", () => {
     expect(sansFrais.reductionRendement).toBeCloseTo(0, 2);
   });
 
+  it("intègre les honoraires : nature.total = coût total client, dontConseil = revenu cabinet", () => {
+    const r = buildFraisReport(
+      { ...input, honoraireForfait: 400, honoraireAnnuelPct: 0.3 }, supports)!
+    const { entree, gestionEnveloppe, fraisCourants, sortie, honoraires, total, dontConseil } = r.nature
+    expect(honoraires).toBeGreaterThan(400) // forfait + récurrent
+    // Identité par nature = coût total client (structure + honoraires).
+    expect(entree + gestionEnveloppe + fraisCourants + sortie + honoraires).toBeCloseTo(total, 1)
+    expect(total).toBeCloseTo(r.coutTotalClient, 1)
+    expect(r.coutTotalClient).toBeCloseTo(r.final.totalFrais + honoraires, 1)
+    // Le conseil inclut les honoraires ; revenuCabinet cohérent.
+    expect(dontConseil).toBeCloseTo(r.revenuCabinet, 1)
+    expect(r.revenuCabinet).toBeCloseTo(r.remuTotale + honoraires, 1)
+  })
+
   it("coût 1re année et récurrent cohérents avec le total", () => {
     const r = buildFraisReport(input, supports)!;
     expect(r.coutPremiereAnnee).toBeGreaterThan(0);

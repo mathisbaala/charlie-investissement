@@ -5,6 +5,7 @@ import {
   projeterUC,
   partFraisDansGainBrut,
   repartitionFrais,
+  reductionRendementAnnuelle,
   remunerationSupport,
   HORIZONS_DEFAUT,
   type SimulationInput,
@@ -376,12 +377,107 @@ describe('part frais de gestion contrat reversée au cabinet', () => {
     const p = sim.points[15]
     const avec = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee, p.contractFeeCumulee)
     const sans = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee)
-    const cf = Math.min(p.contractFeeCumulee, p.fraisCumules.gestionContratUC)
+    const cf = Math.min(p.contractFeeCumulee, p.fraisCumules.gestionContratUC + p.fraisCumules.gestionContratFE)
     // le cabinet gagne la part contrat en plus, l'assureur la perd d'autant
     expect(avec.cabinet).toBeCloseTo(sans.cabinet + cf, 1)
     expect(avec.assureur).toBeCloseTo(sans.assureur - cf, 1)
     // total conservé
     expect(avec.assureur + avec.societeGestion + avec.cabinet).toBeCloseTo(h.totalFrais, 0)
+  })
+})
+
+describe('part gestion contrat — plafond sur les frais de gestion du contrat (UC + FE)', () => {
+  it('plafonne l’accrual à la somme gestion contrat UC + FE (jamais plus que ce que le contrat prélève)', () => {
+    // Taux délirant (99 %) : la part reversée est bornée aux frais de gestion
+    // du contrat cumulés (UC + fonds euros), pas davantage. Mix UC/FE pour
+    // exercer les DEUX jambes de l'assiette.
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, contractFeeShare: 99 })
+    const p = sim.points[15]
+    const capGestionContrat = p.fraisCumules.gestionContratUC + p.fraisCumules.gestionContratFE
+    expect(p.contractFeeCumulee).toBeLessThanOrEqual(capGestionContrat + 0.01)
+    expect(p.contractFeeCumulee).toBeGreaterThan(0)
+  })
+
+  it('remuTotale (revenuCabinet) et repart.cabinet restent cohérents même à taux élevé', () => {
+    // Régression : avant le plafond d'accrual, contractFeeCumulee (non plafonné)
+    // gonflait revenuCabinet au-delà de la poche cabinet de la répartition.
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 5 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const p = sim.points[15]
+    const r = repartitionFrais(p.fraisCumules, h, p.retroCgpCumulee, p.commCabinetCumulee, p.contractFeeCumulee)
+    expect(h.revenuCabinet).toBeCloseTo(r.cabinet, 1)
+  })
+})
+
+describe('honoraires de conseil (facturés en sus)', () => {
+  it('forfait à la souscription + récurrent sur l’encours, sans toucher la trajectoire du contrat', () => {
+    const avec = simulate({ ...base, frais: FRAIS_TYPES, honoraireForfait: 500, honoraireAnnuelPct: 0.5 })
+    const sans = simulate({ ...base, frais: FRAIS_TYPES })
+    // Le forfait est prélevé dès l'an 0.
+    expect(avec.points[0].honoraireCumule).toBeCloseTo(500, 2)
+    // La valeur nette du CONTRAT est strictement inchangée (facturés à côté).
+    expect(avec.points[15].valeurNette).toBe(sans.points[15].valeurNette)
+    expect(avec.points[15].totalFraisCumules).toBe(sans.points[15].totalFraisCumules)
+    // Le récurrent s'accumule au-delà du forfait.
+    expect(avec.points[15].honoraireCumule).toBeGreaterThan(500)
+  })
+
+  it('récurrent = somme de l’encours net annuel × taux (an 1..N)', () => {
+    const annuelPct = 0.5
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, honoraireForfait: 0, honoraireAnnuelPct: annuelPct })
+    const attendu = sim.points.slice(1).reduce((s, p) => s + p.valeurNette * (annuelPct / 100), 0)
+    expect(sim.points[15].honoraireCumule).toBeCloseTo(attendu, 1)
+  })
+
+  it('absents → 0 (aucune régression)', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    expect(sim.points[15].honoraireCumule).toBe(0)
+    expect(sim.horizons.find((x) => x.annees === 15)!.honoraireCumule).toBe(0)
+  })
+})
+
+describe('agrégats revenuCabinet & coutTotalClient (source unique UI/PDF)', () => {
+  it('revenuCabinet = rétro + commission + part gestion contrat + honoraires', () => {
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.3, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.revenuCabinet).toBeCloseTo(
+      h.retroCgpCumulee + h.commCabinetCumulee + h.contractFeeCumulee + h.honoraireCumule, 2)
+  })
+
+  it('coutTotalClient = total des frais (structure) + honoraires', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.coutTotalClient).toBeCloseTo(h.totalFrais + h.honoraireCumule, 2)
+  })
+
+  it('sans honoraires, coutTotalClient = totalFrais et revenuCabinet = poche cabinet structure', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.coutTotalClient).toBe(h.totalFrais)
+    expect(h.revenuCabinet).toBeCloseTo(h.retroCgpCumulee + h.commCabinetCumulee, 2)
+  })
+})
+
+describe('reductionRendementAnnuelle — RIY PRIIPs (différence arithmétique)', () => {
+  it('= rendement annualisé brut − rendement annualisé net (base versements)', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const rBrut = Math.pow(h.valeurSansFrais / h.versementsCumules, 1 / h.annees) - 1
+    const rNet = Math.pow(h.valeurNette / h.versementsCumules, 1 / h.annees) - 1
+    expect(reductionRendementAnnuelle(h)).toBeCloseTo((rBrut - rNet) * 100, 2)
+    expect(reductionRendementAnnuelle(h)).toBeGreaterThan(0)
+  })
+
+  it('nulle sans aucun frais', () => {
+    const sim = simulate({ ...base, frais: SANS_FRAIS })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(reductionRendementAnnuelle(h)).toBeCloseTo(0, 2)
+  })
+
+  it('0 si versements cumulés nuls (garde-fou)', () => {
+    const sim = simulate({ ...base, versementInitial: 0, versementAnnuel: 0, frais: FRAIS_TYPES })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(reductionRendementAnnuelle(h)).toBe(0)
   })
 })
 

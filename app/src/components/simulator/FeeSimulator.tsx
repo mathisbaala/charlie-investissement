@@ -26,6 +26,14 @@ const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:ap
 const DUREES = [5, 10, 15, 20, 25];
 const MAX_UC = 10;
 
+// Libellés des composantes de rémunération (graphe empilé « Ma rémunération »).
+const REMU_LABELS: Record<string, string> = {
+  upfront: "Commission d'entrée",
+  retro: "Rétrocessions",
+  contractFee: "Part gestion contrat",
+  honoraires: "Honoraires de conseil",
+};
+
 // Défauts « contrat type » (éditables) : bancassureur classique. La commission
 // upfront du cabinet est initialisée au niveau des frais d'entrée (convention
 // courante : les droits d'entrée reviennent au distributeur), éditable ensuite.
@@ -312,7 +320,8 @@ export function FeeSimulator() {
     rendementUC, rendementFE,
     frais: { ...frais, ucGestion, ucEntree, ucSortie },
     retroCgp, commissionCabinet, contractFeeShare,
-  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet, contractFeeShare]);
+    honoraireForfait, honoraireAnnuelPct,
+  }), [versementInitial, versementAnnuel, duree, partUC, rendementUC, rendementFE, frais, ucGestion, ucEntree, ucSortie, retroCgp, commissionCabinet, contractFeeShare, honoraireForfait, honoraireAnnuelPct]);
 
   const horizons = useMemo(
     () => Array.from(new Set([...HORIZONS_DEFAUT, duree])).filter((h) => h <= duree).sort((a, b) => a - b), [duree]);
@@ -323,25 +332,23 @@ export function FeeSimulator() {
     ? repartitionFrais(finalPoint.fraisCumules, final, finalPoint.retroCgpCumulee, finalPoint.commCabinetCumulee, finalPoint.contractFeeCumulee)
     : null;
 
-  const remuTotale = final ? final.retroCgpCumulee + final.commCabinetCumulee + final.contractFeeCumulee : 0;
+  // Agrégats prêts à l'affichage, TOUS issus du moteur (source unique) — plus
+  // aucun recalcul divergent côté UI. `revenuCabinet` = revenu cabinet TOTAL
+  // (rétro + commission + part gestion contrat + honoraires facturés en sus) ;
+  // `coutTotalClient` = frais de structure + honoraires.
+  const honoraireCumule = final ? final.honoraireCumule : 0;
+  const revenuCabinet = final ? final.revenuCabinet : 0;
+  const coutTotalClient = final ? final.coutTotalClient : 0;
 
-  // Honoraires cumulés sur l'horizon : forfait (une fois) + honoraire annuel
-  // appliqué à l'encours de chaque année. Facturés en SUS des frais du contrat,
-  // 100 % revenu cabinet → consolidés avec les rétrocessions (« revenu total »).
-  const honoraireCumule = useMemo(() => {
-    if (!final) return 0;
-    const annuel = sim.points
-      .slice(1, final.annees + 1)
-      .reduce((s, p) => s + p.valeurNette * (honoraireAnnuelPct / 100), 0);
-    return Math.round((honoraireForfait + annuel) * 100) / 100;
-  }, [sim, final, honoraireForfait, honoraireAnnuelPct]);
-  const revenuCabinetTotal = remuTotale + honoraireCumule;
-
-  // Courbe de rémunération cumulée du cabinet : upfront + rétrocessions.
+  // Courbe de rémunération cumulée du cabinet : toutes les composantes empilées
+  // (commission d'entrée + rétrocessions + part gestion contrat + honoraires),
+  // pour que l'aire totale corresponde exactement au revenu cabinet affiché.
   const remuCurve = useMemo(() => sim.points.map((p) => ({
     annee: p.annee,
     upfront: p.commCabinetCumulee,
     retro: p.retroCgpCumulee,
+    contractFee: p.contractFeeCumulee,
+    honoraires: p.honoraireCumule,
   })), [sim]);
 
   const valeurCurve = useMemo(() => sim.points.map((p) => ({
@@ -382,7 +389,6 @@ export function FeeSimulator() {
           mode,
           clientRef: null,
           input,
-          honoraires: { forfait: honoraireForfait, cumule: honoraireCumule },
           supports: ucs.map((u) => ({
             isin: u.isin, name: u.name, poids: u.poids,
             ter: u.ter, entryFee: u.entryFee, retro: u.retro,
@@ -533,8 +539,8 @@ export function FeeSimulator() {
             <div className="sticky top-0 z-20 -mx-1 border-b border-line-soft bg-cream/95 px-1 pt-1 pb-3 backdrop-blur-sm">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {([
-                  { label: `Rémunération cabinet à ${final.annees} ans`, value: EUR.format(remuTotale), tone: "ok" },
-                  { label: "Coût total client", value: EUR.format(final.totalFrais), tone: null },
+                  { label: `Rémunération cabinet à ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok" },
+                  { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
                   { label: `Valeur nette à ${final.annees} ans`, value: EUR.format(final.valeurNette), tone: null },
                   { label: "Gain net client", value: EUR.format(final.gainNet), tone: final.gainNet >= 0 ? "ok" : "bad" },
                   { label: "Frais / gain brut", value: partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final)), tone: null },
@@ -552,14 +558,14 @@ export function FeeSimulator() {
           <Card className="px-5 py-5">
             <div className="flex items-baseline justify-between gap-3 mb-3">
               <H2 className="">Ma rémunération</H2>
-              {final && <span className="text-meta text-ok font-medium tabular-nums">{EUR.format(remuTotale)}</span>}
+              {final && <span className="text-meta text-ok font-medium tabular-nums" title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + honoraires">{EUR.format(revenuCabinet)}</span>}
             </div>
             {final && (
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="rounded-lg border border-line-soft px-3 py-2.5">
                   <p className="text-caption text-muted">Rétrocessions cumulées</p>
                   <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
-                  <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.retroCgpCumulee / final.annees)}/an</p>
+                  <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.retroCgpCumulee / final.annees)}/an en moyenne</p>
                 </div>
                 <div className="rounded-lg border border-line-soft px-3 py-2.5">
                   <p className="text-caption text-muted">Commission d'entrée</p>
@@ -570,7 +576,7 @@ export function FeeSimulator() {
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Part gestion contrat</p>
                     <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
-                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an</p>
+                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an en moyenne</p>
                   </div>
                 )}
                 {honoraireCumule > 0 && (
@@ -582,12 +588,6 @@ export function FeeSimulator() {
                 )}
               </div>
             )}
-            {final && honoraireCumule > 0 && (
-              <div className="flex items-baseline justify-between gap-3 mb-4 rounded-lg bg-accent-soft/40 px-3 py-2.5">
-                <p className="text-meta text-ink-2 font-medium">Revenu cabinet total (commissions + honoraires)</p>
-                <span className="text-meta text-ok font-semibold tabular-nums">{EUR.format(revenuCabinetTotal)}</span>
-              </div>
-            )}
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={remuCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
@@ -596,13 +596,14 @@ export function FeeSimulator() {
                 <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
                   width={56} tickFormatter={(v: number) => EUR.format(v)} />
                 <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
-                    n === "retro" ? "Rétrocessions" : "Commission d'entrée"]}
+                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—", REMU_LABELS[n as string] ?? String(n)]}
                   labelFormatter={(l: unknown) => `Année ${l}`}
                   contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
-                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>{v === "retro" ? "Rétrocessions" : "Commission d'entrée"}</span>} />
+                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>{REMU_LABELS[v] ?? v}</span>} />
                 <Area type="monotone" dataKey="upfront" stackId="r" stroke="#7A5C3E" fill="#7A5C3E" fillOpacity={0.35} />
                 <Area type="monotone" dataKey="retro" stackId="r" stroke="#B0613F" fill="#B0613F" fillOpacity={0.55} />
+                <Area type="monotone" dataKey="contractFee" stackId="r" stroke="#C08552" fill="#C08552" fillOpacity={0.45} />
+                <Area type="monotone" dataKey="honoraires" stackId="r" stroke="#5E7A6B" fill="#5E7A6B" fillOpacity={0.45} />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
@@ -655,18 +656,25 @@ export function FeeSimulator() {
             {supportRows.some((r) => r.u.retro == null) && (
               <p className="text-caption text-muted-2 mt-2">* rétrocession non connue en base : taux effectif du contrat appliqué.</p>
             )}
+            {supportRows.length > 0 && versementAnnuel > 0 && (
+              <p className="text-caption text-muted-2 mt-2">
+                Montants alloués sur le versement initial ({EUR.format(ucPot)} en unités de compte) : ce détail par
+                support ne tient pas compte des versements annuels ni de la capitalisation. La rémunération cumulée
+                exacte sur l&apos;horizon figure dans « Ma rémunération » et « Projections ».
+              </p>
+            )}
           </Card>
 
           {repart && final && (
             <Card className="px-5 py-5">
-              <H2>Où va le coût de la structure ?</H2>
+              <H2>Où va le coût ?</H2>
               <div className="space-y-2.5">
                 {[
                   { nom: "Assureur", montant: repart.assureur },
                   { nom: "Société de gestion", montant: repart.societeGestion },
-                  { nom: "Votre cabinet (CGP)", montant: repart.cabinet, mine: true },
+                  { nom: "Votre cabinet (CGP)", montant: revenuCabinet, mine: true },
                 ].map(({ nom, montant, mine }) => {
-                  const part = final.totalFrais > 0 ? (montant / final.totalFrais) * 100 : 0;
+                  const part = coutTotalClient > 0 ? (montant / coutTotalClient) * 100 : 0;
                   return (
                     <div key={nom} className="flex items-center justify-between gap-4 border-b border-line-soft last:border-0 pb-2.5 last:pb-0">
                       <p className={`text-meta ${mine ? "text-ok font-medium" : "text-ink"}`}>{nom}</p>
@@ -678,6 +686,10 @@ export function FeeSimulator() {
                   );
                 })}
               </div>
+              <p className="text-caption text-muted-2 mt-3">
+                Réparti sur le coût total client de {EUR.format(coutTotalClient)} à {final.annees} ans.
+                {honoraireCumule > 0 && <> La part cabinet inclut {EUR.format(honoraireCumule)} d&apos;honoraires facturés en sus (hors frais du contrat).</>}
+              </p>
             </Card>
           )}
 
@@ -712,7 +724,7 @@ export function FeeSimulator() {
                   <th className="text-left py-2 font-semibold">Horizon</th>
                   <th className="text-right py-2 font-semibold">Valeur nette</th>
                   <th className="text-right py-2 font-semibold">Gain net</th>
-                  <th className="text-right py-2 font-semibold">Total frais</th>
+                  <th className="text-right py-2 font-semibold">Coût total</th>
                   <th className="text-right py-2 font-semibold">Rému cabinet</th>
                 </tr>
               </thead>
@@ -724,8 +736,8 @@ export function FeeSimulator() {
                     <td className={`py-1.5 text-right ${h.gainNet >= 0 ? "text-ok" : "text-danger"}`}>
                       {h.gainNet >= 0 ? "+" : ""}{EUR.format(h.gainNet)}
                     </td>
-                    <td className="py-1.5 text-right text-ink-2">{EUR.format(h.totalFrais)}</td>
-                    <td className="py-1.5 text-right text-ok">{EUR.format(h.retroCgpCumulee + h.commCabinetCumulee)}</td>
+                    <td className="py-1.5 text-right text-ink-2">{EUR.format(h.coutTotalClient)}</td>
+                    <td className="py-1.5 text-right text-ok">{EUR.format(h.revenuCabinet)}</td>
                   </tr>
                 ))}
               </tbody>

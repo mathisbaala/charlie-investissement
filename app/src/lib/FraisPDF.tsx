@@ -28,8 +28,6 @@ export interface FraisPdfProps {
   clientRef: string | null;
   hypotheses: FraisPdfHypotheses;
   report: FraisReport;
-  /** Honoraires de conseil (facturation directe) pour le doc cabinet : forfait + cumul. */
-  honoraires?: { forfait: number; cumule: number };
 }
 
 const S = StyleSheet.create({
@@ -215,6 +213,7 @@ function Nature({ report }: { report: FraisReport }) {
     { nom: "Frais de gestion de l'enveloppe", montant: nature.gestionEnveloppe },
     { nom: "Frais courants des supports", montant: nature.fraisCourants },
     { nom: "Frais de sortie", montant: nature.sortie },
+    ...(nature.honoraires > 0 ? [{ nom: "Honoraires de conseil (facturés en sus)", montant: nature.honoraires }] : []),
   ];
   return (
     <View style={S.section} wrap={false}>
@@ -248,11 +247,13 @@ function Nature({ report }: { report: FraisReport }) {
 // ── Transparence sur la rémunération du conseil (rétrocessions / incitations) ─
 function Transparence({ report }: { report: FraisReport }) {
   const { repart, nature, final } = report;
-  const total = final.totalFrais > 0 ? final.totalFrais : 1;
+  const total = final.coutTotalClient > 0 ? final.coutTotalClient : 1;
   const lignes: { nom: string; montant: number; mine?: boolean }[] = [
     { nom: "Assureur — enveloppe assurance-vie", montant: repart.assureur },
     { nom: "Sociétés de gestion — supports", montant: repart.societeGestion },
-    { nom: "Conseil — votre conseiller", montant: repart.cabinet, mine: true },
+    // Poche conseil = rétro + commission + part gestion contrat + honoraires
+    // (revenu cabinet total). assureur + gestion + conseil = coût total client.
+    { nom: "Conseil — votre conseiller", montant: final.revenuCabinet, mine: true },
   ];
   return (
     <View style={S.section} wrap={false}>
@@ -276,8 +277,9 @@ function Transparence({ report }: { report: FraisReport }) {
         ))}
         <Text style={S.note}>
           Votre conseiller perçoit {nfEur(nature.dontConseil)} sur les {report.final.annees} ans, au titre des rétrocessions
-          (part des frais de gestion et frais courants reversée par les sociétés de gestion et l'assureur) et, le cas
-          échéant, de la commission d'entrée. Le détail chiffré peut vous être communiqué à tout moment.
+          (part des frais de gestion et frais courants reversée par les sociétés de gestion et l'assureur), le cas
+          échéant de la commission d'entrée{nature.honoraires > 0 ? `, et de ${nfEur(nature.honoraires)} d'honoraires de conseil facturés en sus` : ""}.
+          Le détail chiffré peut vous être communiqué à tout moment.
         </Text>
       </View>
     </View>
@@ -336,9 +338,9 @@ function Projections({ report, mode }: { report: FraisReport; mode: "client" | "
           <Text style={[S.cNum, { color: h.gainNet >= 0 ? C.green : C.red }]}>
             {h.gainNet >= 0 ? "+" : ""}{nfEur(h.gainNet)}
           </Text>
-          <Text style={S.cNum}>{nfEur(h.totalFrais)}</Text>
+          <Text style={S.cNum}>{nfEur(h.coutTotalClient)}</Text>
           {mode === "cabinet" && (
-            <Text style={[S.cNum, { color: C.gold }]}>{nfEur(h.retroCgpCumulee + h.commCabinetCumulee + h.contractFeeCumulee)}</Text>
+            <Text style={[S.cNum, { color: C.gold }]}>{nfEur(h.revenuCabinet)}</Text>
           )}
         </View>
       ))}
@@ -385,11 +387,13 @@ function DetailSupports({ report }: { report: FraisReport }) {
   );
 }
 
-export default function FraisPDF({ mode, clientRef, hypotheses, report, honoraires }: FraisPdfProps) {
-  const { final, nature, remuTotale } = report;
+export default function FraisPDF({ mode, clientRef, hypotheses, report }: FraisPdfProps) {
+  const { final } = report;
   const isCabinet = mode === "cabinet";
-  const honoraireCumule = honoraires?.cumule ?? 0;
-  const revenuTotal = remuTotale + honoraireCumule;
+  // Agrégats issus du moteur (source unique) : le revenu cabinet TOTAL et le coût
+  // total client incluent déjà les honoraires — plus aucun recalcul ici.
+  const honoraireCumule = final.honoraireCumule;
+  const revenuTotal = final.revenuCabinet;
   const titleDoc = isCabinet ? "Frais & rémunération" : "Vos frais, en toute transparence";
   const eyebrowDoc = isCabinet ? "Analyse cabinet — usage interne" : "Information sur les coûts et frais";
   const subDoc = clientRef
@@ -417,8 +421,10 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, honorair
           </View>
           <HeroStat
             label={`Coût total sur ${final.annees} ans`}
-            value={nfEur(final.totalFrais)}
-            sub={report.coutTotalPctVersements != null ? `soit ${report.coutTotalPctVersements.toFixed(1)} % des versements` : "tous frais, sortie incluse"}
+            value={nfEur(final.coutTotalClient)}
+            sub={honoraireCumule > 0
+              ? `dont ${nfEur(honoraireCumule)} d'honoraires de conseil`
+              : report.coutTotalPctVersements != null ? `soit ${report.coutTotalPctVersements.toFixed(1)} % des versements` : "tous frais, sortie incluse"}
             tone="neutral"
             valueColor={C.clay}
             style={{ flex: 1, alignSelf: "stretch" }}

@@ -72,6 +72,19 @@ export interface SimulationInput {
    * 0 ou absent = non suivie.
    */
   contractFeeShare?: number;
+  /**
+   * Honoraires de conseil facturés DIRECTEMENT au client (facturation en sus,
+   * hors rétrocession), 100 % revenu du cabinet. Contrairement aux frais du
+   * contrat, ils ne sont PAS prélevés sur l'encours : ils ne dégradent donc pas
+   * la valeur nette du contrat (`valeurNette`/`gainNet` restent inchangés). En
+   * revanche ils s'ajoutent au COÛT TOTAL supporté par le client
+   * (`coutTotalClient`) et au REVENU du cabinet (`revenuCabinet`).
+   *   • honoraireForfait   : forfait ponctuel (€) prélevé à la souscription ;
+   *   • honoraireAnnuelPct : honoraire récurrent (%/an de l'encours net).
+   * 0 ou absent = non suivis.
+   */
+  honoraireForfait?: number;
+  honoraireAnnuelPct?: number;
 }
 
 export interface FeeBreakdown {
@@ -97,6 +110,7 @@ export interface YearPoint {
   retroCgpCumulee: number;   // rémunération CGP cumulée (tranche de gestionUC, 0 si non suivie)
   commCabinetCumulee: number; // commission upfront cumulée (tranche des frais d'entrée, 0 si non suivie)
   contractFeeCumulee: number; // part frais de gestion contrat reversée au cabinet, cumulée (0 si non suivie)
+  honoraireCumule: number;    // honoraires de conseil facturés en sus, cumulés (0 si non suivis)
 }
 
 export interface HorizonProjection {
@@ -114,6 +128,11 @@ export interface HorizonProjection {
   retroCgpCumulee: number;   // rémunération CGP cumulée à cet horizon (0 si non suivie)
   commCabinetCumulee: number; // commission upfront cumulée à cet horizon (0 si non suivie)
   contractFeeCumulee: number; // part frais de gestion contrat reversée, cumulée à cet horizon (0 si non suivie)
+  honoraireCumule: number;    // honoraires de conseil facturés en sus, cumulés à cet horizon (0 si non suivis)
+  // Agrégats prêts à l'affichage (source unique — l'UI et le PDF s'y adossent
+  // pour ne jamais diverger) :
+  revenuCabinet: number;    // TOTAL encaissé par le cabinet = rétro + commission + part gestion contrat + honoraires
+  coutTotalClient: number;  // TOTAL supporté par le client = totalFrais (structure) + honoraires facturés en sus
 }
 
 export interface SimulationResult {
@@ -197,8 +216,17 @@ export function simulate(
   // identique). Plafond appliqué versement par versement dans verser().
   const commCabinet = Math.min(clampFrais(input.commissionCabinet ?? 0), f.contratEntree);
   // Part des frais de gestion du contrat reversée au cabinet (tranche d'encours
-  // total/an). Indépendante des autres flux ; simplement bornée en frais.
+  // total/an). Le taux est borné ici ; l'accrual annuel est en plus plafonné aux
+  // frais de gestion du contrat de l'année (UC + fonds euros), pour qu'il ne
+  // puisse jamais dépasser ce que le contrat prélève réellement (assiette dont
+  // il est censé n'être qu'une tranche).
   const contractFeeShare = clampFrais(input.contractFeeShare ?? 0);
+  // Honoraires de conseil facturés en sus (hors rétrocession) : forfait ponctuel
+  // à la souscription + récurrent %/an de l'encours net. N'altèrent jamais la
+  // trajectoire du contrat (facturés à côté) ; suivis pour le coût total client
+  // et le revenu cabinet.
+  const honoraireForfait = Math.max(0, Number.isFinite(input.honoraireForfait ?? 0) ? (input.honoraireForfait ?? 0) : 0);
+  const honoraireAnnuel = clampFrais(input.honoraireAnnuelPct ?? 0);
 
   // Facteurs annuels. Net UC = VL (nette de TER) dégradée du frais contrat UC.
   const factNetUC = (1 + rUC / 100) * (1 - f.contratGestionUC / 100);
@@ -210,7 +238,7 @@ export function simulate(
   const factBrutUC = (1 + rUC / 100) / (1 - gUC);
   const factBrutFE = (1 + rFE / 100) / (1 - gFE);
 
-  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0, commCumulee = 0, contractFeeCumulee = 0;
+  let uc = 0, fe = 0, sfUC = 0, sfFE = 0, versements = 0, retroCumulee = 0, commCumulee = 0, contractFeeCumulee = 0, honoraireCumulee = 0;
   const cumul = zeroBreakdown();
   const points: YearPoint[] = [];
 
@@ -251,11 +279,15 @@ export function simulate(
       retroCgpCumulee: r2(retroCumulee),
       commCabinetCumulee: r2(commCumulee),
       contractFeeCumulee: r2(contractFeeCumulee),
+      honoraireCumule: r2(honoraireCumulee),
     });
   };
 
   const an0 = zeroBreakdown();
   verser(input.versementInitial, an0);
+  // Honoraires : le forfait est prélevé à la souscription (an 0). Le récurrent
+  // ne court qu'à partir de la 1re année (appliqué à l'encours de fin d'année).
+  honoraireCumulee = honoraireForfait;
   pousserPoint(0, an0);
 
   for (let annee = 1; annee <= duree; annee++) {
@@ -267,20 +299,32 @@ export function simulate(
     // convention fin d'année est l'approximation standard des simulateurs).
     // C'est là que les frais deviennent « exponentiels » : l'assiette grossit
     // avec l'encours, donc le prélèvement annuel grossit d'année en année.
+    const gestionContratUCan = uc * (1 + rUC / 100) * (f.contratGestionUC / 100);
+    const gestionContratFEan = fe * factBrutFE * gFE;
     an.gestionUC += uc * factBrutUC * gUC;
-    an.gestionContratUC += uc * (1 + rUC / 100) * (f.contratGestionUC / 100);
-    an.gestionContratFE += fe * factBrutFE * gFE;
+    an.gestionContratUC += gestionContratUCan;
+    an.gestionContratFE += gestionContratFEan;
     // Rétrocession CGP : même assiette et même convention que gestionUC (elle
     // en est une tranche), donc strictement ≤ gestionUC de l'année.
     retroCumulee += uc * factBrutUC * (retroCgp / 100);
     // Part frais de gestion contrat reversée au cabinet : tranche de l'encours
-    // TOTAL de début d'année (porté au brut, même convention que la rétro).
-    contractFeeCumulee += (uc * factBrutUC + fe * factBrutFE) * (contractFeeShare / 100);
+    // TOTAL de début d'année (porté au brut, même convention que la rétro),
+    // PLAFONNÉE aux frais de gestion du contrat de l'année (UC + fonds euros) :
+    // elle ne peut pas reverser plus que ce que le contrat prélève.
+    contractFeeCumulee += Math.min(
+      (uc * factBrutUC + fe * factBrutFE) * (contractFeeShare / 100),
+      gestionContratUCan + gestionContratFEan,
+    );
 
     uc *= factNetUC;
     fe *= factNetFE;
     sfUC *= factBrutUC;
     sfFE *= factBrutFE;
+
+    // Honoraire récurrent : appliqué à l'encours net de fin d'année (après la
+    // capitalisation et les frais du contrat de l'année). Facturé en sus, il ne
+    // retranche rien de uc/fe.
+    honoraireCumulee += (uc + fe) * (honoraireAnnuel / 100);
 
     pousserPoint(annee, an);
   }
@@ -293,6 +337,7 @@ export function simulate(
     const sortieContrat = (p.valeurNette - sortieUC) * (f.contratSortie / 100);
     const fraisSortie = r2(sortieUC + sortieContrat);
     const valeurNette = r2(p.valeurNette - fraisSortie);
+    const totalFrais = r2(p.totalFraisCumules + fraisSortie);
     projections.push({
       annees: h,
       valeurAvantSortie: p.valeurNette,
@@ -301,13 +346,18 @@ export function simulate(
       fraisSortieUC: r2(sortieUC),
       valeurNette,
       gainNet: r2(valeurNette - p.versementsCumules),
-      totalFrais: r2(p.totalFraisCumules + fraisSortie),
+      totalFrais,
       valeurSansFrais: p.valeurSansFrais,
       manqueAGagner: r2(p.valeurSansFrais - p.valeurNette),
       versementsCumules: p.versementsCumules,
       retroCgpCumulee: p.retroCgpCumulee,
       commCabinetCumulee: p.commCabinetCumulee,
       contractFeeCumulee: p.contractFeeCumulee,
+      honoraireCumule: p.honoraireCumule,
+      // Le contractFeeCumulee est déjà plafonné à l'accrual (≤ frais de gestion
+      // du contrat), donc sommer directement les 4 flux ne double-compte rien.
+      revenuCabinet: r2(p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.honoraireCumule),
+      coutTotalClient: r2(totalFrais + p.honoraireCumule),
     });
   }
 
@@ -344,9 +394,13 @@ export function repartitionFrais(
 ): FraisParDestinataire {
   const retro = Math.min(retroCgpCumulee, fraisCumules.gestionUC);
   const comm = Math.min(commCabinetCumulee, fraisCumules.entreeContrat);
-  // La part de gestion contrat sort des frais de gestion du contrat sur UC
-  // (poche assureur) : plafonnée à ceux-ci, elle ne peut pas les excéder.
-  const contractFee = Math.min(contractFeeCumulee, fraisCumules.gestionContratUC);
+  // La part de gestion contrat sort des frais de gestion du contrat (poche
+  // assureur, UC + fonds euros) : plafonnée à leur somme, elle ne peut pas les
+  // excéder — même base que le plafond d'accrual dans simulate().
+  const contractFee = Math.min(
+    contractFeeCumulee,
+    fraisCumules.gestionContratUC + fraisCumules.gestionContratFE,
+  );
   return {
     assureur: r2(
       fraisCumules.entreeContrat + fraisCumules.gestionContratUC +
@@ -378,13 +432,17 @@ export function partFraisDansGainBrut(h: HorizonProjection): number | null {
  * de combien, en points de %/an, les frais rabaissent la performance annualisée.
  * Indicateur standardisé PRIIPs — c'est LA façon réglementaire de résumer
  * « l'effet cumulé des coûts sur le rendement » (MiFID II art. 24-4, DDA art. 29)
- * en un seul chiffre. Forme composée : le taux annuel qui, appliqué sur la durée,
- * reconstitue l'écart entre la trajectoire brute (sans frais) et la valeur nette
- * effectivement perçue. 0 si les valeurs ne permettent pas le calcul.
+ * en un seul chiffre. Définition PRIIPs stricte : DIFFÉRENCE ARITHMÉTIQUE entre
+ * le rendement annualisé BRUT (trajectoire sans aucun frais) et le rendement
+ * annualisé NET (valeur effectivement perçue), les deux rapportés à la même base
+ * (versements cumulés) : RIY = rBrut − rNet. 0 si les valeurs ne permettent pas
+ * le calcul.
  */
 export function reductionRendementAnnuelle(h: HorizonProjection): number {
-  if (!(h.valeurNette > 0) || !(h.valeurSansFrais > 0) || h.annees < 1) return 0;
-  return r2((Math.pow(h.valeurSansFrais / h.valeurNette, 1 / h.annees) - 1) * 100);
+  if (!(h.valeurNette > 0) || !(h.valeurSansFrais > 0) || !(h.versementsCumules > 0) || h.annees < 1) return 0;
+  const rBrut = Math.pow(h.valeurSansFrais / h.versementsCumules, 1 / h.annees) - 1;
+  const rNet = Math.pow(h.valeurNette / h.versementsCumules, 1 / h.annees) - 1;
+  return r2((rBrut - rNet) * 100);
 }
 
 /**
@@ -465,16 +523,19 @@ export interface FraisReportSupportInput {
  * d'entrée, frais de gestion de l'enveloppe, frais courants des supports, frais
  * de sortie. `dontConseil` est une part TRANSVERSE (déjà comprise dans les
  * lignes ci-dessus) qui isole ce qui rémunère le conseil, au titre de la
- * transparence sur les incitations. entree + gestionEnveloppe + fraisCourants +
- * sortie = total (identité exacte, aucun frais caché).
+ * transparence sur les incitations. Les honoraires de conseil facturés en sus
+ * (hors structure) forment une 5e ligne, de sorte que entree + gestionEnveloppe
+ * + fraisCourants + sortie + honoraires = total (identité exacte = coût total
+ * client, aucun frais caché).
  */
 export interface FraisNature {
   entree: number;           // frais d'entrée cumulés (contrat + supports)
   gestionEnveloppe: number; // frais de gestion du contrat (UC + fonds euros), cumulés
   fraisCourants: number;    // frais courants des supports (TER), cumulés
   sortie: number;           // frais de sortie à l'horizon (contrat + supports)
-  total: number;            // = final.totalFrais
-  dontConseil: number;      // part rémunérant le conseil (transverse, = repart.cabinet)
+  honoraires: number;       // honoraires de conseil facturés en sus (hors structure), cumulés
+  total: number;            // = final.coutTotalClient (structure + honoraires)
+  dontConseil: number;      // part rémunérant le conseil (transverse, = revenu cabinet total)
 }
 
 /** Point de la trajectoire pour l'illustration de l'effet cumulé des coûts. */
@@ -496,8 +557,10 @@ export interface FraisReport {
   reductionRendement: number;            // réduction de rendement annualisée (%/an, RIY)
   coutPremiereAnnee: number;             // frais cumulés fin d'année 1 (entrée + 1re année de gestion)
   coutRecurrentMoyen: number;            // frais récurrents moyens /an (gestion + courants), hors entrée/sortie
-  coutTotalPctVersements: number | null; // coût total en % des versements cumulés
-  remuTotale: number;                    // rémunération cabinet cumulée à l'horizon final
+  coutTotalClient: number;               // coût total supporté par le client (structure + honoraires), horizon final
+  coutTotalPctVersements: number | null; // coût total client en % des versements cumulés
+  remuTotale: number;                    // rémunération cabinet issue de la structure (= repart.cabinet), horizon final
+  revenuCabinet: number;                 // revenu cabinet TOTAL (structure + honoraires), horizon final
   supports: FraisReportHolding[];        // détail par support (montant + rémunération)
 }
 
@@ -530,8 +593,9 @@ export function buildFraisReport(
     gestionEnveloppe: r2(fc.gestionContratUC + fc.gestionContratFE),
     fraisCourants: r2(fc.gestionUC),
     sortie: r2(final.fraisSortie),
-    total: r2(final.totalFrais),
-    dontConseil: r2(repart.cabinet),
+    honoraires: r2(final.honoraireCumule),
+    total: r2(final.coutTotalClient),
+    dontConseil: r2(final.revenuCabinet),
   };
 
   const trajectoire: FraisTrajectoirePoint[] = sim.points.map((p) => ({
@@ -548,7 +612,7 @@ export function buildFraisReport(
   const coutPremiereAnnee = r2(sim.points[1]?.totalFraisCumules ?? nature.entree);
   const coutRecurrentMoyen = r2(Math.max(0, nature.total - nature.entree - nature.sortie) / final.annees);
   const coutTotalPctVersements = final.versementsCumules > 0
-    ? r2((final.totalFrais / final.versementsCumules) * 100)
+    ? r2((final.coutTotalClient / final.versementsCumules) * 100)
     : null;
 
   const retroCgp = input.retroCgp ?? 0;
@@ -575,8 +639,10 @@ export function buildFraisReport(
     reductionRendement: reductionRendementAnnuelle(final),
     coutPremiereAnnee,
     coutRecurrentMoyen,
+    coutTotalClient: final.coutTotalClient,
     coutTotalPctVersements,
-    remuTotale: r2(final.retroCgpCumulee + final.commCabinetCumulee + final.contractFeeCumulee),
+    remuTotale: repart.cabinet,
+    revenuCabinet: final.revenuCabinet,
     supports: holdings,
   };
 }
