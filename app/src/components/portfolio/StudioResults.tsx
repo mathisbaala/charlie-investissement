@@ -120,8 +120,8 @@ function GoalsCard({
     <Card className="px-5 py-5">
       <h2 className="text-label text-ink font-semibold mb-1">Projets du client</h2>
       <p className="text-meta text-muted mb-4">
-        Une poche dédiée par projet. Probabilités par simulation Monte Carlo,
-        hors frais et fiscalité, performances non garanties.
+        Probabilités par simulation Monte Carlo, hors frais et fiscalité,
+        performances non garanties.
       </p>
       {overAllocated && (
         <p className="text-meta text-warn mb-3">
