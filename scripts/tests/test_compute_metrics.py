@@ -144,5 +144,63 @@ class InvalidWindowPurgesRiskMetrics(unittest.TestCase):
             self.assertIsNone(metrics[f], f)
 
 
+class Discontinuity(unittest.TestCase):
+    """Garde de discontinuité NAV : neutralise les artefacts à SAUT (point non
+    ajusté / split / share-class), préserve les effondrements RÉELS (monotones)
+    et les hausses graduelles légitimes."""
+
+    def test_up_jump_detected(self):
+        # Point non rebasé : +150 % d'une VL à l'autre = impossible pour un fonds.
+        prices = [100.0] * 20 + [400.0] + [410.0] * 20
+        self.assertTrue(cm._has_discontinuity(prices))
+
+    def test_isolated_high_spike_detected(self):
+        # Pic isolé (mauvais point) qui se renverse vs ses deux voisins.
+        prices = [100.0, 101.0, 5000.0, 102.0, 103.0]
+        self.assertTrue(cm._has_discontinuity(prices))
+
+    def test_isolated_low_dip_detected(self):
+        # Creux isolé (VL tombée à ~0 puis revenue) : point aberrant réversible.
+        prices = [100.0, 101.0, 0.05, 102.0, 103.0]
+        self.assertTrue(cm._has_discontinuity(prices))
+
+    def test_monotone_real_crash_preserved(self):
+        # Effondrement réel (ETF Russie) : baisse graduelle, aucun saut → NON flaggé.
+        prices = [100.0 * (0.92 ** i) for i in range(60)]  # ~-99 % lissé
+        self.assertFalse(cm._has_discontinuity(prices))
+
+    def test_gradual_gains_preserved(self):
+        # Forte hausse réelle mais graduelle (+~120 %) : aucun pas > +150 %.
+        prices = [100.0 * (1.013 ** i) for i in range(60)]
+        self.assertFalse(cm._has_discontinuity(prices))
+
+    def test_short_series_safe(self):
+        self.assertFalse(cm._has_discontinuity([100.0]))
+        self.assertFalse(cm._has_discontinuity([]))
+
+    def test_guard_nulls_perf_on_jump_series(self):
+        # Bout-en-bout : une fenêtre 1Y avec saut → perf/risque 1Y purgés.
+        prices = [100.0] * 30 + [500.0] * 30           # saut ×5 au milieu
+        spans = {"1y": 360, "3y": 360, "5y": 360}
+        fresh = date.today().isoformat()
+        m = cm.compute_fund_metrics(
+            prices, prices, prices, prices, rf=0.03, spans=spans,
+            asset_class="diversifie", inception="2016-01-01", last_date=fresh,
+        )
+        for f in ("performance_1y", "volatility_1y", "sharpe_1y", "max_drawdown_1y"):
+            self.assertIsNone(m[f], f)
+
+    def test_guard_skips_crypto(self):
+        # Crypto : légitimement extrême → le garde ne s'applique pas (perf conservée).
+        prices = [100.0] * 30 + [500.0] * 30
+        spans = {"1y": 360, "3y": 360, "5y": 360}
+        fresh = date.today().isoformat()
+        m = cm.compute_fund_metrics(
+            prices, prices, prices, prices, rf=0.03, spans=spans,
+            asset_class="crypto", inception="2016-01-01", last_date=fresh,
+        )
+        self.assertIsNotNone(m["performance_1y"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

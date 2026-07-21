@@ -169,6 +169,45 @@ def _valid_perf(prices: list[float], min_points: int, span_days: int, min_span: 
     return p is not None and p > -1.0
 
 
+# Détection de DISCONTINUITÉ de série NAV (reverse-split / point aberrant non
+# ajusté / contamination de share-class). perf_total ne lit que le 1er et le
+# dernier point : un point non rebasé au bord de fenêtre suffit à afficher
+# +433 % sur un fonds diversifié ou −99 % sur un ETF 2x. Les bornes PERF_BOUNDS
+# ne peuvent pas l'attraper sans tuer le levier/émergents légitimes → ce garde
+# orthogonal, à seuils TRÈS larges (jamais déclenché par une volatilité réelle,
+# même à effet de levier 3x). Deux signatures :
+#   1. saut haussier impossible entre 2 points consécutifs (> +150 %) — aucun
+#      fonds ne double d'une VL à l'autre (le split est censé être ajusté) ;
+#   2. point isolé en pic/creux qui SE RENVERSE (aberrant vs ses DEUX voisins) —
+#      un mauvais point unique. Un effondrement RÉEL (ETF Russie, side-pocket
+#      H2O) est monotone / bas en continu : pas de renversement → PRÉSERVÉ.
+# Ne s'applique pas aux crypto ni titres vifs (action_individuelle),
+# légitimement extrêmes — cohérent avec PERF_BOUNDS.
+STEP_UP_MAX  = 2.5   # +150 % entre deux points consécutifs = artefact
+SPIKE_FACTOR = 2.5   # facteur d'écart d'un point isolé vs ses deux voisins
+_UNGUARDED_CLASSES = {"crypto", "action_individuelle"}
+
+def _has_discontinuity(prices: list[float]) -> bool:
+    n = len(prices)
+    if n < 2:
+        return False
+    # 1) saut haussier impossible d'un point au suivant
+    for i in range(1, n):
+        prev, cur = prices[i - 1], prices[i]
+        if prev > 0 and cur / prev > STEP_UP_MAX:
+            return True
+    # 2) point isolé (pic OU creux) qui se renverse vs ses deux voisins
+    for i in range(1, n - 1):
+        a, b, c = prices[i - 1], prices[i], prices[i + 1]
+        if a <= 0 or b <= 0 or c <= 0:
+            continue
+        spike = b / a > SPIKE_FACTOR and b / c > SPIKE_FACTOR   # pic
+        dip   = a / b > SPIKE_FACTOR and c / b > SPIKE_FACTOR   # creux réversible
+        if spike or dip:
+            return True
+    return False
+
+
 def _track_record_years(inception: str | None, span_days_5y: int) -> float | None:
     """Ancienneté du fonds, en années.
 
@@ -216,9 +255,14 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
     # On écrit explicitement None quand une perf n'est pas fiable, pour PURGER
     # les valeurs aberrantes écrites par les scrapers (au lieu de les laisser).
 
+    # Garde de discontinuité : série NAV avec un point non ajusté (split /
+    # share-class / bord de fenêtre) → perf/vol/sharpe/drawdown non fiables sur
+    # cette fenêtre. Neutralisé pour crypto/titres vifs (extrêmes légitimes).
+    guarded = (asset_class or "") not in _UNGUARDED_CLASSES
+
     # ── 1Y ──
     p1y = _clamp(round(perf_total(prices_1y) * 100, 4)) if _valid_perf(prices_1y, MIN_POINTS_1Y, spans["1y"], MIN_SPAN_1Y) else None
-    if _perf_plausible(p1y, asset_class):
+    if _perf_plausible(p1y, asset_class) and not (guarded and _has_discontinuity(prices_1y)):
         metrics["performance_1y"]  = p1y
         dd = max_drawdown(prices_1y)
         metrics["max_drawdown_1y"] = round(dd * 100, 4) if dd is not None else None
@@ -240,7 +284,7 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
 
     # ── 3Y ──
     p3y = _clamp(round(perf_total(prices_3y) * 100, 4)) if _valid_perf(prices_3y, MIN_POINTS_3Y, spans["3y"], MIN_SPAN_3Y) else None
-    if _perf_plausible(p3y, asset_class):
+    if _perf_plausible(p3y, asset_class) and not (guarded and _has_discontinuity(prices_3y)):
         metrics["performance_3y"]  = p3y
         dd3 = max_drawdown(prices_3y)
         metrics["max_drawdown_3y"] = round(dd3 * 100, 4) if dd3 is not None else None
@@ -259,7 +303,7 @@ def compute_fund_metrics(prices_1y, prices_3y, prices_5y, prices_all, rf, spans=
 
     # ── 5Y ──
     p5y = _clamp(round(perf_total(prices_5y) * 100, 4)) if _valid_perf(prices_5y, MIN_POINTS_5Y, spans["5y"], MIN_SPAN_5Y) else None
-    if _perf_plausible(p5y, asset_class):
+    if _perf_plausible(p5y, asset_class) and not (guarded and _has_discontinuity(prices_5y)):
         metrics["performance_5y"] = p5y
     else:
         metrics["performance_5y"] = None
