@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   estimateRetroFrac,
   retroFallbackFrac,
+  isPassiveStyle,
   buildRemuneration,
   type RemuHolding,
 } from "@/lib/remuneration";
@@ -31,6 +32,27 @@ describe("retroFallbackFrac (repli d'une position)", () => {
     expect(retroFallbackFrac(null, 0.018, "opcvm", "actif")).toBeCloseTo(0.009, 9);
     expect(retroFallbackFrac(undefined, 0.002, "etf", null)).toBe(0);
     expect(retroFallbackFrac(null, null, "opcvm", "actif")).toBeNull();
+  });
+  // Régression QA 2026-07-21 : ~146 supports passifs portent en base une
+  // retrocession_cgp polluée (souvent = leur TER). La règle de place doit primer
+  // sur cette valeur, sinon le simulateur affiche une rému CGP fantôme sur des
+  // ETF qui ne rétrocèdent rien. Report : Frais / rétro ETF.
+  it("ignore une retrocession_cgp sourcée polluée sur un support passif/ETF", () => {
+    expect(retroFallbackFrac(0.0007, 0.0007, "etf", "passif")).toBe(0); // ETF iShares S&P 500
+    expect(retroFallbackFrac(0.003, 0.003, "opcvm", "indiciel")).toBe(0);
+    expect(retroFallbackFrac(0.005, 0.006, "opcvm", "Passive")).toBe(0);
+    // un fonds ACTIF garde sa valeur sourcée (pas de régression sur l'actif)
+    expect(retroFallbackFrac(0.006, 0.018, "opcvm", "actif")).toBe(0.006);
+  });
+});
+
+describe("isPassiveStyle", () => {
+  it("détecte ETF, passif, indiciel (casse/accents ignorés)", () => {
+    expect(isPassiveStyle("etf", null)).toBe(true);
+    expect(isPassiveStyle("opcvm", "Passive")).toBe(true);
+    expect(isPassiveStyle("opcvm", "indiciel")).toBe(true);
+    expect(isPassiveStyle("opcvm", "actif")).toBe(false);
+    expect(isPassiveStyle(null, null)).toBe(false);
   });
 });
 

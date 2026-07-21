@@ -28,6 +28,20 @@ import { contractTotalCost } from "@/lib/av-cost";
 import type { ContractType } from "@/lib/insurer-envelope";
 
 /**
+ * Vrai si la gestion est passive/indicielle (ETF/tracker) : structurellement,
+ * ces supports ne rétrocèdent RIEN au distributeur (règle de place). Prédicat
+ * unique réutilisé par l'estimation ET le repli sourcé.
+ */
+export function isPassiveStyle(
+  productType: string | null | undefined,
+  managementStyle: string | null | undefined,
+): boolean {
+  const style = (managementStyle ?? "").trim().toLowerCase();
+  const product = (productType ?? "").trim().toLowerCase();
+  return style.includes("passi") || style.includes("indiciel") || product === "etf";
+}
+
+/**
  * Rétrocession de place ESTIMÉE d'un fonds, en fraction d'encours/an, tant que la
  * convention réelle du cabinet ne couvre pas la ligne. Règle de marché unique
  * (source de vérité, réutilisée par estimateRetrocession) : la gestion passive
@@ -39,9 +53,7 @@ export function estimateRetroFrac(
   productType: string | null | undefined,
   managementStyle: string | null | undefined,
 ): number | null {
-  const style = (managementStyle ?? "").trim().toLowerCase();
-  const product = (productType ?? "").trim().toLowerCase();
-  if (style.includes("passi") || style.includes("indiciel") || product === "etf") return 0;
+  if (isPassiveStyle(productType, managementStyle)) return 0;
   if (feesFrac == null || !Number.isFinite(feesFrac)) return null;
   return feesFrac * 0.5;
 }
@@ -51,6 +63,11 @@ export function estimateRetroFrac(
  * cabinet ne fixe pas de taux pour la ligne : la valeur SOURCÉE en base
  * (`retrocession_cgp`) fait foi si présente, sinon l'estimation de place. Sert à
  * enrichir une position (relevé déposé ou ajout manuel) d'un repli honnête.
+ *
+ * GARDE-FOU passif : la règle de place (ETF/indiciel → 0) prime sur toute valeur
+ * sourcée. En base, ~146 supports passifs portent une `retrocession_cgp` polluée
+ * (souvent = leur TER) ; sans ce garde-fou, le simulateur affichait une rému CGP
+ * fantôme sur des ETF qui, structurellement, ne rétrocèdent pas un centime.
  */
 export function retroFallbackFrac(
   retrocessionCgpFrac: number | null | undefined,
@@ -58,6 +75,7 @@ export function retroFallbackFrac(
   productType: string | null | undefined,
   managementStyle: string | null | undefined,
 ): number | null {
+  if (isPassiveStyle(productType, managementStyle)) return 0;
   if (retrocessionCgpFrac != null && Number.isFinite(retrocessionCgpFrac)) {
     return retrocessionCgpFrac;
   }
