@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
 import { InsurerLogo } from "@/components/ui/InsurerLogo";
 import { SolidityStat } from "@/components/ui/SolidityStat";
 import type { Envelope } from "@/lib/insurer-envelope";
+import { type FeRate } from "@/lib/fonds-euros";
 import ContractComparison, { type ComparisonContract } from "./ContractComparison";
 
 // ─── Page assureur : comparateur de ses contrats (rendu serveur) ─────────────
@@ -41,6 +42,44 @@ type InsurerComparison = {
 
 const VALID_ENV: Envelope[] = ["av", "capi", "per", "pea"];
 
+// Trajectoire d'un fonds euros : libellé + suite d'années (barres proportionnelles
+// au meilleur taux affiché), le millésime le plus récent en gras. Même esprit que
+// la fiche contrat, autonome ici.
+function FondsEurosTrend({ nom, rates }: { nom: string; rates: FeRate[] }) {
+  const max = Math.max(...rates.map((r) => Number(r.taux_pct)), 0.01);
+  const latest = rates.at(-1);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-meta text-ink-2 font-medium truncate">{nom}</span>
+        {latest && (
+          <span className="text-body text-ink font-semibold tabular-nums shrink-0">
+            {Number(latest.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
+            <span className="text-caption text-muted-2 font-normal"> en {latest.annee}</span>
+          </span>
+        )}
+      </div>
+      <ul className="flex items-end gap-2 mt-2">
+        {rates.map((r) => (
+          <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+            <span className="text-caption text-muted tabular-nums">
+              {Number(r.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+            </span>
+            <span className="w-full h-12 flex items-end rounded-sm bg-paper-2 overflow-hidden">
+              <span
+                className="block w-full rounded-sm"
+                style={{ height: `${Math.max(8, (Number(r.taux_pct) / max) * 100)}%`,
+                         background: "color-mix(in oklch, var(--color-accent) 50%, transparent)" }}
+              />
+            </span>
+            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default async function InsurerPage({
   searchParams,
 }: {
@@ -52,7 +91,7 @@ export default async function InsurerPage({
   // Les deux lectures (comparaison + profil curé) sont indépendantes → en
   // parallèle plutôt qu'en séquence (deux allers-retours Supabase = ouverture
   // perçue comme lente sinon).
-  const [comparison, profileRes] = await Promise.all([
+  const [comparison, profileRes, feRes] = await Promise.all([
     supabase.rpc("get_insurer_comparison", { p_company: company }),
     supabase
       .from("investissement_av_insurer_profiles")
@@ -61,6 +100,13 @@ export default async function InsurerPage({
       )
       .eq("company", company)
       .maybeSingle<InsurerProfile>(),
+    // Historique du taux servi des fonds euros de l'assureur (comme la fiche contrat).
+    supabase
+      .from("investissement_av_fonds_euros_history")
+      .select("fonds_euros_nom, annee, taux_pct")
+      .eq("company", company)
+      .order("annee", { ascending: true })
+      .returns<FeRate[]>(),
   ]);
 
   const { data, error } = comparison;
@@ -68,6 +114,18 @@ export default async function InsurerPage({
   if (error || !o) notFound();
 
   const profile = profileRes.data;
+
+  // Fonds euros de l'assureur, groupés par nom, les plus « vivants » (millésime le
+  // plus récent) en tête — au plus 4 séries affichées.
+  const feByFund = new Map<string, FeRate[]>();
+  for (const r of feRes.data ?? []) {
+    const arr = feByFund.get(r.fonds_euros_nom) ?? [];
+    arr.push(r);
+    feByFund.set(r.fonds_euros_nom, arr);
+  }
+  const feFunds = [...feByFund.entries()]
+    .sort((a, b) => (b[1].at(-1)?.annee ?? 0) - (a[1].at(-1)?.annee ?? 0))
+    .slice(0, 4);
 
   // L'assureur n'existe ni comme offre ni comme profil → 404 franc.
   if ((o.contracts?.length ?? 0) === 0 && !profile && !o.funds_total) notFound();
@@ -181,6 +239,24 @@ export default async function InsurerPage({
           </div>
         )}
       </Card>
+
+      {/* Rendement des fonds euros de l'assureur dans le temps (taux servis nets de
+          frais). Ne s'affiche que si l'historique est sourcé. */}
+      {feFunds.length > 0 && (
+        <Card className="px-5 py-5">
+          <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-3">
+            Rendement des fonds euros
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+            {feFunds.map(([nom, rates]) => (
+              <FondsEurosTrend key={nom} nom={nom} rates={rates} />
+            ))}
+          </div>
+          <p className="text-caption text-muted-2 mt-3">
+            Taux servis nets de frais de gestion, hors prélèvements sociaux et fiscaux.
+          </p>
+        </Card>
+      )}
 
       {/* Comparateur des contrats (interactif : enveloppe, tri, statut) */}
       <div>
