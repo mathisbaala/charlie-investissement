@@ -53,6 +53,11 @@ const RENDEMENT_FE_DEFAUT = 2.5; // %/an, taux servi moyen récent
 // l'absence de convention chargée : le CGP touche « frais d'entrée − cette
 // part ». Convention de place ~0,5 % (jusqu'à 1 %). Éditable via le champ rému.
 const PART_INCOMPRESSIBLE_ASSUREUR = 0.5;
+// Rétrocession fonds euros ESTIMÉE (%/an d'encours €), repli honnête tant qu'aucune
+// convention ne fixe le taux — symétrique de l'estimation UC (50 % du TER). Norme de
+// place ~0,10 % pour un fonds euros classique (le fonds euros rétrocède peu, mais pas
+// « rien »). Écrasée par le barème « Mon cabinet » ou une saisie manuelle.
+const EUROS_RETRO_ESTIMEE = 0.1;
 
 // Support (UC) enrichi depuis /api/funds : perf 5 ans annualisée + frais.
 interface UcRow {
@@ -383,10 +388,11 @@ export function FeeSimulator() {
   const contractFeeShare = contractFeeManuel ?? (
     convention?.contractFeeShare != null ? Math.round(convention.contractFeeShare * 1e4) / 1e2 : 0
   );
-  // Rétrocession fonds euros (%/an) : convention (eurosRetroShare) sinon 0
-  // (asymétrie €/UC : le fonds euros rétrocède peu, souvent rien).
+  // Rétrocession fonds euros (%/an) : saisie manuelle → convention (eurosRetroShare)
+  // → estimation de place (~0,10 %). Le fonds euros rétrocède peu mais pas rien :
+  // un repli à 0 sous-estimait la rému récurrente sur les contrats chargés en €.
   const eurosRetroShare = eurosRetroManuel ?? (
-    convention?.eurosRetroShare != null ? Math.round(convention.eurosRetroShare * 1e4) / 1e2 : 0
+    convention?.eurosRetroShare != null ? Math.round(convention.eurosRetroShare * 1e4) / 1e2 : EUROS_RETRO_ESTIMEE
   );
 
   // Honoraires de conseil (facturation directe, hors rétrocession) : préremplis
