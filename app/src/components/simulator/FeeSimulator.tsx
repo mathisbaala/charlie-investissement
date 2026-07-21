@@ -674,9 +674,9 @@ export function FeeSimulator() {
 
         {/* ═══ Colonne droite · résultats (dense) ═══ */}
         <main className="min-w-0 space-y-5">
-          {/* Synthèse épinglée : l'impact d'un réglage de gauche se lit ici sans défiler. */}
+          {/* Synthèse en tête de colonne : elle défile avec le reste du contenu. */}
           {final && (
-            <div className="sticky top-0 z-20 -mx-1 border-b border-line-soft bg-cream/95 px-1 pt-1 pb-3 backdrop-blur-sm">
+            <div className="border-b border-line-soft pb-3">
               {/* Deux comptabilités côte à côte : ce que le cabinet encaisse
                   (upfront one-shot vs récurrent) et ce que le client supporte /
                   récupère. Sur mobile les deux groupes s'empilent. */}
@@ -704,9 +704,8 @@ export function FeeSimulator() {
                     <div className="grid grid-cols-3 gap-2">
                       {g.tiles.map((k) => (
                         <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5">
-                          <p className="text-caption uppercase tracking-wide text-muted font-semibold truncate" title={k.label}>{k.label}</p>
+                          <p className="text-caption uppercase tracking-wide text-muted font-semibold leading-tight min-h-[2.4em]">{k.label}</p>
                           <p className={`text-title font-semibold tabular-nums leading-tight mt-1 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
-                          {k.sub && <p className="text-caption text-muted tabular-nums truncate mt-0.5" title={k.sub}>{k.sub}</p>}
                         </div>
                       ))}
                     </div>
