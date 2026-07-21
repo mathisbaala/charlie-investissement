@@ -683,18 +683,12 @@ export function FeeSimulator() {
 
           <div className="space-y-5">
           <Card className="px-5 py-5">
-            <div className="flex items-baseline justify-between gap-3">
-              <H2 className="">Ma rémunération</H2>
-              {final && <span className="text-meta text-muted">total cabinet</span>}
-            </div>
+            <H2>Ma rémunération</H2>
             {final && (
               <>
-                {/* Chiffre-phare : ce que le cabinet gagne. Taille alignée sur
-                    l'échelle (display-md), la répartition juste en dessous à
-                    text-title pour éviter l'écart 40→13 précédent. */}
-                <p className="text-display-md font-semibold tabular-nums text-ok leading-none mt-2 mb-5"
-                  title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {/* Le total cabinet vit dans le bandeau (tuile « Rému cabinet ») ;
+                    ici on ne montre que sa décomposition, à text-title. */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-4">
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Rétrocessions</p>
                     <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
