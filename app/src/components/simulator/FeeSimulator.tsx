@@ -519,9 +519,13 @@ export function FeeSimulator() {
 
   return (
     <PageShell maxWidth="1240px">
-      <div className="grid gap-6 items-start lg:grid-cols-[320px_minmax(0,1fr)]">
+      {/* grid-cols-1 en mobile = piste minmax(0,1fr) bornée au conteneur (sinon
+          la piste `auto` grossit à la max-content ~412px et déborde le viewport,
+          bord droit clippé et inatteignable). min-w-0 sur l'aside pour qu'il se
+          comprime comme <main>. */}
+      <div className="grid gap-6 items-start grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* ═══ Colonne gauche · réglages (paramètres, supports, données) ═══ */}
-        <aside className="space-y-4">
+        <aside className="space-y-4 min-w-0">
           <Drawer title="Portefeuille" defaultOpen bodyClassName="">
             <SupportSources
               onAddFund={addUC}
