@@ -40,6 +40,27 @@ jobs:
       - name: Fonds euros — taux servis (refresh)
         run: python3 scripts/scrapers/fonds-euros-enricher.py --apply --refresh
 
+      # Rappel : le refresh des taux fonds euros au niveau CONTRAT
+      # (investissement_av_contract_terms) repose sur un workflow multi-agents Claude
+      # (recherche web par assureur) — PAS exécutable en CI headless. Ce step ouvre un
+      # rappel annuel (idempotent) pour le rejouer à la main. Voir
+      # docs/runbook-fonds-euros-contrats-refresh.md
+      - name: Rappel — refresh fonds euros CONTRATS (workflow agents)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MARKER="[rappel-fonds-euros-contrats]"
+          YEAR=$(date -u '+%Y')
+          EXISTING=$(gh issue list --state open --search "$MARKER $YEAR in:title" --json number --jq '.[0].number')
+          if [ -z "$EXISTING" ]; then
+            printf '%s\n\n%s\n\n%s\n' \
+              "Les taux servis $((YEAR-1)) des fonds euros sont publiés (janv.–mars $YEAR)." \
+              "Rejouer le refresh au niveau CONTRAT (table investissement_av_contract_terms) via le workflow Claude scripts/workflows/av-fonds-euros-refresh.js." \
+              "Procédure complète : docs/runbook-fonds-euros-contrats-refresh.md — refermer cette issue une fois le run appliqué." \
+              | gh issue create --title "$MARKER $YEAR — rejouer le refresh fonds euros par contrat" --body-file -
+          fi
+
       # Alerte persistante si l'étape ci-dessus a échoué : commente l'issue
       # ouverte existante (pas de spam) ou en crée une.
       - name: Alerte en cas d'échec
