@@ -84,15 +84,16 @@ export default function AccueilPage() {
           .
         </h1>
 
-        {/* Carte de recherche : saisie en haut, deux actions en pied
-            (« Gérer mes filtres » à gauche, « Lancer la recherche » à droite) */}
-        <div className="bg-paper rounded-2xl border border-line shadow-sm px-5 sm:px-6 py-5">
-          <div className="flex items-center gap-3">
-            <Search size={18} className="text-muted shrink-0" />
+        {/* Carte de recherche : zone de saisie généreuse en haut, deux actions en
+            pied (« Gérer mes filtres » à gauche, « Lancer la recherche » à droite).
+            Pas de séparateur : la respiration suffit à distinguer les deux zones. */}
+        <div className="bg-paper rounded-2xl border border-line shadow-sm px-5 sm:px-6 pt-5 pb-4">
+          <div className="flex items-start gap-3 min-h-[92px]">
+            <Search size={18} className="text-muted shrink-0 mt-0.5" />
             <TypingPrompt value={query} onChange={setQuery} onSubmit={launchSearch} className="flex-1" />
           </div>
 
-          <div className="flex items-center justify-between gap-3 pt-4 mt-4 border-t border-line-soft">
+          <div className="flex items-center justify-between gap-3 mt-3">
             <Btn variant="outline" size="md" onClick={() => setShowFilters(true)} className="gap-2">
               <SlidersHorizontal size={14} strokeWidth={1.7} />
               Gérer mes filtres
@@ -188,6 +189,7 @@ export default function AccueilPage() {
               onReset={() => setFilters({})}
               onClose={() => setShowFilters(false)}
               applyLabel="Rechercher"
+              mdWidthClass="md:w-[380px]"
             />
           </div>
         </>

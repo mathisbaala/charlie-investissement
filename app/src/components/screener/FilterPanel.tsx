@@ -16,6 +16,9 @@ interface FilterPanelProps {
   // Libellé du bouton primaire du pied. « Appliquer » dans le screener (on reste
   // sur place) ; « Lancer la recherche » depuis l'accueil (on navigue vers /recherche).
   applyLabel?: string;
+  // Largeur du panneau sur ≥ md. 300px en colonne du screener ; élargi en tiroir
+  // depuis l'accueil (où il s'ouvre par-dessus, avec plus de place à gauche).
+  mdWidthClass?: string;
 }
 
 function Divider() {
@@ -179,6 +182,7 @@ export function orderInsurersByPartners<T extends { company: string }>(
 
 export function FilterPanel({
   filters, onChange, onApply, onReset, onClose, applyLabel = "Appliquer",
+  mdWidthClass = "md:w-[300px]",
 }: FilterPanelProps) {
   const f = filters;
 
@@ -228,7 +232,7 @@ export function FilterPanel({
   ];
 
   return (
-    <div className="c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto md:w-[300px] md:rounded-xl">
+    <div className={`c-slide-in-l flex flex-col shrink-0 bg-cream border border-line overflow-hidden fixed inset-0 z-[60] w-full rounded-none md:static md:z-auto md:inset-auto ${mdWidthClass} md:rounded-xl`}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-line shrink-0">
         <div className="flex items-center gap-2">
