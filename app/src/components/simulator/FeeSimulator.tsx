@@ -685,38 +685,23 @@ export function FeeSimulator() {
           <Card className="px-5 py-5">
             <H2>Ma rémunération</H2>
             {final && (
-              <>
-                {/* Le total cabinet vit dans le bandeau (tuile « Rému cabinet ») ;
-                    ici on ne montre que sa décomposition, à text-title. */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-4">
-                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                    <p className="text-caption text-muted">Rétrocessions</p>
-                    <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
+              // Décomposition du revenu cabinet (le total vit dans le bandeau).
+              // Motif ligne aligné sur « Où va le coût ? » / « La nature du coût »
+              // pour l'homogénéité de la page (plus de tuiles ni de colonne vide).
+              <div className="space-y-2.5 mt-3">
+                {[
+                  { nom: "Rétrocessions", montant: final.retroCgpCumulee },
+                  { nom: "Commission d'entrée", montant: final.commCabinetCumulee },
+                  ...(final.contractFeeCumulee > 0 ? [{ nom: "Part gestion contrat", montant: final.contractFeeCumulee }] : []),
+                  ...(final.eurosRetroCumulee > 0 ? [{ nom: "Rétro fonds euros", montant: final.eurosRetroCumulee }] : []),
+                  ...(honoraireCumule > 0 ? [{ nom: "Honoraires", montant: honoraireCumule }] : []),
+                ].map(({ nom, montant }) => (
+                  <div key={nom} className="flex items-center justify-between gap-4 border-b border-line-soft last:border-0 pb-2.5 last:pb-0">
+                    <p className="text-meta text-ink">{nom}</p>
+                    <span className="text-meta text-ink font-medium tabular-nums">{EUR.format(montant)}</span>
                   </div>
-                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                    <p className="text-caption text-muted">Commission d'entrée</p>
-                    <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
-                  </div>
-                  {final.contractFeeCumulee > 0 && (
-                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                      <p className="text-caption text-muted">Part gestion contrat</p>
-                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
-                    </div>
-                  )}
-                  {final.eurosRetroCumulee > 0 && (
-                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                      <p className="text-caption text-muted">Rétro fonds euros</p>
-                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
-                    </div>
-                  )}
-                  {honoraireCumule > 0 && (
-                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                      <p className="text-caption text-muted">Honoraires</p>
-                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
-                    </div>
-                  )}
-                </div>
-              </>
+                ))}
+              </div>
             )}
           </Card>
 
