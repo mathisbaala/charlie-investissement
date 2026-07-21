@@ -113,7 +113,7 @@ export function SupportSources({
       }
       if (holdings.length > 0) {
         onAddPortfolio(holdings);
-        setNote(`${holdings.length} support${holdings.length > 1 ? "s" : ""} valorisé${holdings.length > 1 ? "s" : ""} importé${holdings.length > 1 ? "s" : ""}.`);
+        setNote(`${holdings.length} support${holdings.length > 1 ? "s" : ""} importé${holdings.length > 1 ? "s" : ""}.`);
       } else {
         setError(warned ?? "Aucune position valorisée trouvée. Vérifiez qu'il s'agit d'un relevé de situation.");
       }

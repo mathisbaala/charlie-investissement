@@ -371,30 +371,6 @@ export function FeeSimulator() {
   const revenuCabinet = final ? final.revenuCabinet : 0;
   const coutTotalClient = final ? final.coutTotalClient : 0;
 
-  // ── KPI CGP « faire sa compta » ────────────────────────────────────────────
-  // Taux moyen de rétrocession = commissions RÉCURRENTES annuelles moyennes /
-  // encours moyen. C'est le repère de place du CGP (~0,47 % chez Sendraise).
-  // Récurrent = rétro supports + part gestion contrat + rétro fonds euros (les
-  // flux « trailer » sur l'encours) ; hors commission d'entrée (ponctuelle) et
-  // honoraires (facturés, pas rétrocédés).
-  const encoursMoyen = useMemo(() => {
-    if (!final || final.annees < 1) return 0;
-    const enc = sim.points.slice(1, final.annees + 1);
-    return enc.length ? enc.reduce((s, p) => s + p.valeurNette, 0) / enc.length : 0;
-  }, [sim, final]);
-  const recurrentCumule = final ? final.retroCgpCumulee + final.contractFeeCumulee + final.eurosRetroCumulee : 0;
-  const tauxMoyenRetro = final && encoursMoyen > 0
-    ? (recurrentCumule / final.annees / encoursMoyen) * 100 : null;
-  // Mix du revenu cabinet en 3 natures (repère marché 60/28/12 : upfront /
-  // récurrent / honoraires). En % du revenu cabinet total.
-  const mix = useMemo(() => {
-    if (!final || revenuCabinet <= 0) return null;
-    return {
-      upfront: (final.commCabinetCumulee / revenuCabinet) * 100,
-      recurrent: (recurrentCumule / revenuCabinet) * 100,
-      honoraires: (honoraireCumule / revenuCabinet) * 100,
-    };
-  }, [final, revenuCabinet, recurrentCumule, honoraireCumule]);
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
   const riy = final ? reductionRendementAnnuelle(final) : 0;
@@ -622,9 +598,9 @@ export function FeeSimulator() {
                   { label: "Gain net client", value: EUR.format(final.gainNet), tone: final.gainNet >= 0 ? "ok" : "bad" },
                   { label: "Frais / gain brut", value: partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final)), tone: null },
                 ] as { label: string; value: string; tone: "ok" | "bad" | null }[]).map((k) => (
-                  <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2">
+                  <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5">
                     <p className="text-caption uppercase tracking-wide text-muted font-semibold truncate">{k.label}</p>
-                    <p className={`text-body font-semibold tabular-nums leading-tight mt-0.5 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
+                    <p className={`text-title font-semibold tabular-nums leading-tight mt-1 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
                   </div>
                 ))}
               </div>
@@ -642,52 +618,27 @@ export function FeeSimulator() {
                 <div className="rounded-lg border border-line-soft px-3 py-2.5">
                   <p className="text-caption text-muted">Rétrocessions cumulées</p>
                   <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
-                  <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.retroCgpCumulee / final.annees)}/an en moyenne</p>
                 </div>
                 <div className="rounded-lg border border-line-soft px-3 py-2.5">
                   <p className="text-caption text-muted">Commission d'entrée</p>
                   <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
-                  <p className="text-caption text-muted-2">à la souscription</p>
                 </div>
                 {final.contractFeeCumulee > 0 && (
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Part gestion contrat</p>
                     <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
-                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.contractFeeCumulee / final.annees)}/an en moyenne</p>
                   </div>
                 )}
                 {final.eurosRetroCumulee > 0 && (
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Rétro fonds euros</p>
                     <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
-                    <p className="text-caption text-muted-2 tabular-nums">≈ {EUR.format(final.eurosRetroCumulee / final.annees)}/an en moyenne</p>
                   </div>
                 )}
                 {honoraireCumule > 0 && (
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Honoraires de conseil</p>
                     <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
-                    <p className="text-caption text-muted-2">facturés en sus (hors rétro)</p>
-                  </div>
-                )}
-              </div>
-            )}
-            {final && (tauxMoyenRetro != null || mix) && (
-              <div className="mb-4 rounded-lg bg-accent-soft/30 px-3 py-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                {tauxMoyenRetro != null && (
-                  <div className="min-w-0">
-                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Taux moyen de rétrocession</p>
-                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">
-                      {pct(Math.round(tauxMoyenRetro * 100) / 100)}<span className="text-caption text-muted font-normal"> /an · repère place ~0,47 %</span>
-                    </p>
-                  </div>
-                )}
-                {mix && (
-                  <div className="min-w-0 text-right">
-                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Mix du revenu · repère 60/28/12</p>
-                    <p className="text-meta tabular-nums text-ink-2 leading-tight mt-0.5">
-                      Upfront {Math.round(mix.upfront)}% · Récurrent {Math.round(mix.recurrent)}% · Honoraires {Math.round(mix.honoraires)}%
-                    </p>
                   </div>
                 )}
               </div>
@@ -744,7 +695,7 @@ export function FeeSimulator() {
                       </td>
                       <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
                       <td className="py-1.5 text-right text-ink-2">{pct(u.entryFee)}</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(effRetro)}{u.retro == null && <span className="text-muted-2"> *</span>}</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(effRetro)}</td>
                       <td className="py-1.5 text-right text-ok font-medium">{EUR.format(retroAnnuelle)}</td>
                       <td className="py-1.5 text-right text-ok">{EUR.format(commissionUpfront)}</td>
                     </tr>
@@ -757,16 +708,6 @@ export function FeeSimulator() {
                   </tr>
                 </tbody>
               </table>
-            )}
-            {supportRows.some((r) => r.u.retro == null) && (
-              <p className="text-caption text-muted-2 mt-2">* rétrocession non connue en base : taux effectif du contrat appliqué.</p>
-            )}
-            {supportRows.length > 0 && versementAnnuel > 0 && (
-              <p className="text-caption text-muted-2 mt-2">
-                Montants alloués sur le versement initial ({EUR.format(ucPot)} en unités de compte) : ce détail par
-                support ne tient pas compte des versements annuels ni de la capitalisation. La rémunération cumulée
-                exacte sur l&apos;horizon figure dans « Ma rémunération » et « Projections ».
-              </p>
             )}
           </Card>
 
@@ -791,10 +732,6 @@ export function FeeSimulator() {
                   );
                 })}
               </div>
-              <p className="text-caption text-muted-2 mt-3">
-                Réparti sur le coût total client de {EUR.format(coutTotalClient)} à {final.annees} ans.
-                {honoraireCumule > 0 && <> La part cabinet inclut {EUR.format(honoraireCumule)} d&apos;honoraires facturés en sus (hors frais du contrat).</>}
-              </p>
             </Card>
           )}
 
