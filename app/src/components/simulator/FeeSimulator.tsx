@@ -12,7 +12,7 @@ import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
 import {
   simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
-  reductionRendementAnnuelle, remunerationSupport, HORIZONS_DEFAUT,
+  reductionRendementAnnuelle, coutAnnuelMoyenPct, remunerationSupport, HORIZONS_DEFAUT,
   type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
@@ -431,6 +431,10 @@ export function FeeSimulator() {
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
   const riy = final ? reductionRendementAnnuelle(final) : 0;
+  // Coût annuel moyen en % de l'encours (« taux de frais annuel » façon OGC) :
+  // le langage du CGP pour comparer deux enveloppes. Remplace l'ancien « gain
+  // net » (projection de performance, hors-mission et sensible côté DDA).
+  const coutAnnuelMoyen = final ? coutAnnuelMoyenPct(sim.points, final) : null;
   const coutPctVersements = final && final.versementsCumules > 0
     ? (coutTotalClient / final.versementsCumules) * 100 : null;
   // Ventilation du coût client par NATURE (DDA/MIF2) à l'horizon final.
@@ -665,7 +669,7 @@ export function FeeSimulator() {
                   titre: "Côté client",
                   tiles: [
                     { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
-                    { label: "Gain net", value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad" },
+                    { label: "Coût annuel moyen", value: coutAnnuelMoyen != null ? `${pct(coutAnnuelMoyen)}/an` : "—", tone: null },
                     { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
                   ],
                 },
@@ -833,7 +837,6 @@ export function FeeSimulator() {
                 <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
                   <th className="text-left py-2 font-semibold">Horizon</th>
                   <th className="text-right py-2 font-semibold">Valeur nette</th>
-                  <th className="text-right py-2 font-semibold">Gain net</th>
                   <th className="text-right py-2 font-semibold">Coût total</th>
                   <th className="text-right py-2 font-semibold">Rému cabinet</th>
                 </tr>
@@ -843,9 +846,6 @@ export function FeeSimulator() {
                   <tr key={h.annees} className="border-b border-line-soft last:border-0">
                     <td className="py-1.5 text-ink-2">{h.annees} ans</td>
                     <td className="py-1.5 text-right text-ink font-medium">{EUR.format(h.valeurNette)}</td>
-                    <td className={`py-1.5 text-right ${h.gainNet >= 0 ? "text-ok" : "text-danger"}`}>
-                      {h.gainNet >= 0 ? "+" : ""}{EUR.format(h.gainNet)}
-                    </td>
                     <td className="py-1.5 text-right text-ink-2">{EUR.format(h.coutTotalClient)}</td>
                     <td className="py-1.5 text-right text-ok">{EUR.format(h.revenuCabinet)}</td>
                   </tr>

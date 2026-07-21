@@ -497,6 +497,26 @@ export function reductionRendementAnnuelle(h: HorizonProjection): number {
 }
 
 /**
+ * Coût annuel moyen supporté par le client, exprimé en % de l'encours net moyen
+ * sur la période — le « taux de frais annuel » façon frais courants (OGC), le
+ * langage naturel du CGP pour comparer deux enveloppes entre elles. On lisse le
+ * coût total client (frais de structure + honoraires facturés en sus) sur la
+ * durée, puis on le rapporte à l'encours net effectivement porté année après
+ * année (moyenne des encours de fin d'année, années 1..h — celles où les frais
+ * courent). Null si l'encours moyen ou la durée ne sont pas exploitables.
+ */
+export function coutAnnuelMoyenPct(points: YearPoint[], h: HorizonProjection): number | null {
+  if (!(h.annees >= 1)) return null;
+  const encours: number[] = [];
+  for (let i = 1; i <= h.annees && i < points.length; i++) {
+    if (points[i].valeurNette > 0) encours.push(points[i].valeurNette);
+  }
+  if (encours.length === 0) return null;
+  const encoursMoyen = encours.reduce((a, v) => a + v, 0) / encours.length;
+  return r2((h.coutTotalClient / h.annees / encoursMoyen) * 100);
+}
+
+/**
  * Projection simple d'une UC seule (table « toutes les UC ») : valeur d'un
  * montant investi à N années au rendement net annualisé donné, dégradé du
  * frais de gestion du contrat. Null si la perf est absente.
@@ -606,6 +626,7 @@ export interface FraisReport {
   trajectoire: FraisTrajectoirePoint[];  // année par année (illustration effet des coûts)
   partFraisGainBrut: number | null;      // frais / gain brut (%), à l'horizon final
   reductionRendement: number;            // réduction de rendement annualisée (%/an, RIY)
+  coutAnnuelMoyen: number | null;        // coût annuel moyen en % de l'encours net moyen (façon OGC), horizon final
   coutPremiereAnnee: number;             // frais cumulés fin d'année 1 (entrée + 1re année de gestion)
   coutRecurrentMoyen: number;            // frais récurrents moyens /an (gestion + courants), hors entrée/sortie
   coutTotalClient: number;               // coût total supporté par le client (structure + honoraires), horizon final
@@ -691,6 +712,7 @@ export function buildFraisReport(
     trajectoire,
     partFraisGainBrut: partFraisDansGainBrut(final),
     reductionRendement: reductionRendementAnnuelle(final),
+    coutAnnuelMoyen: coutAnnuelMoyenPct(sim.points, final),
     coutPremiereAnnee,
     coutRecurrentMoyen,
     coutTotalClient: final.coutTotalClient,

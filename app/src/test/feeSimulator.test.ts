@@ -6,6 +6,7 @@ import {
   partFraisDansGainBrut,
   repartitionFrais,
   reductionRendementAnnuelle,
+  coutAnnuelMoyenPct,
   remunerationSupport,
   HORIZONS_DEFAUT,
   type SimulationInput,
@@ -564,6 +565,31 @@ describe('reductionRendementAnnuelle — RIY PRIIPs (différence arithmétique)'
     const sim = simulate({ ...base, versementInitial: 0, versementAnnuel: 0, frais: FRAIS_TYPES })
     const h = sim.horizons.find((x) => x.annees === 15)!
     expect(reductionRendementAnnuelle(h)).toBe(0)
+  })
+})
+
+describe('coutAnnuelMoyenPct — taux de frais annuel sur encours (façon OGC)', () => {
+  it('= coût total client lissé sur la durée, rapporté à l’encours net moyen', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    const encours: number[] = []
+    for (let i = 1; i <= h.annees; i++) encours.push(sim.points[i].valeurNette)
+    const encoursMoyen = encours.reduce((a, v) => a + v, 0) / encours.length
+    const attendu = (h.coutTotalClient / h.annees / encoursMoyen) * 100
+    expect(coutAnnuelMoyenPct(sim.points, h)).toBeCloseTo(attendu, 2)
+    expect(coutAnnuelMoyenPct(sim.points, h)!).toBeGreaterThan(0)
+  })
+
+  it('nul sans aucun frais (aucun coût client)', () => {
+    const sim = simulate({ ...base, frais: SANS_FRAIS })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(coutAnnuelMoyenPct(sim.points, h)).toBeCloseTo(0, 6)
+  })
+
+  it('null si l’encours moyen n’est pas exploitable (aucun versement)', () => {
+    const sim = simulate({ ...base, versementInitial: 0, versementAnnuel: 0, frais: FRAIS_TYPES })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(coutAnnuelMoyenPct(sim.points, h)).toBeNull()
   })
 })
 

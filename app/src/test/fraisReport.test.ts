@@ -96,6 +96,18 @@ describe("buildFraisReport", () => {
     expect(sansFrais.reductionRendement).toBeCloseTo(0, 2);
   });
 
+  it("coût annuel moyen : strictement positif avec frais, nul sans frais", () => {
+    const r = buildFraisReport(input, supports)!;
+    expect(r.coutAnnuelMoyen).not.toBeNull();
+    expect(r.coutAnnuelMoyen!).toBeGreaterThan(0);
+    const sansFrais = buildFraisReport({
+      ...input,
+      frais: { contratEntree: 0, contratGestionUC: 0, contratGestionFE: 0, contratSortie: 0, ucEntree: 0, ucGestion: 0, ucSortie: 0 },
+      retroCgp: 0, commissionCabinet: 0,
+    }, [{ ...supports[0], ter: 0, retro: 0 }])!;
+    expect(sansFrais.coutAnnuelMoyen).toBeCloseTo(0, 6);
+  });
+
   it("intègre les honoraires : nature.total = coût total client, dontConseil = revenu cabinet", () => {
     const r = buildFraisReport(
       { ...input, honoraireForfait: 400, honoraireAnnuelPct: 0.3 }, supports)!

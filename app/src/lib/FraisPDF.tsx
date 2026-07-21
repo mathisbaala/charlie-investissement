@@ -310,7 +310,6 @@ function Projections({ report, mode }: { report: FraisReport; mode: "client" | "
       <View style={S.tHead}>
         <Text style={[S.cName, S.tHeadText]}>Horizon</Text>
         <Text style={[S.cNum, S.tHeadText, { textAlign: "right" }]}>Valeur nette</Text>
-        <Text style={[S.cNum, S.tHeadText, { textAlign: "right" }]}>Gain net</Text>
         <Text style={[S.cNum, S.tHeadText, { textAlign: "right" }]}>Coût cumulé</Text>
         {mode === "cabinet" && <Text style={[S.cNum, S.tHeadText, { textAlign: "right" }]}>Rému cabinet</Text>}
       </View>
@@ -318,9 +317,6 @@ function Projections({ report, mode }: { report: FraisReport; mode: "client" | "
         <View key={h.annees} style={S.tRow}>
           <Text style={[S.cName, S.rowName]}>{h.annees} ans</Text>
           <Text style={[S.cNumStrong, sansIfNil(nfEur(h.valeurNette))]}>{nfEur(h.valeurNette)}</Text>
-          <Text style={[S.cNum, { color: h.gainNet >= 0 ? C.green : C.red }]}>
-            {h.gainNet >= 0 ? "+" : ""}{nfEur(h.gainNet)}
-          </Text>
           <Text style={[S.cNum, sansIfNil(nfEur(h.coutTotalClient))]}>{nfEur(h.coutTotalClient)}</Text>
           {mode === "cabinet" && (
             <Text style={[S.cNum, { color: C.gold }, sansIfNil(nfEur(h.revenuCabinet))]}>{nfEur(h.revenuCabinet)}</Text>
@@ -418,7 +414,7 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, logo }: 
             { label: "Coût la 1re année", value: nfEur(report.coutPremiereAnnee), sub: "entrée + gestion" },
             { label: "Coût récurrent / an", value: nfEur(report.coutRecurrentMoyen), sub: "gestion + supports" },
             { label: "Réduction de rendement", value: `${report.reductionRendement.toFixed(1)} %`, sub: "par an", color: C.gold },
-            { label: `Valeur nette à ${final.annees} ans`, value: nfEur(final.valeurNette), sub: `gain ${final.gainNet >= 0 ? "+" : ""}${nfEur(final.gainNet)}`, color: final.gainNet >= 0 ? C.green : C.red },
+            { label: "Coût annuel moyen", value: report.coutAnnuelMoyen != null ? `${report.coutAnnuelMoyen.toFixed(2)} %` : "—", sub: "de l’encours / an", color: C.clay },
           ]}
         />
 
