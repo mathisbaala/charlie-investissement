@@ -3,10 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
-} from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Btn } from "@/components/ui/Btn";
@@ -42,15 +38,6 @@ const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR",
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 const DUREES = [5, 10, 15, 20, 25];
 const MAX_UC = 10;
-
-// Libellés des composantes de rémunération (graphe empilé « Ma rémunération »).
-const REMU_LABELS: Record<string, string> = {
-  upfront: "Commission d'entrée",
-  retro: "Rétrocessions",
-  contractFee: "Part gestion contrat",
-  eurosRetro: "Rétro fonds euros",
-  honoraires: "Honoraires de conseil",
-};
 
 // Défauts « contrat type » (éditables) : bancassureur classique. La commission
 // upfront du cabinet est initialisée au niveau des frais d'entrée (convention
@@ -458,25 +445,6 @@ export function FeeSimulator() {
     ];
   })() : null;
 
-  // Courbe de rémunération cumulée du cabinet : toutes les composantes empilées
-  // (commission d'entrée + rétrocessions + part gestion contrat + honoraires),
-  // pour que l'aire totale corresponde exactement au revenu cabinet affiché.
-  const remuCurve = useMemo(() => sim.points.map((p) => ({
-    annee: p.annee,
-    upfront: p.commCabinetCumulee,
-    retro: p.retroCgpCumulee,
-    contractFee: p.contractFeeCumulee,
-    eurosRetro: p.eurosRetroCumulee,
-    honoraires: p.honoraireCumule,
-  })), [sim]);
-
-  const valeurCurve = useMemo(() => sim.points.map((p) => ({
-    annee: p.annee,
-    nette: p.valeurNette,
-    sansFrais: p.valeurSansFrais,
-    versements: p.versementsCumules,
-  })), [sim]);
-
   const ucIsins = useMemo(() => new Set(ucs.map((u) => u.isin)), [ucs]);
 
   // Détail par support : montant alloué (part UC × poids) → rémunération.
@@ -674,102 +642,86 @@ export function FeeSimulator() {
 
         {/* ═══ Colonne droite · résultats (dense) ═══ */}
         <main className="min-w-0 space-y-5">
-          {/* Synthèse en tête de colonne : elle défile avec le reste du contenu. */}
+          {/* Synthèse en tête de colonne : elle défile avec le reste du contenu.
+              Deux comptabilités empilées, une ligne chacune : ce que le cabinet
+              encaisse et ce que le client supporte / récupère. Chiffres mis en
+              avant (text-display), libellés courts. */}
           {final && (
-            <div className="border-b border-line-soft pb-3">
-              {/* Deux comptabilités côte à côte : ce que le cabinet encaisse
-                  (upfront one-shot vs récurrent) et ce que le client supporte /
-                  récupère. Sur mobile les deux groupes s'empilent. */}
-              <div className="grid gap-2.5 lg:grid-cols-2">
-                {([
-                  {
-                    titre: "Ce que je gagne",
-                    tiles: [
-                      { label: `Rému cabinet · ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok", sub: undefined },
-                      { label: "À l'entrée (upfront)", value: EUR.format(revenuUpfront), tone: "ok", sub: "commission + forfait" },
-                      { label: "Récurrent · 1re année", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok", sub: "rétro + honoraires" },
-                    ],
-                  },
-                  {
-                    titre: "Côté client",
-                    tiles: [
-                      { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null, sub: coutPctVersements != null ? `${pct(Math.round(coutPctVersements * 10) / 10)} des versements` : undefined },
-                      { label: `Gain net · ${final.annees} ans`, value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad", sub: `net ${EUR.format(final.valeurNette)}` },
-                      { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null, sub: "type PRIIPs" },
-                    ],
-                  },
-                ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | "bad" | null; sub?: string }[] }[]).map((g) => (
-                  <section key={g.titre} className="min-w-0">
-                    <p className="text-caption uppercase tracking-widest text-muted font-semibold px-0.5 mb-1.5">{g.titre}</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {g.tiles.map((k) => (
-                        <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5">
-                          <p className="text-caption uppercase tracking-wide text-muted font-semibold leading-tight min-h-[2.4em]">{k.label}</p>
-                          <p className={`text-title font-semibold tabular-nums leading-tight mt-1 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+            <div className="border-b border-line-soft pb-4 space-y-3">
+              {([
+                {
+                  titre: "Ce que je gagne",
+                  tiles: [
+                    { label: `Rému cabinet · ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok" },
+                    { label: "À l'entrée", value: EUR.format(revenuUpfront), tone: "ok" },
+                    { label: "Récurrent · an 1", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok" },
+                  ],
+                },
+                {
+                  titre: "Côté client",
+                  tiles: [
+                    { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
+                    { label: `Gain net · ${final.annees} ans`, value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad" },
+                    { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
+                  ],
+                },
+              ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | "bad" | null }[] }[]).map((g) => (
+                <section key={g.titre}>
+                  <p className="text-label uppercase tracking-widest text-muted font-semibold px-0.5 mb-1.5">{g.titre}</p>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {g.tiles.map((k) => (
+                      <div key={k.label} className="min-w-0 rounded-xl border border-line bg-paper px-3.5 py-3">
+                        <p className="text-label uppercase tracking-wide text-muted font-semibold leading-tight truncate" title={k.label}>{k.label}</p>
+                        <p className={`text-display font-semibold tabular-nums leading-none mt-1.5 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
 
           <div className="space-y-5">
           <Card className="px-5 py-5">
-            <div className="flex items-baseline justify-between gap-3 mb-3">
-              <H2 className="">Ma rémunération</H2>
-              {final && <span className="text-meta text-ok font-medium tabular-nums" title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</span>}
-            </div>
+            <H2>Ma rémunération</H2>
             {final && (
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                  <p className="text-caption text-muted">Rétrocessions cumulées</p>
-                  <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
+              <>
+                {/* Chiffre-phare : ce que le cabinet gagne, mis en avant. */}
+                <div className="mt-3 mb-5">
+                  <p className="text-label uppercase tracking-wide text-muted font-semibold">Ce que je gagne · {final.annees} ans</p>
+                  <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-1"
+                    title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</p>
                 </div>
-                <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                  <p className="text-caption text-muted">Commission d'entrée</p>
-                  <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                    <p className="text-caption text-muted">Rétrocessions</p>
+                    <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
+                  </div>
+                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                    <p className="text-caption text-muted">Commission d'entrée</p>
+                    <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
+                  </div>
+                  {final.contractFeeCumulee > 0 && (
+                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                      <p className="text-caption text-muted">Part gestion contrat</p>
+                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
+                    </div>
+                  )}
+                  {final.eurosRetroCumulee > 0 && (
+                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                      <p className="text-caption text-muted">Rétro fonds euros</p>
+                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
+                    </div>
+                  )}
+                  {honoraireCumule > 0 && (
+                    <div className="rounded-lg border border-line-soft px-3 py-2.5">
+                      <p className="text-caption text-muted">Honoraires</p>
+                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
+                    </div>
+                  )}
                 </div>
-                {final.contractFeeCumulee > 0 && (
-                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                    <p className="text-caption text-muted">Part gestion contrat</p>
-                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
-                  </div>
-                )}
-                {final.eurosRetroCumulee > 0 && (
-                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                    <p className="text-caption text-muted">Rétro fonds euros</p>
-                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
-                  </div>
-                )}
-                {honoraireCumule > 0 && (
-                  <div className="rounded-lg border border-line-soft px-3 py-2.5">
-                    <p className="text-caption text-muted">Honoraires de conseil</p>
-                    <p className="text-meta text-ink font-medium tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
-                  </div>
-                )}
-              </div>
+              </>
             )}
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={remuCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
-                <XAxis dataKey="annee" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
-                  tickFormatter={(v: number) => `${v} an${v > 1 ? "s" : ""}`} interval="preserveStartEnd" minTickGap={40} />
-                <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
-                  width={56} tickFormatter={(v: number) => EUR.format(v)} />
-                <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—", REMU_LABELS[n as string] ?? String(n)]}
-                  labelFormatter={(l: unknown) => `Année ${l}`}
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
-                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>{REMU_LABELS[v] ?? v}</span>} />
-                <Area type="monotone" dataKey="upfront" stackId="r" stroke="#7A5C3E" fill="#7A5C3E" fillOpacity={0.35} />
-                <Area type="monotone" dataKey="retro" stackId="r" stroke="#B0613F" fill="#B0613F" fillOpacity={0.55} />
-                <Area type="monotone" dataKey="contractFee" stackId="r" stroke="#C08552" fill="#C08552" fillOpacity={0.45} />
-                <Area type="monotone" dataKey="eurosRetro" stackId="r" stroke="#9C8B5E" fill="#9C8B5E" fillOpacity={0.45} />
-                <Area type="monotone" dataKey="honoraires" stackId="r" stroke="#5E7A6B" fill="#5E7A6B" fillOpacity={0.45} />
-              </AreaChart>
-            </ResponsiveContainer>
           </Card>
 
           <Card className="px-5 py-5 overflow-x-auto">
@@ -888,29 +840,6 @@ export function FeeSimulator() {
               </div>
             </Card>
           )}
-
-          <Card className="px-5 py-5">
-            <H2>Valeur du contrat</H2>
-            <ResponsiveContainer width="100%" height={240}>
-              <LineChart data={valeurCurve} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#DFDEDA" />
-                <XAxis dataKey="annee" tick={{ fontSize: 10, fill: "#999895" }} tickLine={false}
-                  tickFormatter={(v: number) => `${v} an${v > 1 ? "s" : ""}`} interval="preserveStartEnd" minTickGap={40} />
-                <YAxis tick={{ fontSize: 10, fill: "#999895" }} tickLine={false} axisLine={false}
-                  width={56} tickFormatter={(v: number) => EUR.format(v)} domain={["auto", "auto"]} />
-                <Tooltip
-                  formatter={(v: unknown, n: unknown) => [typeof v === "number" ? EUR.format(v) : "—",
-                    n === "nette" ? "Valeur nette client" : n === "sansFrais" ? "Brut (avant frais)" : "Versements"]}
-                  labelFormatter={(l: unknown) => `Année ${l}`}
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #C9C7C2" }} />
-                <Legend formatter={(v: string) => <span style={{ fontSize: 11 }}>
-                  {v === "nette" ? "Valeur nette client" : v === "sansFrais" ? "Brut (avant frais)" : "Versements"}</span>} />
-                <Line type="monotone" dataKey="sansFrais" stroke="#8A8780" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
-                <Line type="monotone" dataKey="nette" stroke="#B0613F" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="versements" stroke="#DFDEDA" strokeWidth={1.5} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
 
           <Card className="px-5 py-5 overflow-x-auto">
             <H2>Projections</H2>
