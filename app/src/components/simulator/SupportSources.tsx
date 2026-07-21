@@ -47,6 +47,14 @@ const MODES: { key: Mode; label: string }[] = [
 const PORTFOLIO_ACCEPT = ".pdf,.csv,.xlsx,.xls";
 
 /**
+ * Cadre commun aux zones « Déposer » et « Importer » : même empreinte (taille
+ * strictement identique quel que soit le mode ou l'état), pour une entrée de
+ * portefeuille homogène. Chaque zone ajoute ensuite son propre style de bordure.
+ */
+const ZONE_FRAME =
+  "flex flex-col justify-center gap-2 rounded-lg min-h-[148px] px-4 py-6";
+
+/**
  * Un taux de frais dans un DICI est souvent un texte (« 3 % », « jusqu'à 5 % »,
  * « Néant »). On en extrait le premier pourcentage ; « néant / aucun / sans
  * frais » valent 0 ; sinon null (inconnu, l'UI retombe sur ses défauts).
@@ -120,7 +128,7 @@ export function SupportSources({
       onClick={() => !busy && portfolioInput.current?.click()}
       onDrop={(e) => { e.preventDefault(); if (!busy) onPortfolioFiles(e.dataTransfer.files); }}
       onDragOver={(e) => e.preventDefault()}
-      className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line py-6 px-4 text-center transition-colors ${busy ? "opacity-60 cursor-wait" : "cursor-pointer hover:border-accent/50 hover:bg-paper-2"}`}
+      className={`${ZONE_FRAME} items-center text-center border border-dashed border-line transition-colors ${busy ? "opacity-60 cursor-wait" : "cursor-pointer hover:border-accent/50 hover:bg-paper-2"}`}
     >
       {busy
         ? <Loader2 size={20} className="text-muted animate-spin" />
@@ -193,13 +201,15 @@ function ImportPanel({ onImport }: { onImport: (lines: ImportedLine[], montant: 
 
   if (!stored) {
     return (
-      <div className="rounded-lg border border-dashed border-line py-6 px-4 text-center">
-        <Wallet size={20} className="text-muted mx-auto" />
-        <p className="text-meta text-ink-2 mt-2">Aucun portefeuille à importer</p>
-        <p className="text-caption text-muted mt-0.5">Construisez-en un dans l'onglet Portefeuille.</p>
+      <div className={`${ZONE_FRAME} items-center text-center border border-dashed border-line`}>
+        <Wallet size={20} className="text-muted" />
+        <div>
+          <p className="text-meta text-ink-2">Aucun portefeuille à importer</p>
+          <p className="text-caption text-muted mt-0.5">Construisez-en un dans l'onglet Portefeuille.</p>
+        </div>
         <Link
           href="/portefeuille/construire"
-          className="inline-flex items-center gap-1 text-caption text-accent-ink hover:underline mt-2"
+          className="inline-flex items-center gap-1 text-caption text-accent-ink hover:underline"
         >
           Aller au portefeuille <ArrowRight size={12} />
         </Link>
@@ -209,12 +219,12 @@ function ImportPanel({ onImport }: { onImport: (lines: ImportedLine[], montant: 
 
   const count = stored.lines.length;
   return (
-    <div className="rounded-lg border border-line bg-paper px-3 py-3">
+    <div className={`${ZONE_FRAME} border border-line bg-paper`}>
       <div className="flex items-center gap-2">
         <Wallet size={15} className="text-accent-ink shrink-0" />
         <p className="text-meta text-ink font-medium">Portefeuille construit</p>
       </div>
-      <p className="text-caption text-muted mt-1">
+      <p className="text-caption text-muted">
         {count} support{count > 1 ? "s" : ""}
         {stored.montant != null && <> · {stored.montant.toLocaleString("fr-FR")} €</>}
         {stored.contract && <> · {stored.contract.split("::")[1]}</>}
@@ -222,7 +232,7 @@ function ImportPanel({ onImport }: { onImport: (lines: ImportedLine[], montant: 
       <button
         type="button"
         onClick={() => onImport(stored.lines, stored.montant)}
-        className="mt-3 w-full rounded-md bg-brown text-paper text-meta font-medium px-3 py-1.5 transition-colors hover:bg-brown/90"
+        className="mt-1 w-full rounded-md bg-brown text-paper text-meta font-medium px-3 py-1.5 transition-colors hover:bg-brown/90"
       >
         Importer ce portefeuille
       </button>
