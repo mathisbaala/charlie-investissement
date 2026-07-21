@@ -1,0 +1,50 @@
+name: Durabilité MiFID (Morningstar EMEA)
+
+# Comble les champs SFDR quantitatifs (taxonomy_alignment_pct,
+# sustainable_investment_pct, pai_considered) via l'API Morningstar EMEA.
+# ÉTAPE 1 obligatoire : lancer en mode "probe" pour confirmer les IDs de champs
+# MS (les renseigner dans CONFIRMED_FIELDS du script), PUIS mode "apply".
+# Déterministe, 0 token IA. Manuel tant que les IDs ne sont pas figés ;
+# une fois confirmé, on pourra ajouter un cron mensuel.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "probe = découvrir les IDs de champs ; apply = remplir la base"
+        type: choice
+        options: [probe, apply]
+        default: probe
+      limit:
+        description: "apply : nombre max de fonds (vide = tous)"
+        type: string
+        default: ""
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  sustainability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Installer les dépendances
+        run: pip install -r scripts/requirements.txt
+      - name: Enrichir la durabilité MiFID
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.mode }}" = "apply" ]; then
+            LIM=""
+            if [ -n "${{ inputs.limit }}" ]; then LIM="--limit ${{ inputs.limit }}"; fi
+            python3 scripts/scrapers/ms-emea-sustainability-enricher.py --apply $LIM
+          else
+            python3 scripts/scrapers/ms-emea-sustainability-enricher.py --probe --sample 25
+          fi
