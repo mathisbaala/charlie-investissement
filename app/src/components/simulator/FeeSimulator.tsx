@@ -435,11 +435,11 @@ export function FeeSimulator() {
   const honoraireCumule = final ? final.honoraireCumule : 0;
   const revenuCabinet = final ? final.revenuCabinet : 0;
   const coutTotalClient = final ? final.coutTotalClient : 0;
-  // Découpage « compte d'exploitation » du cabinet (upfront one-shot / récurrent
-  // lissé /an). Source unique = moteur (revenuCabinetUpfront + récurrent = total).
+  // Découpage « compte d'exploitation » du cabinet : upfront one-shot vs
+  // récurrent de la 1re année (rémunération récurrente dès l'an 1, prudente —
+  // pas la moyenne lissée qui gonfle avec l'encours). Source unique = moteur.
   const revenuUpfront = final ? final.revenuCabinetUpfront : 0;
-  const revenuRecurrentAnnuel = final && final.annees > 0
-    ? final.revenuCabinetRecurrent / final.annees : 0;
+  const revenuRecurrentAn1 = final ? (sim.points[1]?.revenuCabinetRecurrent ?? 0) : 0;
 
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
@@ -687,7 +687,7 @@ export function FeeSimulator() {
                     tiles: [
                       { label: `Rému cabinet · ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok", sub: undefined },
                       { label: "À l'entrée (upfront)", value: EUR.format(revenuUpfront), tone: "ok", sub: "commission + forfait" },
-                      { label: "Récurrent", value: `${EUR.format(revenuRecurrentAnnuel)}/an`, tone: "ok", sub: "rétro + honoraires" },
+                      { label: "Récurrent · 1re année", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok", sub: "rétro + honoraires" },
                     ],
                   },
                   {

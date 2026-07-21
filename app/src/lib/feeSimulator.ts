@@ -122,6 +122,11 @@ export interface YearPoint {
   contractFeeCumulee: number; // part frais de gestion contrat reversée au cabinet, cumulée (0 si non suivie)
   eurosRetroCumulee: number;  // rétrocession sur le fonds euros reversée au cabinet, cumulée (0 si non suivie)
   honoraireCumule: number;    // honoraires de conseil facturés en sus, cumulés (0 si non suivis)
+  // Découpage compte d'exploitation du revenu cabinet, cumulé À CE POINT
+  // (invariant upfront + récurrent = revenu cabinet cumulé). À l'année 0 le
+  // récurrent vaut 0 → points[1].revenuCabinetRecurrent = récurrent de la 1re année.
+  revenuCabinetUpfront: number;   // one-shot = commission d'entrée cumulée + forfait honoraire
+  revenuCabinetRecurrent: number; // récurrent = rétro + part gestion contrat + rétro fonds euros + honoraire annuel
 }
 
 export interface HorizonProjection {
@@ -302,6 +307,8 @@ export function simulate(
       contractFeeCumulee: r2(contractFeeCumulee),
       eurosRetroCumulee: r2(eurosRetroCumulee),
       honoraireCumule: r2(honoraireCumulee),
+      revenuCabinetUpfront: r2(commCumulee + honoraireForfait),
+      revenuCabinetRecurrent: r2(retroCumulee + contractFeeCumulee + eurosRetroCumulee + Math.max(0, honoraireCumulee - honoraireForfait)),
     });
   };
 
@@ -605,6 +612,8 @@ export interface FraisReport {
   coutTotalPctVersements: number | null; // coût total client en % des versements cumulés
   remuTotale: number;                    // rémunération cabinet issue de la structure (= repart.cabinet), horizon final
   revenuCabinet: number;                 // revenu cabinet TOTAL (structure + honoraires), horizon final
+  revenuCabinetUpfront: number;          // part one-shot du revenu cabinet (commission d'entrée + forfait), horizon final
+  revenuCabinetRecurrentAn1: number;     // revenu cabinet récurrent de la 1re année (rétro + honoraire annuel)
   supports: FraisReportHolding[];        // détail par support (montant + rémunération)
 }
 
@@ -688,6 +697,10 @@ export function buildFraisReport(
     coutTotalPctVersements,
     remuTotale: repart.cabinet,
     revenuCabinet: final.revenuCabinet,
+    revenuCabinetUpfront: final.revenuCabinetUpfront,
+    // Récurrent de la 1re année : le cumul récurrent à la fin de l'année 1
+    // (le récurrent de l'année 0 est nul). points[1] existe (horizon valide → durée ≥ 1).
+    revenuCabinetRecurrentAn1: r2(sim.points[1]?.revenuCabinetRecurrent ?? 0),
     supports: holdings,
   };
 }

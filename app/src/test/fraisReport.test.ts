@@ -119,4 +119,16 @@ describe("buildFraisReport", () => {
     expect(r.coutTotalPctVersements).not.toBeNull();
     expect(r.coutTotalPctVersements!).toBeGreaterThan(0);
   });
+
+  it("découpage rému cabinet : upfront + récurrent 1re année exposés", () => {
+    const r = buildFraisReport(
+      { ...input, retroCgp: 0.9, commissionCabinet: 2, honoraireForfait: 300, honoraireAnnuelPct: 0.2 }, supports)!;
+    // upfront = part one-shot du revenu cabinet à l'horizon (commission + forfait)
+    expect(r.revenuCabinetUpfront).toBe(r.final.revenuCabinetUpfront);
+    expect(r.revenuCabinetUpfront).toBeGreaterThan(0);
+    // récurrent 1re année : positif et strictement inférieur au récurrent cumulé
+    // à l'horizon (l'encours grossit → les années suivantes rapportent plus).
+    expect(r.revenuCabinetRecurrentAn1).toBeGreaterThan(0);
+    expect(r.revenuCabinetRecurrentAn1).toBeLessThan(r.final.revenuCabinetRecurrent);
+  });
 });

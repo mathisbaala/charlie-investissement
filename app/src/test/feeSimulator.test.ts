@@ -527,6 +527,21 @@ describe('agrégats revenuCabinet & coutTotalClient (source unique UI/PDF)', () 
     expect(h.revenuCabinetUpfront).toBe(0)
     expect(h.revenuCabinetRecurrent).toBeCloseTo(h.revenuCabinet, 2)
   })
+
+  it('YearPoint : le récurrent est nul à l\'année 0, non nul dès l\'année 1', () => {
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    expect(sim.points[0].revenuCabinetRecurrent).toBe(0)
+    expect(sim.points[1].revenuCabinetRecurrent).toBeGreaterThan(0)
+    // l'upfront (commission + forfait) est déjà là dès l'année 0
+    expect(sim.points[0].revenuCabinetUpfront).toBeGreaterThan(0)
+  })
+
+  it('YearPoint : upfront + récurrent = poche cabinet cumulée à ce point', () => {
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.3, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const p = sim.points[5]
+    expect(p.revenuCabinetUpfront + p.revenuCabinetRecurrent).toBeCloseTo(
+      p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.eurosRetroCumulee + p.honoraireCumule, 2)
+  })
 })
 
 describe('reductionRendementAnnuelle — RIY PRIIPs (différence arithmétique)', () => {

@@ -446,7 +446,7 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, logo }: 
                 {honoraireCumule > 0 ? ` · honoraires ${nfEur(honoraireCumule)}` : ""}
               </Text>
               <Text style={S.calloutSub}>
-                À l'entrée {nfEur(final.revenuCabinetUpfront)} · récurrent {nfEur(final.annees > 0 ? final.revenuCabinetRecurrent / final.annees : 0)}/an
+                À l'entrée {nfEur(final.revenuCabinetUpfront)} · récurrent {nfEur(report.revenuCabinetRecurrentAn1)}/an (1re année)
               </Text>
             </View>
             <Text style={S.calloutValue}>{nfEur(revenuTotal)}</Text>
