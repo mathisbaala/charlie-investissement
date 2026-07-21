@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { botGuard } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,13 @@ type FreshnessRow = {
 //   status          — "ok" | "degraded"
 //   summary         — totaux globaux + activité récente
 //   by_type         — détail par product_type (completeness, last update, enrichissements J/7j)
-export async function GET(_req: NextRequest): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  // Cette route expose des totaux de complétude/enrichissement : mêmes garde-fous
+  // anti-scraping que les autres endpoints de données (cf. décision « jamais
+  // exposer la complétude »). Fail-open, ne casse pas un moniteur navigateur.
+  const bot = botGuard(req);
+  if (bot) return bot;
+
   const { data, error } = await supabase.rpc("get_data_freshness");
 
   if (error) {
