@@ -462,8 +462,17 @@ export function FeeSimulator() {
     const remu = remunerationSupport(montant, effRetro, commissionCabinet);
     return { u, montant, effRetro, ...remu };
   });
-  const remuAnnuelleTotale = supportRows.reduce((a, r) => a + r.retroAnnuelle, 0);
-  const upfrontTotal = supportRows.reduce((a, r) => a + r.commissionUpfront, 0);
+  // Ligne « fonds en euros » (miroir écran de buildFraisReport) : le compartiment €
+  // du versement porte AUSSI la commission d'entrée (assise sur tout le versement,
+  // pas seulement les UC) et une éventuelle rétro fonds euros. Sans elle, le total
+  // du détail ne comptait que la part UC → écart trompeur avec « À l'entrée »
+  // (ex. 45 € affichés vs 150 € réels). Ajoutée seulement s'il y a des supports UC.
+  const fePot = versementInitial * (1 - Math.min(100, Math.max(0, partUC)) / 100);
+  const feRow = supportRows.length > 0 && fePot > 0
+    ? { montant: fePot, effRetro: eurosRetroShare || null, ...remunerationSupport(fePot, eurosRetroShare, commissionCabinet) }
+    : null;
+  const remuAnnuelleTotale = supportRows.reduce((a, r) => a + r.retroAnnuelle, 0) + (feRow?.retroAnnuelle ?? 0);
+  const upfrontTotal = supportRows.reduce((a, r) => a + r.commissionUpfront, 0) + (feRow?.commissionUpfront ?? 0);
 
   // Génère et télécharge le document de frais (mode client ou cabinet). 100 %
   // déterministe côté serveur (aucun appel IA) : on POST l'entrée de simulation
@@ -749,6 +758,16 @@ export function FeeSimulator() {
                       <td className="py-1.5 text-right text-ok">{EUR.format(commissionUpfront)}</td>
                     </tr>
                   ))}
+                  {feRow && (
+                    <tr className="border-b border-line-soft last:border-0">
+                      <td className="py-1.5 text-ink-2">Fonds en euros</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
+                      <td className="py-1.5 text-right text-ink-2">{pct(feRow.effRetro)}</td>
+                      <td className="py-1.5 text-right text-ok font-medium">{EUR.format(feRow.retroAnnuelle)}</td>
+                      <td className="py-1.5 text-right text-ok">{EUR.format(feRow.commissionUpfront)}</td>
+                    </tr>
+                  )}
                   <tr className="border-t border-line font-medium">
                     <td className="py-2 text-ink">Total</td>
                     <td /><td /><td />

@@ -703,6 +703,21 @@ export function buildFraisReport(
       ter: s.ter, entryFee: s.entryFee, effRetro, ...remu,
     };
   });
+  // Ligne « fonds en euros » : le compartiment € du versement porte AUSSI la
+  // commission d'entrée (assise sur tout le versement, pas seulement les UC) et,
+  // le cas échéant, une rétrocession fonds euros. Sans elle, le détail ne
+  // totalisait que la part UC → un écart trompeur avec « à l'entrée » (ex. 45 €
+  // affichés vs 150 € réels). Ajoutée seulement s'il y a déjà des supports UC,
+  // pour ne pas polluer l'état vide.
+  const eurosRetroShare = input.eurosRetroShare ?? 0;
+  const fePot = input.versementInitial * (1 - Math.min(100, Math.max(0, input.partUC)) / 100);
+  if (holdings.length > 0 && fePot > 0) {
+    const remuFE = remunerationSupport(fePot, eurosRetroShare, commissionCabinet);
+    holdings.push({
+      isin: "", name: "Fonds en euros", montant: Math.round(fePot * 100) / 100,
+      ter: null, entryFee: null, effRetro: eurosRetroShare || null, ...remuFE,
+    });
+  }
 
   return {
     horizons: sim.horizons,

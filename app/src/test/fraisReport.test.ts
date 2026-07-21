@@ -66,6 +66,31 @@ describe("buildFraisReport", () => {
     expect(r.supports[0].effRetro).toBe(0.9); // retroCgp du contrat
   });
 
+  // Régression QA 2026-07-21 : le détail par support ne comptait la commission
+  // d'entrée que sur la poche UC → total 60 € affiché vs 200 € réels (la
+  // commission porte sur TOUT le versement). Une ligne « Fonds en euros »
+  // réconcilie le détail avec le versement entier.
+  it("ajoute une ligne fonds euros qui réconcilie la commission avec le versement entier", () => {
+    const r = buildFraisReport({ ...input, partUC: 30, eurosRetroShare: 0.3 }, supports)!;
+    const fe = r.supports.find((s) => s.name === "Fonds en euros");
+    expect(fe).toBeDefined();
+    expect(fe!.isin).toBe("");
+    expect(fe!.ter).toBeNull();
+    expect(fe!.montant).toBe(7000);              // 10 000 × 70 %
+    expect(fe!.commissionUpfront).toBe(140);     // 7 000 × 2 %
+    expect(fe!.effRetro).toBe(0.3);
+    expect(fe!.retroAnnuelle).toBe(21);          // 7 000 × 0,3 %
+    // Total du détail == commission sur le versement entier (poche UC 60 € + € 140 €).
+    const totalComm = r.supports.reduce((a, s) => a + s.commissionUpfront, 0);
+    expect(totalComm).toBeCloseTo(10_000 * 0.02, 6); // 200 €
+  });
+
+  it("n'ajoute pas de ligne fonds euros à 100 % UC ni sans support UC", () => {
+    expect(buildFraisReport({ ...input, partUC: 100 }, supports)!.supports
+      .some((s) => s.name === "Fonds en euros")).toBe(false);
+    expect(buildFraisReport({ ...input, partUC: 30 }, [])!.supports).toHaveLength(0);
+  });
+
   it("ventile le coût par nature sans perte (entrée + gestion + courants + sortie = total)", () => {
     const r = buildFraisReport(input, supports)!;
     const { entree, gestionEnveloppe, fraisCourants, sortie, total } = r.nature;
