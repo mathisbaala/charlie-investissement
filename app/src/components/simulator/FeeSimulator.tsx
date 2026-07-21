@@ -652,16 +652,16 @@ export function FeeSimulator() {
                 {
                   titre: "Ce que je gagne",
                   tiles: [
-                    { label: `Rému cabinet · ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok" },
+                    { label: "Rému cabinet", value: EUR.format(revenuCabinet), tone: "ok" },
                     { label: "À l'entrée", value: EUR.format(revenuUpfront), tone: "ok" },
-                    { label: "Récurrent · an 1", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok" },
+                    { label: "Récurrent", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok" },
                   ],
                 },
                 {
                   titre: "Côté client",
                   tiles: [
                     { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
-                    { label: `Gain net · ${final.annees} ans`, value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad" },
+                    { label: "Gain net", value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad" },
                     { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
                   ],
                 },
@@ -683,40 +683,42 @@ export function FeeSimulator() {
 
           <div className="space-y-5">
           <Card className="px-5 py-5">
-            <H2>Ma rémunération</H2>
+            <div className="flex items-baseline justify-between gap-3">
+              <H2 className="">Ma rémunération</H2>
+              {final && <span className="text-meta text-muted">total cabinet</span>}
+            </div>
             {final && (
               <>
-                {/* Chiffre-phare : ce que le cabinet gagne, mis en avant. */}
-                <div className="mt-3 mb-5">
-                  <p className="text-label uppercase tracking-wide text-muted font-semibold">Ce que je gagne · {final.annees} ans</p>
-                  <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-1"
-                    title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</p>
-                </div>
+                {/* Chiffre-phare : ce que le cabinet gagne. Taille alignée sur
+                    l'échelle (display-md), la répartition juste en dessous à
+                    text-title pour éviter l'écart 40→13 précédent. */}
+                <p className="text-display-md font-semibold tabular-nums text-ok leading-none mt-2 mb-5"
+                  title="Revenu cabinet total : rétrocessions + commission d'entrée + part gestion contrat + rétro fonds euros + honoraires">{EUR.format(revenuCabinet)}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Rétrocessions</p>
-                    <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
+                    <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.retroCgpCumulee)}</p>
                   </div>
                   <div className="rounded-lg border border-line-soft px-3 py-2.5">
                     <p className="text-caption text-muted">Commission d'entrée</p>
-                    <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
+                    <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.commCabinetCumulee)}</p>
                   </div>
                   {final.contractFeeCumulee > 0 && (
                     <div className="rounded-lg border border-line-soft px-3 py-2.5">
                       <p className="text-caption text-muted">Part gestion contrat</p>
-                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
+                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.contractFeeCumulee)}</p>
                     </div>
                   )}
                   {final.eurosRetroCumulee > 0 && (
                     <div className="rounded-lg border border-line-soft px-3 py-2.5">
                       <p className="text-caption text-muted">Rétro fonds euros</p>
-                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
+                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(final.eurosRetroCumulee)}</p>
                     </div>
                   )}
                   {honoraireCumule > 0 && (
                     <div className="rounded-lg border border-line-soft px-3 py-2.5">
                       <p className="text-caption text-muted">Honoraires</p>
-                      <p className="text-body text-ink font-semibold tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
+                      <p className="text-title text-ink font-semibold tabular-nums mt-0.5">{EUR.format(honoraireCumule)}</p>
                     </div>
                   )}
                 </div>
