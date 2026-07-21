@@ -6,6 +6,7 @@ import { Upload, Search, Loader2, Wallet, ArrowRight } from "@/components/ui/ico
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { loadLastPortfolio, type StoredPortfolio } from "@/lib/lastPortfolio";
 import type { ReleveApiPosition, ReleveContractMatch } from "@/lib/releve";
+import { saveReleveHandoff, type HandoffReleve } from "@/lib/releveHandoff";
 
 // ── Contrats de sortie : ce que SupportSources remonte au simulateur ────────────
 
@@ -35,8 +36,15 @@ interface Props {
    * `matches` = contrats d'AV reconnus depuis les ISIN (triés par couverture),
    * uniquement quand UN seul relevé est déposé — sert à l'auto-remplissage du
    * contrat côté simulateur. Vide si plusieurs fichiers (contrats mélangés).
+   * `handoffToken` = jeton du relevé parsé mémorisé (sessionStorage) : rejouable
+   * tel quel côté « Analyser » via le lien « Analyse complète » (montants réels,
+   * contrat, DIC). null si la mémorisation a échoué.
    */
-  onAddPortfolio: (holdings: DepositedHolding[], matches: ReleveContractMatch[]) => void;
+  onAddPortfolio: (
+    holdings: DepositedHolding[],
+    matches: ReleveContractMatch[],
+    handoffToken: string | null,
+  ) => void;
   /** Portefeuille construit dans l'onglet « Portefeuille » → lignes pondérées. */
   onImportPortfolio: (lines: ImportedLine[], montant: number | null) => void;
 }
@@ -90,19 +98,21 @@ export function SupportSources({
   const [mode, setMode] = useState<Mode>("create");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
   const portfolioInput = useRef<HTMLInputElement>(null);
 
   // ── Dépôt d'un relevé : un POST /api/releve par fichier, positions agrégées ──
   const onPortfolioFiles = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0 || busy) return;
-    setBusy(true); setError(null); setNote(null);
+    setBusy(true); setError(null);
     const holdings: DepositedHolding[] = [];
     const fileList = Array.from(files);
     let warned: string | null = null;
     // Contrats reconnus : ne servent à l'auto-remplissage QUE pour un relevé
     // unique — plusieurs fichiers = enveloppes mélangées, aucun contrat unique.
     let matches: ReleveContractMatch[] = [];
+    // Relevés parsés conservés intacts (positions RÉELLES + matches) pour rejouer
+    // le diagnostic complet côté « Analyser » sans reconstruire depuis des poids.
+    const releves: HandoffReleve[] = [];
     try {
       for (const file of fileList) {
         const form = new FormData();
@@ -114,7 +124,16 @@ export function SupportSources({
           continue;
         }
         if (json?.warning) warned = json.warning;
-        if (fileList.length === 1) matches = (json?.matches ?? []) as ReleveContractMatch[];
+        const fileMatches = (json?.matches ?? []) as ReleveContractMatch[];
+        if (fileList.length === 1) matches = fileMatches;
+        releves.push({
+          id: `${file.name}-${releves.length}`,
+          fileName: file.name,
+          positions: (json?.positions ?? []) as ReleveApiPosition[],
+          matches: fileMatches,
+          chosen: fileMatches.length > 0 ? 0 : -1,
+          documentTotal: json?.documentTotal ?? null,
+        });
         for (const p of (json?.positions ?? []) as ReleveApiPosition[]) {
           if (p.amount != null && p.amount > 0) {
             holdings.push({ isin: p.isin, name: p.name || p.label || p.isin, amount: p.amount });
@@ -122,8 +141,8 @@ export function SupportSources({
         }
       }
       if (holdings.length > 0) {
-        onAddPortfolio(holdings, matches);
-        setNote(`${holdings.length} support${holdings.length > 1 ? "s" : ""} importé${holdings.length > 1 ? "s" : ""}.`);
+        const handoffToken = saveReleveHandoff(releves);
+        onAddPortfolio(holdings, matches, handoffToken);
       } else {
         setError(warned ?? "Aucune position valorisée trouvée. Vérifiez qu'il s'agit d'un relevé de situation.");
       }
@@ -161,7 +180,7 @@ export function SupportSources({
         {MODES.map((m) => (
           <button
             key={m.key}
-            onClick={() => { setMode(m.key); setError(null); setNote(null); }}
+            onClick={() => { setMode(m.key); setError(null); }}
             className={`flex-1 text-caption px-2 py-1.5 transition-colors ${mode === m.key ? "bg-brown text-paper" : "text-muted hover:bg-accent-soft"}`}
           >
             {m.label}
@@ -183,12 +202,10 @@ export function SupportSources({
           onImport={(lines, montant) => {
             onImportPortfolio(lines, montant);
             setError(null);
-            setNote(`${lines.length} support${lines.length > 1 ? "s" : ""} importé${lines.length > 1 ? "s" : ""} du portefeuille.`);
           }}
         />
       )}
 
-      {note && !error && <p className="text-caption text-ok">{note}</p>}
       {error && (
         <div className="flex items-start gap-2 rounded-lg bg-warn/10 border border-warn/20 px-3 py-2">
           <Search size={13} className="text-warn shrink-0 mt-0.5" />

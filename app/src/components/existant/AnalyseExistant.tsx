@@ -23,6 +23,7 @@ import {
 } from "@/lib/analyseExistant";
 import { sanitizeFundReport } from "@/lib/fundReport";
 import { parsePortfolioParams, type PortfolioAnalysis } from "@/lib/portfolio";
+import { loadReleveHandoff } from "@/lib/releveHandoff";
 import { buildRemuneration, retroFallbackFrac, type RemuHolding, type Remuneration } from "@/lib/remuneration";
 import { RemunerationSummary } from "@/components/portfolio/RemunerationSummary";
 import { loadStoredCabinet, cabinetContract } from "@/lib/cabinet";
@@ -32,6 +33,10 @@ type AnalyseMode = "portefeuille" | "support";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const PCT = (v: number, d = 1) => `${v.toFixed(d).replace(".", ",")} %`;
+// Masque les flèches natives (spinner) d'un input number : inutiles sur des
+// montants en milliers (pas-à-pas unitaire) et peu élégantes. Même convention
+// que le simulateur de frais.
+const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 // Teinte d'un ratio signé : vert si positif, rouge si négatif (perf, Sharpe).
 const signTone = (v: number | null | undefined): "ok" | "bad" | null =>
   v == null ? null : v >= 0 ? "ok" : "bad";
@@ -348,6 +353,17 @@ function PortefeuilleAnalyzer() {
   const preloaded = useRef(false);
   useEffect(() => {
     if (preloaded.current) return;
+    // Relais du relevé parsé (sessionStorage, cf. lib/releveHandoff) : rejoue le
+    // dépôt À L'IDENTIQUE du dépôt direct — montants réels au centime, contrat
+    // reconnu (donc DIC + convention), fonds euros compris. Prioritaire sur la
+    // reconstruction depuis l'URL, qui perd tout cela (poids arrondis, matches
+    // vidés). Present uniquement quand on arrive du simulateur après un dépôt.
+    const handoff = loadReleveHandoff(searchParams.get("handoff"));
+    if (handoff && handoff.length > 0) {
+      preloaded.current = true;
+      setReleves(handoff.map((r) => ({ ...r, warning: undefined })));
+      return;
+    }
     const holdings = parsePortfolioParams(searchParams.get("isins"), searchParams.get("weights"));
     if (holdings.length === 0) return;
     preloaded.current = true;
@@ -518,7 +534,6 @@ function PortefeuilleAnalyzer() {
     }
   }
 
-  const nbLignes = releves.reduce((s, r) => s + r.positions.length, 0);
   const simulateurHref = useMemo(() => {
     const top = consolidated.slice(0, 10);
     if (top.length === 0) return "/simulateur";
@@ -603,16 +618,13 @@ function PortefeuilleAnalyzer() {
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
               <h2 className="text-body font-semibold text-ink">{r.fileName}</h2>
-              <p className="text-caption text-muted">
-                {r.positions.length} ligne{r.positions.length > 1 ? "s" : ""} détectée{r.positions.length > 1 ? "s" : ""}
-                {r.warning ? ` (${r.warning})` : ""}
-              </p>
+              {r.warning && <p className="text-caption text-warn-dark mt-0.5">{r.warning}</p>}
             </div>
             <button
               type="button"
               onClick={() => removeReleve(r.id)}
               aria-label={`Retirer ${r.fileName}`}
-              className="text-muted hover:text-danger"
+              className="inline-flex items-center justify-center rounded-md p-1 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
             >
               <X className="w-4 h-4" />
             </button>
@@ -684,7 +696,7 @@ function PortefeuilleAnalyzer() {
                           onChange={(e) =>
                             updateAmount(r.id, p.isin, e.target.value === "" ? null : Number(e.target.value))
                           }
-                          className="w-28 text-right rounded border border-line bg-paper px-1.5 py-0.5"
+                          className={`w-28 text-right tabular-nums rounded-md border border-line bg-paper px-2 py-1 focus:outline-none focus:border-accent ${NUM_INPUT}`}
                         />
                       </td>
                       <td className="py-1.5 text-right">
@@ -692,7 +704,7 @@ function PortefeuilleAnalyzer() {
                           type="button"
                           onClick={() => removeLine(r.id, p.isin)}
                           aria-label={`Retirer ${p.isin}`}
-                          className="text-muted hover:text-danger"
+                          className="inline-flex items-center justify-center rounded-md p-1 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -745,11 +757,11 @@ function PortefeuilleAnalyzer() {
           >
             {analysing ? "Analyse en cours…" : "Analyser le patrimoine consolidé"}
           </Btn>
-          <p className="text-caption text-muted">
-            {consolidated.length < 2
-              ? "Au moins 2 supports valorisés sont nécessaires pour l'analyse."
-              : `${consolidated.length} supports valorisés · ${nbLignes} ligne${nbLignes > 1 ? "s" : ""} extraite${nbLignes > 1 ? "s" : ""} · total ${EUR.format(total)}`}
-          </p>
+          {consolidated.length < 2 && (
+            <p className="text-caption text-muted">
+              Au moins 2 supports valorisés sont nécessaires pour l&apos;analyse.
+            </p>
+          )}
         </div>
       )}
 

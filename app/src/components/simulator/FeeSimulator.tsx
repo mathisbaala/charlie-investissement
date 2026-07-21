@@ -219,11 +219,17 @@ export function FeeSimulator() {
   // devient le contrat actif → rému cabinet dérivée du barème + frais du contrat
   // sourcés en base. null = aucun contrat sûr (saisie manuelle).
   const [detectedContract, setDetectedContract] = useState<string | null>(null);
+  // Jeton du relevé parsé mémorisé au dépôt (sessionStorage) : joint au lien
+  // « Analyse complète » pour rejouer le diagnostic À L'IDENTIQUE (montants
+  // réels, contrat, DIC). Invalidé dès qu'on modifie le portefeuille à la main
+  // (le relais ne refléterait plus l'écran).
+  const [handoffToken, setHandoffToken] = useState<string | null>(null);
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
   // Ajout d'un support par recherche : détail rechargé depuis /api/funds.
   const addUC = async (isin: string, name: string) => {
+    setHandoffToken(null); // édition manuelle : le relais du relevé n'est plus fidèle
     setUcs((prev) => {
       if (prev.length >= MAX_UC || prev.some((u) => u.isin === isin)) return prev;
       const poids = prev.length ? prev.reduce((a, u) => a + u.poids, 0) / prev.length : 100;
@@ -253,15 +259,21 @@ export function FeeSimulator() {
     ));
   };
 
-  const addPortfolio = (holdings: DepositedHolding[], matches: ReleveContractMatch[]) => {
+  const addPortfolio = (
+    holdings: DepositedHolding[],
+    matches: ReleveContractMatch[],
+    token: string | null,
+  ) => {
     const total = holdings.reduce((a, h) => a + Math.max(0, h.amount), 0);
     // Contrat reconnu sûr → contrat actif (rému + frais du contrat auto-remplis).
     setDetectedContract(pickConfidentContract(matches));
+    setHandoffToken(token); // relevé parsé mémorisé → « Analyse complète » fidèle
     loadPortfolio(holdings.map((h) => ({ isin: h.isin, name: h.name, weight: h.amount })), total);
   };
 
   // Portefeuille importé de l'onglet « Portefeuille » : lignes pondérées + montant.
   const importPortfolio = (lines: ImportedLine[], montant: number | null) => {
+    setHandoffToken(null); // pas un dépôt de relevé : aucun relais à rejouer
     loadPortfolio(lines.map((l) => ({ isin: l.isin, name: l.name, weight: l.weight })), montant);
   };
 
@@ -280,9 +292,16 @@ export function FeeSimulator() {
     );
   }, [searchParams]);
 
-  const removeUC = (isin: string) => setUcs((prev) => prev.filter((u) => u.isin !== isin));
-  const setPoids = (isin: string, poids: number) =>
+  // Toute édition manuelle du portefeuille invalide le relais (il ne reflèterait
+  // plus l'écran) : « Analyse complète » retombe alors sur les paramètres d'URL.
+  const removeUC = (isin: string) => {
+    setHandoffToken(null);
+    setUcs((prev) => prev.filter((u) => u.isin !== isin));
+  };
+  const setPoids = (isin: string, poids: number) => {
+    setHandoffToken(null);
     setUcs((prev) => prev.map((u) => (u.isin === isin ? { ...u, poids: Math.max(0, poids) } : u)));
+  };
 
   // Rendement & frais des supports : réels pondérés, surchargeables.
   const perfPonderee = useMemo(
@@ -518,8 +537,12 @@ export function FeeSimulator() {
     if (!ucs.length) return null;
     const isins = ucs.map((u) => u.isin).join(",");
     const weights = ucs.map((u) => Math.round(u.poids * 10) / 10).join(",");
-    return `/portefeuille/analyser?isins=${isins}&weights=${weights}&montant=${Math.round(versementInitial)}`;
-  }, [ucs, versementInitial]);
+    // Relais du relevé (dépôt non modifié) → l'analyse rejoue montants réels +
+    // contrat + DIC. Sinon les seuls poids/montant d'URL (portefeuille édité,
+    // créé à la main ou importé) : reconstruction approchée, sans contrat.
+    const handoff = handoffToken ? `&handoff=${handoffToken}` : "";
+    return `/portefeuille/analyser?isins=${isins}&weights=${weights}&montant=${Math.round(versementInitial)}${handoff}`;
+  }, [ucs, versementInitial, handoffToken]);
 
   return (
     <PageShell maxWidth="1240px">
