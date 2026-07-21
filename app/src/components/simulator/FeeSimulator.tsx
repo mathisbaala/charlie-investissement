@@ -435,6 +435,11 @@ export function FeeSimulator() {
   const honoraireCumule = final ? final.honoraireCumule : 0;
   const revenuCabinet = final ? final.revenuCabinet : 0;
   const coutTotalClient = final ? final.coutTotalClient : 0;
+  // Découpage « compte d'exploitation » du cabinet (upfront one-shot / récurrent
+  // lissé /an). Source unique = moteur (revenuCabinetUpfront + récurrent = total).
+  const revenuUpfront = final ? final.revenuCabinetUpfront : 0;
+  const revenuRecurrentAnnuel = final && final.annees > 0
+    ? final.revenuCabinetRecurrent / final.annees : 0;
 
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
@@ -672,18 +677,40 @@ export function FeeSimulator() {
           {/* Synthèse épinglée : l'impact d'un réglage de gauche se lit ici sans défiler. */}
           {final && (
             <div className="sticky top-0 z-20 -mx-1 border-b border-line-soft bg-cream/95 px-1 pt-1 pb-3 backdrop-blur-sm">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {/* Deux comptabilités côte à côte : ce que le cabinet encaisse
+                  (upfront one-shot vs récurrent) et ce que le client supporte /
+                  récupère. Sur mobile les deux groupes s'empilent. */}
+              <div className="grid gap-2.5 lg:grid-cols-2">
                 {([
-                  { label: `Rémunération cabinet à ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok" },
-                  { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null },
-                  { label: `Valeur nette à ${final.annees} ans`, value: EUR.format(final.valeurNette), tone: null },
-                  { label: "Gain net client", value: EUR.format(final.gainNet), tone: final.gainNet >= 0 ? "ok" : "bad" },
-                  { label: "Frais / gain brut", value: partFraisDansGainBrut(final) == null ? "—" : pct(partFraisDansGainBrut(final)), tone: null },
-                ] as { label: string; value: string; tone: "ok" | "bad" | null }[]).map((k) => (
-                  <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5">
-                    <p className="text-caption uppercase tracking-wide text-muted font-semibold truncate">{k.label}</p>
-                    <p className={`text-title font-semibold tabular-nums leading-tight mt-1 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
-                  </div>
+                  {
+                    titre: "Ce que je gagne",
+                    tiles: [
+                      { label: `Rému cabinet · ${final.annees} ans`, value: EUR.format(revenuCabinet), tone: "ok", sub: undefined },
+                      { label: "À l'entrée (upfront)", value: EUR.format(revenuUpfront), tone: "ok", sub: "commission + forfait" },
+                      { label: "Récurrent", value: `${EUR.format(revenuRecurrentAnnuel)}/an`, tone: "ok", sub: "rétro + honoraires" },
+                    ],
+                  },
+                  {
+                    titre: "Côté client",
+                    tiles: [
+                      { label: "Coût total client", value: EUR.format(coutTotalClient), tone: null, sub: coutPctVersements != null ? `${pct(Math.round(coutPctVersements * 10) / 10)} des versements` : undefined },
+                      { label: `Gain net · ${final.annees} ans`, value: `${final.gainNet >= 0 ? "+" : ""}${EUR.format(final.gainNet)}`, tone: final.gainNet >= 0 ? "ok" : "bad", sub: `net ${EUR.format(final.valeurNette)}` },
+                      { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null, sub: "type PRIIPs" },
+                    ],
+                  },
+                ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | "bad" | null; sub?: string }[] }[]).map((g) => (
+                  <section key={g.titre} className="min-w-0">
+                    <p className="text-caption uppercase tracking-widest text-muted font-semibold px-0.5 mb-1.5">{g.titre}</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {g.tiles.map((k) => (
+                        <div key={k.label} className="min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5">
+                          <p className="text-caption uppercase tracking-wide text-muted font-semibold truncate" title={k.label}>{k.label}</p>
+                          <p className={`text-title font-semibold tabular-nums leading-tight mt-1 ${k.tone === "ok" ? "text-ok" : k.tone === "bad" ? "text-danger" : "text-ink"}`}>{k.value}</p>
+                          {k.sub && <p className="text-caption text-muted tabular-nums truncate mt-0.5" title={k.sub}>{k.sub}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             </div>
@@ -842,13 +869,19 @@ export function FeeSimulator() {
                   );
                 })}
               </div>
-              <div className="mt-4 pt-3 border-t border-line-soft grid grid-cols-2 gap-3">
+              <div className="mt-4 pt-3 border-t border-line-soft grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <p className="text-caption uppercase tracking-wide text-muted font-semibold">Réduction de rendement</p>
                   <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(riy)}<span className="text-caption text-muted font-normal"> /an (type PRIIPs)</span></p>
                 </div>
+                {partFraisDansGainBrut(final) != null && (
+                  <div>
+                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Frais / gain brut</p>
+                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(partFraisDansGainBrut(final))}<span className="text-caption text-muted font-normal"> du gain brut</span></p>
+                  </div>
+                )}
                 {coutPctVersements != null && (
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <p className="text-caption uppercase tracking-wide text-muted font-semibold">Coût total</p>
                     <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(Math.round(coutPctVersements * 10) / 10)}<span className="text-caption text-muted font-normal"> des versements</span></p>
                   </div>

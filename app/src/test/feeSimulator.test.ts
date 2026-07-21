@@ -506,6 +506,27 @@ describe('agrégats revenuCabinet & coutTotalClient (source unique UI/PDF)', () 
     expect(h.coutTotalClient).toBe(h.totalFrais)
     expect(h.revenuCabinet).toBeCloseTo(h.retroCgpCumulee + h.commCabinetCumulee, 2)
   })
+
+  it('découpage upfront/récurrent : somme = revenuCabinet', () => {
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.3, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.revenuCabinetUpfront + h.revenuCabinetRecurrent).toBeCloseTo(h.revenuCabinet, 2)
+  })
+
+  it('upfront = commission d\'entrée + forfait honoraire ; récurrent = rétro + honoraire annuel', () => {
+    const sim = simulate({ ...base, partUC: 60, frais: FRAIS_TYPES, retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.3, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.revenuCabinetUpfront).toBeCloseTo(h.commCabinetCumulee + 300, 2)
+    expect(h.revenuCabinetRecurrent).toBeCloseTo(
+      h.retroCgpCumulee + h.contractFeeCumulee + h.eurosRetroCumulee + (h.honoraireCumule - 300), 2)
+  })
+
+  it('sans upfront (ni commission ni forfait), tout le revenu cabinet est récurrent', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9, honoraireAnnuelPct: 0.2 })
+    const h = sim.horizons.find((x) => x.annees === 15)!
+    expect(h.revenuCabinetUpfront).toBe(0)
+    expect(h.revenuCabinetRecurrent).toBeCloseTo(h.revenuCabinet, 2)
+  })
 })
 
 describe('reductionRendementAnnuelle — RIY PRIIPs (différence arithmétique)', () => {

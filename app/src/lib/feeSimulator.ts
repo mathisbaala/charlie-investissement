@@ -144,6 +144,11 @@ export interface HorizonProjection {
   // Agrégats prêts à l'affichage (source unique — l'UI et le PDF s'y adossent
   // pour ne jamais diverger) :
   revenuCabinet: number;    // TOTAL encaissé par le cabinet = rétro + commission + part gestion contrat + rétro fonds euros + honoraires
+  // Découpage « compte d'exploitation » du revenu cabinet (invariant :
+  // revenuCabinetUpfront + revenuCabinetRecurrent = revenuCabinet). Répartition,
+  // pas de revenu en plus :
+  revenuCabinetUpfront: number;   // one-shot à l'entrée = commission d'entrée (tous versements) + forfait honoraire
+  revenuCabinetRecurrent: number; // récurrent (sur la durée) = rétro UC + part gestion contrat + rétro fonds euros + honoraire annuel
   coutTotalClient: number;  // TOTAL supporté par le client = totalFrais (structure) + honoraires facturés en sus
 }
 
@@ -366,6 +371,15 @@ export function simulate(
     const fraisSortie = r2(sortieUC + sortieContrat);
     const valeurNette = r2(p.valeurNette - fraisSortie);
     const totalFrais = r2(p.totalFraisCumules + fraisSortie);
+    // contractFeeCumulee et eurosRetroCumulee sont déjà plafonnés à l'accrual
+    // (≤ frais de gestion du contrat), donc sommer directement les flux ne
+    // double-compte rien.
+    const revenuCabinet = r2(p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.eurosRetroCumulee + p.honoraireCumule);
+    // Découpage compte d'exploitation : ce que le cabinet encaisse À L'ENTRÉE
+    // (commission d'entrée de tous les versements + forfait honoraire, one-shot)
+    // vs le RÉCURRENT sur la durée (le reste). Le récurrent est calculé par
+    // solde pour que la somme colle exactement au revenu total affiché.
+    const revenuCabinetUpfront = r2(p.commCabinetCumulee + honoraireForfait);
     projections.push({
       annees: h,
       valeurAvantSortie: p.valeurNette,
@@ -383,10 +397,9 @@ export function simulate(
       contractFeeCumulee: p.contractFeeCumulee,
       eurosRetroCumulee: p.eurosRetroCumulee,
       honoraireCumule: p.honoraireCumule,
-      // contractFeeCumulee et eurosRetroCumulee sont déjà plafonnés à l'accrual
-      // (≤ frais de gestion du contrat), donc sommer directement les flux ne
-      // double-compte rien.
-      revenuCabinet: r2(p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee + p.eurosRetroCumulee + p.honoraireCumule),
+      revenuCabinet,
+      revenuCabinetUpfront,
+      revenuCabinetRecurrent: r2(revenuCabinet - revenuCabinetUpfront),
       coutTotalClient: r2(totalFrais + p.honoraireCumule),
     });
   }
