@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from db import get_client
-from scrapling.fetchers import FetcherSession
+from curl_cffi import requests as cffi  # impersonation navigateur, dans requirements CI
 
 # Réutilise le socle de parsing annexe (template RTS).
 _spec = importlib.util.spec_from_file_location(
@@ -68,23 +68,23 @@ def run(sample: int):
     # stats par source : pdf trouvés / annexes parsées ≥1 champ
     stat = {name: {"pdf": 0, "parsed": 0} for name, _ in CANDIDATES}
 
-    with FetcherSession() as session:
-        for isin in isins:
-            for name, tpl in CANDIDATES:
-                url = tpl.format(isin=isin)
-                try:
-                    r = session.get(url, stealthy_headers=True, timeout=20)
-                    time.sleep(0.15)
-                except Exception:
-                    continue
-                body = getattr(r, "body", None) or b""
-                if getattr(r, "status", 0) == 200 and body[:4] == b"%PDF":
-                    stat[name]["pdf"] += 1
-                    if name.startswith("TÉMOIN") or "kid" in name:
-                        continue  # le KID n'est pas l'annexe → pas de parsing champs
-                    txt = annex.extract_text(bytes(body))
-                    if txt and annex._sane(annex.parse_annex(txt)):
-                        stat[name]["parsed"] += 1
+    session = cffi.Session(impersonate="chrome")
+    for isin in isins:
+        for name, tpl in CANDIDATES:
+            url = tpl.format(isin=isin)
+            try:
+                r = session.get(url, timeout=20)
+                time.sleep(0.15)
+            except Exception:
+                continue
+            body = r.content or b""
+            if r.status_code == 200 and body[:4] == b"%PDF":
+                stat[name]["pdf"] += 1
+                if name.startswith("TÉMOIN") or "kid" in name:
+                    continue  # le KID n'est pas l'annexe → pas de parsing champs
+                txt = annex.extract_text(bytes(body))
+                if txt and annex._sane(annex.parse_annex(txt)):
+                    stat[name]["parsed"] += 1
 
     n = len(isins)
     print("  ── BILAN PAR SOURCE (sur", n, "fonds) ──")
