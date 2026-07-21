@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Upload, Search, Loader2, Wallet, ArrowRight } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
 import { loadLastPortfolio, type StoredPortfolio } from "@/lib/lastPortfolio";
-import type { ReleveApiPosition } from "@/lib/releve";
+import type { ReleveApiPosition, ReleveContractMatch } from "@/lib/releve";
 
 // ── Contrats de sortie : ce que SupportSources remonte au simulateur ────────────
 
@@ -30,8 +30,13 @@ interface Props {
   existingIsins: Set<string>;
   /** Portefeuille au complet (recherche désactivée). */
   full: boolean;
-  /** Relevé déposé → positions valorisées (l'appelant fixe montant + poids). */
-  onAddPortfolio: (holdings: DepositedHolding[]) => void;
+  /**
+   * Relevé déposé → positions valorisées (l'appelant fixe montant + poids).
+   * `matches` = contrats d'AV reconnus depuis les ISIN (triés par couverture),
+   * uniquement quand UN seul relevé est déposé — sert à l'auto-remplissage du
+   * contrat côté simulateur. Vide si plusieurs fichiers (contrats mélangés).
+   */
+  onAddPortfolio: (holdings: DepositedHolding[], matches: ReleveContractMatch[]) => void;
   /** Portefeuille construit dans l'onglet « Portefeuille » → lignes pondérées. */
   onImportPortfolio: (lines: ImportedLine[], montant: number | null) => void;
 }
@@ -93,9 +98,13 @@ export function SupportSources({
     if (!files || files.length === 0 || busy) return;
     setBusy(true); setError(null); setNote(null);
     const holdings: DepositedHolding[] = [];
+    const fileList = Array.from(files);
     let warned: string | null = null;
+    // Contrats reconnus : ne servent à l'auto-remplissage QUE pour un relevé
+    // unique — plusieurs fichiers = enveloppes mélangées, aucun contrat unique.
+    let matches: ReleveContractMatch[] = [];
     try {
-      for (const file of Array.from(files)) {
+      for (const file of fileList) {
         const form = new FormData();
         form.append("file", file);
         const res = await fetch("/api/releve", { method: "POST", body: form });
@@ -105,6 +114,7 @@ export function SupportSources({
           continue;
         }
         if (json?.warning) warned = json.warning;
+        if (fileList.length === 1) matches = (json?.matches ?? []) as ReleveContractMatch[];
         for (const p of (json?.positions ?? []) as ReleveApiPosition[]) {
           if (p.amount != null && p.amount > 0) {
             holdings.push({ isin: p.isin, name: p.name || p.label || p.isin, amount: p.amount });
@@ -112,7 +122,7 @@ export function SupportSources({
         }
       }
       if (holdings.length > 0) {
-        onAddPortfolio(holdings);
+        onAddPortfolio(holdings, matches);
         setNote(`${holdings.length} support${holdings.length > 1 ? "s" : ""} importé${holdings.length > 1 ? "s" : ""}.`);
       } else {
         setError(warned ?? "Aucune position valorisée trouvée. Vérifiez qu'il s'agit d'un relevé de situation.");

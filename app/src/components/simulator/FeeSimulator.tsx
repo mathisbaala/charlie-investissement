@@ -22,6 +22,21 @@ import {
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
 import { loadStoredCabinet, cabinetContract, resolveFundRetrocession, EMPTY_CABINET } from "@/lib/cabinet";
 import { retroFallbackFrac } from "@/lib/remuneration";
+import type { ReleveContractMatch } from "@/lib/releve";
+
+/**
+ * Contrat retenu automatiquement à l'import d'un relevé : seulement quand UN
+ * contrat ressort avec une couverture forte ET nettement dominante sur le 2e
+ * candidat. Sinon null (relevé multi-contrats ou ambigu) → l'utilisateur reste
+ * en saisie manuelle. Les `matches` sont déjà triés par couverture décroissante.
+ */
+export function pickConfidentContract(matches: ReleveContractMatch[]): string | null {
+  const top = matches?.[0];
+  if (!top || top.coverage < 0.7) return null;
+  const second = matches[1];
+  if (second && top.coverage - second.coverage < 0.25) return null;
+  return `${top.company}::${top.contract}`;
+}
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const NUM_INPUT = "[-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
@@ -200,6 +215,10 @@ export function FeeSimulator() {
   // Export PDF (document client conforme DDA / fiche interne cabinet).
   const [exporting, setExporting] = useState<null | "client" | "cabinet">(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  // Contrat reconnu à l'import d'un relevé (couverture forte + dominante) :
+  // devient le contrat actif → rému cabinet dérivée du barème + frais du contrat
+  // sourcés en base. null = aucun contrat sûr (saisie manuelle).
+  const [detectedContract, setDetectedContract] = useState<string | null>(null);
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
@@ -234,8 +253,10 @@ export function FeeSimulator() {
     ));
   };
 
-  const addPortfolio = (holdings: DepositedHolding[]) => {
+  const addPortfolio = (holdings: DepositedHolding[], matches: ReleveContractMatch[]) => {
     const total = holdings.reduce((a, h) => a + Math.max(0, h.amount), 0);
+    // Contrat reconnu sûr → contrat actif (rému + frais du contrat auto-remplis).
+    setDetectedContract(pickConfidentContract(matches));
     loadPortfolio(holdings.map((h) => ({ isin: h.isin, name: h.name, weight: h.amount })), total);
   };
 
@@ -284,16 +305,41 @@ export function FeeSimulator() {
   const [storedCabinet, setStoredCabinet] = useState(EMPTY_CABINET);
   useEffect(() => { setStoredCabinet(loadStoredCabinet()); }, []);
 
-  // Barème « Mon cabinet » : si un contrat est passé en lien profond
-  // (?contract=Assureur::Contrat), on résout la convention et on en DÉRIVE la
-  // rémunération (rétro par la cascade, commission d'entrée, part gestion
-  // contrat). Le simulateur s'aligne alors sur les mêmes taux que le bloc
-  // « Coût client & rémunération » du portefeuille. Sans contrat : taux de place.
-  const contractKey = searchParams.get("contract");
+  // Contrat actif : lien profond (?contract=Assureur::Contrat) OU contrat reconnu
+  // à l'import d'un relevé. On en DÉRIVE la rémunération cabinet (rétro par la
+  // cascade, commission d'entrée, part gestion contrat) depuis le barème « Mon
+  // cabinet », et on source les FRAIS du contrat en base (effet ci-dessous). Le
+  // simulateur s'aligne alors sur les mêmes taux que le portefeuille. Sans
+  // contrat : taux de place.
+  const contractKey = searchParams.get("contract") ?? detectedContract;
   const convention = useMemo(
     () => (contractKey && contractKey.includes("::") ? cabinetContract(storedCabinet, contractKey) : null),
     [contractKey, storedCabinet],
   );
+
+  // Frais du contrat sourcés en base dès qu'un contrat est actif : entrée +
+  // gestion UC + gestion fonds euros (av_contract_terms via /api/contract/terms).
+  // Repli silencieux sur les défauts d'enveloppe si le contrat n'est pas en base.
+  // Ne se déclenche qu'au CHANGEMENT de contrat → l'utilisateur peut ensuite
+  // ajuster les frais à la main sans être réécrasé.
+  useEffect(() => {
+    if (!contractKey || !contractKey.includes("::")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/contract/terms?key=${encodeURIComponent(contractKey)}`);
+        const t = await res.json().catch(() => null);
+        if (cancelled || !t?.found) return;
+        setFrais((f) => ({
+          ...f,
+          contratEntree: t.frais_entree_pct ?? f.contratEntree,
+          contratGestionUC: t.frais_gestion_uc_pct ?? f.contratGestionUC,
+          contratGestionFE: t.frais_gestion_fonds_euros_pct ?? f.contratGestionFE,
+        }));
+      } catch { /* repli sur les défauts d'enveloppe */ }
+    })();
+    return () => { cancelled = true; };
+  }, [contractKey]);
 
   // Rétrocession effective d'un support (%/an). Repli HONNÊTE d'abord
   // (retroFallbackFrac) : rétro sourcée en base si connue, sinon estimation de
@@ -488,6 +534,19 @@ export function FeeSimulator() {
               onAddPortfolio={addPortfolio}
               onImportPortfolio={importPortfolio}
             />
+            {detectedContract && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft/40 px-3 py-2">
+                <span className="min-w-0 flex-1 text-caption text-ink-2">
+                  Contrat détecté : <span className="font-medium text-ink">{detectedContract.split("::")[1]}</span> — frais et rémunération pré-remplis.
+                </span>
+                <button
+                  type="button" onClick={() => setDetectedContract(null)}
+                  className="shrink-0 text-muted hover:text-ink" title="Détacher le contrat"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
             {ucs.length > 0 && (
               <div className="space-y-3 mt-4 pt-4 border-t border-line-soft">
                 {ucs.map((u) => (

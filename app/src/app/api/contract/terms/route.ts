@@ -13,6 +13,7 @@ interface OverviewRow {
   types?: string[] | null;
   terms?: {
     frais_gestion_uc_pct: number | null;
+    frais_gestion_fonds_euros_pct: number | null;
     frais_entree_pct: number | null;
     confidence?: "scraped" | "curated" | "indicative";
   } | null;
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     found: true,
     frais_gestion_uc_pct: o.terms.frais_gestion_uc_pct,
+    frais_gestion_fonds_euros_pct: o.terms.frais_gestion_fonds_euros_pct,
     frais_entree_pct: o.terms.frais_entree_pct,
     confidence: o.terms.confidence ?? null,
     types: o.types ?? null,
