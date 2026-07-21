@@ -18,7 +18,7 @@ import {
   simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
   remunerationSupport, HORIZONS_DEFAUT, type FeeParams, type SimulationInput,
 } from "@/lib/feeSimulator";
-import { SupportSources, type DepositedHolding, type DiciSupport } from "./SupportSources";
+import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
 import { loadStoredCabinet, cabinetContract, resolveFundRetrocession } from "@/lib/cabinet";
 
 const EUR = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -177,7 +177,6 @@ export function FeeSimulator() {
   const [honoraireAnnuelManuel, setHonoraireAnnuelManuel] = useState<number | null>(null);
   const [ucs, setUcs] = useState<UcRow[]>([]);
   // Export PDF (document client conforme DDA / fiche interne cabinet).
-  const [clientRef, setClientRef] = useState("");
   const [exporting, setExporting] = useState<null | "client" | "cabinet">(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -193,22 +192,6 @@ export function FeeSimulator() {
     const f = await fetchFund(isin);
     if (!f) return;
     setUcs((prev) => prev.map((u) => (u.isin !== isin ? u : toUcRow(isin, u.name, u.poids, f))));
-  };
-
-  // Support déposé via fiche/DICI : frais extraits, enrichis si le fonds est en
-  // base (perf 5 ans, rétrocession réelle). Sinon, on garde les frais du DICI.
-  const addDiciSupport = async (s: DiciSupport) => {
-    setUcs((prev) => {
-      if (prev.length >= MAX_UC || prev.some((u) => u.isin === s.isin)) return prev;
-      const poids = prev.length ? prev.reduce((a, u) => a + u.poids, 0) / prev.length : 100;
-      return [...prev, {
-        isin: s.isin, name: s.name, poids,
-        perf5y: null, ter: s.ter, entryFee: s.entryFee, exitFee: s.exitFee, retro: null,
-      }];
-    });
-    if (!s.matchedIsin) return;
-    const f = await fetchFund(s.matchedIsin);
-    if (f) setUcs((prev) => prev.map((u) => (u.isin !== s.isin ? u : toUcRow(s.isin, u.name, u.poids, f))));
   };
 
   // Charge un portefeuille (paramètres d'URL ou relevé déposé) : sépare le fonds
@@ -233,6 +216,11 @@ export function FeeSimulator() {
   const addPortfolio = (holdings: DepositedHolding[]) => {
     const total = holdings.reduce((a, h) => a + Math.max(0, h.amount), 0);
     loadPortfolio(holdings.map((h) => ({ isin: h.isin, name: h.name, weight: h.amount })), total);
+  };
+
+  // Portefeuille importé de l'onglet « Portefeuille » : lignes pondérées + montant.
+  const importPortfolio = (lines: ImportedLine[], montant: number | null) => {
+    loadPortfolio(lines.map((l) => ({ isin: l.isin, name: l.name, weight: l.weight })), montant);
   };
 
   // Préremplissage depuis un autre onglet : /simulateur?isins=&weights=&montant=
@@ -392,7 +380,7 @@ export function FeeSimulator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          clientRef: clientRef.trim() || null,
+          clientRef: null,
           input,
           honoraires: { forfait: honoraireForfait, cumule: honoraireCumule },
           supports: ucs.map((u) => ({
@@ -434,13 +422,13 @@ export function FeeSimulator() {
       <div className="grid gap-6 items-start lg:grid-cols-[320px_minmax(0,1fr)]">
         {/* ═══ Colonne gauche · réglages (paramètres, supports, données) ═══ */}
         <aside className="space-y-4">
-          <Drawer title="Supports" defaultOpen bodyClassName="">
+          <Drawer title="Portefeuille" defaultOpen bodyClassName="">
             <SupportSources
               onAddFund={addUC}
               existingIsins={ucIsins}
               full={ucs.length >= MAX_UC}
               onAddPortfolio={addPortfolio}
-              onAddDiciSupport={addDiciSupport}
+              onImportPortfolio={importPortfolio}
             />
             {ucs.length > 0 && (
               <div className="space-y-3 mt-4 pt-4 border-t border-line-soft">
@@ -473,7 +461,7 @@ export function FeeSimulator() {
               <FieldEur label="Versement annuel" value={versementAnnuel} onChange={setVersementAnnuel} step={500} />
               <div>
                 <span className="text-meta text-ink-2 block mb-1.5">Durée</span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:thin]">
                   {DUREES.map((d) => (
                     <Chip key={d} active={duree === d} onClick={() => setDuree(d)}>
                       {d} ans
@@ -511,30 +499,13 @@ export function FeeSimulator() {
             </Drawer>
 
           <Drawer title="Ma rémunération (cabinet)" defaultOpen>
-              {convention && (
-                <p className="text-caption text-muted-2 -mt-1">
-                  Selon vos conventions « Mon cabinet » pour {contractKey?.split("::")[1]} (surchargeable).
-                </p>
-              )}
-              <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel}
-                note={retroManuel != null ? undefined
-                  : convention ? "taux de votre convention (cascade)"
-                  : retroPonderee != null ? "taux réel pondéré des supports"
-                  : "estimation : 50 % des frais courants"} />
-              <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommManuel}
-                note={commManuel == null && convention?.entryFeeShare != null
-                  ? "frais d'entrée reversés (votre convention)"
-                  : "part des frais d'entrée reversée au cabinet"} />
-              <FieldPct label="Part gestion contrat (par an)" value={contractFeeShare} onChange={setContractFeeManuel}
-                note={contractFeeManuel == null && convention?.contractFeeShare != null
-                  ? "part des frais de gestion contrat (votre convention)"
-                  : "part des frais de gestion du contrat reversée"} />
+              <FieldPct label="Rétrocession (par an)" value={retroCgp} onChange={setRetroManuel} />
+              <FieldPct label="Commission d'entrée cabinet" value={commissionCabinet} onChange={setCommManuel} />
+              <FieldPct label="Part gestion contrat (par an)" value={contractFeeShare} onChange={setContractFeeManuel} />
               <div className="pt-2 mt-1 border-t border-line-soft space-y-3">
-                <p className="text-caption text-muted-2">Honoraires de conseil (facturés en sus, hors rétrocession)</p>
+                <p className="text-caption text-muted-2">Honoraires de conseil</p>
                 <FieldEur label="Forfait (ponctuel)" value={honoraireForfait} onChange={setHonoraireForfaitManuel} step={100} />
-                <FieldPct label="Récurrent (par an)" value={honoraireAnnuelPct} onChange={setHonoraireAnnuelManuel}
-                  note={honoraireAnnuelManuel == null && cabinetHonoraires.annuelPct != null
-                    ? "votre barème « Mon cabinet »" : "% de l'encours par an"} />
+                <FieldPct label="Récurrent (par an)" value={honoraireAnnuelPct} onChange={setHonoraireAnnuelManuel} />
               </div>
             </Drawer>
 
@@ -646,7 +617,7 @@ export function FeeSimulator() {
               )}
             </div>
             {supportRows.length === 0 ? (
-              <p className="text-caption text-muted">Ajoutez des supports (recherche, relevé ou fiche) pour voir la rémunération ligne par ligne.</p>
+              <p className="text-caption text-muted">Créez, déposez ou importez un portefeuille pour voir la rémunération ligne par ligne.</p>
             ) : (
               <table className="w-full text-meta tabular-nums">
                 <thead>
@@ -765,30 +736,16 @@ export function FeeSimulator() {
           {/* Export documentaire (client DDA / fiche interne cabinet) */}
           {final && (
             <Card className="px-5 py-4">
-              <div className="flex flex-col lg:flex-row lg:items-end gap-3">
-                <label className="flex-1 min-w-0">
-                  <span className="text-caption text-muted block mb-1">Référence client (facultatif)</span>
-                  <input
-                    type="text" value={clientRef} onChange={(e) => setClientRef(e.target.value)}
-                    placeholder="M. et Mme Dupont — contrat n°…"
-                    className="w-full text-meta border border-line rounded-md px-2.5 py-1.5 bg-paper focus:outline-none focus:border-accent"
-                  />
-                </label>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Btn variant="primary" size="sm" loading={exporting === "client"}
-                    disabled={exporting !== null} onClick={() => exportPdf("client")}>
-                    <Download size={14} /> Document client
-                  </Btn>
-                  <Btn variant="outline" size="sm" loading={exporting === "cabinet"}
-                    disabled={exporting !== null} onClick={() => exportPdf("cabinet")}>
-                    <Download size={14} /> Fiche cabinet
-                  </Btn>
-                </div>
+              <div className="flex items-center gap-2">
+                <Btn variant="primary" size="sm" loading={exporting === "client"}
+                  disabled={exporting !== null} onClick={() => exportPdf("client")}>
+                  <Download size={14} /> Document client
+                </Btn>
+                <Btn variant="outline" size="sm" loading={exporting === "cabinet"}
+                  disabled={exporting !== null} onClick={() => exportPdf("cabinet")}>
+                  <Download size={14} /> Fiche cabinet
+                </Btn>
               </div>
-              <p className="text-caption text-muted-2 mt-2">
-                Le <span className="text-ink-2">document client</span> présente les coûts et la transparence des frais de conseil (DDA). La{" "}
-                <span className="text-ink-2">fiche cabinet</span> ajoute le détail de votre rémunération — usage interne.
-              </p>
               {exportError && <p className="text-caption text-danger mt-1">{exportError}</p>}
             </Card>
           )}

@@ -16,6 +16,7 @@ import { DEFAULT_CONSTRAINTS } from "@/lib/optimizer";
 import { GOAL_PRIORITY_LABELS, type ClientGoal } from "@/lib/clientProfile";
 import { goalToPlan, requiredAnnualReturn, goalSuccessProbabilityMC } from "@/lib/goalPlanning";
 import { hasAnyConvention, loadStoredCabinet } from "@/lib/cabinet";
+import { saveLastPortfolio } from "@/lib/lastPortfolio";
 import { buildRemuneration } from "@/lib/remuneration";
 import { RemunerationSummary } from "@/components/portfolio/RemunerationSummary";
 import type { ContractType } from "@/lib/insurer-envelope";
@@ -256,6 +257,18 @@ export function StudioResults() {
   const conventionLabel = hasAnyConvention(convention)
     ? (contract.includes("::") ? contract.split("::")[1] : contract)
     : null;
+
+  // Mémorise le portefeuille affiché → importable depuis l'onglet « Frais »
+  // (le contexte du studio ne survit pas au changement d'onglet).
+  useEffect(() => {
+    const lines = (effectiveResult ?? result)?.lines ?? [];
+    if (lines.length === 0) return;
+    saveLastPortfolio({
+      lines: lines.map((l) => ({ isin: l.isin, name: l.name, weight: l.weight })),
+      montant: amountEur,
+      contract,
+    });
+  }, [effectiveResult, result, amountEur, contract]);
 
   if (!presentation || !result) return null;
 

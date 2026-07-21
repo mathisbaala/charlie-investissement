@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
-import { Upload, FileText, Search, Loader2 } from "@/components/ui/icons";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Upload, Search, Loader2, Wallet, ArrowRight } from "@/components/ui/icons";
 import { FundAdder } from "@/components/portfolio/FundAdder";
-import { handledRateLimit } from "@/lib/rateLimitClient";
+import { loadLastPortfolio, type StoredPortfolio } from "@/lib/lastPortfolio";
 import type { ReleveApiPosition } from "@/lib/releve";
 
 // ── Contrats de sortie : ce que SupportSources remonte au simulateur ────────────
@@ -15,14 +16,11 @@ export interface DepositedHolding {
   amount: number;
 }
 
-/** Support extrait d'une fiche/DICI : les FRAIS d'abord (le reste enrichi en base). */
-export interface DiciSupport {
+/** Ligne d'un portefeuille importé de l'onglet « Portefeuille » : ISIN + poids %. */
+export interface ImportedLine {
   isin: string;
-  matchedIsin: string | null;
   name: string;
-  ter: number | null;      // % (frais courants)
-  entryFee: number | null; // %
-  exitFee: number | null;  // %
+  weight: number;
 }
 
 interface Props {
@@ -34,30 +32,19 @@ interface Props {
   full: boolean;
   /** Relevé déposé → positions valorisées (l'appelant fixe montant + poids). */
   onAddPortfolio: (holdings: DepositedHolding[]) => void;
-  /** Fiche/DICI déposée → un support avec ses frais. */
-  onAddDiciSupport: (support: DiciSupport) => void;
+  /** Portefeuille construit dans l'onglet « Portefeuille » → lignes pondérées. */
+  onImportPortfolio: (lines: ImportedLine[], montant: number | null) => void;
 }
 
-type Mode = "search" | "portfolio" | "document";
+type Mode = "create" | "deposit" | "import";
 
 const MODES: { key: Mode; label: string }[] = [
-  { key: "search", label: "Rechercher" },
-  { key: "portfolio", label: "Déposer un relevé" },
-  { key: "document", label: "Déposer une fiche" },
+  { key: "create", label: "Créer" },
+  { key: "deposit", label: "Déposer" },
+  { key: "import", label: "Importer" },
 ];
 
 const PORTFOLIO_ACCEPT = ".pdf,.csv,.xlsx,.xls";
-const DOCUMENT_ACCEPT = ".pdf";
-const DOCUMENT_MAX_BYTES = 3_000_000; // aligné avec DICI_MAX_BYTES (api/dici/parse)
-
-function readAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(",")[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 /**
  * Un taux de frais dans un DICI est souvent un texte (« 3 % », « jusqu'à 5 % »,
@@ -75,35 +62,23 @@ export function parsePctString(s: string | null | undefined): number | null {
   return null;
 }
 
-// Fiche minimale renvoyée par /api/dici/parse, telle qu'on la consomme ici.
-interface DiciParseResult {
-  name?: string | null;
-  isin?: string | null;
-  ongoing_charges?: number | null; // %
-  entry_fees_max?: string | null;
-  exit_fees_max?: string | null;
-  matched_isin?: string | null;
-  matched_name?: string | null;
-}
-
 /**
  * Bloc d'entrée autonome de l'onglet Frais : trois façons d'alimenter le calcul
- * qui convergent toutes vers la même liste de supports —
- *   • rechercher un fonds (ISIN/nom) ;
- *   • déposer un relevé de portefeuille (PDF/Excel/CSV) → positions valorisées ;
- *   • déposer une fiche / DICI (PDF) → un support et ses frais extraits.
+ * qui convergent toutes vers le même portefeuille de supports —
+ *   • CRÉER un portefeuille de toutes pièces (recherche ISIN/nom) ;
+ *   • DÉPOSER un portefeuille déjà constitué (relevé PDF/Excel/CSV) ;
+ *   • IMPORTER le portefeuille construit dans l'onglet « Portefeuille ».
  * On ne restitue ICI que ce qui sert au calcul de frais ; l'analyse
  * investissement complète reste l'affaire de l'onglet « Analyser ».
  */
 export function SupportSources({
-  onAddFund, existingIsins, full, onAddPortfolio, onAddDiciSupport,
+  onAddFund, existingIsins, full, onAddPortfolio, onImportPortfolio,
 }: Props) {
-  const [mode, setMode] = useState<Mode>("search");
+  const [mode, setMode] = useState<Mode>("create");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const portfolioInput = useRef<HTMLInputElement>(null);
-  const documentInput = useRef<HTMLInputElement>(null);
 
   // ── Dépôt d'un relevé : un POST /api/releve par fichier, positions agrégées ──
   const onPortfolioFiles = useCallback(async (files: FileList | null) => {
@@ -140,85 +115,27 @@ export function SupportSources({
     }
   }, [busy, onAddPortfolio]);
 
-  // ── Dépôt d'une fiche / DICI : /api/dici/parse → frais du support ────────────
-  const onDocumentFiles = useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0 || busy) return;
-    setBusy(true); setError(null); setNote(null);
-    let added = 0;
-    try {
-      for (const file of Array.from(files)) {
-        if (!file.name.toLowerCase().endsWith(".pdf")) {
-          setError("Seuls les fichiers PDF sont acceptés pour une fiche."); continue;
-        }
-        if (file.size > DOCUMENT_MAX_BYTES) {
-          setError(`${file.name} : trop volumineux (${Math.round(DOCUMENT_MAX_BYTES / 1_000_000)} Mo max).`); continue;
-        }
-        const b64 = await readAsBase64(file);
-        const res = await fetch("/api/dici/parse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // fields="fees" : ici on ne consomme que les FRAIS du support → la route
-          // tente une lecture déterministe gratuite avant tout appel IA (coût).
-          body: JSON.stringify({ file_base64: b64, fields: "fees" }),
-        });
-        if (await handledRateLimit(res)) return;
-        const data = (await res.json().catch(() => null)) as DiciParseResult | null;
-        if (!res.ok || !data) {
-          setError("Impossible d'analyser cette fiche. Vérifiez qu'il s'agit d'un DICI valide.");
-          continue;
-        }
-        const isin = data.matched_isin ?? data.isin ?? null;
-        if (!isin) {
-          setError(`${file.name} : aucun ISIN identifié sur la fiche.`); continue;
-        }
-        onAddDiciSupport({
-          isin,
-          matchedIsin: data.matched_isin ?? null,
-          name: data.matched_name ?? data.name ?? isin,
-          ter: data.ongoing_charges ?? null,
-          entryFee: parsePctString(data.entry_fees_max),
-          exitFee: parsePctString(data.exit_fees_max),
-        });
-        added += 1;
-      }
-      if (added > 0) setNote(`${added} support${added > 1 ? "s" : ""} importé${added > 1 ? "s" : ""} depuis ${added > 1 ? "les fiches" : "la fiche"}.`);
-    } catch {
-      setError("Le service d'analyse est temporairement indisponible. Réessayez dans quelques minutes.");
-    } finally {
-      setBusy(false);
-      if (documentInput.current) documentInput.current.value = "";
-    }
-  }, [busy, onAddDiciSupport]);
-
-  const dropZone = (kind: "portfolio" | "document") => {
-    const ref = kind === "portfolio" ? portfolioInput : documentInput;
-    const onFiles = kind === "portfolio" ? onPortfolioFiles : onDocumentFiles;
-    const Icon = kind === "portfolio" ? Upload : FileText;
-    const title = kind === "portfolio" ? "Déposer un relevé de portefeuille" : "Déposer une fiche de support";
-    const hint = kind === "portfolio" ? "PDF, Excel ou CSV — plusieurs fichiers acceptés" : "DICI / fiche produit au format PDF";
-    return (
-      <div
-        onClick={() => !busy && ref.current?.click()}
-        onDrop={(e) => { e.preventDefault(); if (!busy) onFiles(e.dataTransfer.files); }}
-        onDragOver={(e) => e.preventDefault()}
-        className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line py-6 px-4 text-center transition-colors ${busy ? "opacity-60 cursor-wait" : "cursor-pointer hover:border-accent/50 hover:bg-paper-2"}`}
-      >
-        {busy
-          ? <Loader2 size={20} className="text-muted animate-spin" />
-          : <Icon size={20} className="text-muted" />}
-        <div>
-          <p className="text-meta text-ink-2">{busy ? "Analyse en cours…" : title}</p>
-          {!busy && <p className="text-caption text-muted mt-0.5">{hint}</p>}
-        </div>
-        <input
-          ref={ref} type="file" multiple={kind === "portfolio"}
-          accept={kind === "portfolio" ? PORTFOLIO_ACCEPT : DOCUMENT_ACCEPT}
-          className="hidden"
-          onChange={(e) => onFiles(e.target.files)}
-        />
+  const dropZone = () => (
+    <div
+      onClick={() => !busy && portfolioInput.current?.click()}
+      onDrop={(e) => { e.preventDefault(); if (!busy) onPortfolioFiles(e.dataTransfer.files); }}
+      onDragOver={(e) => e.preventDefault()}
+      className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line py-6 px-4 text-center transition-colors ${busy ? "opacity-60 cursor-wait" : "cursor-pointer hover:border-accent/50 hover:bg-paper-2"}`}
+    >
+      {busy
+        ? <Loader2 size={20} className="text-muted animate-spin" />
+        : <Upload size={20} className="text-muted" />}
+      <div>
+        <p className="text-meta text-ink-2">{busy ? "Analyse en cours…" : "Déposer un relevé de portefeuille"}</p>
+        {!busy && <p className="text-caption text-muted mt-0.5">PDF, Excel ou CSV — plusieurs fichiers acceptés</p>}
       </div>
-    );
-  };
+      <input
+        ref={portfolioInput} type="file" multiple accept={PORTFOLIO_ACCEPT}
+        className="hidden"
+        onChange={(e) => onPortfolioFiles(e.target.files)}
+      />
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -234,7 +151,7 @@ export function SupportSources({
         ))}
       </div>
 
-      {mode === "search" && (
+      {mode === "create" && (
         <FundAdder
           onAdd={onAddFund}
           existing={existingIsins}
@@ -242,8 +159,16 @@ export function SupportSources({
           placeholder="Rechercher un fonds : ISIN ou nom"
         />
       )}
-      {mode === "portfolio" && dropZone("portfolio")}
-      {mode === "document" && dropZone("document")}
+      {mode === "deposit" && dropZone()}
+      {mode === "import" && (
+        <ImportPanel
+          onImport={(lines, montant) => {
+            onImportPortfolio(lines, montant);
+            setError(null);
+            setNote(`${lines.length} support${lines.length > 1 ? "s" : ""} importé${lines.length > 1 ? "s" : ""} du portefeuille.`);
+          }}
+        />
+      )}
 
       {note && !error && <p className="text-caption text-ok">{note}</p>}
       {error && (
@@ -252,6 +177,55 @@ export function SupportSources({
           <p className="text-caption text-ink-2">{error}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Panneau « Importer » : récupère le dernier portefeuille construit dans l'onglet
+ * « Portefeuille » (mémorisé en localStorage) et l'injecte tel quel. Si aucun
+ * portefeuille n'a encore été construit, renvoie vers l'atelier.
+ */
+function ImportPanel({ onImport }: { onImport: (lines: ImportedLine[], montant: number | null) => void }) {
+  const [stored, setStored] = useState<StoredPortfolio | null>(null);
+  // localStorage n'est lisible qu'au montage client (évite l'hydratation SSR).
+  useEffect(() => { setStored(loadLastPortfolio()); }, []);
+
+  if (!stored) {
+    return (
+      <div className="rounded-lg border border-dashed border-line py-6 px-4 text-center">
+        <Wallet size={20} className="text-muted mx-auto" />
+        <p className="text-meta text-ink-2 mt-2">Aucun portefeuille à importer</p>
+        <p className="text-caption text-muted mt-0.5">Construisez-en un dans l'onglet Portefeuille.</p>
+        <Link
+          href="/portefeuille/construire"
+          className="inline-flex items-center gap-1 text-caption text-accent-ink hover:underline mt-2"
+        >
+          Aller au portefeuille <ArrowRight size={12} />
+        </Link>
+      </div>
+    );
+  }
+
+  const count = stored.lines.length;
+  return (
+    <div className="rounded-lg border border-line bg-paper px-3 py-3">
+      <div className="flex items-center gap-2">
+        <Wallet size={15} className="text-accent-ink shrink-0" />
+        <p className="text-meta text-ink font-medium">Portefeuille construit</p>
+      </div>
+      <p className="text-caption text-muted mt-1">
+        {count} support{count > 1 ? "s" : ""}
+        {stored.montant != null && <> · {stored.montant.toLocaleString("fr-FR")} €</>}
+        {stored.contract && <> · {stored.contract.split("::")[1]}</>}
+      </p>
+      <button
+        type="button"
+        onClick={() => onImport(stored.lines, stored.montant)}
+        className="mt-3 w-full rounded-md bg-brown text-paper text-meta font-medium px-3 py-1.5 transition-colors hover:bg-brown/90"
+      >
+        Importer ce portefeuille
+      </button>
     </div>
   );
 }
