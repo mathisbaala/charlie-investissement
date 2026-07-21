@@ -284,16 +284,16 @@ export function CabinetForm() {
       {/* Partenariats */}
       <Card className="p-5 space-y-4">
         <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
-          Assureurs partenaires
+          Vos partenaires
         </p>
         <div className="relative">
           <input
             type="text"
-            aria-label="Rechercher un assureur partenaire"
+            aria-label="Rechercher un partenaire"
             value={insurerQuery}
             onChange={(e) => setInsurerQuery(e.target.value)}
             onFocus={() => { if (optStatus === "error") loadOptions(); }}
-            placeholder="Rechercher un assureur…"
+            placeholder="Rechercher un partenaire…"
             autoComplete="off"
             className={inputCls}
           />
@@ -307,7 +307,7 @@ export function CabinetForm() {
                   Impossible de charger le référencement. Cliquez pour réessayer.
                 </button>
               ) : insurerMatches.length === 0 ? (
-                <p className="px-3 py-2 text-meta text-muted-2">Aucun assureur ne correspond.</p>
+                <p className="px-3 py-2 text-meta text-muted-2">Aucun partenaire ne correspond.</p>
               ) : (
                 insurerMatches.map((cn) => (
                   <button key={cn} type="button"
@@ -364,7 +364,7 @@ export function CabinetForm() {
                 <>
                   {optStatus === "ready" && contractsOf.length === 0 && added.length === 0 ? (
                     <p className="text-meta text-muted">
-                      Aucun contrat référencé pour cet assureur dans la base.
+                      Aucun contrat référencé pour ce partenaire dans la base.
                     </p>
                   ) : (
                     <ContractSearch

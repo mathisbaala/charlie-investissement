@@ -49,18 +49,18 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     },
   },
   {
-    prefixes: ["/assureurs"],
+    prefixes: ["/partenaires"],
     guide: {
       title: "Partenaires",
       intro:
-        "Le choix du partenaire : le mapping exhaustif des assureurs et de leurs contrats pour savoir où loger fiscalement chaque support, avec qui travailler, ce que chacun propose (contrats, frais, rémunération) et ses forces et limites.",
+        "Le choix du partenaire : le mapping exhaustif des partenaires et de leurs contrats pour savoir où loger fiscalement chaque support, avec qui travailler, ce que chacun propose (contrats, frais, rémunération) et ses forces et limites.",
       sections: [
         {
           heading: "Sur cette page",
           items: [
             "Des onglets d'enveloppe : Assurance vie, Capitalisation, PER, PEA.",
-            "Une recherche par nom d'assureur ou de contrat, et une option pour masquer les contrats fermés.",
-            "Une grille de cartes assureur : nombre de supports référencés, liste des contrats et leur statut (ouvert / fermé).",
+            "Une recherche par nom de partenaire ou de contrat, et une option pour masquer les contrats fermés.",
+            "Une grille de cartes partenaire : nombre de supports référencés, liste des contrats et leur statut (ouvert / fermé).",
           ],
         },
         {
@@ -68,7 +68,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
           items: [
             "Cliquez un contrat pour ouvrir sa fiche : enveloppe, supports référencés, frais et rémunération, répartition (classes, zones, gestionnaires, risque).",
             "Comparez les partenaires pour choisir où loger un support trouvé à la recherche.",
-            "Depuis la fiche, « Voir les supports » ouvre le screener filtré sur ce contrat ; cliquez un assureur pour afficher tous ses supports au screener.",
+            "Depuis la fiche, « Voir les supports » ouvre le screener filtré sur ce contrat ; cliquez un partenaire pour afficher tous ses supports au screener.",
           ],
         },
       ],
@@ -95,7 +95,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
           items: [
             "Pour un portefeuille : déposez les relevés, vérifiez les contrats et les montants, puis lancez l'analyse (corrélations, exposition agrégée, recommandations).",
             "Pour un support : basculez sur « Support unique » et déposez le DICI (jusqu'à 3 Mo) ; vérifiez les frais et scénarios extraits, puis ouvrez la fiche en base pour aller plus loin.",
-            "Prolongez si besoin dans le simulateur de frais, ou basculez vers « Créer un portefeuille » pour proposer une réallocation complète.",
+            "Prolongez si besoin dans l'onglet Frais, ou basculez vers « Créer un portefeuille » pour proposer une réallocation complète.",
           ],
         },
       ],
@@ -129,7 +129,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     },
   },
   {
-    prefixes: ["/simulateur"],
+    prefixes: ["/frais"],
     guide: {
       title: "Frais",
       intro:
@@ -158,20 +158,20 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
     guide: {
       title: "Mon cabinet",
       intro:
-        "Les réglages de votre cabinet, renseignés une fois et réutilisés par toute la plateforme (portefeuille, rapports) : nom du cabinet, assureurs partenaires et conventions de rétrocession.",
+        "Les réglages de votre cabinet, renseignés une fois et réutilisés par toute la plateforme (portefeuille, rapports) : nom du cabinet, partenaires et conventions de rétrocession.",
       sections: [
         {
           heading: "Sur cette page",
           items: [
             "Le nom du cabinet / conseiller, repris automatiquement dans les études et les rapports.",
-            "Vos assureurs partenaires : recherchez et ajoutez les assureurs avec lesquels vous travaillez.",
-            "Pour chaque assureur, les contrats référencés et vos conventions de rétrocession.",
+            "Vos partenaires : recherchez et ajoutez les partenaires avec lesquels vous travaillez.",
+            "Pour chaque partenaire, les contrats référencés et vos conventions de rétrocession.",
           ],
         },
         {
           heading: "Comment l'utiliser",
           items: [
-            "Ajoutez vos assureurs partenaires : la sélection alimente le référencement et le portefeuille.",
+            "Ajoutez vos partenaires : la sélection alimente le référencement et le portefeuille.",
             "Renseignez les rétrocessions par contrat pour qu'elles remontent dans les restitutions.",
             "Une fois rempli, tout le reste de la plateforme réutilise ces informations sans re-saisie.",
           ],
@@ -193,7 +193,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
             "Les indicateurs : performance 1/3/5 ans vs indice, volatilité, Sharpe, drawdown, alpha, frais (TER, entrée / sortie), encours.",
             "Les notations SRI et Morningstar ; les données ESG (article SFDR, taxonomie, PAI).",
             "La composition : principales lignes, ventilation sectorielle et géographique, historique de VL.",
-            "Les assureurs qui référencent le fonds et dans quels contrats.",
+            "Les partenaires qui référencent le fonds et dans quels contrats.",
           ],
         },
         {
@@ -201,7 +201,7 @@ const GUIDES: { prefixes: string[]; guide: PageGuide }[] = [
           items: [
             "Comparez la performance à l'indice de référence et vérifiez les frais réels.",
             "Contrôlez les enveloppes éligibles via les badges de l'en-tête.",
-            "Cliquez un contrat pour retrouver au screener les supports du même assureur.",
+            "Cliquez un contrat pour retrouver au screener les supports du même partenaire.",
           ],
         },
       ],

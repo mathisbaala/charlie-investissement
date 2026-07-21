@@ -429,19 +429,19 @@ export function FilterPanel({
         {/* Assureur + contrat (référencement) */}
         {insurerOptions.length > 0 && (
           <>
-            <Section title="Référencé chez (assureur / contrat)">
+            <Section title="Référencé chez (partenaire / contrat)">
               {insurerOptions.length > 8 && (
                 <input
                   type="text"
                   value={insurerQuery}
                   onChange={(e) => setInsurerQuery(e.target.value)}
-                  placeholder="Rechercher un assureur…"
+                  placeholder="Rechercher un partenaire…"
                   className="w-full border border-line rounded-lg px-3 py-2 mb-2.5 text-meta text-ink bg-paper focus:outline-none focus:border-accent/50 transition-colors"
                 />
               )}
               <div className="space-y-1.5">
                 {filteredInsurers.length === 0 && (
-                  <p className="text-meta text-muted py-1">Aucun assureur ne correspond.</p>
+                  <p className="text-meta text-muted py-1">Aucun partenaire ne correspond.</p>
                 )}
                 {orderedInsurers.map(({ company, funds, partner, firstOther }) => {
                   const contracts = contractOptions.filter((c) => c.company === company);
@@ -454,7 +454,7 @@ export function FilterPanel({
                     <div key={company}>
                       {firstOther && (
                         <p className="text-caption uppercase tracking-[0.08em] text-muted-2 font-semibold pt-2 pb-1">
-                          Autres assureurs
+                          Autres partenaires
                         </p>
                       )}
                       <div className="flex items-center gap-1">

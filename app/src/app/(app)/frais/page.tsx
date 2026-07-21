@@ -6,7 +6,7 @@ import { FeeSimulator } from "@/components/simulator/FeeSimulator";
 // assureur / société de gestion / cabinet. Supports importés en autonomie
 // (recherche, relevé, fiche/DICI) ou préremplis via ?isins=&weights=&montant=
 // (d'où le Suspense : useSearchParams l'exige au prérendu).
-export default function SimulateurPage() {
+export default function FraisPage() {
   return (
     <Suspense>
       <FeeSimulator />

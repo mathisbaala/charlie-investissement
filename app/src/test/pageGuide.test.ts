@@ -4,7 +4,7 @@ import { guideForPath } from "@/lib/pageGuide";
 describe("guideForPath", () => {
   it("associe chaque route principale à son guide", () => {
     expect(guideForPath("/recherche").title).toBe("Recherche");
-    expect(guideForPath("/assureurs").title).toBe("Partenaires");
+    expect(guideForPath("/partenaires").title).toBe("Partenaires");
     expect(guideForPath("/portefeuille").title).toBe("Portefeuille");
     expect(guideForPath("/cabinet").title).toBe("Mon cabinet");
     expect(guideForPath("/portefeuille/analyser").title).toBe("Analyser un portefeuille existant");
@@ -30,7 +30,7 @@ describe("guideForPath", () => {
   });
 
   it("chaque guide a un intro et des sections non vides avec des puces", () => {
-    const paths = ["/recherche", "/assureurs", "/portefeuille", "/portefeuille/analyser", "/cabinet", "/fonds/X", "/accueil"];
+    const paths = ["/recherche", "/partenaires", "/portefeuille", "/portefeuille/analyser", "/cabinet", "/fonds/X", "/accueil"];
     for (const p of paths) {
       const g = guideForPath(p);
       expect(g.intro.trim().length).toBeGreaterThan(0);

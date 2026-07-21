@@ -13,9 +13,9 @@ import { TOUR_STEPS, isTourDone, markTourDone, type TourStep } from "@/lib/tour"
 function StepIcon({ stepKey, size = 20 }: { stepKey: TourStep["key"]; size?: number }) {
   switch (stepKey) {
     case "accueil":   return <LayoutGrid size={size} strokeWidth={1.7} />;
-    case "assureurs": return <Shield size={size} strokeWidth={1.7} />;
+    case "partenaires": return <Shield size={size} strokeWidth={1.7} />;
     case "portefeuille": return <TrendingUp size={size} strokeWidth={1.7} />;
-    case "simulateur": return <Calculator size={size} strokeWidth={1.7} />;
+    case "frais": return <Calculator size={size} strokeWidth={1.7} />;
     case "cabinet":   return <UserCircle size={size} strokeWidth={1.7} />;
     case "guide":     return <Logo size={size + 4} />;
   }

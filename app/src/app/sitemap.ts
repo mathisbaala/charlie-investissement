@@ -8,7 +8,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.S
   { path: "/landing", priority: 0.9, changeFrequency: "monthly" },
   { path: "/recherche", priority: 0.9, changeFrequency: "weekly" },
   { path: "/accueil", priority: 0.7, changeFrequency: "weekly" },
-  { path: "/assureurs", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/partenaires", priority: 0.7, changeFrequency: "monthly" },
   { path: "/portefeuille", priority: 0.6, changeFrequency: "monthly" },
   { path: "/portefeuille/construire", priority: 0.6, changeFrequency: "monthly" },
   { path: "/portefeuille/analyser", priority: 0.6, changeFrequency: "monthly" },

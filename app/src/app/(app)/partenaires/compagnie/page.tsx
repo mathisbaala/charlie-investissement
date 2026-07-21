@@ -11,7 +11,7 @@ import type { Envelope } from "@/lib/insurer-envelope";
 import ContractComparison, { type ComparisonContract } from "./ContractComparison";
 
 // ─── Page assureur : comparateur de ses contrats (rendu serveur) ─────────────
-// Un clic sur un ASSUREUR dans /assureurs ouvre CETTE page (plus le screener
+// Un clic sur un ASSUREUR dans /partenaires ouvre CETTE page (plus le screener
 // filtré). On y compare les contrats de l'assureur côte à côte (supports, frais,
 // fonds euros, SRI), avec le contexte assureur en en-tête (groupe, positionnement,
 // solidité). Chaque contrat ouvre sa fiche détaillée ; un bouton mène toujours au
@@ -88,7 +88,7 @@ export default async function InsurerPage({
   return (
     <PageShell className="space-y-5">
       <Link
-        href="/assureurs"
+        href="/partenaires"
         className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors"
       >
         <ArrowLeft size={12} />
@@ -114,7 +114,7 @@ export default async function InsurerPage({
               <Shield size={13} className="text-muted-2" />
               {fundsTotal > 0
                 ? `${fundsTotal.toLocaleString("fr-FR")} support${fundsTotal > 1 ? "s" : ""} référencé${fundsTotal > 1 ? "s" : ""}`
-                : "Assureur partenaire"}
+                : "Partenaire"}
               {o.contracts.length > 0 && <> · {o.contracts.length} contrat{o.contracts.length > 1 ? "s" : ""}</>}
             </p>
             {profile?.positionnement && (

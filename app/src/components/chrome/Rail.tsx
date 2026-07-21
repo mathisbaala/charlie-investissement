@@ -16,9 +16,9 @@ import { loadStoredCabinet } from "@/lib/cabinet";
 // import des relevés → diagnostic, ou dépôt d'un DICI → rapport de support).
 const NAV = [
   { href: "/accueil",      icon: LayoutGrid, label: "Accueil" },
-  { href: "/assureurs",    icon: Shield,     label: "Partenaires" },
+  { href: "/partenaires",    icon: Shield,     label: "Partenaires" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
-  { href: "/simulateur",   icon: Calculator, label: "Frais" },
+  { href: "/frais",   icon: Calculator, label: "Frais" },
 ];
 
 // Mon cabinet vit en pied de rail, comme un réglage (paramétrage du cabinet :

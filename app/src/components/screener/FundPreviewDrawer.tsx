@@ -175,7 +175,7 @@ export function FundPreviewDrawer({ isin, onClose }: FundPreviewDrawerProps) {
               référencé » (réponse au retour CGP). Noms d'assureurs en chips,
               cohérent avec le tableau et la fiche. */}
           <div>
-            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Référencement assureur</p>
+            <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-2">Référencement partenaire</p>
             {(fund.insurers ?? []).length > 0 ? (
               <InsurerChips insurers={(fund.insurers ?? []).map((r) => r.company)} max={6} />
             ) : (

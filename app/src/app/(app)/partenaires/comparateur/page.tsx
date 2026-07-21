@@ -68,8 +68,8 @@ function fmtFee(frac: number | null | undefined): string {
 // liste si plus rien ne reste.
 function hrefWithout(keys: string[], i: number): string {
   const rest = keys.filter((_, j) => j !== i);
-  if (rest.length === 0) return "/assureurs";
-  return "/assureurs/comparateur?" + rest.map((k) => `key=${encodeURIComponent(k)}`).join("&");
+  if (rest.length === 0) return "/partenaires";
+  return "/partenaires/comparateur?" + rest.map((k) => `key=${encodeURIComponent(k)}`).join("&");
 }
 
 export default async function ComparateurPage({
@@ -86,14 +86,14 @@ export default async function ComparateurPage({
   if (keys.length === 0) {
     return (
       <PageShell className="space-y-5">
-        <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
+        <Link href="/partenaires" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
           <ArrowLeft size={12} /> Tous les partenaires
         </Link>
         <div className="flex h-48">
           <EmptyState
             icon={<Shield size={16} />}
             title="Aucun contrat à comparer."
-            hint="Ouvrez un assureur, ajoutez des contrats avec + puis revenez ici."
+            hint="Ouvrez un partenaire, ajoutez des contrats avec + puis revenez ici."
           />
         </div>
       </PageShell>
@@ -110,14 +110,14 @@ export default async function ComparateurPage({
   if (error || ordered.length === 0) {
     return (
       <PageShell className="space-y-5">
-        <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
+        <Link href="/partenaires" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
           <ArrowLeft size={12} /> Tous les partenaires
         </Link>
         <div className="flex h-48">
           <EmptyState
             icon={<Shield size={16} />}
             title="Impossible de charger la comparaison."
-            hint="Les contrats sélectionnés sont peut-être introuvables. Réessayez depuis un assureur."
+            hint="Les contrats sélectionnés sont peut-être introuvables. Réessayez depuis un partenaire."
           />
         </div>
       </PageShell>
@@ -169,7 +169,7 @@ export default async function ComparateurPage({
     <PageShell className="space-y-5">
       <ComparatorSync items={ordered.map((r) => ({ key: r.key, company: r.company, contract: r.contract }))} />
 
-      <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
+      <Link href="/partenaires" className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors">
         <ArrowLeft size={12} /> Tous les partenaires
       </Link>
 
@@ -193,7 +193,7 @@ export default async function ComparateurPage({
                       <X size={14} />
                     </Link>
                   </div>
-                  <Link href={`/assureurs/contrat?key=${encodeURIComponent(r.key)}`} className="group block mt-2">
+                  <Link href={`/partenaires/contrat?key=${encodeURIComponent(r.key)}`} className="group block mt-2">
                     <p className="text-body text-ink font-semibold leading-tight group-hover:text-accent-ink">{decodeHtml(r.contract)}</p>
                     <p className="text-caption text-muted truncate mt-0.5">{decodeHtml(r.company)}</p>
                   </Link>
@@ -229,7 +229,7 @@ export default async function ComparateurPage({
       </Card>
 
       {ordered.length < COMPARE_MAX && (
-        <Link href="/assureurs" className="inline-flex items-center gap-1.5 text-label font-medium text-accent hover:underline">
+        <Link href="/partenaires" className="inline-flex items-center gap-1.5 text-label font-medium text-accent hover:underline">
           Ajouter un autre contrat
           <ChevronRight size={14} />
         </Link>

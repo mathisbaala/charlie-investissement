@@ -48,9 +48,9 @@ const ENV_LABEL: Record<Envelope, string> = {
 // filtré). L'enveloppe active est transmise pour pré-cadrer la comparaison. Le
 // bouton « Voir les N supports » de cette page mène ensuite au screener filtré.
 const insurerHref  = (company: string, env: Envelope) =>
-  `/assureurs/compagnie?company=${encodeURIComponent(company)}&env=${env}`;
+  `/partenaires/compagnie?company=${encodeURIComponent(company)}&env=${env}`;
 // Contrat : on ouvre la FICHE-contrat (spécificités), plus la recherche filtrée.
-const contractHref = (key: string)     => `/assureurs/contrat?key=${encodeURIComponent(key)}`;
+const contractHref = (key: string)     => `/partenaires/contrat?key=${encodeURIComponent(key)}`;
 
 // Hauteur fixe de carte : toutes les cartes s'alignent en une grille régulière
 // (plus de trous ni de cartes inégales). Le surplus de contrats défile à
@@ -161,7 +161,7 @@ function InsurerCard(
             href={insurerHref(insurer.company, env)}
             className="inline-flex items-center gap-1.5 text-label font-medium text-accent hover:underline"
           >
-            Voir la fiche de l&apos;assureur
+            Voir la fiche du partenaire
             <ChevronRight size={14} />
           </Link>
         </div>

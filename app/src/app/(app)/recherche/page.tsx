@@ -369,7 +369,7 @@ function RechercheInner() {
   } else if (refInsurers.length === 1) {
     referencingLabel = `Supports référencés chez ${refInsurers[0]}`;
   } else if (refInsurers.length > 1) {
-    referencingLabel = `${refInsurers.length} assureurs sélectionnés`;
+    referencingLabel = `${refInsurers.length} partenaires sélectionnés`;
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────

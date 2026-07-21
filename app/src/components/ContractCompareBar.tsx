@@ -17,10 +17,10 @@ export function ContractCompareBar() {
   const pathname = usePathname();
   // Sur la page comparateur elle-même, le panier flottant est redondant (les
   // mêmes contrats sont déjà côte à côte) et masquait le bas du tableau.
-  if (items.length === 0 || pathname === "/assureurs/comparateur") return null;
+  if (items.length === 0 || pathname === "/partenaires/comparateur") return null;
 
   const compareHref =
-    "/assureurs/comparateur?" + items.map((c) => `key=${encodeURIComponent(c.key)}`).join("&");
+    "/partenaires/comparateur?" + items.map((c) => `key=${encodeURIComponent(c.key)}`).join("&");
 
   return (
     <div className="c-slide-up fixed bottom-4 left-[60px] right-0 mx-auto z-30 flex flex-wrap items-center gap-2 sm:gap-3 bg-paper border border-line rounded-xl px-3 sm:px-4 py-2.5 shadow-[0_4px_16px_oklch(0.22_0.012_60_/_0.12)] max-w-[860px] w-[calc(100%-60px-1.5rem)]">

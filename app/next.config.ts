@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
       "./node_modules/@napi-rs/canvas*/**/*",
     ],
   },
+  // Alignement URL ↔ onglet du rail (juillet 2026) : l'onglet « Frais » vivait
+  // sous /simulateur et « Partenaires » sous /assureurs. Les routes ont été
+  // renommées pour coller aux libellés ; on garde les anciens chemins en
+  // redirection permanente (301) pour les liens, signets et l'indexation SEO —
+  // les query strings (?isins=…, ?key=…, ?company=…) sont préservées d'office.
+  async redirects() {
+    return [
+      { source: "/simulateur", destination: "/frais", permanent: true },
+      { source: "/assureurs", destination: "/partenaires", permanent: true },
+      { source: "/assureurs/:path*", destination: "/partenaires/:path*", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

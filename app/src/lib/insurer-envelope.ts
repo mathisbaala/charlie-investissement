@@ -1,4 +1,4 @@
-// Logique pure de l'onglet « Assurances vie » (/assureurs), extraite du composant
+// Logique pure de l'onglet « Assurances vie » (/partenaires), extraite du composant
 // pour être testable. L'enveloppe (AV / Capi / PER / PEA) est l'axe primaire : elle
 // filtre les contrats de chaque assureur. « av » est le défaut du domaine — un
 // contrat sans type explicite est une assurance vie.

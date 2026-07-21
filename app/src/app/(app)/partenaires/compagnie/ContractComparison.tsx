@@ -41,7 +41,7 @@ export type ComparisonContract = {
 const ENV_LABEL: Record<string, string> = {
   av: "Assurance vie", capi: "Capitalisation", per: "PER", pea: "PEA", pep: "PEP",
 };
-const contractHref = (key: string) => `/assureurs/contrat?key=${encodeURIComponent(key)}`;
+const contractHref = (key: string) => `/partenaires/contrat?key=${encodeURIComponent(key)}`;
 
 // % « brut » (valeurs terms déjà en pourcentage) ; 0 est significatif (gratuit).
 function fmtPct(v: number | null | undefined): string {

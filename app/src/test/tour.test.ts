@@ -5,9 +5,9 @@ describe("tour content", () => {
   it("couvre les 4 piliers + cabinet + guide, dans l'ordre du rail", () => {
     expect(TOUR_STEPS.map((s) => s.key)).toEqual([
       "accueil",
-      "assureurs",
+      "partenaires",
       "portefeuille",
-      "simulateur",
+      "frais",
       "cabinet",
       "guide",
     ]);

@@ -7,7 +7,7 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
   return (
     <Card className="px-6 py-5">
       <h3 className="text-label uppercase tracking-widest text-muted font-semibold mb-4">
-        Référencement assureur
+        Référencement partenaire
       </h3>
 
       {refs.length === 0 ? (

@@ -269,7 +269,7 @@ export function FeeSimulator() {
     loadPortfolio(lines.map((l) => ({ isin: l.isin, name: l.name, weight: l.weight })), montant);
   };
 
-  // Préremplissage depuis un autre onglet : /simulateur?isins=&weights=&montant=
+  // Préremplissage depuis un autre onglet : /frais?isins=&weights=&montant=
   const searchParams = useSearchParams();
   const prefilled = useRef(false);
   useEffect(() => {

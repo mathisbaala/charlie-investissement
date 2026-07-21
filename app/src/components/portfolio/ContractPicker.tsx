@@ -178,7 +178,7 @@ export function ContractPicker({
           onKeyDown={onKey}
           placeholder={
             scopeInsurers.length > 0
-              ? "Rechercher chez vos assureurs…"
+              ? "Rechercher chez vos partenaires…"
               : "Rechercher un contrat…"
           }
           autoComplete="off"
@@ -202,7 +202,7 @@ export function ContractPicker({
               {hits.length === 0 && (
                 <p className="px-3 py-2 text-meta text-muted-2">
                   {scopeInsurers.length > 0
-                    ? "Aucun contrat chez vos assureurs partenaires ne correspond."
+                    ? "Aucun contrat chez vos partenaires ne correspond."
                     : "Aucun contrat ne correspond."}
                 </p>
               )}

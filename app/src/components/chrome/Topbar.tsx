@@ -12,9 +12,9 @@ function breadcrumb(pathname: string): { label: string; href: string }[] {
       { label: "Fiche fonds", href: pathname },
     ];
   }
-  if (pathname.startsWith("/assureurs/contrat")) {
+  if (pathname.startsWith("/partenaires/contrat")) {
     return [
-      { label: "Partenaires", href: "/assureurs" },
+      { label: "Partenaires", href: "/partenaires" },
       { label: "Fiche contrat", href: pathname },
     ];
   }
@@ -26,8 +26,8 @@ function breadcrumb(pathname: string): { label: string; href: string }[] {
 const TAB_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/recherche", title: "Recherche" },
   { prefix: "/portefeuille", title: "Portefeuille" },
-  { prefix: "/simulateur", title: "Frais" },
-  { prefix: "/assureurs", title: "Partenaires" },
+  { prefix: "/frais", title: "Frais" },
+  { prefix: "/partenaires", title: "Partenaires" },
   { prefix: "/cabinet", title: "Mon cabinet" },
 ];
 

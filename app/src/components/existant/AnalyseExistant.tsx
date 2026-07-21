@@ -381,7 +381,7 @@ function PortefeuilleAnalyzer() {
     }));
     setReleves([{
       id: rid,
-      fileName: "Supports importés du simulateur",
+      fileName: "Supports importés de l'onglet Frais",
       positions,
       matches: [],
       chosen: -1,
@@ -534,9 +534,9 @@ function PortefeuilleAnalyzer() {
     }
   }
 
-  const simulateurHref = useMemo(() => {
+  const fraisHref = useMemo(() => {
     const top = consolidated.slice(0, 10);
-    if (top.length === 0) return "/simulateur";
+    if (top.length === 0) return "/frais";
     // Contrat reconnu (unique) → passé au simulateur pour qu'il applique le même
     // barème « Mon cabinet » que le bloc de rému ci-dessus (mêmes taux).
     const keys = new Set<string>();
@@ -545,7 +545,7 @@ function PortefeuilleAnalyzer() {
       if (m) keys.add(`${m.company}::${m.contract}`);
     }
     const contractParam = keys.size === 1 ? `&contract=${encodeURIComponent([...keys][0])}` : "";
-    return `/simulateur?isins=${top.map((p) => p.isin).join(",")}&weights=${top
+    return `/frais?isins=${top.map((p) => p.isin).join(",")}&weights=${top
       .map((p) => Math.round(p.weight * 1000) / 10)
       .join(",")}&montant=${Math.round(total)}${contractParam}`;
   }, [consolidated, total, releves]);
@@ -842,7 +842,7 @@ function PortefeuilleAnalyzer() {
             </p>
           )}
 
-          <Link href={simulateurHref} className="inline-block text-meta text-ink underline underline-offset-4 hover:text-accent-ink transition-colors">
+          <Link href={fraisHref} className="inline-block text-meta text-ink underline underline-offset-4 hover:text-accent-ink transition-colors">
             Projeter les frais dans le temps et exporter un PDF →
           </Link>
         </div>

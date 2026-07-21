@@ -19,7 +19,7 @@ describe("CabinetForm — ajout des contrats à la recherche", () => {
 
   async function addCardif() {
     render(<CabinetForm />);
-    const search = screen.getByLabelText("Rechercher un assureur partenaire");
+    const search = screen.getByLabelText("Rechercher un partenaire");
     fireEvent.change(search, { target: { value: "cardif" } });
     fireEvent.click(await screen.findByText("Cardif Lux Vie"));
   }

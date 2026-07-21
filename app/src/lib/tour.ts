@@ -6,7 +6,7 @@
 
 export type TourStep = {
   /** Clé stable, sert aussi à choisir l'icône côté composant. */
-  key: "accueil" | "portefeuille" | "simulateur" | "assureurs" | "cabinet" | "guide";
+  key: "accueil" | "portefeuille" | "frais" | "partenaires" | "cabinet" | "guide";
   title: string;
   body: string;
 };
@@ -20,9 +20,9 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Décrivez ce que vous cherchez avec vos propres mots : Charlie traduit votre phrase en une recherche de fonds. Filtrez, triez et comparez les résultats pour retenir le support qui colle au besoin.",
   },
   {
-    key: "assureurs",
+    key: "partenaires",
     title: "Partenaires",
-    body: "Le mapping exhaustif des assureurs et de leurs contrats : où loger fiscalement chaque support, avec qui travailler, ce que propose chaque partenaire, ses contrats, ses frais et sa rémunération.",
+    body: "Le mapping exhaustif des partenaires et de leurs contrats : où loger fiscalement chaque support, avec qui travailler, ce que propose chaque partenaire, ses contrats, ses frais et sa rémunération.",
   },
   {
     key: "portefeuille",
@@ -30,14 +30,14 @@ export const TOUR_STEPS: TourStep[] = [
     body: "Construisez un portefeuille de A à Z à partir du profil du client, ou analysez un portefeuille existant pour repérer les trous dans la raquette et les points à optimiser.",
   },
   {
-    key: "simulateur",
+    key: "frais",
     title: "Frais",
     body: "La comptabilité du portefeuille : ce qu'il rapporte, ce que gagne le cabinet, ce qu'il coûte au client, poste par poste. De quoi éditer des rapports clairs et transparents.",
   },
   {
     key: "cabinet",
     title: "Mon cabinet",
-    body: "Renseignez vos partenariats assureurs et vos rétrocessions une fois : le reste de la plateforme les réutilise.",
+    body: "Renseignez vos partenaires et vos rétrocessions une fois : le reste de la plateforme les réutilise.",
   },
   {
     key: "guide",
@@ -48,7 +48,7 @@ export const TOUR_STEPS: TourStep[] = [
 
 // Versionné : bump le suffixe pour réafficher la visite après une refonte.
 // v3 : fusion Portefeuille + Allocation, cabinet passé en pied de rail.
-// v4 : ajout de l'étape Simulateur de frais.
+// v4 : ajout de l'étape Frais.
 // v5 : accueil recentré sur recherche + reprise d'activité (profil déplacé dans
 //      Portefeuille), assureurs devenus fiches-contrat.
 // v6 : onglet Documents retiré (DICI fusionné dans Portefeuille → Analyser).

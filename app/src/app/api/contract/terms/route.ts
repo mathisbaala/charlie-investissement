@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 // Termes de frais d'UN contrat reconnu (clé "Assureur::Contrat"), pour sourcer le
 // coût client réel dans l'analyse de l'existant : frais de gestion UC et frais
 // d'entrée du contrat, quand ils sont connus en base (av_contract_terms via
-// get_contract_overview). Projection SLIM — la fiche-contrat (/assureurs/contrat)
+// get_contract_overview). Projection SLIM — la fiche-contrat (/partenaires/contrat)
 // sert la vue complète. Repli silencieux (null) si le contrat n'est pas en base :
 // l'appelant retombe alors sur l'indicatif d'enveloppe.
 export const dynamic = "force-dynamic";

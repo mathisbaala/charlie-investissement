@@ -357,7 +357,7 @@ export default async function ContractPage({
   return (
     <PageShell className="space-y-5">
       <Link
-        href="/assureurs"
+        href="/partenaires"
         className="inline-flex items-center gap-1.5 text-label text-muted hover:text-ink-2 transition-colors"
       >
         <ArrowLeft size={12} />
@@ -450,7 +450,7 @@ export default async function ContractPage({
             <div className="flex items-center gap-3 min-w-0">
               <InsurerLogo company={o.company} size={44} />
               <div className="min-w-0">
-                <h2 className="text-body-lg text-ink font-semibold leading-tight">L&apos;assureur</h2>
+                <h2 className="text-body-lg text-ink font-semibold leading-tight">Le partenaire</h2>
                 <p className="text-meta text-muted truncate">{decodeHtml(o.company)}</p>
               </div>
             </div>

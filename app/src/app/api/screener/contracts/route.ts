@@ -22,7 +22,7 @@ export async function GET(): Promise<NextResponse> {
   try {
     const res = await supabase.rpc("get_contracts_list");
     // 500 (et non 200 + []) sur erreur RPC : voir route insurers. Source principale
-    // de /assureurs → une panne ne doit pas se déguiser en « aucun contrat ».
+    // de /partenaires → une panne ne doit pas se déguiser en « aucun contrat ».
     if (res.error) return NextResponse.json({ error: "rpc_failed" }, { status: 500 });
     data = res.data;
   } catch {

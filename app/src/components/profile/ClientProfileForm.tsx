@@ -710,7 +710,7 @@ export function ClientProfileForm({
             sinon le CGP ne peut pas le loger au client. Vide = pas de contrainte
             (tout l'univers reste consultable). */}
         <SectionCard title="Distribution du cabinet">
-            <FieldGroup label="Assureurs dont vous disposez">
+            <FieldGroup label="Partenaires dont vous disposez">
               {/* Typeahead : on tape, une liste des assureurs correspondants
                   s'affiche, on sélectionne. On n'affiche jamais tout le catalogue
                   (trop dense + long à charger). Les sélectionnés partent en rangée
@@ -718,28 +718,28 @@ export function ClientProfileForm({
               <div className="relative">
                 <input
                   type="text"
-                  aria-label="Rechercher un assureur"
+                  aria-label="Rechercher un partenaire"
                   value={insurerQuery}
                   onChange={(e) => setInsurerQuery(e.target.value)}
                   onFocus={() => { if (insurerStatus === "error") loadInsurers(); }}
-                  placeholder="Rechercher un assureur…"
+                  placeholder="Rechercher un partenaire…"
                   autoComplete="off"
                   className={inputCls}
                 />
                 {insurerQuery.trim() && (
                   <div className="absolute left-0 right-0 top-full mt-1 z-20 max-h-60 overflow-y-auto scrollbar-thin rounded-lg border border-line bg-paper shadow-lg">
                     {insurerStatus === "loading" ? (
-                      <p className="px-3 py-2 text-meta text-muted-2">Chargement des assureurs…</p>
+                      <p className="px-3 py-2 text-meta text-muted-2">Chargement des partenaires…</p>
                     ) : insurerStatus === "error" ? (
                       <button
                         type="button"
                         onClick={() => loadInsurers()}
                         className="block w-full text-left px-3 py-2 text-meta text-warn hover:bg-accent-soft/40 transition-colors"
                       >
-                        Impossible de charger les assureurs. Cliquez pour réessayer.
+                        Impossible de charger les partenaires. Cliquez pour réessayer.
                       </button>
                     ) : insurerMatches.length === 0 ? (
-                      <p className="px-3 py-2 text-meta text-muted-2">Aucun assureur ne correspond.</p>
+                      <p className="px-3 py-2 text-meta text-muted-2">Aucun partenaire ne correspond.</p>
                     ) : (
                       insurerMatches.map(({ company }) => (
                         <button

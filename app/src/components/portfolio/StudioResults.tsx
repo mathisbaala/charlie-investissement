@@ -407,7 +407,7 @@ export function StudioResults() {
       <div className="flex justify-end gap-2">
         {/* Passe le portefeuille généré au simulateur de frais : lignes (poids
             déjà en %) + montant du projet client. */}
-        <Link href={`/simulateur?isins=${shown.lines.map((l) => l.isin).join(",")}&weights=${shown.lines.map((l) => l.weight).join(",")}${amountEur && amountEur > 0 ? `&montant=${amountEur}` : ""}${contract.includes("::") ? `&contract=${encodeURIComponent(contract)}` : ""}`}>
+        <Link href={`/frais?isins=${shown.lines.map((l) => l.isin).join(",")}&weights=${shown.lines.map((l) => l.weight).join(",")}${amountEur && amountEur > 0 ? `&montant=${amountEur}` : ""}${contract.includes("::") ? `&contract=${encodeURIComponent(contract)}` : ""}`}>
           <Btn variant="outline" size="sm">Simuler les frais</Btn>
         </Link>
         <Btn variant="primary" size="sm" loading={pptBusy} onClick={downloadPptx}>Télécharger (PowerPoint)</Btn>
