@@ -11,7 +11,7 @@ import {
 } from "./optimizer";
 import { toFundInputs, type FundRow } from "./allocationInput";
 import { buildPresentation, type AllocationPresentation } from "./allocationRationale";
-import { filterUniverse, GEO_TO_REGIONS } from "./profileToConstraints";
+import { filterUniverse, toSectorExclusions, GEO_TO_REGIONS } from "./profileToConstraints";
 
 // Service serveur du moteur d'allocation : partagé par la route JSON
 // (/api/portfolio/optimize) et la route PDF (…/pdf) pour ne pas dupliquer la
@@ -22,8 +22,9 @@ const VIEW = "investissement_funds_cgp_ref";
 const COLS =
   "isin, name, product_type, asset_class_broad, category_normalized, " +
   "region_normalized, management_style, gestionnaire, risk_score, sfdr_article, " +
-  "morningstar_rating, ter, ongoing_charges, performance_1y, performance_3y, " +
-  "performance_5y, volatility_1y, volatility_3y, data_completeness";
+  "labels, esg_exclusions, morningstar_rating, ter, ongoing_charges, " +
+  "performance_1y, performance_3y, performance_5y, volatility_1y, volatility_3y, " +
+  "data_completeness";
 
 export interface OptimizeParams {
   contract: string; // « Assureur::Contrat »
@@ -46,6 +47,8 @@ export interface OptimizeParams {
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller. */
   exclude?: string[];
+  /** Exclusions sectorielles ESG du profil (tabac/armes/fossiles/jeux/alcool). */
+  exclusions?: string[];
   /** Méthode de pondération : max-Sharpe (défaut) ou HRP. */
   method?: AllocationMethod;
   /** Départage rétrocession à adéquation client équivalente (choix conseiller). */
@@ -206,14 +209,16 @@ export async function optimizeContract(
 
   // 2 bis) Filtres de préférence (profil client + réglages conseiller), avec
   // assouplissement progressif si l'univers restant ne permet plus de diversifier :
-  // d'abord la contrainte géographique, puis toutes les préférences — mais JAMAIS
-  // les exclusions manuelles du conseiller.
+  // d'abord la contrainte géographique, puis les préférences — mais JAMAIS les
+  // exclusions manuelles du conseiller NI les exclusions sectorielles ESG du
+  // client (contrainte d'adéquation, pas une préférence molle).
   const filterOpts = {
     maxTer: params.terMax ?? null,
     esg: params.esg ?? null,
     geographies: params.geographies ?? [],
     sriMax: params.sriMax ?? null,
     exclude: params.exclude ?? [],
+    exclusions: params.exclusions ?? [],
   };
   const filterNotes: string[] = [];
   // Tant que la contrainte géographique est active, chaque zone demandée devra
@@ -232,12 +237,15 @@ export async function optimizeContract(
     }
   }
   if (filtered.funds.length < minAssets) {
-    const bare = filterUniverse(inputs, { exclude: params.exclude ?? [] });
+    const bare = filterUniverse(inputs, {
+      exclude: params.exclude ?? [],
+      exclusions: params.exclusions ?? [],
+    });
     if (bare.funds.length >= minAssets) {
       filtered = bare;
       geoActive = false;
       filterNotes.push(
-        "Préférences du profil trop restrictives sur ce contrat : portefeuille calculé sur l'univers complet.",
+        "Préférences du profil trop restrictives sur ce contrat : portefeuille calculé sur l'univers complet (exclusions maintenues).",
       );
     } else {
       return {
@@ -425,6 +433,9 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
         ? Math.min(Math.max(Math.round(Number(sriMaxRaw)), 1), 7)
         : null,
     exclude: isinList(p.get("exclude")),
+    exclusions: toSectorExclusions(
+      (p.get("exclusions") ?? "").split(",").map((s) => s.trim().toLowerCase()),
+    ),
     method: p.get("method")?.trim().toLowerCase() === "hrp" ? "hrp" : "sharpe",
     retroTieBreak: p.get("retro") === "1",
     // ucShare : taux de convention UC en POURCENTAGE (50 = 50 % des frais).

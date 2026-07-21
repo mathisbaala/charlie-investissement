@@ -267,11 +267,13 @@ const PERTE_MAX_TO_PCT: Record<PerteMax, number | null> = {
   "5": 5, "10": 10, "20": 20, "30": 30, illimitee: null,
 };
 
-// Exclusions du profil → secteur à écarter (exclude_sectors). Seul « fossiles » a une
-// correspondance sectorielle FIABLE (→ Énergie). tabac/armes/jeux/alcool n'ont pas de
-// secteur dédié dans la taxonomie (Consommation/Industrie seraient trop larges et
-// écarteraient des fonds légitimes) → ils restent en contexte NLP (serializeForNlp),
-// faute de donnée de composition fine filtrable. Limite assumée.
+// Exclusions du profil → secteur à écarter (exclude_sectors), côté SCREENER. Seul
+// « fossiles » a une correspondance sectorielle FIABLE (→ Énergie). tabac/armes/jeux/
+// alcool n'ont pas de secteur dédié dans la taxonomie (Consommation/Industrie seraient
+// trop larges) → ils restent en contexte NLP (serializeForNlp) sur le screener. Le
+// GÉNÉRATEUR D'ALLOCATION, lui, les applique fonds par fonds via esg_exclusions
+// (donnée EET) avec repli proxy labels — cf. passesSectorExclusions
+// (profileToConstraints.ts).
 const EXCLUSION_TO_SECTOR: Record<string, string> = {
   fossiles: "Énergie",
 };

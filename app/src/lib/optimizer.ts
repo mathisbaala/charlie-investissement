@@ -61,6 +61,14 @@ export interface FundInput {
   retrocession?: number | null;
   /** Article SFDR 6/8/9 — restitution durabilité. */
   sfdr?: number | null;
+  /** Labels officiels durabilité (isr/greenfin/finansol) — proxy d'exclusions. */
+  labels?: string[] | null;
+  /**
+   * Exclusions sectorielles documentées (EET/SFDR) : {clé: bool}. Clé présente =
+   * politique documentée (true = le fonds exclut le secteur), clé absente =
+   * inconnu → repli sur le proxy labels (cf. profileToConstraints).
+   */
+  esgExclusions?: Record<string, boolean> | null;
   managementStyle?: string | null;
   gestionnaire?: string | null;
   region?: string | null;

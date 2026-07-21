@@ -301,6 +301,7 @@ function useStudioState() {
       if (sriMaxParam != null) qs.set("sriMax", String(sriMaxParam));
       if (p.geographies.length) qs.set("geo", p.geographies.join(","));
       if (p.esg === "art8" || p.esg === "art9") qs.set("esg", p.esg);
+      if (p.exclusions.length) qs.set("exclusions", p.exclusions.join(","));
       if (p.max_ter != null) qs.set("terMax", String(p.max_ter));
       if (must.length) qs.set("must", must.join(","));
       if (excludedIsins.length) qs.set("exclude", excludedIsins.join(","));
@@ -413,6 +414,8 @@ function useStudioState() {
     }
 
     // 2) Repli démo : même pipeline, univers d'exemple côté navigateur.
+    // Pas d'exclusions sectorielles ici : l'univers d'exemple ne porte ni
+    // esg_exclusions ni labels — les appliquer viderait la démo.
     const filterOpts = {
       maxTer: p.max_ter,
       esg: p.esg,

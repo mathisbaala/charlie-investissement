@@ -21,6 +21,8 @@ export interface FundRow {
   gestionnaire?: string | null;
   risk_score?: number | null; // SRI 1–7
   sfdr_article?: number | null;
+  labels?: string[] | null; // labels durabilité (isr/greenfin/finansol)
+  esg_exclusions?: Record<string, boolean> | null; // exclusions EET {clé: bool}
   morningstar_rating?: number | null; // 1–5 étoiles
 
   ter?: number | null; // fraction
@@ -122,6 +124,8 @@ export function toFundInput(row: FundRow): FundInput | null {
     ter: ter ?? null,
     retrocession: estimateRetrocession(row),
     sfdr: row.sfdr_article ?? null,
+    labels: row.labels ?? null,
+    esgExclusions: row.esg_exclusions ?? null,
     rating: row.morningstar_rating ?? null,
     managementStyle: row.management_style ?? null,
     gestionnaire: row.gestionnaire ?? null,
