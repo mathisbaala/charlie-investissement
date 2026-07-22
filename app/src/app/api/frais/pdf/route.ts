@@ -40,7 +40,10 @@ const n = (v: unknown, def = 0): number => {
   return Number.isFinite(x) ? x : def;
 };
 
-function parseInput(raw: Record<string, unknown>): SimulationInput {
+// Exporté pour test : garantit qu'AUCUN paramètre de rémunération n'est perdu au
+// parsing (régression — eurosRetroShare avait été oublié, le PDF sous-estimait
+// alors la rétro fonds euros du cabinet vs l'écran). Next ignore les exports non-HTTP.
+export function parseInput(raw: Record<string, unknown>): SimulationInput {
   const f = (raw.frais ?? {}) as Record<string, unknown>;
   return {
     versementInitial: n(raw.versementInitial),
@@ -57,6 +60,7 @@ function parseInput(raw: Record<string, unknown>): SimulationInput {
     retroCgp: n(raw.retroCgp),
     commissionCabinet: n(raw.commissionCabinet),
     contractFeeShare: n(raw.contractFeeShare),
+    eurosRetroShare: n(raw.eurosRetroShare),
     honoraireForfait: n(raw.honoraireForfait),
     honoraireAnnuelPct: n(raw.honoraireAnnuelPct),
   };
