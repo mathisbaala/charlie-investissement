@@ -53,6 +53,20 @@ describe("sanitizeParsedCalc — validation dure de la sortie LLM", () => {
     expect(r.candidates.length).toBeLessThanOrEqual(3);
     expect(r.candidates).not.toContain(ids[0]);
   });
+  it("écarte la valeur d'un champ conditionnel non actif (showIf faux)", () => {
+    // donateur_moins_70 n'existe que si dutreil=true — un LLM qui le remplit
+    // quand même ne doit pas pré-remplir un champ que le formulaire n'expose pas.
+    const r = sanitizeParsedCalc({
+      calculator_id: "droits-donation-succession",
+      values: { montant: 300000, mode: "donation", donateur_moins_70: true },
+    });
+    expect(r.values.donateur_moins_70).toBeUndefined();
+    const avecDutreil = sanitizeParsedCalc({
+      calculator_id: "droits-donation-succession",
+      values: { montant: 300000, mode: "donation", dutreil: true, donateur_moins_70: true },
+    });
+    expect(avecDutreil.values.donateur_moins_70).toBe(true);
+  });
   it("entrée non-objet → résultat vide sans jeter", () => {
     expect(sanitizeParsedCalc("n'importe quoi")).toEqual({ calculatorId: null, candidates: [], values: {} });
     expect(sanitizeParsedCalc(null)).toEqual({ calculatorId: null, candidates: [], values: {} });

@@ -108,6 +108,15 @@ export function sanitizeParsedCalc(raw: unknown): ParsedCalcQuery {
         }
       }
     }
+    // Champs CONDITIONNELS non actifs (showIf faux au vu des autres valeurs) :
+    // écartés. Le LLM remplit parfois un champ que la situation n'expose même
+    // pas (ex. « donateur < 70 ans » sans Dutreil) — inoffensif au calcul mais
+    // trompeur dans le formulaire pré-rempli.
+    for (const f of def.fields) {
+      if (f.showIf && out.values[f.key] !== undefined && !f.showIf(out.values)) {
+        delete out.values[f.key];
+      }
+    }
   }
   return out;
 }
