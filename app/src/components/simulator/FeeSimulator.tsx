@@ -221,7 +221,7 @@ function StackedBar({ segments }: { segments: BarSegment[] }) {
           <li key={s.label} className="min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
-              <span className={`text-body truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
+              <span className={`text-body leading-tight ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
             </div>
             <p className={`mt-1.5 text-subhead tabular-nums leading-none ${s.strong ? "text-ink font-semibold" : "text-ink font-medium"}`}>{EUR.format(s.value)}</p>
             <p className="mt-1 text-meta text-muted tabular-nums leading-none">{Math.round((s.value / total) * 100)} %</p>
@@ -289,7 +289,7 @@ function Stat({ label, value, sub, hint }: {
   );
   return (
     <div className="min-w-0">
-      <p className="text-label uppercase tracking-wide text-muted font-semibold truncate" title={label}>{label}</p>
+      <p className="text-label uppercase tracking-wide text-muted font-semibold leading-tight" title={label}>{label}</p>
       <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-1">
         {hint ? <span title={hint}>{body}</span> : body}
       </p>
