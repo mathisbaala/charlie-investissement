@@ -154,9 +154,9 @@ def fetch_fields(session: FetcherSession, isin: str) -> dict:
     url = BASE_URL.format(isin=isin)
     try:
         r = session.get(url, stealthy_headers=True, timeout=TIMEOUT)
-        if r.status_code != 200:
+        if r.status != 200:
             return {}
-        html = r.text
+        html = r.body.decode("utf-8")
     except Exception:
         return {}
 

@@ -156,7 +156,11 @@ KID_PATTERNS_FR = {
         # PRIORITÉ 1 : ligne PRIIPs "Frais de gestion et autres frais ... X%" = frais courants (TER).
         # C'est LA ligne ongoing-charges (≈ TER). NE PAS confondre avec "Incidence sur le rendement
         # annuel" (coût-drag à 1 an, qui inclut les coûts d'entrée amortis → surestime fortement).
-        r"frais\s+de\s+gestion\s+et\s+autres\s+frais[^\d%]{0,80}(\d+[.,]\d+)\s*%",
+        # NB structurés : la valeur suit souvent le libellé sur la ligne suivante et vaut
+        # fréquemment "0%" (entier, pas de décimale) car les frais sont intégrés au prix d'émission.
+        # → accepter entier OU décimale, et tolérer un saut de ligne (jusqu'à 60 chars).
+        r"frais\s+de\s+gestion\s+et\s+autres\s+frais[^\d%]{0,60}(\d+(?:[.,]\d+)?)\s*%\s*de\s+votre\s+investissement\s+par\s+an",
+        r"frais\s+de\s+gestion\s+et\s+autres\s+frais[^\d%]{0,60}(\d+(?:[.,]\d+)?)\s*%",
         r"frais\s+courants[^\d]*(\d+[.,]\d+)\s*%",
         r"charges\s+courantes[^\d]*(\d+[.,]\d+)\s*%",
         # PRIORITÉ 2 : Tableau "Coûts récurrents" ligne totale (pas les sous-lignes individuelles)
@@ -169,6 +173,10 @@ KID_PATTERNS_FR = {
         r"co[uû]ts\s+r[eé]currents[^\d]*(\d+[.,]\d+)\s*%",
     ],
     "entry_fee_max": [
+        # PRIORITÉ structurés : "X% du montant que vous payez au moment de l'entrée" (valeur AVANT
+        # le libellé "Coûts d'entrée"). Précis → à tester en premier, sinon les patterns .*? plus bas
+        # traversent le doc (DOTALL) et attrapent un mauvais % (ex. coût de sortie "jusqu'à …").
+        r"(\d+(?:[.,]\d+)?)\s*%\s*du\s+montant\s+que\s+vous\s+payez\s+au\s+moment\s+de\s+l.entr[eé]e",
         r"co[uû]ts\s+d.entr[eé]e.*?jusqu.[aà].*?(\d+[.,]\d+)\s*%",
         r"frais\s+d.entr[eé]e.*?(\d+[.,]\d+)\s*%",
         r"commission\s+de\s+souscription.*?(\d+[.,]\d+)\s*%",
@@ -294,7 +302,8 @@ def parse_kid_text(text: str) -> dict:
         # + contrainte CHECK chk_ter_fraction (ter ∈ [0, 0.5]). Le KID donne un % → ÷100.
         raw = try_patterns(text, pats["ter"])
         val = extract_number(raw) if raw else None
-        if val is not None and 0 < val < 10:
+        # TER=0 est LÉGITIME pour les structurés (frais intégrés au prix d'émission).
+        if val is not None and 0 <= val < 10:
             r["ter"] = round(val / 100, 6)
             r["ongoing_charges"] = round(val / 100, 6)
             conf += 25
@@ -498,17 +507,28 @@ KID_AUTHORITATIVE = frozenset({
 })
 
 
-def kid_write(isin: str, fields: dict, pdf_hash: str) -> bool:
+def kid_write(isin: str, fields: dict, pdf_hash: str, fill_only: bool = False) -> bool:
     """
     Écrit les champs parsés du KID en mergeant field_sources (tag 'kid_pdf').
     Le KID est autoritaire → override des champs ci-dessus. NE recalcule PAS
     data_completeness (laissé au recompute v2 SQL post-run, cf. README).
+
+    fill_only=True : ne remplit QUE les champs actuellement NULL en base (aucune
+    réécriture de valeur existante — sûr en environnement multi-agents / PROD).
     """
     client = get_client()
     try:
+        sel_cols = "field_sources" + (
+            "," + ",".join(sorted(fields)) if fill_only and fields else ""
+        )
         existing = client.table("investissement_funds") \
-            .select("field_sources").eq("isin", isin).limit(1).execute().data
-        fs = dict((existing[0].get("field_sources") if existing else None) or {})
+            .select(sel_cols).eq("isin", isin).limit(1).execute().data
+        row = existing[0] if existing else {}
+        if fill_only:
+            fields = {k: v for k, v in fields.items() if row.get(k) is None}
+            if not fields:
+                return True  # rien à remplir (tout déjà présent) — pas d'écriture
+        fs = dict((row.get("field_sources") if row else None) or {})
         for k in fields:
             if k in KID_AUTHORITATIVE:
                 fs[k] = "kid_pdf"
@@ -537,7 +557,8 @@ def kid_write(isin: str, fields: dict, pdf_hash: str) -> bool:
         return False
 
 
-def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool) -> dict:
+def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool,
+                 fill_only: bool = False) -> dict:
     isin    = fund["isin"]
     kid_url = fund.get("kid_url", "")
 
@@ -588,7 +609,7 @@ def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool
     if apply:
         fields = {k: v for k, v in extracted.items()
                   if not k.startswith("_") and k in DB_COLUMNS and v is not None}
-        success = kid_write(isin, fields, pdf_hash)
+        success = kid_write(isin, fields, pdf_hash, fill_only=fill_only)
         result["status"] = "ok" if success else "upsert_failed"
     else:
         result["status"] = "ok_dryrun"
@@ -599,7 +620,8 @@ def process_fund(fund: dict, session: FetcherSession, apply: bool, use_llm: bool
 
 def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: int | None,
                              geco_only: bool = False, ter_null: bool = False,
-                             amfinesoft_only: bool = False) -> list[dict]:
+                             amfinesoft_only: bool = False,
+                             product_type: str | None = None) -> list[dict]:
     """Récupère les fonds avec kid_url depuis Supabase (pagination complète)."""
     PAGE = 1000
     all_funds: list[dict] = []
@@ -620,6 +642,8 @@ def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: in
         if amfinesoft_only:
             # Exclut les kid-security (actions/obligations), garde les vrai KIDs fonds
             q = q.like("kid_url", "%amfinesoft.com%/kid/%").not_.like("kid_url", "%-security%")
+        if product_type:
+            q = q.eq("product_type", product_type)
         if min_aum:
             q = q.gte("aum_eur", min_aum)
 
@@ -640,7 +664,8 @@ def fetch_funds_with_kid_url(client, min_aum: int | None, force: bool, limit: in
 
 def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force: bool,
         use_llm: bool, geco_only: bool = False, ter_null: bool = False,
-        amfinesoft_only: bool = False):
+        amfinesoft_only: bool = False, product_type: str | None = None,
+        fill_only: bool = False):
     print("=" * 60)
     print("  KID Bulk Parser — Extraction TER + SRI depuis PDFs")
     print("=" * 60)
@@ -662,8 +687,11 @@ def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force
     started = datetime.now(timezone.utc)
     client  = get_client()
 
+    if product_type:
+        print(f"  Product   : {product_type}")
     funds = fetch_funds_with_kid_url(client, min_aum, force, limit, geco_only=geco_only,
-                                     ter_null=ter_null, amfinesoft_only=amfinesoft_only)
+                                     ter_null=ter_null, amfinesoft_only=amfinesoft_only,
+                                     product_type=product_type)
     print(f"  {len(funds)} fonds avec kid_url à traiter")
     print()
 
@@ -672,7 +700,7 @@ def run(apply: bool, limit: int | None, workers: int, min_aum: int | None, force
                 "low_confidence": 0, "pdf_error": 0, "upsert_failed": 0}
 
     def _process(fund):
-        return process_fund(fund, session, apply, use_llm)
+        return process_fund(fund, session, apply, use_llm, fill_only=fill_only)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
         futures = {ex.submit(_process, f): f for f in funds}
@@ -730,6 +758,10 @@ if __name__ == "__main__":
                         help="Traiter uniquement les KIDs OPCVM amfinesoft (/kid/ sans -security)")
     parser.add_argument("--ter-null", action="store_true",
                         help="Traiter uniquement les fonds sans TER (ter IS NULL)")
+    parser.add_argument("--product-type", type=str, default=None,
+                        help="Filtrer par product_type (ex: structuré)")
+    parser.add_argument("--fill-only", action="store_true",
+                        help="Ne remplir que les champs NULL en base (aucune réécriture)")
     args = parser.parse_args()
     run(
         apply=args.apply,
@@ -741,4 +773,6 @@ if __name__ == "__main__":
         geco_only=args.geco_only,
         ter_null=args.ter_null,
         amfinesoft_only=args.amfinesoft_only,
+        product_type=args.product_type,
+        fill_only=args.fill_only,
     )

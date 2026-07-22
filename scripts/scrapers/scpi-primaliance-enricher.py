@@ -394,7 +394,7 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
     while True:
         batch = (
             client.table("investissement_funds")
-            .select("isin, name, performance_1y, performance_5y, ongoing_charges, ter, aum_eur, inception_date, management_company, category, sri")
+            .select("isin, name, performance_1y, performance_5y, ongoing_charges, ter, aum_eur, inception_date, management_company, category, sri, entry_fee_max")
             .in_("product_type", ["scpi", "opci", "sci"])
             .range(offset, offset + 999)
             .execute().data or []
@@ -439,7 +439,7 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
     print("  [3/3] Matching + enrichissement...")
     found = updated = 0
     skipped_no_match = 0
-    field_counts = {"p1y": 0, "p5y": 0, "ongoing_charges": 0, "aum_eur": 0, "inception_date": 0, "management_company": 0, "category": 0, "sri": 0}
+    field_counts = {"p1y": 0, "p5y": 0, "ongoing_charges": 0, "aum_eur": 0, "inception_date": 0, "management_company": 0, "category": 0, "sri": 0, "entry_fee_max": 0}
     now = datetime.now(timezone.utc).isoformat()
 
     for fund in db_funds:
@@ -496,6 +496,16 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
             update["sri"] = match["sri"]
             field_counts["sri"] += 1
 
+        # Frais de souscription SCPI (commission de souscription, ~8-12 %) →
+        # entry_fee_max. Convention DB : FRACTION (5 % = 0.05), comme les OPCVM.
+        # C'est LA donnée la plus recherchée par les CGP et quasi vide en base.
+        # Fill-only : on ne complète que les trous. Garde-fou de plausibilité
+        # (0-15 %) : au-delà, c'est un parse foireux (ex. capté un encours).
+        fs = match.get("frais_souscription")
+        if fs is not None and fund.get("entry_fee_max") is None and 0 <= fs <= 15:
+            update["entry_fee_max"] = round(fs / 100.0, 6)
+            field_counts["entry_fee_max"] += 1
+
         # Métriques SCPI dédiées (table investissement_scpi_metrics) — dont le
         # PRIX DE PART, absent de investissement_funds. Toujours rafraîchi
         # (refresh trimestriel : prix de part / capitalisation bougent chaque T).
@@ -549,6 +559,7 @@ def run(apply: bool, limit: int | None = None, refresh: bool = False):
         if "management_company" in update: flags.append(f"mgmt={update['management_company'][:20]}")
         if "category" in update: flags.append(f"cat={update['category'][:20]}")
         if "sri" in update: flags.append(f"sri={update['sri']}")
+        if "entry_fee_max" in update: flags.append(f"entry={update['entry_fee_max']*100:.1f}%")
         print(f"  ✓ {isin:20} | {match['name'][:30]:30} | {' '.join(flags)}")
 
         if apply:
