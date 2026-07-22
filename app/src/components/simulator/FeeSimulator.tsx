@@ -693,15 +693,6 @@ export function FeeSimulator() {
   const partUCRecurrent = final && final.revenuCabinetRecurrent > 0
     ? Math.round((final.retroCgpCumulee / final.revenuCabinetRecurrent) * 100)
     : null;
-  // Mix du revenu par NATURE (entrée / récurrent / honoraires) — à comparer au
-  // marché CGP (AMF 2024 : 60 % entrée · 28 % récurrent · 12 % honoraires).
-  const mix = final && revenuCabinet > 0
-    ? {
-        entree: Math.round((final.commCabinetCumulee / revenuCabinet) * 100),
-        recurrent: Math.round(((final.retroCgpCumulee + final.contractFeeCumulee + final.eurosRetroCumulee) / revenuCabinet) * 100),
-        honoraires: Math.round((honoraireCumule / revenuCabinet) * 100),
-      }
-    : null;
   // Alerte érosion : part de l'encours UC qui ne rétrocède RIEN (ETF / indiciel).
   // Le récurrent s'y éteint sans que l'assureur n'alerte jamais.
   const ucEncours = supportRows.reduce((a, r) => a + r.montant, 0);
@@ -903,10 +894,12 @@ export function FeeSimulator() {
                   (pas de doublon d'indicateur). */}
               <Card className="px-5 py-5 sm:px-6 sm:py-6">
                 <p className="text-label uppercase tracking-widest text-muted font-semibold">Ma rémunération</p>
-                <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-2">{EUR.format(revenuCabinet)}</p>
-                <p className="text-meta text-ink-2 mt-2.5">
-                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée, puis <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent
-                </p>
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                  <span className="text-display-lg font-semibold tabular-nums text-ok leading-none">{EUR.format(revenuCabinet)}</span>
+                  <span className="text-body-lg text-ink-2">
+                    <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée, puis <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent
+                  </span>
+                </div>
                 {(tauxRetro != null || partUCRecurrent != null) && (
                   <div className="mt-3.5 flex flex-wrap gap-x-8 gap-y-2.5">
                     {tauxRetro != null && (
@@ -923,13 +916,12 @@ export function FeeSimulator() {
                     )}
                   </div>
                 )}
-                <p className="text-meta text-muted mt-3.5 pt-3 border-t border-line-soft">
-                  Client : <span className="tabular-nums text-ink-2">{EUR.format(coutTotalClient)}</span> de frais
-                  <span className="text-muted"> · </span>
+                <p className="text-body text-ink-2 mt-4 pt-3.5 border-t border-line-soft">
+                  Pour le client, <span className="tabular-nums font-medium text-ink">{EUR.format(coutTotalClient)}</span> de frais, soit un rendement réduit de{" "}
                   <span
-                    className="cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2"
+                    className="cursor-help tabular-nums font-medium text-ink decoration-dotted underline underline-offset-2 decoration-muted-2"
                     title="RIY (Reduction in Yield) — réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
-                  ><span className="tabular-nums text-ink-2">−{pct(riy)}/an</span> de rendement (RIY)</span>
+                  >{pct(riy)}/an (RIY)</span>.
                 </p>
               </Card>
 
@@ -954,12 +946,6 @@ export function FeeSimulator() {
                   <StackedBar segments={segActifs} />
                 ) : (
                   <p className="text-caption text-muted">Renseignez un versement pour voir la décomposition.</p>
-                )}
-                {ventil === "remuneration" && mix && (
-                  <p className="mt-4 text-caption text-muted">
-                    Structure : <span className="tabular-nums text-ink-2">{mix.entree} %</span> entrée · <span className="tabular-nums text-ink-2">{mix.recurrent} %</span> récurrent · <span className="tabular-nums text-ink-2">{mix.honoraires} %</span> honoraires
-                    <span className="text-muted-2"> — marché CGP 60 / 28 / 12 (AMF 2024)</span>
-                  </p>
                 )}
                 <Disclosure summary="Détail ligne par ligne">
                   {portfolioHref && (
