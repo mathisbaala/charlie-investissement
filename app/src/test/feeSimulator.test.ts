@@ -3,6 +3,8 @@ import {
   simulate,
   rendementPondere,
   projeterUC,
+  projectionSeries,
+  tauxRetrocessionMoyen,
   partFraisDansGainBrut,
   repartitionFrais,
   reductionRendementAnnuelle,
@@ -619,5 +621,68 @@ describe('projeterUC', () => {
   it('null si perf absente', () => {
     expect(projeterUC(null, 0.8, 10_000, 5)).toBeNull()
     expect(projeterUC(undefined, 0.8, 10_000, 5)).toBeNull()
+  })
+})
+
+describe('tauxRetrocessionMoyen — KPI taux de rétro cabinet', () => {
+  it('nul quand aucune rétrocession récurrente', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0, contractFeeShare: 0, eurosRetroShare: 0 })
+    const h = sim.horizons[sim.horizons.length - 1]
+    expect(tauxRetrocessionMoyen(sim.points, h)).toBe(0)
+  })
+
+  it('positif et cohérent avec le taux de rétro saisi (ordre de grandeur)', () => {
+    // 100 % UC, rétro 0,9 %/an : le taux moyen doit tourner autour de 0,9 %.
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, partUC: 100, retroCgp: 0.9 })
+    const h = sim.horizons[sim.horizons.length - 1]
+    const taux = tauxRetrocessionMoyen(sim.points, h)!
+    expect(taux).toBeGreaterThan(0.7)
+    expect(taux).toBeLessThan(1.1)
+  })
+
+  it('exclut les honoraires (facture directe, pas une rétrocession)', () => {
+    const sansHono = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9 })
+    const avecHono = simulate({ ...base, frais: FRAIS_TYPES, retroCgp: 0.9, honoraireForfait: 5000, honoraireAnnuelPct: 1 })
+    const hS = sansHono.horizons[sansHono.horizons.length - 1]
+    const hA = avecHono.horizons[avecHono.horizons.length - 1]
+    expect(tauxRetrocessionMoyen(avecHono.points, hA)).toBeCloseTo(tauxRetrocessionMoyen(sansHono.points, hS)!, 6)
+  })
+})
+
+describe('projectionSeries — série annuelle du graphe', () => {
+  it('un point par année, 0 → durée, et valeurNette recopie l’encours du moteur', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    const serie = projectionSeries(sim.points)
+    expect(serie.length).toBe(sim.points.length)
+    expect(serie[0].annee).toBe(0)
+    expect(serie[serie.length - 1].annee).toBe(15)
+    expect(serie[10].valeurNette).toBe(sim.points[10].valeurNette)
+  })
+
+  it('coût client = frais de structure cumulés + honoraires en sus (hors sortie one-shot)', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES, honoraireForfait: 300, honoraireAnnuelPct: 0.2 })
+    const serie = projectionSeries(sim.points)
+    const p = sim.points[15]
+    expect(serie[15].coutClient).toBeCloseTo(p.totalFraisCumules + p.honoraireCumule, 6)
+  })
+
+  it('revenu cabinet = même somme cumulée que l’horizon (source unique, pas de divergence)', () => {
+    const sim = simulate({
+      ...base, frais: FRAIS_TYPES,
+      retroCgp: 0.9, commissionCabinet: 2, contractFeeShare: 0.1, eurosRetroShare: 0.1,
+    })
+    const serie = projectionSeries(sim.points)
+    const hFinal = sim.horizons[sim.horizons.length - 1]
+    // l’horizon final tombe sur l’année 15 → même revenu cabinet cumulé
+    expect(serie[15].revenuCabinet).toBeCloseTo(hFinal.revenuCabinet, 6)
+  })
+
+  it('coût client et revenu cabinet sont monotones croissants', () => {
+    const sim = simulate({ ...base, frais: FRAIS_TYPES })
+    const serie = projectionSeries(sim.points)
+    for (let i = 1; i < serie.length; i++) {
+      expect(serie[i].coutClient).toBeGreaterThanOrEqual(serie[i - 1].coutClient)
+      expect(serie[i].revenuCabinet).toBeGreaterThanOrEqual(serie[i - 1].revenuCabinet)
+    }
   })
 })

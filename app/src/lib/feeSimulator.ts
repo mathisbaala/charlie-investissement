@@ -517,6 +517,52 @@ export function coutAnnuelMoyenPct(points: YearPoint[], h: HorizonProjection): n
 }
 
 /**
+ * Taux moyen de rétrocession du cabinet — le KPI de référence du métier
+ * (commissions récurrentes rapportées à l'encours). On lisse les rétrocessions
+ * RÉCURRENTES cumulées (rétro UC N2 + part gestion contrat N1 + rétro fonds
+ * euros) sur la durée, puis on les rapporte à l'encours net moyen porté année
+ * après année — symétrique de `coutAnnuelMoyenPct`. Les honoraires en sont
+ * EXCLUS : ce sont des factures directes, pas des rétrocessions. Null si
+ * l'encours moyen ou la durée ne sont pas exploitables.
+ */
+export function tauxRetrocessionMoyen(points: YearPoint[], h: HorizonProjection): number | null {
+  if (!(h.annees >= 1)) return null;
+  const encours: number[] = [];
+  for (let i = 1; i <= h.annees && i < points.length; i++) {
+    if (points[i].valeurNette > 0) encours.push(points[i].valeurNette);
+  }
+  if (encours.length === 0) return null;
+  const encoursMoyen = encours.reduce((a, v) => a + v, 0) / encours.length;
+  const retroRecurrente = h.retroCgpCumulee + h.contractFeeCumulee + h.eurosRetroCumulee;
+  return r2((retroRecurrente / h.annees / encoursMoyen) * 100);
+}
+
+/**
+ * Série annuelle prête pour le graphe de projection de l'onglet Frais — un point
+ * par année (0 = souscription → durée), TOUS les agrégats issus du moteur (mêmes
+ * formules que les horizons, source unique) : encours net, coût client cumulé
+ * (frais de structure + honoraires en sus, hors frais de sortie one-shot au
+ * rachat) et revenu cabinet cumulé. L'UI ne recalcule rien — elle trace.
+ */
+export interface ProjectionPoint {
+  annee: number;
+  valeurNette: number;    // encours (avant frais de sortie)
+  coutClient: number;     // frais de structure cumulés + honoraires en sus
+  revenuCabinet: number;  // revenu cabinet cumulé (rétro + commission + part gestion + rétro € + honoraires)
+}
+export function projectionSeries(points: YearPoint[]): ProjectionPoint[] {
+  return points.map((p) => ({
+    annee: p.annee,
+    valeurNette: p.valeurNette,
+    coutClient: r2(p.totalFraisCumules + p.honoraireCumule),
+    revenuCabinet: r2(
+      p.retroCgpCumulee + p.commCabinetCumulee + p.contractFeeCumulee +
+      p.eurosRetroCumulee + p.honoraireCumule,
+    ),
+  }));
+}
+
+/**
  * Projection simple d'une UC seule (table « toutes les UC ») : valeur d'un
  * montant investi à N années au rendement net annualisé donné, dégradé du
  * frais de gestion du contrat. Null si la perf est absente.

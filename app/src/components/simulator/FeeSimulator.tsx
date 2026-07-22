@@ -3,6 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { Btn } from "@/components/ui/Btn";
@@ -10,10 +13,11 @@ import { PageShell } from "@/components/ui/Page";
 import { X, ArrowRight, Download, ChevronDown } from "@/components/ui/icons";
 import { pct, feeFracToPct, CONTRACT_FEE_DEFAULTS } from "@/lib/format";
 import { parsePortfolioParams } from "@/lib/portfolio";
+import { CHART_GRID, CHART_AXIS } from "@/lib/chartColors";
 import {
-  simulate, rendementPondere, partFraisDansGainBrut, repartitionFrais,
-  reductionRendementAnnuelle, remunerationSupport, HORIZONS_DEFAUT,
-  type FeeParams, type SimulationInput,
+  simulate, rendementPondere, repartitionFrais, reductionRendementAnnuelle,
+  remunerationSupport, projectionSeries, tauxRetrocessionMoyen, HORIZONS_DEFAUT,
+  type FeeParams, type SimulationInput, type ProjectionPoint,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
 import { loadStoredCabinet, cabinetContract, resolveFundRetrocession, EMPTY_CABINET } from "@/lib/cabinet";
@@ -172,6 +176,178 @@ function Drawer({
   );
 }
 
+// ── Présentation des résultats (colonne droite) ────────────────────────────
+
+// Rampe monochrome clay → sable (désaturée, dans l'esprit « seul l'accent porte
+// la couleur »). Le vert `ok` n'apparaît QUE pour marquer la part du cabinet
+// parmi des tiers (onglet Bénéficiaires) — pas dans les rampes.
+const SEG_CLAY = [
+  "oklch(0.47 0.095 40)", // clay (accent)
+  "oklch(0.58 0.078 42)", // clay clair
+  "oklch(0.69 0.055 44)", // clay pâle
+  "oklch(0.79 0.035 46)", // sable
+  "oklch(0.62 0.006 90)", // gris neutre
+];
+
+interface BarSegment { label: string; value: number; color: string; strong?: boolean }
+
+// Barre empilée unique + légende : remplace une liste de lignes par UN objet
+// visuel qui montre les proportions d'un coup d'œil. Les étiquettes vivent dans
+// la légende (jamais dans les segments) → pas de collision quand un poste écrase
+// les autres. Proportions normalisées sur la somme des segments (la barre
+// remplit toujours 100 %). Vide si aucun montant.
+function StackedBar({ segments }: { segments: BarSegment[] }) {
+  const shown = segments.filter((s) => s.value > 0);
+  const total = shown.reduce((a, s) => a + s.value, 0);
+  if (total <= 0) return null;
+  return (
+    <div className="space-y-3.5">
+      <div
+        className="flex h-2.5 w-full overflow-hidden rounded-full bg-line-soft"
+        role="img"
+        aria-label={shown.map((s) => `${s.label} : ${Math.round((s.value / total) * 100)} %`).join(", ")}
+      >
+        {shown.map((s) => (
+          <div
+            key={s.label}
+            className="h-full"
+            style={{ width: `${(s.value / total) * 100}%`, backgroundColor: s.color }}
+            title={`${s.label} · ${EUR.format(s.value)}`}
+          />
+        ))}
+      </div>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+        {shown.map((s) => (
+          <li key={s.label} className="flex items-center gap-2 min-w-0">
+            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
+            <span className={`text-meta truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`}>{s.label}</span>
+            <span className="ml-auto shrink-0 flex items-baseline gap-2">
+              <span className={`text-meta tabular-nums ${s.strong ? "text-ink font-medium" : "text-ink"}`}>{EUR.format(s.value)}</span>
+              <span className="text-caption text-muted tabular-nums w-9 text-right">{Math.round((s.value / total) * 100)} %</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Sélecteur de vue (onglets pilule, motif aligné sur NavChart). Navigation
+// clavier native (vrais <button role=tab>). Générique sur la clé.
+function Segmented<T extends string>({ options, value, onChange }: {
+  options: { key: T; label: string }[]; value: T; onChange: (k: T) => void;
+}) {
+  return (
+    <div className="inline-flex gap-0.5 rounded-lg border border-line bg-paper-2 p-0.5" role="tablist">
+      {options.map((o) => (
+        <button
+          key={o.key} type="button" role="tab" aria-selected={value === o.key}
+          onClick={() => onChange(o.key)}
+          className={`rounded-md px-2.5 py-1 text-label font-medium transition-all ${
+            value === o.key ? "border border-line bg-paper text-ink shadow-sm" : "border border-transparent text-muted hover:text-ink-2"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Révélation à la demande : le détail exhaustif (tableaux) reste replié pour ne
+// pas rallonger la page — un clic l'ouvre.
+function Disclosure({ summary, children }: { summary: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-4 border-t border-line-soft pt-3">
+      <button
+        type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="flex items-center gap-1.5 text-caption text-accent-ink hover:underline"
+      >
+        <ChevronDown size={13} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
+        {summary}
+      </button>
+      {open && <div className="mt-3 overflow-x-auto">{children}</div>}
+    </div>
+  );
+}
+
+const LegendDot = ({ color, label }: { color: string; label: string }) => (
+  <span className="inline-flex items-center gap-1.5">
+    <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+    {label}
+  </span>
+);
+
+// Format compact et HOMOGÈNE pour les axes du graphe : toujours en milliers
+// (« k »), une décimale seulement sous 10 k — sinon recharts peut tomber sur des
+// graduations à pas de 700 et l'on afficherait « 700 » à côté de « 1 k / 2 k ».
+const eurAxis = (v: number) =>
+  v === 0 ? "0" : `${(v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: Math.abs(v) < 10_000 ? 1 : 0 })} k`;
+
+function ProjTooltip({ active, payload, label }: {
+  active?: boolean; payload?: { name?: string; value?: number; color?: string }[]; label?: number | string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-line bg-paper px-3 py-2 text-caption shadow-sm">
+      <p className="mb-1 text-muted">{label} an{Number(label) > 1 ? "s" : ""}</p>
+      <div className="space-y-1">
+        {payload.map((p) => (
+          <div key={p.name} className="flex items-center gap-2">
+            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} aria-hidden />
+            <span className="text-ink-2">{p.name}</span>
+            <span className="ml-auto pl-3 tabular-nums font-medium text-ink">{EUR.format(p.value ?? 0)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Graphe de projection : 3 courbes. L'encours (grand) sur l'axe gauche ; le coût
+// client cumulé et la rému cabinet cumulée (petits, même ordre de grandeur) sur
+// l'axe droit — sinon ils s'écraseraient au ras du zéro. Rému cabinet en vert,
+// trait plus épais (la star, priorité cabinet).
+function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
+  if (data.length < 2) {
+    return <p className="text-caption text-muted">Augmentez la durée pour visualiser la projection.</p>;
+  }
+  const axisTick = { fontSize: 10, fill: CHART_AXIS, fontFamily: "var(--font-mono)" };
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={data} margin={{ top: 8, right: 2, left: 0, bottom: 0 }}>
+        <CartesianGrid stroke={CHART_GRID} vertical={false} strokeWidth={1} />
+        <XAxis
+          dataKey="annee" tick={axisTick} axisLine={false} tickLine={false}
+          minTickGap={24} tickFormatter={(v: number) => `${v} an${v > 1 ? "s" : ""}`}
+        />
+        <YAxis
+          yAxisId="left" tick={axisTick} axisLine={false} tickLine={false}
+          width={40} tickFormatter={eurAxis} domain={[0, "auto"]}
+        />
+        <YAxis
+          yAxisId="right" orientation="right" tick={axisTick} axisLine={false} tickLine={false}
+          width={38} tickFormatter={eurAxis} domain={[0, "auto"]}
+        />
+        <Tooltip content={(p) => <ProjTooltip {...(p as object)} />} />
+        <Line
+          yAxisId="left" type="monotone" dataKey="valeurNette" name="Encours net"
+          stroke="var(--color-ink-2)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }}
+        />
+        <Line
+          yAxisId="right" type="monotone" dataKey="coutClient" name="Coût client cumulé"
+          stroke="var(--color-warn)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }}
+        />
+        <Line
+          yAxisId="right" type="monotone" dataKey="revenuCabinet" name="Rému cabinet cumulée"
+          stroke="var(--color-ok)" strokeWidth={2.25} dot={false} activeDot={{ r: 3.5 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 /**
  * Onglet « Frais » — angle COMPTABILITÉ / rémunération du cabinet (CGP). Deux
  * étages de frais (contrat + supports) mais la lecture est « combien je gagne,
@@ -216,6 +392,9 @@ export function FeeSimulator() {
   // réels, contrat, DIC). Invalidé dès qu'on modifie le portefeuille à la main
   // (le relais ne refléterait plus l'écran).
   const [handoffToken, setHandoffToken] = useState<string | null>(null);
+  // Vue active de la décomposition (bloc résultats commutable) : par qui c'est
+  // encaissé / composition de ma rému / par type de frais.
+  const [ventil, setVentil] = useState<"beneficiaires" | "remuneration" | "nature">("beneficiaires");
 
   const setF = (k: keyof FeeParams) => (v: number) => setFrais((f) => ({ ...f, [k]: v }));
 
@@ -437,8 +616,6 @@ export function FeeSimulator() {
 
   // ── Lecture réglementaire client (déjà calculée par le moteur) ─────────────
   const riy = final ? reductionRendementAnnuelle(final) : 0;
-  const coutPctVersements = final && final.versementsCumules > 0
-    ? (coutTotalClient / final.versementsCumules) * 100 : null;
   // Ventilation du coût client par NATURE (DDA/MIF2) à l'horizon final.
   const nature = final && finalPoint ? (() => {
     const fc = finalPoint.fraisCumules;
@@ -475,6 +652,67 @@ export function FeeSimulator() {
     : null;
   const remuAnnuelleTotale = supportRows.reduce((a, r) => a + r.retroAnnuelle, 0) + (feRow?.retroAnnuelle ?? 0);
   const upfrontTotal = supportRows.reduce((a, r) => a + r.commissionUpfront, 0) + (feRow?.commissionUpfront ?? 0);
+
+  // Série annuelle du graphe de projection (source unique = moteur).
+  const serie = useMemo(() => projectionSeries(sim.points), [sim.points]);
+
+  // Les trois ventilations d'un même montant (bloc « Décomposition »). Chacune =
+  // segments d'une barre empilée. Le vert `ok` ne sert QUE de repère « votre
+  // part » parmi des tiers (Bénéficiaires) ; les rampes restent monochromes clay.
+  const ventilOptions = [
+    { key: "beneficiaires" as const, label: "Bénéficiaires" },
+    { key: "remuneration" as const, label: "Ma rému" },
+    { key: "nature" as const, label: "Par nature" },
+  ];
+  const ventilCaption: Record<typeof ventil, string> = {
+    beneficiaires: "Où part le coût total supporté par le client.",
+    remuneration: "Ce qui compose votre rémunération.",
+    nature: "Le coût client réparti par type de frais.",
+  };
+  const segBeneficiaires: BarSegment[] = repart
+    ? [
+        { label: "Cabinet (vous)", value: revenuCabinet, color: "var(--color-ok)", strong: true },
+        { label: "Assureur", value: repart.assureur, color: SEG_CLAY[0] },
+        { label: "Société de gestion", value: repart.societeGestion, color: SEG_CLAY[2] },
+      ]
+    : [];
+  const segRemuneration: BarSegment[] = final
+    ? [
+        { label: "Rétrocessions", value: final.retroCgpCumulee, color: SEG_CLAY[0], strong: true },
+        { label: "Commission d'entrée", value: final.commCabinetCumulee, color: SEG_CLAY[1] },
+        ...(final.contractFeeCumulee > 0 ? [{ label: "Part gestion contrat", value: final.contractFeeCumulee, color: SEG_CLAY[2] }] : []),
+        ...(final.eurosRetroCumulee > 0 ? [{ label: "Rétro fonds euros", value: final.eurosRetroCumulee, color: SEG_CLAY[3] }] : []),
+        ...(honoraireCumule > 0 ? [{ label: "Honoraires (HT)", value: honoraireCumule, color: SEG_CLAY[4] }] : []),
+      ]
+    : [];
+  const segNature: BarSegment[] = (nature ?? [])
+    .filter((l) => l.montant > 0)
+    .map((l, i) => ({ label: l.nom, value: l.montant, color: SEG_CLAY[i % SEG_CLAY.length] }));
+  const segActifs = ventil === "beneficiaires" ? segBeneficiaires : ventil === "remuneration" ? segRemuneration : segNature;
+
+  // ── Indicateurs cabinet (lecture pilotage, pas de recalcul divergent) ──────
+  // Taux moyen de rétrocession = LE KPI métier (récurrent / encours moyen).
+  const tauxRetro = final ? tauxRetrocessionMoyen(sim.points, final) : null;
+  // Part du récurrent qui dépend des UC (rétro N2 sur support) : ce qui
+  // s'effondre si le client bascule vers fonds euros ou ETF.
+  const partUCRecurrent = final && final.revenuCabinetRecurrent > 0
+    ? Math.round((final.retroCgpCumulee / final.revenuCabinetRecurrent) * 100)
+    : null;
+  // Mix du revenu par NATURE (entrée / récurrent / honoraires) — à comparer au
+  // marché CGP (AMF 2024 : 60 % entrée · 28 % récurrent · 12 % honoraires).
+  const mix = final && revenuCabinet > 0
+    ? {
+        entree: Math.round((final.commCabinetCumulee / revenuCabinet) * 100),
+        recurrent: Math.round(((final.retroCgpCumulee + final.contractFeeCumulee + final.eurosRetroCumulee) / revenuCabinet) * 100),
+        honoraires: Math.round((honoraireCumule / revenuCabinet) * 100),
+      }
+    : null;
+  // Alerte érosion : part de l'encours UC qui ne rétrocède RIEN (ETF / indiciel).
+  // Le récurrent s'y éteint sans que l'assureur n'alerte jamais.
+  const ucEncours = supportRows.reduce((a, r) => a + r.montant, 0);
+  const partSansRetro = ucEncours > 0
+    ? Math.round((supportRows.filter((r) => !(r.effRetro > 0)).reduce((a, r) => a + r.montant, 0) / ucEncours) * 100)
+    : 0;
 
   // Génère et télécharge le document de frais (mode client ou cabinet). 100 %
   // déterministe côté serveur (aucun appel IA) : on POST l'entrée de simulation
@@ -636,7 +874,7 @@ export function FeeSimulator() {
               <FieldPct label="Part gestion contrat (par an)" value={contractFeeShare} onChange={setContractFeeManuel} />
               <FieldPct label="Rétro fonds euros (par an)" value={eurosRetroShare} onChange={setEurosRetroManuel} />
               <div className="pt-2 mt-1 border-t border-line-soft space-y-3">
-                <p className="text-caption text-muted-2">Honoraires de conseil</p>
+                <p className="text-caption text-muted-2">Honoraires de conseil (HT)</p>
                 <FieldEur label="Forfait (ponctuel)" value={honoraireForfait} onChange={setHonoraireForfaitManuel} step={100} />
                 <FieldPct label="Récurrent (par an)" value={honoraireAnnuelPct} onChange={setHonoraireAnnuelManuel} />
               </div>
@@ -661,219 +899,171 @@ export function FeeSimulator() {
 
         {/* ═══ Colonne droite · résultats (dense) ═══ */}
         <main className="min-w-0 space-y-5">
-          {/* Synthèse en tête de colonne : elle défile avec le reste du contenu.
-              Deux comptabilités empilées, une ligne chacune : ce que le cabinet
-              encaisse et ce que le client supporte / récupère. Chiffres mis en
-              avant (text-display), libellés courts. */}
           {final && (
-            <div className="border-b border-line-soft pb-4 space-y-3">
-              {([
-                {
-                  titre: "Ce que je gagne",
-                  tiles: [
-                    { label: "Rémunération", value: EUR.format(revenuCabinet), tone: "ok" },
-                    { label: "À l'entrée", value: EUR.format(revenuUpfront), tone: "ok" },
-                    { label: "Récurrent", value: `${EUR.format(revenuRecurrentAn1)}/an`, tone: "ok" },
-                  ],
-                },
-                {
-                  titre: "Côté client",
-                  tiles: [
-                    { label: "Coût total", value: EUR.format(coutTotalClient), tone: null },
-                    { label: "Réduction de rendement", value: `${pct(riy)}/an`, tone: null },
-                  ],
-                },
-              ] as { titre: string; tiles: { label: string; value: string; tone: "ok" | null }[] }[]).map((g) => (
-                <section key={g.titre}>
-                  <p className="text-label uppercase tracking-widest text-muted font-semibold px-0.5 mb-1.5">{g.titre}</p>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {g.tiles.map((k) => (
-                      <div key={k.label} className="min-w-0 rounded-xl border border-line bg-paper px-3.5 py-3">
-                        <p className="text-label uppercase tracking-wide text-muted font-semibold leading-tight truncate" title={k.label}>{k.label}</p>
-                        <p className={`text-display font-semibold tabular-nums leading-none mt-1.5 ${k.tone === "ok" ? "text-ok" : "text-ink"}`}>{k.value}</p>
+            <>
+              {/* ── Bloc 1 · Héros — ma rémunération (priorité cabinet) ────────
+                  Le nombre qui compte d'abord pour le CGP : grand, en vert.
+                  Split temporel inline (entrée / récurrent). Le client passe en
+                  pied, sobre — RIY = SEULE mesure de réduction de rendement
+                  (pas de doublon d'indicateur). */}
+              <Card className="px-5 py-5 sm:px-6 sm:py-6">
+                <p className="text-label uppercase tracking-widest text-muted font-semibold">Ma rémunération</p>
+                <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-2">{EUR.format(revenuCabinet)}</p>
+                <p className="text-meta text-ink-2 mt-2.5">
+                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée
+                  <span className="text-muted"> · </span>
+                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent (an 1)
+                </p>
+                {(tauxRetro != null || partUCRecurrent != null) && (
+                  <div className="mt-3.5 flex flex-wrap gap-x-8 gap-y-2.5">
+                    {tauxRetro != null && (
+                      <div>
+                        <p className="text-label uppercase tracking-wide text-muted font-semibold">Taux de rétrocession</p>
+                        <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-0.5">{pct(tauxRetro)}<span className="text-caption text-muted font-normal"> /an</span></p>
                       </div>
-                    ))}
+                    )}
+                    {partUCRecurrent != null && (
+                      <div>
+                        <p className="text-label uppercase tracking-wide text-muted font-semibold">Récurrent lié aux UC</p>
+                        <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-0.5">{partUCRecurrent} %</p>
+                      </div>
+                    )}
                   </div>
-                </section>
-              ))}
-            </div>
-          )}
+                )}
+                <p className="text-meta text-muted mt-3.5 pt-3 border-t border-line-soft">
+                  Client : <span className="tabular-nums text-ink-2">{EUR.format(coutTotalClient)}</span> de frais
+                  <span className="text-muted"> · </span>
+                  <span
+                    className="tabular-nums text-ink-2 cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2"
+                    title="Réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
+                  >−{pct(riy)}/an (RIY)</span> de rendement
+                </p>
+              </Card>
 
-          <div className="space-y-5">
-          <Card className="px-5 py-5">
-            <H2>Ma rémunération</H2>
-            {final && (
-              // Décomposition du revenu cabinet (le total vit dans le bandeau).
-              // Motif ligne aligné sur « Où va le coût ? » / « La nature du coût »
-              // pour l'homogénéité de la page (plus de tuiles ni de colonne vide).
-              <div className="space-y-2.5 mt-3">
-                {[
-                  { nom: "Rétrocessions", montant: final.retroCgpCumulee },
-                  { nom: "Commission d'entrée", montant: final.commCabinetCumulee },
-                  ...(final.contractFeeCumulee > 0 ? [{ nom: "Part gestion contrat", montant: final.contractFeeCumulee }] : []),
-                  ...(final.eurosRetroCumulee > 0 ? [{ nom: "Rétro fonds euros", montant: final.eurosRetroCumulee }] : []),
-                  ...(honoraireCumule > 0 ? [{ nom: "Honoraires", montant: honoraireCumule }] : []),
-                ].map(({ nom, montant }) => (
-                  <div key={nom} className="flex items-center justify-between gap-4 border-b border-line-soft last:border-0 pb-2.5 last:pb-0">
-                    <p className="text-meta text-ink">{nom}</p>
-                    <span className="text-meta text-ink font-medium tabular-nums">{EUR.format(montant)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card className="px-5 py-5 overflow-x-auto">
-            <div className="flex items-baseline justify-between gap-3 mb-3">
-              <H2 className="">Détail par support</H2>
-              {portfolioHref && (
-                <Link href={portfolioHref} className="text-caption text-accent-ink hover:underline whitespace-nowrap inline-flex items-center gap-1">
-                  Analyse complète <ArrowRight size={12} />
-                </Link>
-              )}
-            </div>
-            {supportRows.length === 0 ? (
-              <p className="text-caption text-muted">Créez, déposez ou importez un portefeuille pour voir la rémunération ligne par ligne.</p>
-            ) : (
-              <table className="w-full text-meta tabular-nums">
-                <thead>
-                  <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
-                    <th className="text-left py-2 font-semibold">Support</th>
-                    <th className="text-right py-2 font-semibold">Frais cour.</th>
-                    <th className="text-right py-2 font-semibold">Entrée</th>
-                    <th className="text-right py-2 font-semibold">Rétro</th>
-                    <th className="text-right py-2 font-semibold">Rétro /an</th>
-                    <th className="text-right py-2 font-semibold">Commission</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {supportRows.map(({ u, effRetro, retroAnnuelle, commissionUpfront }) => (
-                    <tr key={u.isin} className="border-b border-line-soft last:border-0">
-                      <td className="py-1.5 text-ink-2 max-w-[200px] truncate">
-                        <Link href={`/fonds/${u.isin}`} className="hover:text-accent-ink hover:underline" title={u.name}>{u.name}</Link>
-                      </td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(u.entryFee)}</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(effRetro)}</td>
-                      <td className="py-1.5 text-right text-ok font-medium">{EUR.format(retroAnnuelle)}</td>
-                      <td className="py-1.5 text-right text-ok">{EUR.format(commissionUpfront)}</td>
-                    </tr>
-                  ))}
-                  {feRow && (
-                    <tr className="border-b border-line-soft last:border-0">
-                      <td className="py-1.5 text-ink-2">Fonds en euros</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
-                      <td className="py-1.5 text-right text-ink-2">{pct(feRow.effRetro)}</td>
-                      <td className="py-1.5 text-right text-ok font-medium">{EUR.format(feRow.retroAnnuelle)}</td>
-                      <td className="py-1.5 text-right text-ok">{EUR.format(feRow.commissionUpfront)}</td>
-                    </tr>
-                  )}
-                  <tr className="border-t border-line font-medium">
-                    <td className="py-2 text-ink">Total</td>
-                    <td /><td /><td />
-                    <td className="py-2 text-right text-ok">{EUR.format(remuAnnuelleTotale)}</td>
-                    <td className="py-2 text-right text-ok">{EUR.format(upfrontTotal)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
-          </Card>
-
-          {repart && final && (
-            <Card className="px-5 py-5">
-              <H2>Où va le coût ?</H2>
-              <div className="space-y-2.5">
-                {[
-                  { nom: "Assureur", montant: repart.assureur },
-                  { nom: "Société de gestion", montant: repart.societeGestion },
-                  { nom: "Votre cabinet (CGP)", montant: revenuCabinet, mine: true },
-                ].map(({ nom, montant, mine }) => {
-                  const part = coutTotalClient > 0 ? (montant / coutTotalClient) * 100 : 0;
-                  return (
-                    <div key={nom} className="flex items-center justify-between gap-4 border-b border-line-soft last:border-0 pb-2.5 last:pb-0">
-                      <p className={`text-meta ${mine ? "text-ok font-medium" : "text-ink"}`}>{nom}</p>
-                      <div className="text-right shrink-0">
-                        <span className={`text-meta font-medium tabular-nums ${mine ? "text-ok" : "text-ink"}`}>{EUR.format(montant)}</span>
-                        <span className="text-caption text-muted tabular-nums ml-2">{pct(part)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
-          {final && nature && (
-            <Card className="px-5 py-5">
-              <div className="flex items-baseline justify-between gap-3 mb-3">
-                <H2 className="">La nature du coût (client)</H2>
-                <span className="text-meta text-ink font-medium tabular-nums">{EUR.format(coutTotalClient)}</span>
-              </div>
-              <div className="space-y-2">
-                {nature.filter((l) => l.montant > 0).map((l) => {
-                  const part = coutTotalClient > 0 ? (l.montant / coutTotalClient) * 100 : 0;
-                  return (
-                    <div key={l.nom}>
-                      <div className="flex items-center justify-between gap-4">
-                        <p className="text-meta text-ink-2">{l.nom}</p>
-                        <div className="text-right shrink-0">
-                          <span className="text-meta tabular-nums text-ink">{EUR.format(l.montant)}</span>
-                          <span className="text-caption text-muted tabular-nums ml-2">{Math.round(part)} %</span>
-                        </div>
-                      </div>
-                      <div className="mt-1 h-1 rounded-full bg-line-soft overflow-hidden">
-                        <div className="h-full bg-accent/60" style={{ width: `${Math.min(100, part)}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4 pt-3 border-t border-line-soft grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div>
-                  <p className="text-caption uppercase tracking-wide text-muted font-semibold">Réduction de rendement</p>
-                  <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(riy)}<span className="text-caption text-muted font-normal"> /an (type PRIIPs)</span></p>
+              {/* ── Bloc 2 · Décomposition commutable ─────────────────────────
+                  Trois découpages du même montant en UNE carte (bénéficiaire /
+                  source de rému / nature de frais) → barre empilée + légende, au
+                  lieu de trois listes empilées. Le détail ligne par ligne
+                  (tableau support) est replié. */}
+              <Card className="px-5 py-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <H2 className="">Décomposition</H2>
+                  <Segmented options={ventilOptions} value={ventil} onChange={setVentil} />
                 </div>
-                {partFraisDansGainBrut(final) != null && (
-                  <div>
-                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Frais / gain brut</p>
-                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(partFraisDansGainBrut(final))}<span className="text-caption text-muted font-normal"> du gain brut</span></p>
+                <p className="text-caption text-muted mt-1 mb-4">{ventilCaption[ventil]}</p>
+                {partSansRetro > 0 && (
+                  <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft/50 px-3 py-2">
+                    <p className="text-caption text-ink-2">
+                      <span className="font-medium text-ink">{partSansRetro} % de vos UC ne rétrocèdent rien</span> (ETF / indiciel) — ce récurrent-là s’éteint sans alerte de l’assureur.
+                    </p>
                   </div>
                 )}
-                {coutPctVersements != null && (
-                  <div className="sm:text-right">
-                    <p className="text-caption uppercase tracking-wide text-muted font-semibold">Coût total</p>
-                    <p className="text-body font-semibold tabular-nums text-ink leading-tight mt-0.5">{pct(Math.round(coutPctVersements * 10) / 10)}<span className="text-caption text-muted font-normal"> des versements</span></p>
-                  </div>
+                {segActifs.some((s) => s.value > 0) ? (
+                  <StackedBar segments={segActifs} />
+                ) : (
+                  <p className="text-caption text-muted">Renseignez un versement pour voir la décomposition.</p>
                 )}
-              </div>
-            </Card>
-          )}
+                {ventil === "remuneration" && mix && (
+                  <p className="mt-4 text-caption text-muted">
+                    Structure : <span className="tabular-nums text-ink-2">{mix.entree} %</span> entrée · <span className="tabular-nums text-ink-2">{mix.recurrent} %</span> récurrent · <span className="tabular-nums text-ink-2">{mix.honoraires} %</span> honoraires
+                    <span className="text-muted-2"> — marché CGP 60 / 28 / 12 (AMF 2024)</span>
+                  </p>
+                )}
+                <Disclosure summary="Détail ligne par ligne">
+                  {portfolioHref && (
+                    <div className="mb-2 flex justify-end">
+                      <Link href={portfolioHref} className="text-caption text-accent-ink hover:underline whitespace-nowrap inline-flex items-center gap-1">
+                        Analyse complète <ArrowRight size={12} />
+                      </Link>
+                    </div>
+                  )}
+                  {supportRows.length === 0 ? (
+                    <p className="text-caption text-muted">Créez, déposez ou importez un portefeuille pour voir la rémunération ligne par ligne.</p>
+                  ) : (
+                    <table className="w-full text-meta tabular-nums">
+                      <thead>
+                        <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
+                          <th className="text-left py-2 font-semibold">Support</th>
+                          <th className="text-right py-2 font-semibold">Frais cour.</th>
+                          <th className="text-right py-2 font-semibold">Entrée</th>
+                          <th className="text-right py-2 font-semibold">Rétro</th>
+                          <th className="text-right py-2 font-semibold">Rétro /an</th>
+                          <th className="text-right py-2 font-semibold">Commission</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supportRows.map(({ u, effRetro, retroAnnuelle, commissionUpfront }) => (
+                          <tr key={u.isin} className="border-b border-line-soft last:border-0">
+                            <td className="py-1.5 text-ink-2 max-w-[200px] truncate">
+                              <Link href={`/fonds/${u.isin}`} className="hover:text-accent-ink hover:underline" title={u.name}>{u.name}</Link>
+                            </td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(u.ter)}</td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(u.entryFee)}</td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(effRetro)}</td>
+                            <td className="py-1.5 text-right text-ok font-medium">{EUR.format(retroAnnuelle)}</td>
+                            <td className="py-1.5 text-right text-ok">{EUR.format(commissionUpfront)}</td>
+                          </tr>
+                        ))}
+                        {feRow && (
+                          <tr className="border-b border-line-soft last:border-0">
+                            <td className="py-1.5 text-ink-2">Fonds en euros</td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(null)}</td>
+                            <td className="py-1.5 text-right text-ink-2">{pct(feRow.effRetro)}</td>
+                            <td className="py-1.5 text-right text-ok font-medium">{EUR.format(feRow.retroAnnuelle)}</td>
+                            <td className="py-1.5 text-right text-ok">{EUR.format(feRow.commissionUpfront)}</td>
+                          </tr>
+                        )}
+                        <tr className="border-t border-line font-medium">
+                          <td className="py-2 text-ink">Total</td>
+                          <td /><td /><td />
+                          <td className="py-2 text-right text-ok">{EUR.format(remuAnnuelleTotale)}</td>
+                          <td className="py-2 text-right text-ok">{EUR.format(upfrontTotal)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </Disclosure>
+              </Card>
 
-          <Card className="px-5 py-5 overflow-x-auto">
-            <H2>Projections</H2>
-            <table className="w-full text-meta tabular-nums">
-              <thead>
-                <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
-                  <th className="text-left py-2 font-semibold">Horizon</th>
-                  <th className="text-right py-2 font-semibold">Valeur nette</th>
-                  <th className="text-right py-2 font-semibold">Coût total</th>
-                  <th className="text-right py-2 font-semibold">Rému cabinet</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sim.horizons.map((h) => (
-                  <tr key={h.annees} className="border-b border-line-soft last:border-0">
-                    <td className="py-1.5 text-ink-2">{h.annees} ans</td>
-                    <td className="py-1.5 text-right text-ink font-medium">{EUR.format(h.valeurNette)}</td>
-                    <td className="py-1.5 text-right text-ink-2">{EUR.format(h.coutTotalClient)}</td>
-                    <td className="py-1.5 text-right text-ok">{EUR.format(h.revenuCabinet)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          </div>
+              {/* ── Bloc 3 · Projection dans le temps ─────────────────────────
+                  Un graphe 3 courbes (encours / coût cumulé / rému cabinet) à la
+                  place du tableau ; le tableau chiffré reste accessible replié. */}
+              <Card className="px-5 py-5">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-3">
+                  <H2 className="">Dans le temps</H2>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
+                    <LegendDot color="var(--color-ink-2)" label="Encours net" />
+                    <LegendDot color="var(--color-warn)" label="Coût cumulé" />
+                    <LegendDot color="var(--color-ok)" label="Rému cabinet" />
+                  </div>
+                </div>
+                <ProjectionChart data={serie} />
+                <Disclosure summary="Voir le tableau chiffré">
+                  <table className="w-full text-meta tabular-nums">
+                    <thead>
+                      <tr className="text-caption text-muted uppercase tracking-widest border-b border-line">
+                        <th className="text-left py-2 font-semibold">Horizon</th>
+                        <th className="text-right py-2 font-semibold">Valeur nette</th>
+                        <th className="text-right py-2 font-semibold">Coût total</th>
+                        <th className="text-right py-2 font-semibold">Rému cabinet</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sim.horizons.map((h) => (
+                        <tr key={h.annees} className="border-b border-line-soft last:border-0">
+                          <td className="py-1.5 text-ink-2">{h.annees} ans</td>
+                          <td className="py-1.5 text-right text-ink font-medium">{EUR.format(h.valeurNette)}</td>
+                          <td className="py-1.5 text-right text-ink-2">{EUR.format(h.coutTotalClient)}</td>
+                          <td className="py-1.5 text-right text-ok">{EUR.format(h.revenuCabinet)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Disclosure>
+              </Card>
+            </>
+          )}
 
           {/* Export documentaire (client DDA / fiche interne cabinet) */}
           {final && (
