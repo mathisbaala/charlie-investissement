@@ -10,6 +10,7 @@ import {
   type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
 } from "@/lib/releve";
 import { retroFallbackFrac } from "@/lib/remuneration";
+import { feeFracToPct } from "@/lib/format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -239,8 +240,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       f.isin,
       {
         name: (f.name as string | null) ?? null,
-        // TER stocké en fraction (0.018) → % pour l'affichage/diagnostic.
-        ter: f.ter !== null && f.ter !== undefined ? Math.round(Number(f.ter) * 10000) / 100 : null,
+        // TER stocké en fraction (0.018) → % pour l'affichage/diagnostic
+        // (helper central, source de vérité unique de la conversion fraction↔%).
+        ter: feeFracToPct(f.ter as number | null),
         sri: (f.sri ?? f.srri ?? null) as number | null,
         // Repli de rétrocession (FRACTION/an) pour le calcul de rémunération
         // cabinet : valeur sourcée en base sinon estimation de place. Les frais

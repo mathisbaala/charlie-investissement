@@ -117,6 +117,17 @@ export async function GET(
       .maybeSingle(),
   ]);
 
+  // Aucune de ces requêtes n'est bloquante pour la fiche (le fonds lui-même est
+  // déjà résolu plus haut) : chacune dégrade proprement en tableau/valeur vide.
+  // On LOGGUE néanmoins toute erreur pour ne pas masquer une panne silencieuse
+  // (RLS, timeout, colonne renommée) derrière un « pas de données ».
+  for (const [label, res] of [
+    ["prices", pricesRes], ["holdings", holdingsRes], ["sectors", sectorsRes],
+    ["geos", geosRes], ["insurers", insurersRes], ["scpi", scpiRes], ["metrics", metricsRes],
+  ] as const) {
+    if (res.error) console.error(`[funds/${upper}] lecture ${label} échouée (dégradé):`, res.error);
+  }
+
   // Métriques dérivées gardées (NULL si série non fiable). Repli sur les valeurs
   // brutes de la table uniquement si la lecture de la vue échoue (rare), pour ne
   // jamais casser la fiche — le screener, lui, est gardé en dur côté SQL.

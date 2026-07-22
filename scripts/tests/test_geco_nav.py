@@ -95,5 +95,66 @@ class IncrementalPoints(unittest.TestCase):
         self.assertEqual(out, [])
 
 
+class FetchSeriesErrorHandling(unittest.TestCase):
+    """fetch_series doit distinguer une série VIDE (fonds sans VL, retour [])
+    d'un échec réseau/serveur transitoire (ChartFetchError après retries),
+    sinon un 429/5xx ponctuel fige silencieusement la VL du fonds."""
+
+    class _Resp:
+        def __init__(self, status, payload=None):
+            self.status_code = status
+            self._payload = payload if payload is not None else {"x": [], "y": []}
+        def json(self):
+            return self._payload
+
+    class _Session:
+        def __init__(self, responses):
+            self._responses = list(responses)
+            self.calls = 0
+        def get(self, *a, **k):
+            self.calls += 1
+            r = self._responses[min(self.calls - 1, len(self._responses) - 1)]
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+    def setUp(self):
+        # Retries instantanés (pas d'attente réelle en test).
+        self._orig_sleep = gn.time.sleep
+        gn.time.sleep = lambda *_a, **_k: None
+        self._orig_backoff = gn.CHART_BACKOFF_SEC
+        gn.CHART_BACKOFF_SEC = 0
+
+    def tearDown(self):
+        gn.time.sleep = self._orig_sleep
+        gn.CHART_BACKOFF_SEC = self._orig_backoff
+
+    def test_empty_series_returns_empty_not_error(self):
+        sess = self._Session([self._Resp(200, {"x": [], "y": []})])
+        self.assertEqual(gn.fetch_series(sess, 123), [])
+        self.assertEqual(sess.calls, 1)  # pas de retry sur un 200 vide
+
+    def test_transient_5xx_retried_then_raises(self):
+        sess = self._Session([self._Resp(503), self._Resp(503), self._Resp(503)])
+        with self.assertRaises(gn.ChartFetchError):
+            gn.fetch_series(sess, 123)
+        self.assertEqual(sess.calls, gn.CHART_RETRIES)  # a bien retenté
+
+    def test_transient_then_success(self):
+        sess = self._Session([
+            self._Resp(429),
+            self._Resp(200, {"x": ["16-06-2026"], "y": [10.0]}),
+        ])
+        out = gn.fetch_series(sess, 123)
+        self.assertEqual([p["date"] for p in out], ["2026-06-16"])
+        self.assertEqual(sess.calls, 2)  # 1 échec + 1 succès
+
+    def test_permanent_4xx_not_retried(self):
+        sess = self._Session([self._Resp(404), self._Resp(200)])
+        with self.assertRaises(gn.ChartFetchError):
+            gn.fetch_series(sess, 123)
+        self.assertEqual(sess.calls, 1)  # 404 = définitif, pas de retry
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

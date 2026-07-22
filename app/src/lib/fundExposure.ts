@@ -12,10 +12,11 @@ import { canonicalSector, type ExpoRow } from "@/lib/lookthrough";
  * deux fois selon la langue du libellé (« United States » vs « États-Unis »).
  */
 export async function fetchGeoRows(isins: string[]): Promise<ExpoRow[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("investissement_fund_geos")
     .select("isin, country_label, country_code, weight")
     .in("isin", isins);
+  if (error) console.error("[fundExposure] lecture géo échouée (dégradé vide):", error);
   const rows = (data ?? []) as { isin: string; country_label: string; country_code: string; weight: number }[];
   const codeLabel = new Map<string, string>();
   for (const g of rows) {
@@ -30,10 +31,11 @@ export async function fetchGeoRows(isins: string[]): Promise<ExpoRow[]> {
 
 /** Lignes ExpoRow (secteurs canoniques FR) pour l'exposition agrégée. */
 export async function fetchSectorRows(isins: string[]): Promise<ExpoRow[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("investissement_fund_sectors")
     .select("isin, sector_name, weight")
     .in("isin", isins);
+  if (error) console.error("[fundExposure] lecture secteurs échouée (dégradé vide):", error);
   return ((data ?? []) as { isin: string; sector_name: string; weight: number }[])
     .map((srow) => ({ isin: srow.isin, label: canonicalSector(srow.sector_name) as string, weight: Number(srow.weight) }))
     .filter((srow) => srow.label != null);
