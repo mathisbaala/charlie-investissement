@@ -23,6 +23,8 @@
 > pro — fundinfo/fundkis/WM Datenservice) ; pistes publiques restantes : Franklin Templeton,
 > Invesco, Robeco, DWS, UBS.
 
+> Dernier audit : 2026-07-22 (32ᵉ passe — reprise post-sprint, vue d'ensemble). **Santé : bonne, 2 chantiers concrets ouverts.** **`vitest run` = 950 tests verts** (64 fichiers, +71 depuis la 31ᵉ passe), **0 marqueur `TODO/FIXME` réel, 0 test désactivé, 0 issue GitHub, CI verte** (KID/drain compo/SFDR DDA tous `success` ce matin — le run SFDR planifié du 21/07 confirme le bug hebdo **réglé**). **Livré sur `main` depuis la 31ᵉ passe** (tout commité) : suite du sprint Frais (héros 100 % métriques, décomposition lisible, rétro fonds euros au PDF `366de19`, projection robuste `b814bf8`), **durabilité MiFID depuis les EET** (`8416429` + fiche fonds `3af9928`), **hygiène DB consignée** (`697fc7b`), **contexte LLM KID 4k→18k** pour le fallback Haiku (`b3d5fc5`), **contact générique** (`bd38c9b`). **2 chantiers ouverts trouvés cette passe** : (1) 🐛 **le travail PDF non commité casse `tsc`** — 1 erreur de type (`loadLogo(): string|null` vs prop `logo?: string` dans `optimize/pdf/route.ts`) ; feature cohérente (logo Charlie unifié sur les 3 PDF + hiérarchie typo resserrée) **prête à finir/commit** ; (2) 🚧 **branche `feat/partenaires-solidite-fonds-euros` (Joseph) non mergée** — 8 commits actifs du **22/07** (solidité assureur + fonds euros GVFM + 6 migrations), à reviewer/intégrer. **Hygiène git** : 3 branches remote mergées à élaguer. Tout le reste = drains auto passifs + décisions tranchées.
+>
 > Dernier audit : 2026-07-21 (31ᵉ passe — **périmètre Frais uniquement**, sprint UX rému + décisions produit). **Santé frais : excellente.** `tsc` = 0 / **879 tests verts** (+3), code frais propre (0 marqueur, 0 test désactivé), `main` synchro `origin/main`. **3 commits frais livrés & vérifiés prod** (`www.charliewealth.fr`, dpl `dpl_FWC9RX…` READY) : (1) **KPI attendus par le CGP + fiabilité rému** `122af70` (ETF→rétro 0, commission d'entrée nette de la part incompressible assureur, rétro fonds euros consommée) ; (2) **bandeau rému réorganisé en 2 comptabilités** `d30291d` — « Ce que je gagne » (rému cabinet · upfront · récurrent) / « Côté client » (coût total · gain net · réduction de rendement PRIIPs) ; doublon « frais/gain brut » déplacé en carte détail ; découpage `revenuCabinetUpfront`/`revenuCabinetRecurrent` exposé par le moteur (invariant somme = revenu cabinet) ; (3) **tuile « Récurrent » = 1re année** `958fa2c` au lieu de la moyenne lissée (qui surévaluait l'an 1) — écran **et** PDF cabinet alignés, vérifié live (28 €/an). **2 décisions produit tranchées par Mathis** (voir « ⏸️ ») : persistance = **session-only, jamais de compte** ; vue cabinet agrégée = **différée jusqu'au product-market fit**. **Aucun bug frais ouvert, aucun chantier frais actionnable** : SCPI/PE dans le calculateur **écarté** (tranché 21/07 — le calculateur reste **AV + fonds cotés** ; spec conservée pour reprise éventuelle).
 >
 > Dernier audit : 2026-07-20 (30ᵉ passe — sprint Analyse IA relevé + export PDF frais, ~3 h après la 29ᵉ). **Santé : excellente, tout livré & vérifié prod.** `tsc` = 0 / **794 tests verts** (+29 depuis la 29ᵉ passe), working tree **propre**, **`main` seule branche**, **0 issue GitHub**, **CI 100 % verte** (hebdo + mensuel + Morningstar EMEA + drain compo tous `success` ce matin). **11 commits livrés en prod depuis la 29ᵉ passe** (doc `767ad51`), tous archivés en « ✅ Réglés » : (1) **lecture IA du relevé (Vision) gated par la réconciliation déterministe** `a4941f7` — `/api/releve` réconcilie d'abord le total en déterministe (0 token), n'appelle Vision **que si** ça ne colle pas ; CSV/Excel = **0 token toujours** ; signalement des supports hors catalogue (+ fix ISSUE-001 espace manquant `07506b0`/`a96dfb3`) ; (2) **export PDF frais client/cabinet + optimisation coûts IA** `538125e` — 2 docs PDF (client DDA + cabinet interne, `buildFraisReport`→`/api/frais/pdf`, **0 IA**), DICI déterministe d'abord (`diciParse`+`pdfText`), **`botGuard` + anti-burst posés sur TOUTES les routes IA** (parse/parse-profile/dici, qui manquaient) ; (3) **PDF relevé illisible en prod corrigé** `ba1ecd2`→`3c4d598` — cause racine du **422** = worker `pdfjs` non embarqué dans la lambda serverless + `@napi-rs/canvas` non tracé ; **vérifié live 20/07** ; (4) polish : **bandeau d'analyse en carte d'identité** `ef915d0` + **épure du texte profil / départage rétrocessions clarifié** `a3b9b36`. **En plus de l'archivage, cette passe a mené une revue adversariale approfondie de ces 11 commits (2 agents parallèles) → 5 défauts réels trouvés & CORRIGÉS** (cap de coût manquant sur `parse-profile`, frais « Néant » happant le taux voisin dans `findPointFee`, synthèse stale à l'import d'un 2ᵉ relevé, « NaN € » de réconciliation, ordre rate-limit/catch) — `tsc` = 0 / **796 tests verts** (+2 régression), voir « ✅ Réglés ». **Aucun chantier bloquant, aucun bug ouvert. Surveillance SFDR close** — run planifié #7 du 21/07 **VERT** (`success`, 06:28–07:28 UTC, ~1 h, bien sous le timeout de 2 h) — tout le reste = drains auto passifs + décisions tranchées.
@@ -117,11 +119,21 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ## 🐛 Bugs & fragilités
 
 ### (aucun bug ouvert)
-> Le seul bug suivi (Workflow SFDR/DDA annulé chaque semaine à 2h) a été **confirmé réglé le 2026-07-21** — voir « ✅ Réglés ».
+> ✅ **Résolu le 2026-07-22** — le refactor PDF (logo Charlie unifié sur les 3 PDF + fiche/portefeuille, épuration des textes décoratifs) est **fini, `tsc` = 0 / 950 tests verts, et shippé** : `logo ?? undefined` dans `optimize/pdf/route.ts`, logo aussi câblé sur les téléchargements navigateur (PDF + PPTX via `getLogoDataUri`).
+
+> Le seul bug historiquement suivi (Workflow SFDR/DDA annulé chaque semaine à 2h) a été **confirmé réglé le 2026-07-21** (run planifié vert) — voir « ✅ Réglés ».
 
 ---
 
 ## 🚧 Chantiers en cours
+
+### Branche `feat/partenaires-solidite-fonds-euros` (Joseph) — non mergée, à intégrer
+- **Priorité** : 🟠 Importante
+- **Détecté le** : 2026-07-22
+- **Où** : branche remote `origin/feat/partenaires-solidite-fonds-euros` (8 commits, dernier **22/07 13:42**, +2262 lignes) — pages `partenaires/{page,compagnie,contrat,comparateur}`, `api/screener/insurer-metrics`, `lib/fonds-euros.ts` (+ tests), scrapers `gvfm-fonds-euros-harvest.py` / `av-contract-terms.py`, **6 migrations** (`20260721150000` socle solvabilité, `20260722120000` domicile/distribution, `..130000` history fonds euros GVFM, `..140000` provenance solidité, `..150000` PPB, `..160000` solidité full, `..170000` fix frais fonds euros)
+- **Le problème** : gros travail stagiaire **actif et récent** sur l'onglet Partenaires (solidité assureur enrichie — encours/notation/PPB/solvabilité — + historique fonds euros récolté sur GVFM + fraîcheur/confiance de source sur les conditions de contrat). Non mergé dans `main` → invisible en prod. ⚠️ Contient des **migrations** (une collision de timestamp avec `esg_exclusions` a déjà été corrigée dans la branche, commit `700208f`).
+- **Comment l'aborder** : 1) confirmer avec Mathis/Joseph que la branche est finie (dernier commit du jour — peut-être encore en cours) ; 2) `/recul` ou `/verification` sur un worktree isolé (le tree principal a du WIP PDF non commité) ; 3) vérifier l'ordre + l'idempotence des 6 migrations avant `apply_migration` (project `dehigtgzizsdehyhmjxn`) ; 4) merge direct dans `main` (pas de PR — cf. [[no-pr-direct-merge-main]]) + `/finito`.
+- **Effort estimé** : moyen (review + migrations + QA)
 
 ### Exclusions sectorielles ESG réelles (EET) — code livré, collecte à lancer
 - **Priorité** : 🟡 Moyenne
@@ -226,6 +238,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ---
 
 ## 🧹 Dette technique
+
+### Élaguer 3 branches remote mergées
+- **Priorité** : ⚪ Mineure
+- **Détecté le** : 2026-07-22
+- **Où** : `origin/claude/sweet-cori-aaebd5`, `origin/claude/wizardly-rhodes-1511be`, `origin/sacha/releve-ia-revue-portefeuille`
+- **Le problème** : ces 3 branches sont à **0 commit en avance sur `main`** (déjà mergées) → bruit. (`feat/partenaires-solidite-fonds-euros` = **8 en avance**, à NE PAS élaguer — voir « 🚧 Chantiers en cours ».)
+- **Comment l'aborder** : `git push origin --delete claude/sweet-cori-aaebd5 claude/wizardly-rhodes-1511be sacha/releve-ia-revue-portefeuille` puis `git remote prune origin`. À faire **après** avoir mergé/traité la branche partenaires.
+- **Effort estimé** : rapide
 
 ### (élagage 4 branches mergées — réglé le 20/07)
 Les 3 branches remote mergées (`claude/elegant-pike-78de33`, `joseph/backtest-comparaison-pea`, `fix/liberalys-apicil-attribution`) **et** la locale `fix/liberalys-apicil-attribution` sont **supprimées le 20/07** après re-vérif (0 commit en avance sur `main`, `--no-merged` vide) + `git remote prune`. Reste `main`/`origin/main` seules. Voir « ✅ Réglés ».

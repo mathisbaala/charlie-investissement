@@ -67,7 +67,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 0.75, borderBottomColor: C.lineSoft, paddingBottom: 10, marginBottom: 18,
   },
   wordmark: { flexDirection: "row", alignItems: "center", gap: 7 },
-  logoImg: { width: 17, height: 17 },
+  logoImg: { width: 18, height: 16, objectFit: "contain" },
   wordmarkText: { fontFamily: FONT.sans, fontWeight: 600, fontSize: 15, letterSpacing: -0.2, color: C.ink },
   dot: { width: 5, height: 5, borderRadius: 5, backgroundColor: C.clay },
   // Chips / badges
@@ -141,7 +141,7 @@ export function SectionIntro({
   desc,
   right,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   desc?: string;
   right?: React.ReactNode;
@@ -149,7 +149,7 @@ export function SectionIntro({
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
       <View>
-        <Text style={s.introEyebrow}>{eyebrow}</Text>
+        {eyebrow ? <Text style={s.introEyebrow}>{eyebrow}</Text> : null}
         <Text style={s.introTitle}>{title}</Text>
         {desc ? <Text style={s.introDesc}>{desc}</Text> : null}
       </View>

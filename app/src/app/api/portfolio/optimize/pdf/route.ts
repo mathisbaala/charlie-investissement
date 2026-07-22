@@ -3,6 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import AllocationReportPDF from "@/lib/AllocationReportPDF";
 import { optimizeContract, paramsFromQuery } from "@/lib/allocationService";
+import { loadLogo } from "@/lib/pdf/logo";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: out.error, detail: out.detail }, { status: out.status });
   }
 
+  const logo = (await loadLogo()) ?? undefined;
   const buf = await renderToBuffer(
-    React.createElement(AllocationReportPDF, { presentation: out.presentation }) as never,
+    React.createElement(AllocationReportPDF, { presentation: out.presentation, logo }) as never,
   );
 
   const filename = `allocation-${out.presentation.headline.profileLabel.toLowerCase()}.pdf`;

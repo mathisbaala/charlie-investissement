@@ -85,8 +85,10 @@ function header(slide: pptxgen.Slide, eyebrow: string, title: string, sub?: stri
   }
 }
 
-/** Construit le deck PowerPoint (16:9) prêt à écrire. */
-export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
+/** Construit le deck PowerPoint (16:9) prêt à écrire. `logo` = data URI du « C »
+    Charlie (facultatif) : posé sur un badge clair pour rester lisible sur la
+    couverture sombre. */
+export function buildAllocationDeck(p: AllocationPresentation, logo?: string): pptxgen {
   const x: PresentationExtras | undefined = p.extras;
   const hasGoals = !!x && (x.goals.length > 0 || x.projection != null);
   const hasExposure = !!x?.exposure && (x.exposure.geo.length > 0 || x.exposure.sectors.length > 0);
@@ -102,8 +104,15 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   {
     const s = pptx.addSlide();
     s.background = { color: C.ink };
-    s.addShape("ellipse", { x: 0.62, y: 0.62, w: 0.13, h: 0.13, fill: { color: C.clay } });
-    s.addText("Charlie", { x: 0.82, y: 0.42, w: 3, h: 0.5, fontFace: FONT, fontSize: 17, color: C.darkText, margin: 0 });
+    if (logo) {
+      // Badge clair (le « C » est noir, invisible sur fond sombre sans support).
+      s.addShape("roundRect", { x: 0.62, y: 0.42, w: 0.5, h: 0.5, fill: { color: C.cream }, rectRadius: 0.08 });
+      s.addImage({ data: logo, x: 0.71, y: 0.52, w: 0.32, h: 0.28, sizing: { type: "contain", w: 0.32, h: 0.28 } });
+      s.addText("Charlie", { x: 1.24, y: 0.42, w: 3, h: 0.5, fontFace: FONT, fontSize: 17, color: C.darkText, margin: 0, valign: "middle" });
+    } else {
+      s.addShape("ellipse", { x: 0.62, y: 0.62, w: 0.13, h: 0.13, fill: { color: C.clay } });
+      s.addText("Charlie", { x: 0.82, y: 0.42, w: 3, h: 0.5, fontFace: FONT, fontSize: 17, color: C.darkText, margin: 0 });
+    }
     s.addText("CONFIDENTIEL", { x: 9.7, y: 0.5, w: 3, h: 0.35, fontFace: FONT, fontSize: 9, color: C.darkMuted, charSpacing: 2, align: "right" });
 
     s.addText("VOTRE PROPOSITION D'INVESTISSEMENT", { x: 0.62, y: 2.15, w: 12, h: 0.35, fontFace: FONT, fontSize: 12, color: C.clayBright, bold: true, charSpacing: 2.5, margin: 0 });
@@ -158,7 +167,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   {
     const s = pptx.addSlide();
     s.background = { color: C.cream };
-    header(s, "01 · Synthèse", "L'essentiel de votre proposition", "Cette slide se suffit à elle seule : allocation cible, rôles et chiffres clés.");
+    header(s, "01 · Synthèse", "L'essentiel de votre proposition");
 
     const labels = p.classBreakdown.map((c) => c.label);
     s.addChart("doughnut", [{ name: "Allocation", labels, values: p.classBreakdown.map((c) => c.weight) }], {
@@ -492,7 +501,7 @@ export function buildAllocationDeck(p: AllocationPresentation): pptxgen {
   {
     const s = pptx.addSlide();
     s.background = { color: C.cream };
-    header(s, "10 · Et maintenant", "Les prochaines étapes", "Cette proposition est un point de départ : rien n'est figé avant votre validation.");
+    header(s, "10 · Et maintenant", "Les prochaines étapes");
     const steps: [string, string][] = [
       ["Nous échangeons sur cette proposition", "vos questions, vos ajustements : les poids et les supports s'adaptent en séance."],
       ["Vous validez le dossier", "documents d'informations clés (DIC) des supports, analyse de vos besoins et pièces réglementaires."],

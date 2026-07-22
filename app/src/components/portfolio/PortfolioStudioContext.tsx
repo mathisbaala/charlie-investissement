@@ -772,13 +772,15 @@ function useStudioState() {
     if (!(effectivePresentation ?? presentation)) return;
     setPdfBusy(true);
     try {
-      const [{ pdf }, { default: AllocationReportPDF }, pres] = await Promise.all([
+      const [{ pdf }, { default: AllocationReportPDF }, { getLogoDataUri }, pres] = await Promise.all([
         import("@react-pdf/renderer"),
         import("@/lib/AllocationReportPDF"),
+        import("@/lib/pdf/logoClient"),
         presentationForExport(),
       ]);
       if (!pres) return;
-      const blob = await pdf(<AllocationReportPDF presentation={pres} />).toBlob();
+      const logo = await getLogoDataUri();
+      const blob = await pdf(<AllocationReportPDF presentation={pres} logo={logo} />).toBlob();
       triggerDownload(blob, `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pdf`);
     } catch {
       window.print();
@@ -791,12 +793,14 @@ function useStudioState() {
     if (!(effectivePresentation ?? presentation)) return;
     setPptBusy(true);
     try {
-      const [{ buildAllocationDeck }, pres] = await Promise.all([
+      const [{ buildAllocationDeck }, { getLogoDataUri }, pres] = await Promise.all([
         import("@/lib/allocationPptx"),
+        import("@/lib/pdf/logoClient"),
         presentationForExport(),
       ]);
       if (!pres) return;
-      await buildAllocationDeck(pres).writeFile({
+      const logo = await getLogoDataUri();
+      await buildAllocationDeck(pres, logo).writeFile({
         fileName: `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pptx`,
       });
     } catch {

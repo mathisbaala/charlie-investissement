@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import { C, FONT, registerCharlieFonts } from "./pdf/theme";
 import { SectionIntro, HeroStat, Chip, Bar, MetricGrid, SriMeter, nfEur } from "./pdf/components";
 import { CompositionDonut, LineChartPdf, corrColor, SERIES, type Series } from "./pdf/charts";
@@ -39,9 +39,15 @@ const s = StyleSheet.create({
     color: C.cream,
   },
   coverBrand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  coverWordmark: { flexDirection: "row", alignItems: "center", gap: 8 },
+  coverWordmark: { flexDirection: "row", alignItems: "center", gap: 9 },
   coverDot: { width: 6, height: 6, borderRadius: 6, backgroundColor: C.clay },
+  // Badge clair portant le « C » noir : le logo reste lisible sur la couverture sombre.
+  coverLogoBadge: { width: 24, height: 24, borderRadius: 6, backgroundColor: C.cream, alignItems: "center", justifyContent: "center" },
+  coverLogoImg: { width: 16, height: 14, objectFit: "contain" },
   coverCharlie: { fontSize: 17, color: C.cream },
+  // Filet de marque en pied de page intérieure
+  footLogo: { width: 11, height: 10, objectFit: "contain", marginRight: 5 },
+  footBrand: { flexDirection: "row", alignItems: "center" },
   coverConf: { fontSize: 7.5, letterSpacing: 1.6, textTransform: "uppercase", color: "#8F8C86" },
   coverEyebrow: { marginTop: 150, fontSize: 8.5, letterSpacing: 2, textTransform: "uppercase", color: "#C88A6E", fontWeight: 500 },
   coverTitle: { fontSize: 30, lineHeight: 1.1, marginTop: 10, color: "#F7F5F2", fontWeight: 600, maxWidth: 420 },
@@ -139,11 +145,14 @@ function probTone(p: number): { color: string; label: string; chip: "ok" | "gold
   return { color: C.red, label: "à repenser ensemble", chip: "accent" };
 }
 
-function Footer({ p }: { p: AllocationPresentation }) {
+function Footer({ p, logo }: { p: AllocationPresentation; logo?: string }) {
   const left = [p.advisor, p.asOf, "Document confidentiel"].filter(Boolean).join("  ·  ");
   return (
     <View style={s.footer} fixed>
-      <Text style={s.footText}>{left}</Text>
+      <View style={s.footBrand}>
+        {logo ? <Image src={logo} style={s.footLogo} /> : null}
+        <Text style={s.footText}>{left}</Text>
+      </View>
       <Text style={s.footText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
     </View>
   );
@@ -151,7 +160,7 @@ function Footer({ p }: { p: AllocationPresentation }) {
 
 // ─── Pages ────────────────────────────────────────────────────────────────────
 
-function Cover({ p }: { p: AllocationPresentation }) {
+function Cover({ p, logo }: { p: AllocationPresentation; logo?: string }) {
   const tiles: [string, string][] = [
     [`~${p.headline.expectedReturnPct} %`, "Performance cible / an"],
     [`~${p.headline.volatilityPct} %`, "Volatilité attendue"],
@@ -162,7 +171,13 @@ function Cover({ p }: { p: AllocationPresentation }) {
     <Page size="A4" style={s.cover}>
       <View style={s.coverBrand}>
         <View style={s.coverWordmark}>
-          <View style={s.coverDot} />
+          {logo ? (
+            <View style={s.coverLogoBadge}>
+              <Image src={logo} style={s.coverLogoImg} />
+            </View>
+          ) : (
+            <View style={s.coverDot} />
+          )}
           <Text style={s.coverCharlie}>Charlie</Text>
         </View>
         <Text style={s.coverConf}>Confidentiel</Text>
@@ -188,7 +203,7 @@ function Cover({ p }: { p: AllocationPresentation }) {
   );
 }
 
-function SynthesisPage({ p, x }: { p: AllocationPresentation; x?: PresentationExtras }) {
+function SynthesisPage({ p, x, logo }: { p: AllocationPresentation; x?: PresentationExtras; logo?: string }) {
   const metrics = [
     { label: "Performance cible / an", value: `~${p.headline.expectedReturnPct} %`, color: C.green },
     { label: "Volatilité attendue", value: `~${p.headline.volatilityPct} %` },
@@ -207,7 +222,6 @@ function SynthesisPage({ p, x }: { p: AllocationPresentation; x?: PresentationEx
       <SectionIntro
         eyebrow="01"
         title="L'essentiel de votre proposition"
-        desc="Cette page se suffit à elle seule : allocation cible, rôle de chaque poche et chiffres clés."
         right={<Chip tone="accent">{p.headline.profileLabel}</Chip>}
       />
       <View style={s.card}>
@@ -236,7 +250,7 @@ function SynthesisPage({ p, x }: { p: AllocationPresentation; x?: PresentationEx
       </View>
       <MetricGrid items={metrics} cols={3} />
       <View style={[s.card, { marginTop: 12 }]}>
-        <SectionIntro eyebrow="Points clés" title="Ce qu'il faut retenir" />
+        <SectionIntro title="Points clés" />
         {p.objectives.map((o, i) => (
           <View style={s.bullet} key={i}>
             <Text style={s.bulletDot}>·</Text>
@@ -248,12 +262,12 @@ function SynthesisPage({ p, x }: { p: AllocationPresentation; x?: PresentationEx
           hors frais du contrat. Les performances passées ne préjugent pas des performances futures.
         </Text>
       </View>
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function GoalsPage({ p, x }: { p: AllocationPresentation; x: PresentationExtras }) {
+function GoalsPage({ p, x, logo }: { p: AllocationPresentation; x: PresentationExtras; logo?: string }) {
   return (
     <Page size="A4" style={s.page}>
       <SectionIntro
@@ -302,12 +316,12 @@ function GoalsPage({ p, x }: { p: AllocationPresentation; x: PresentationExtras 
           </Text>
         </View>
       )}
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function ExposurePage({ p, x }: { p: AllocationPresentation; x: PresentationExtras }) {
+function ExposurePage({ p, x, logo }: { p: AllocationPresentation; x: PresentationExtras; logo?: string }) {
   const expo = x.exposure!;
   return (
     <Page size="A4" style={s.page}>
@@ -319,13 +333,13 @@ function ExposurePage({ p, x }: { p: AllocationPresentation; x: PresentationExtr
       <View style={{ flexDirection: "row", gap: 12 }}>
         {expo.geo.length > 0 && (
           <View style={[s.card, { flex: 1 }]}>
-            <SectionIntro eyebrow="Géographie" title="Répartition géographique" />
+            <SectionIntro title="Répartition géographique" />
             <CompositionDonut slices={expo.geo} size={92} topN={6} keepOrder />
           </View>
         )}
         {expo.sectors.length > 0 && (
           <View style={[s.card, { flex: 1 }]}>
-            <SectionIntro eyebrow="Secteurs" title="Répartition sectorielle" />
+            <SectionIntro title="Répartition sectorielle" />
             <CompositionDonut slices={expo.sectors} size={92} topN={6} keepOrder />
           </View>
         )}
@@ -334,12 +348,12 @@ function ExposurePage({ p, x }: { p: AllocationPresentation; x: PresentationExtr
         Répartitions calculées sur la part du portefeuille dont la composition est publiée par les sociétés de gestion ;
         les poches sans donnée n&apos;y figurent pas.
       </Text>
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function TablePage({ p }: { p: AllocationPresentation }) {
+function TablePage({ p, logo }: { p: AllocationPresentation; logo?: string }) {
   const maxSri = Math.max(1, ...p.riskProfile.sriDistribution.map((b) => b.weight));
   return (
     <Page size="A4" style={s.page}>
@@ -399,12 +413,12 @@ function TablePage({ p }: { p: AllocationPresentation }) {
           ))}
         </View>
       </View>
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function BehaviorPage({ p, x }: { p: AllocationPresentation; x: PresentationExtras }) {
+function BehaviorPage({ p, x, logo }: { p: AllocationPresentation; x: PresentationExtras; logo?: string }) {
   const corr = x.correlation;
   const bt = x.backtest;
   const btSeries: Series[] = bt
@@ -415,15 +429,10 @@ function BehaviorPage({ p, x }: { p: AllocationPresentation; x: PresentationExtr
     : [];
   return (
     <Page size="A4" style={s.page}>
-      <SectionIntro
-        eyebrow="06"
-        title="Diversification et comportement"
-        desc="Comment les supports se complètent, et comment cette allocation s'est comportée dans le passé."
-      />
+      <SectionIntro eyebrow="06" title="Diversification et comportement" />
       {corr && (
         <View style={s.card}>
           <SectionIntro
-            eyebrow="Complémentarité"
             title="Corrélation des supports"
             desc={
               x.effectiveHoldings != null
@@ -455,7 +464,6 @@ function BehaviorPage({ p, x }: { p: AllocationPresentation; x: PresentationExtr
       {bt && btSeries.length > 0 && (
         <View style={s.card}>
           <SectionIntro
-            eyebrow="Historique"
             title="Back-test de l'allocation"
             desc={`Performance réelle des supports aux poids proposés${bt.periodLabel ? `, ${bt.periodLabel}` : ""}, face à l'indice ${bt.benchmarkLabel}. Hors frais du contrat.`}
           />
@@ -482,12 +490,12 @@ function BehaviorPage({ p, x }: { p: AllocationPresentation; x: PresentationExtr
           <Text style={s.note}>Les performances passées ne préjugent pas des performances futures.</Text>
         </View>
       )}
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function RationalePage({ p }: { p: AllocationPresentation }) {
+function RationalePage({ p, logo }: { p: AllocationPresentation; logo?: string }) {
   return (
     <Page size="A4" style={s.page}>
       <SectionIntro eyebrow="07" title="Analyse et justification par support" />
@@ -508,12 +516,12 @@ function RationalePage({ p }: { p: AllocationPresentation }) {
           </View>
         ))}
       </View>
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-function ClosingPage({ p }: { p: AllocationPresentation }) {
+function ClosingPage({ p, logo }: { p: AllocationPresentation; logo?: string }) {
   const steps: [string, string][] = [
     ["Nous échangeons sur cette proposition", "vos questions, vos ajustements : les poids et les supports s'adaptent en séance."],
     ["Vous validez le dossier", "documents d'informations clés (DIC) des supports, analyse de vos besoins et pièces réglementaires."],
@@ -521,11 +529,7 @@ function ClosingPage({ p }: { p: AllocationPresentation }) {
   ];
   return (
     <Page size="A4" style={s.page}>
-      <SectionIntro
-        eyebrow="09"
-        title="Les prochaines étapes"
-        desc="Cette proposition est un point de départ : rien n'est figé avant votre validation."
-      />
+      <SectionIntro eyebrow="09" title="Les prochaines étapes" />
       <View style={s.card}>
         {steps.map(([t, d], i) => (
           <View key={i} style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
@@ -546,12 +550,12 @@ function ClosingPage({ p }: { p: AllocationPresentation }) {
           · {[p.asOf ? `Document établi en ${p.asOf}` : "Document établi à la date indiquée en pied de page", p.advisor].filter(Boolean).join(", par ")}. Strictement confidentiel, réservé au destinataire.
         </Text>
       </View>
-      <Footer p={p} />
+      <Footer p={p} logo={logo} />
     </Page>
   );
 }
 
-export default function AllocationReportPDF({ presentation }: { presentation: AllocationPresentation }) {
+export default function AllocationReportPDF({ presentation, logo }: { presentation: AllocationPresentation; logo?: string }) {
   const p = presentation;
   const x = p.extras;
   const hasGoalsPage = !!x && (x.goals.length > 0 || x.projection != null);
@@ -560,14 +564,14 @@ export default function AllocationReportPDF({ presentation }: { presentation: Al
 
   return (
     <Document title={p.title}>
-      <Cover p={p} />
-      <SynthesisPage p={p} x={x} />
-      {hasGoalsPage && <GoalsPage p={p} x={x!} />}
-      {hasExposure && <ExposurePage p={p} x={x!} />}
-      <TablePage p={p} />
-      {hasBehavior && <BehaviorPage p={p} x={x!} />}
-      <RationalePage p={p} />
-      <ClosingPage p={p} />
+      <Cover p={p} logo={logo} />
+      <SynthesisPage p={p} x={x} logo={logo} />
+      {hasGoalsPage && <GoalsPage p={p} x={x!} logo={logo} />}
+      {hasExposure && <ExposurePage p={p} x={x!} logo={logo} />}
+      <TablePage p={p} logo={logo} />
+      {hasBehavior && <BehaviorPage p={p} x={x!} logo={logo} />}
+      <RationalePage p={p} logo={logo} />
+      <ClosingPage p={p} logo={logo} />
     </Document>
   );
 }

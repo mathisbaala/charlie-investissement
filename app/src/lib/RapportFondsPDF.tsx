@@ -150,7 +150,7 @@ function mean(xs: number[]): number | null {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt[]> }) {
+function CoverPage({ funds, series, logo }: { funds: Fund[]; series: Record<string, Pt[]>; logo?: string }) {
   const single = funds.length === 1;
   const medTer = median(funds.map((f) => normTer(f.ongoing_charges ?? f.ter) as number));
   const avgPerf = mean(funds.map((f) => f.performance_1y as number));
@@ -164,7 +164,7 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
 
   return (
     <Page size="A4" style={S.page}>
-      <BrandHeader right={<Eyebrow>{dateFr()}</Eyebrow>} />
+      <BrandHeader logo={logo} right={<Eyebrow>{dateFr()}</Eyebrow>} />
 
       {/* Hero card */}
       <View style={S.heroCard}>
@@ -197,21 +197,13 @@ function CoverPage({ funds, series }: { funds: Fund[]; series: Record<string, Pt
       {/* Courbe comparative (visuel central) — uniquement multi-fonds avec historique. */}
       {chartSeries.length > 1 && (
         <View style={[S.chartBlock, { marginTop: 18, marginBottom: 0 }]}>
-          <SectionIntro
-            eyebrow="Trajectoire"
-            title="Performance comparée, base 100."
-            desc="Évolution rebasée à 100 sur la période disponible, pour voir qui mène et avec quelle régularité."
-          />
+          <Text style={S.compLabel}>Performance comparée (base 100)</Text>
           <LineChartPdf series={chartSeries} width={464} height={150} showArea={false} />
         </View>
       )}
 
       <View style={{ height: 20 }} />
-      <SectionIntro
-        eyebrow="Synthèse"
-        title="Le comparatif des fonds."
-        desc="Performances annualisées, frais courants et rétrocession CGP, alignés pour une lecture immédiate."
-      />
+      <SectionIntro eyebrow="Synthèse" title="Comparatif des fonds" />
 
       <View style={S.tHead}>
         <Text style={[S.colName, S.tHeadText]}>Fonds</Text>
@@ -267,12 +259,14 @@ function FundPage({
   total,
   series,
   comp,
+  logo,
 }: {
   fund: Fund;
   index: number;
   total: number;
   series?: Pt[];
   comp?: FundComposition;
+  logo?: string;
 }) {
   const trackRecord = fund.inception_date
     ? Math.floor((Date.now() - new Date(fund.inception_date).getTime()) / (1000 * 60 * 60 * 24 * 365))
@@ -293,7 +287,7 @@ function FundPage({
 
   return (
     <Page size="A4" style={S.page}>
-      <BrandHeader right={<Eyebrow>{`Fonds ${index + 1} / ${total}`}</Eyebrow>} />
+      <BrandHeader logo={logo} right={<Eyebrow>{`Fonds ${index + 1} / ${total}`}</Eyebrow>} />
 
       <Eyebrow style={{ color: C.clay }}>{fund.product_type ?? "Fonds"}</Eyebrow>
       <Text style={S.fundTitle}>{fund.name}</Text>
@@ -342,10 +336,7 @@ function FundPage({
       {hasCurve ? (
         <View style={S.chartBlock}>
           <View style={S.chartHead}>
-            <View>
-              <Text style={S.compLabel}>Performance (base 100)</Text>
-              <Text style={{ fontFamily: FONT.sans, fontSize: 7.5, color: C.muted }}>Évolution de la valeur liquidative sur la période disponible</Text>
-            </View>
+            <Text style={S.compLabel}>Performance (base 100)</Text>
             <View style={S.perfChips}>
               <PerfChip label="1 AN" value={fund.performance_1y} />
               <PerfChip label="3 ANS" value={fund.performance_3y} />
@@ -382,12 +373,7 @@ function FundPage({
               )}
             </>
           ) : (
-            <>
-              <SectionIntro eyebrow="Risque" title="La volatilité." />
-              <PerfBarRow label="1 an" value={fund.performance_1y} max={maxPerf} />
-              <PerfBarRow label="3 ans" value={fund.performance_3y} max={maxPerf} />
-              <PerfBarRow label="5 ans" value={fund.performance_5y} max={maxPerf} />
-            </>
+            <Text style={S.compLabel}>Risque & volatilité</Text>
           )}
           <Row label="Volatilité 1 an" value={fmt(fund.volatility_1y)} />
           <Row label="Ratio de Sharpe 1 an" value={fmt(fund.sharpe_1y, "", 2)} />
@@ -396,7 +382,7 @@ function FundPage({
 
         {/* Colonne droite : frais & structure */}
         <View style={S.col}>
-          <SectionIntro eyebrow="Frais & structure" title="Le coût réel." />
+          <Text style={[S.compLabel, { marginBottom: 10 }]}>Frais & structure</Text>
           <Row label="Frais courants (TER)" value={fmt(ter)} />
           <Row label="Frais d'entrée max" value={fund.entry_fee_max != null ? fmt(fund.entry_fee_max * 100) : "-"} />
           <Row label="Commission de sortie max" value={fund.exit_fee_max != null ? fmt(fund.exit_fee_max * 100) : "-"} />
@@ -475,16 +461,18 @@ export default function RapportFondsPDF({
   funds,
   series = {},
   composition = {},
+  logo,
 }: {
   funds: Fund[];
   series?: Record<string, Pt[]>;
   composition?: Record<string, FundComposition>;
+  logo?: string;
 }) {
   return (
     <Document title={`Rapport fonds Charlie · ${dateFr()}`} author="Charlie CGP" subject="Analyse comparative de fonds">
-      <CoverPage funds={funds} series={series} />
+      <CoverPage funds={funds} series={series} logo={logo} />
       {funds.map((fund, i) => (
-        <FundPage key={fund.isin} fund={fund} index={i} total={funds.length} series={series[fund.isin]} comp={composition[fund.isin]} />
+        <FundPage key={fund.isin} fund={fund} index={i} total={funds.length} series={series[fund.isin]} comp={composition[fund.isin]} logo={logo} />
       ))}
     </Document>
   );

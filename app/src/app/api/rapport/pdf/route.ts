@@ -5,6 +5,7 @@ import React from "react";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
 import { annualizeForType, annualizeCumul } from "@/lib/format";
 import { fetchNavSeries, fetchCompositionByFund } from "@/lib/pdf/pdfData";
+import { loadLogo } from "@/lib/pdf/logo";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -47,8 +48,9 @@ export async function GET(req: NextRequest) {
     fetchCompositionByFund(orderedIsins),
   ]);
 
+  const logo = await loadLogo();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(RapportFondsPDF as any, { funds: ordered, series, composition });
+  const element = React.createElement(RapportFondsPDF as any, { funds: ordered, series, composition, logo });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 
