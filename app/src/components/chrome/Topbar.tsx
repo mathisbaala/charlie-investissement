@@ -27,6 +27,7 @@ const TAB_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/recherche", title: "Recherche" },
   { prefix: "/portefeuille", title: "Portefeuille" },
   { prefix: "/frais", title: "Frais" },
+  { prefix: "/calculateurs", title: "Calculateurs" },
   { prefix: "/partenaires", title: "Partenaires" },
   { prefix: "/cabinet", title: "Mon cabinet" },
 ];

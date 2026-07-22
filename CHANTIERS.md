@@ -127,6 +127,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🚧 Chantiers en cours
 
+### Calculateurs patrimoniaux (onglet /calculateurs) — v1 livrée sur branche
+- **Priorité** : 🟡 Moyenne
+- **Détecté le** : 2026-07-22 (demande Sacha)
+- **Où** : branche `feat/calculateurs` — `app/src/lib/calculators/` (socle types + barèmes art. 777/669/990 I + registre de 28 calculateurs Transmission dans `defs/`), `/api/calculateurs/parse` (routing IA Haiku + validation dure façon sanitizeParsedFilters), `app/(app)/calculateurs/` + `components/calculateurs/` (barre NL → formulaire hybride pré-rempli → restitution KPI/tableaux/graphes Recharts), onglet rail Σ + titre Topbar.
+- **Le concept** : le CGP décrit sa situation en langage naturel → l'IA identifie le calculateur et pré-remplit les champs extraits (l'IA ne calcule JAMAIS) → le formulaire complète les manquants → calcul 100 % déterministe. 101 tests dédiés aux calculs (cas chiffrés à la main), suite complète 1 051 verts, tsc 0. QA locale : parcours direct vérifié au centime (droits donation 300 k€ → 38 194 € ; AV vs capi 1 M€ → 990 I 186 094 €) ; flux IA testable seulement en prod (ANTHROPIC_API_KEY absente du .env.local, dégradation gracieuse vers la grille).
+- **Reste** : QA du flux IA en prod après merge/deploy ; familles suivantes (revenus, immo…) = ajouter des defs au registre ; export PDF client (v2, infra @react-pdf) ; revue fiscale humaine des mécaniques sensibles (Dutreil, 757 B, territorialité, participation aux acquêts) avant usage client.
+- **Effort estimé** : rapide à étendre (le socle porte tout)
+
 ### Branche `feat/partenaires-solidite-fonds-euros` (Joseph) — non mergée, à intégrer
 - **Priorité** : 🟠 Importante
 - **Détecté le** : 2026-07-22

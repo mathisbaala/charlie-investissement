@@ -4,7 +4,7 @@ export {
   SlidersHorizontal, Check, ChevronRight, ChevronDown, ArrowLeft,
   ArrowRight, ArrowDown, ArrowUp, LayoutGrid, AlertTriangle,
   ArrowUpDown, TrendingUp, Shield, Loader2, Target, Wallet, UserCircle, Calculator,
-  Clock, RotateCcw, FileSearch
+  Clock, RotateCcw, FileSearch, Sigma
 } from "lucide-react";
 
 // Charlie brand logo — uses the official mark PNG
