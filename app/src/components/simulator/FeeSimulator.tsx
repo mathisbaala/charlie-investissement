@@ -16,7 +16,8 @@ import { parsePortfolioParams } from "@/lib/portfolio";
 import { CHART_GRID, CHART_AXIS } from "@/lib/chartColors";
 import {
   simulate, rendementPondere, repartitionFrais, reductionRendementAnnuelle,
-  remunerationSupport, projectionSeries, tauxRetrocessionMoyen, HORIZONS_DEFAUT,
+  remunerationSupport, projectionSeries, tauxRetrocessionMoyen,
+  perfExploitablePourDefaut, HORIZONS_DEFAUT,
   type FeeParams, type SimulationInput, type ProjectionPoint,
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
@@ -281,11 +282,15 @@ const LegendDot = ({ color, label }: { color: string; label: string }) => (
 
 // Métrique compacte : intitulé en capitale + chiffre. Jamais de phrase — un site
 // se lit en chiffres et en blocs, pas en paragraphes.
-function Stat({ label, value, sub, hint }: {
-  label: string; value: string; sub?: string; hint?: string;
+function Stat({ label, value, unit, sub, hint }: {
+  label: string; value: string; unit?: string; sub?: string; hint?: string;
 }) {
   const body = (
-    <>{value}{sub && <span className="text-caption text-muted font-normal"> {sub}</span>}</>
+    <>
+      {value}
+      {unit && <span className="text-caption text-muted font-normal">{unit}</span>}
+      {sub && <span className="text-caption text-muted font-normal"> {sub}</span>}
+    </>
   );
   return (
     <div className="min-w-0">
@@ -327,12 +332,29 @@ function ProjTooltip({ active, payload, label }: {
 // client cumulé et la rému cabinet cumulée (petits, même ordre de grandeur) sur
 // l'axe droit — sinon ils s'écraseraient au ras du zéro. Rému cabinet en vert,
 // trait plus épais (la star, priorité cabinet).
+// Graduations « rondes » (pas de 1/2/5 × 10ⁿ) pour un axe [0, max] — évite les
+// paliers moches type 0,7 k / 1,4 k que recharts produit en auto.
+function ticksRonds(max: number, cibles = 4): number[] {
+  if (!(max > 0)) return [0, 1];
+  const brut = max / cibles;
+  const mag = Math.pow(10, Math.floor(Math.log10(brut)));
+  const n = brut / mag;
+  const pas = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+  const out: number[] = [];
+  for (let v = 0; v <= max + pas * 0.5; v += pas) out.push(v);
+  return out;
+}
+
 function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
   if (data.length < 2) {
     return <p className="text-caption text-muted">Augmentez la durée pour visualiser la projection.</p>;
   }
   const axisTick = { fontSize: 10, fill: CHART_AXIS, fontFamily: "var(--font-mono)" };
   const activeDot = { r: 4, strokeWidth: 2, stroke: "var(--color-paper)" };
+  const ticksL = ticksRonds(Math.max(...data.map((d) => d.valeurNette)));
+  const ticksR = ticksRonds(Math.max(...data.map((d) => Math.max(d.coutClient, d.revenuCabinet))));
+  const topL = ticksL[ticksL.length - 1];
+  const topR = ticksR[ticksR.length - 1];
   return (
     <ResponsiveContainer width="100%" height={260}>
       <ComposedChart data={data} margin={{ top: 10, right: 6, left: 0, bottom: 0 }}>
@@ -349,11 +371,11 @@ function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
         />
         <YAxis
           yAxisId="left" tick={axisTick} axisLine={false} tickLine={false}
-          width={40} tickFormatter={eurAxis} domain={[0, "auto"]}
+          width={40} tickFormatter={eurAxis} domain={[0, topL]} ticks={ticksL}
         />
         <YAxis
           yAxisId="right" orientation="right" tick={axisTick} axisLine={false} tickLine={false}
-          width={40} tickFormatter={eurAxis} domain={[0, "auto"]} tickCount={5}
+          width={40} tickFormatter={eurAxis} domain={[0, topR]} ticks={ticksR}
         />
         <Tooltip
           content={(p) => <ProjTooltip {...(p as object)} />}
@@ -503,8 +525,12 @@ export function FeeSimulator() {
   };
 
   // Rendement & frais des supports : réels pondérés, surchargeables.
+  // Rendement UC par défaut = perf 5 ans réelle pondérée, mais on ÉCARTE les perfs
+  // aberrantes (data polluée : split/discontinuité de VL) pour qu'un support à la
+  // perf cassée ne torpille pas la projection par défaut. L'utilisateur peut
+  // toujours saisir le rendement à la main.
   const perfPonderee = useMemo(
-    () => rendementPondere(ucs.map((u) => ({ perf: u.perf5y, poids: u.poids }))), [ucs]);
+    () => rendementPondere(ucs.map((u) => ({ perf: perfExploitablePourDefaut(u.perf5y), poids: u.poids }))), [ucs]);
   const rendementUC = rendementUCManuel ?? perfPonderee ?? RENDEMENT_UC_DEFAUT;
   const terPondere = useMemo(
     () => rendementPondere(ucs.map((u) => ({ perf: u.ter, poids: u.poids }))), [ucs]);
@@ -925,8 +951,8 @@ export function FeeSimulator() {
                 <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-2">{EUR.format(revenuCabinet)}</p>
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3.5">
                   <Stat label="À l’entrée" value={EUR.format(revenuUpfront)} />
-                  <Stat label="Récurrent" value={EUR.format(revenuRecurrentAn1)} sub="/an" />
-                  {tauxRetro != null && <Stat label="Taux de rétrocession" value={pct(tauxRetro)} sub="/an" />}
+                  <Stat label="Récurrent" value={EUR.format(revenuRecurrentAn1)} unit="/an" />
+                  {tauxRetro != null && <Stat label="Taux de rétrocession" value={pct(tauxRetro)} unit="/an" />}
                   {partUCRecurrent != null && <Stat label="Récurrent lié aux UC" value={`${partUCRecurrent} %`} />}
                 </div>
                 <div className="mt-4 pt-3.5 border-t border-line-soft">
@@ -934,7 +960,7 @@ export function FeeSimulator() {
                   <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
                     <Stat label="Coût total" value={EUR.format(coutTotalClient)} />
                     <Stat
-                      label="Réduction de rendement" value={`${pct(riy)}/an`} sub="RIY"
+                      label="Réduction de rendement" value={pct(riy)} unit="/an" sub="RIY"
                       hint="RIY (Reduction in Yield) — réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
                     />
                   </div>

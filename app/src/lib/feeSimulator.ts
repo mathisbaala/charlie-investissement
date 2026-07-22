@@ -205,6 +205,21 @@ const roundBreakdown = (b: FeeBreakdown): FeeBreakdown => ({
  * Les UC sans perf sont ignorées (leurs poids aussi). Null si rien d'exploitable.
  * Enrobe weightedAverage (lib/optimizer) : même sémantique de renormalisation.
  */
+// Perf 5 ans annualisée « exploitable pour ensemencer la projection par défaut ».
+// Une valeur hors d'une fourchette large et plausible (données polluées : split /
+// discontinuité de VL non ajustée, fonds quasi-mort) ne doit PAS servir de
+// rendement attendu par défaut — sinon un seul support à data cassée (ex. une
+// action splittée affichée à -58 %/an) tire toute la projection dans le rouge.
+// On l'écarte (→ null, exclue du pondéré) ; l'utilisateur garde la main sur le
+// champ « Rendement UC ». Ne CORRIGE pas la donnée (rôle de l'enrichissement) —
+// se contente de ne pas propager l'aberration dans une hypothèse forward.
+export const PERF_DEFAUT_MIN = -40; // %/an : en deçà, quasi-perte totale sur 5 ans
+export const PERF_DEFAUT_MAX = 60;  // %/an : au-delà, artefact (aucun fonds ne tient ça)
+export function perfExploitablePourDefaut(perf: number | null | undefined): number | null {
+  return perf != null && Number.isFinite(perf) && perf >= PERF_DEFAUT_MIN && perf <= PERF_DEFAUT_MAX
+    ? perf : null;
+}
+
 export function rendementPondere(
   ucs: { perf: number | null | undefined; poids: number }[],
 ): number | null {

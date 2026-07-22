@@ -5,6 +5,7 @@ import {
   projeterUC,
   projectionSeries,
   tauxRetrocessionMoyen,
+  perfExploitablePourDefaut,
   partFraisDansGainBrut,
   repartitionFrais,
   reductionRendementAnnuelle,
@@ -621,6 +622,34 @@ describe('projeterUC', () => {
   it('null si perf absente', () => {
     expect(projeterUC(null, 0.8, 10_000, 5)).toBeNull()
     expect(projeterUC(undefined, 0.8, 10_000, 5)).toBeNull()
+  })
+})
+
+describe('perfExploitablePourDefaut — robustesse aux perfs aberrantes', () => {
+  it('garde une perf plausible', () => {
+    expect(perfExploitablePourDefaut(11.47)).toBe(11.47)
+    expect(perfExploitablePourDefaut(-8)).toBe(-8)
+    expect(perfExploitablePourDefaut(0)).toBe(0)
+  })
+  it('écarte une perf aberrante (data polluée : split/discontinuité de VL)', () => {
+    expect(perfExploitablePourDefaut(-58.2)).toBeNull()  // Comgest Monde annualisé
+    expect(perfExploitablePourDefaut(-85.77)).toBeNull() // Alphabet (split 20:1)
+    expect(perfExploitablePourDefaut(120)).toBeNull()    // artefact positif
+  })
+  it('null/undefined/NaN → null', () => {
+    expect(perfExploitablePourDefaut(null)).toBeNull()
+    expect(perfExploitablePourDefaut(undefined)).toBeNull()
+    expect(perfExploitablePourDefaut(NaN)).toBeNull()
+  })
+  it('un support à data cassée ne torpille plus le rendement pondéré par défaut', () => {
+    // portefeuille : 1 bon fonds (+10 %/an) + 1 fonds à VL cassée (-58 %/an)
+    const brut = rendementPondere([{ perf: 10, poids: 50 }, { perf: -58.2, poids: 50 }])
+    const robuste = rendementPondere([
+      { perf: perfExploitablePourDefaut(10), poids: 50 },
+      { perf: perfExploitablePourDefaut(-58.2), poids: 50 },
+    ])
+    expect(brut).toBeCloseTo(-24.1, 1)  // le brut plonge dans le rouge
+    expect(robuste).toBe(10)            // le robuste ne garde que le fonds sain
   })
 })
 
