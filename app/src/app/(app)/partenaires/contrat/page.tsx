@@ -214,8 +214,25 @@ function TermRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
+// Niveau de confiance d'une ligne de conditions, en langage CGP : d'où vient le
+// chiffre et combien on peut s'y fier. Pastille + libellé, pas de jargon.
+const CONF_BADGE: Record<ContractTerms["confidence"], { label: string; cls: string; dot: string }> = {
+  scraped:    { label: "Sourcé (DIC)",      cls: "text-ok bg-ok-soft border-ok/20",     dot: "bg-ok" },
+  curated:    { label: "Vérifié",           cls: "text-ink-2 bg-paper-2 border-line",   dot: "bg-accent/60" },
+  indicative: { label: "Ordre de grandeur", cls: "text-muted-2 bg-paper-2 border-line", dot: "border-[1.5px] border-muted-2" },
+};
+
+// Fraîcheur : « au JJ/MM/AAAA » à partir d'une date ISO (as_of). Null si absente/mal formée.
+function fmtAsOf(iso: string | null): string | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `au ${m[3]}/${m[2]}/${m[1]}` : null;
+}
+
 // Bloc « Conditions du contrat » quand les T&C sont sourcées (terms présent).
 function TermsCard({ terms }: { terms: ContractTerms }) {
+  const conf = CONF_BADGE[terms.confidence];
+  const asOf = fmtAsOf(terms.as_of);
   const fraisArb = fmtPct(terms.frais_arbitrage_pct) ?? terms.frais_arbitrage_note;
   const fe = terms.fonds_euros_taux_pct != null
     ? `${fmtPct(terms.fonds_euros_taux_pct)}${terms.fonds_euros_annee ? ` (${terms.fonds_euros_annee})` : ""}`
@@ -278,6 +295,25 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Fraîcheur + niveau de confiance de la source (honnêteté vis-à-vis du CGP) */}
+      <div className="mt-4 pt-3 border-t border-line-soft flex items-center justify-between gap-3 flex-wrap">
+        <span className={`inline-flex items-center gap-1.5 text-caption font-medium rounded-full px-2.5 py-0.5 border ${conf.cls}`}>
+          <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${conf.dot}`} />
+          {conf.label}
+          {asOf && <span className="text-muted-2 font-normal">· {asOf}</span>}
+        </span>
+        {terms.source_url && (
+          <a
+            href={terms.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-caption text-muted hover:text-accent-ink transition-colors underline decoration-line underline-offset-2"
+          >
+            Voir la source
+          </a>
+        )}
       </div>
     </Card>
   );
