@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceDot,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -260,24 +260,33 @@ function Segmented<T extends string>({ options, value, onChange }: {
 function Disclosure({ summary, children }: { summary: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-4 border-t border-line-soft pt-3">
+    <div className="mt-4">
       <button
         type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
-        className="flex items-center gap-1.5 text-caption text-accent-ink hover:underline"
+        className={`flex w-full items-center gap-2 rounded-lg border border-line bg-paper-2 px-3.5 py-2.5 text-meta font-medium text-accent-ink transition-colors hover:bg-accent-soft/40 ${open ? "rounded-b-none border-b-transparent" : ""}`}
       >
-        <ChevronDown size={13} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
+        <ChevronDown size={15} className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
         {summary}
+        <span className="ml-auto text-caption text-muted">{open ? "Masquer" : "Afficher"}</span>
       </button>
-      {open && <div className="mt-3 overflow-x-auto">{children}</div>}
+      {open && <div className="overflow-x-auto rounded-b-lg border border-t-0 border-line px-3.5 py-3">{children}</div>}
     </div>
   );
 }
 
-const LegendDot = ({ color, label }: { color: string; label: string }) => (
-  <span className="inline-flex items-center gap-1.5">
-    <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden />
-    {label}
-  </span>
+// Légende porteuse de valeur : chaque série affiche son montant à l'horizon —
+// le CGP lit les chiffres clés sans survoler le graphe ni ouvrir le tableau.
+// La rému cabinet est mise en avant (chiffre plus gros, vert).
+const LegendValue = ({ color, label, value, emphasis }: {
+  color: string; label: string; value: string; emphasis?: boolean;
+}) => (
+  <div className="flex items-center gap-2">
+    <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
+    <div className="leading-tight">
+      <span className="block text-caption text-muted">{label}</span>
+      <span className={`block tabular-nums font-semibold ${emphasis ? "text-title text-ok" : "text-body text-ink"}`}>{value}</span>
+    </div>
+  </div>
 );
 
 // Métrique compacte : intitulé en capitale + chiffre. Jamais de phrase — un site
@@ -355,9 +364,11 @@ function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
   const ticksR = ticksRonds(Math.max(...data.map((d) => Math.max(d.coutClient, d.revenuCabinet))));
   const topL = ticksL[ticksL.length - 1];
   const topR = ticksR[ticksR.length - 1];
+  const last = data[data.length - 1];
+  const endDot = { stroke: "var(--color-paper)", strokeWidth: 1.5, isFront: true };
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <ComposedChart data={data} margin={{ top: 10, right: 6, left: 0, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={300}>
+      <ComposedChart data={data} margin={{ top: 12, right: 6, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="fraisRemuFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-ok)" stopOpacity={0.22} />
@@ -393,6 +404,10 @@ function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
           yAxisId="right" type="monotone" dataKey="revenuCabinet" name="Rému cabinet"
           stroke="var(--color-ok)" strokeWidth={2.75} fill="url(#fraisRemuFill)" dot={false} activeDot={activeDot}
         />
+        {/* Points de fin : ancrent les montants de la légende au bout des courbes. */}
+        <ReferenceDot yAxisId="left" x={last.annee} y={last.valeurNette} r={3.25} fill="var(--color-ink-2)" {...endDot} />
+        <ReferenceDot yAxisId="right" x={last.annee} y={last.coutClient} r={3.25} fill="var(--color-warn)" {...endDot} />
+        <ReferenceDot yAxisId="right" x={last.annee} y={last.revenuCabinet} r={4} fill="var(--color-ok)" {...endDot} />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -1050,14 +1065,19 @@ export function FeeSimulator() {
                   Un graphe 3 courbes (encours / coût cumulé / rému cabinet) à la
                   place du tableau ; le tableau chiffré reste accessible replié. */}
               <Card className="px-5 py-5">
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-3">
+                <div className="flex items-baseline justify-between gap-3">
                   <H2 className="">Dans le temps</H2>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
-                    <LegendDot color="var(--color-ink-2)" label="Encours net" />
-                    <LegendDot color="var(--color-warn)" label="Coût cumulé" />
-                    <LegendDot color="var(--color-ok)" label="Rému cabinet" />
-                  </div>
+                  {serie.length > 1 && (
+                    <span className="text-caption text-muted whitespace-nowrap">à {serie[serie.length - 1].annee} ans</span>
+                  )}
                 </div>
+                {serie.length > 1 && (
+                  <div className="mt-3 mb-1 flex flex-wrap items-start gap-x-6 gap-y-3">
+                    <LegendValue color="var(--color-ok)" label="Ma rémunération" value={EUR.format(serie[serie.length - 1].revenuCabinet)} emphasis />
+                    <LegendValue color="var(--color-ink-2)" label="Encours net" value={EUR.format(serie[serie.length - 1].valeurNette)} />
+                    <LegendValue color="var(--color-warn)" label="Coût client cumulé" value={EUR.format(serie[serie.length - 1].coutClient)} />
+                  </div>
+                )}
                 <ProjectionChart data={serie} />
                 <Disclosure summary="Voir le tableau chiffré">
                   <table className="w-full text-meta tabular-nums">
