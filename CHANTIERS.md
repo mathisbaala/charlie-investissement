@@ -127,6 +127,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🚧 Chantiers en cours
 
+### Calculateurs patrimoniaux (onglet /calculateurs) — v1 livrée sur branche
+- **Priorité** : 🟡 Moyenne
+- **Détecté le** : 2026-07-22 (demande Sacha)
+- **Où** : branche `feat/calculateurs` — `app/src/lib/calculators/` (socle types + barèmes art. 777/669/990 I + registre de 28 calculateurs Transmission dans `defs/`), `/api/calculateurs/parse` (routing IA Haiku + validation dure façon sanitizeParsedFilters), `app/(app)/calculateurs/` + `components/calculateurs/` (barre NL → formulaire hybride pré-rempli → restitution KPI/tableaux/graphes Recharts), onglet rail Σ + titre Topbar.
+- **Le concept** : le CGP décrit sa situation en langage naturel → l'IA identifie le calculateur et pré-remplit les champs extraits (l'IA ne calcule JAMAIS) → le formulaire complète les manquants → calcul 100 % déterministe. **IA = Z.AI GLM 5.2** (choix coût Sacha, ~3× moins cher que Haiku, thinking désactivé) avec repli Claude Haiku si clé absente/panne ; sortie re-validée en dur (id, enums, bornes, champs conditionnels non actifs écartés). 102 tests dédiés (cas chiffrés à la main), suite complète 1 052 verts, tsc 0. **QA locale E2E complète** : phrase NL → GLM route et pré-remplit 4 champs (badges) → calcul exact au centime (donation 300 k€ enfant, 50 k€ consommés → 48 194 €).
+- **Reste** : vérifier ZAI_API_KEY présente dans les env Vercel avant merge ; familles suivantes (revenus, immo…) = ajouter des defs au registre ; export PDF client (v2, infra @react-pdf) ; revue fiscale humaine des mécaniques sensibles (Dutreil, 757 B, territorialité, participation aux acquêts) avant usage client.
+- **Effort estimé** : rapide à étendre (le socle porte tout)
+
 ### Branche `feat/partenaires-solidite-fonds-euros` (Joseph) — non mergée, à intégrer
 - **Priorité** : 🟠 Importante
 - **Détecté le** : 2026-07-22
