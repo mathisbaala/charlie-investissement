@@ -216,11 +216,11 @@ function StackedBar({ segments }: { segments: BarSegment[] }) {
           />
         ))}
       </div>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
         {shown.map((s) => (
           <li key={s.label} className="flex items-center gap-2 min-w-0">
             <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
-            <span className={`text-meta truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`}>{s.label}</span>
+            <span className={`text-meta truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
             <span className="ml-auto shrink-0 flex items-baseline gap-2">
               <span className={`text-meta tabular-nums ${s.strong ? "text-ink font-medium" : "text-ink"}`}>{EUR.format(s.value)}</span>
               <span className="text-caption text-muted tabular-nums w-9 text-right">{Math.round((s.value / total) * 100)} %</span>
@@ -664,11 +664,6 @@ export function FeeSimulator() {
     { key: "remuneration" as const, label: "Ma rému" },
     { key: "nature" as const, label: "Par nature" },
   ];
-  const ventilCaption: Record<typeof ventil, string> = {
-    beneficiaires: "Où part le coût total supporté par le client.",
-    remuneration: "Ce qui compose votre rémunération.",
-    nature: "Le coût client réparti par type de frais.",
-  };
   const segBeneficiaires: BarSegment[] = repart
     ? [
         { label: "Cabinet (vous)", value: revenuCabinet, color: "var(--color-ok)", strong: true },
@@ -910,9 +905,7 @@ export function FeeSimulator() {
                 <p className="text-label uppercase tracking-widest text-muted font-semibold">Ma rémunération</p>
                 <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-2">{EUR.format(revenuCabinet)}</p>
                 <p className="text-meta text-ink-2 mt-2.5">
-                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée
-                  <span className="text-muted"> · </span>
-                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent (an 1)
+                  <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée, puis <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent
                 </p>
                 {(tauxRetro != null || partUCRecurrent != null) && (
                   <div className="mt-3.5 flex flex-wrap gap-x-8 gap-y-2.5">
@@ -934,9 +927,9 @@ export function FeeSimulator() {
                   Client : <span className="tabular-nums text-ink-2">{EUR.format(coutTotalClient)}</span> de frais
                   <span className="text-muted"> · </span>
                   <span
-                    className="tabular-nums text-ink-2 cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2"
-                    title="Réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
-                  >−{pct(riy)}/an (RIY)</span> de rendement
+                    className="cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2"
+                    title="RIY (Reduction in Yield) — réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
+                  ><span className="tabular-nums text-ink-2">−{pct(riy)}/an</span> de rendement (RIY)</span>
                 </p>
               </Card>
 
@@ -946,11 +939,10 @@ export function FeeSimulator() {
                   lieu de trois listes empilées. Le détail ligne par ligne
                   (tableau support) est replié. */}
               <Card className="px-5 py-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <H2 className="">Décomposition</H2>
                   <Segmented options={ventilOptions} value={ventil} onChange={setVentil} />
                 </div>
-                <p className="text-caption text-muted mt-1 mb-4">{ventilCaption[ventil]}</p>
                 {partSansRetro > 0 && (
                   <div className="mb-4 rounded-lg border border-warn/30 bg-warn-soft/50 px-3 py-2">
                     <p className="text-caption text-ink-2">
