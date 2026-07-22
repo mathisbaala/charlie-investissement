@@ -23,6 +23,7 @@ type InsurerMetrics = {
   solvabilite_2_pct: number | null;
   notation: string | null;
   notation_agence: string | null;
+  ppb_pct: number | null;
   fe_taux: number | null;
   fe_annee: number | null;
 };
@@ -71,12 +72,14 @@ const CARD_HEIGHT = "h-[300px]";
 
 // Ligne de métriques d'un coup d'œil (marketplace) : solidité + meilleur fonds euros.
 // N'affiche que ce qui est sourcé — rien si l'assureur n'a aucune métrique (pas de
-// bloc vide). Chiffres factuels : Solvabilité II (SFCR) et taux de fonds euros (GVfM).
+// bloc vide). Chiffres factuels : Solvabilité II (SFCR), PPB (réserve de rendement,
+// GVfM) et meilleur taux de fonds euros du dernier millésime (GVfM).
 function InsurerMetricsRow({ m }: { m: InsurerMetrics | undefined }) {
   if (!m) return null;
   const hasSolva = m.solvabilite_2_pct != null;
+  const hasPpb = m.ppb_pct != null;
   const hasFe = m.fe_taux != null;
-  if (!hasSolva && !hasFe) return null;
+  if (!hasSolva && !hasPpb && !hasFe) return null;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {hasSolva && (
@@ -87,6 +90,17 @@ function InsurerMetricsRow({ m }: { m: InsurerMetrics | undefined }) {
           <span className="text-caption text-muted-2">Solva. II</span>
           <span className="text-caption text-ink-2 font-semibold tabular-nums">
             {Number(m.solvabilite_2_pct).toLocaleString("fr-FR")} %
+          </span>
+        </span>
+      )}
+      {hasPpb && (
+        <span
+          className="inline-flex items-baseline gap-1 rounded-md bg-paper-2 border border-line-soft px-2 py-0.5"
+          title="Provision pour participation aux bénéfices — réserve de rendement du fonds euros (en % des encours)"
+        >
+          <span className="text-caption text-muted-2">PPB</span>
+          <span className="text-caption text-ink-2 font-semibold tabular-nums">
+            {Number(m.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
           </span>
         </span>
       )}

@@ -15,6 +15,7 @@ type ProfileRow = {
   solvabilite_2_pct: number | null;
   notation: string | null;
   notation_agence: string | null;
+  ppb_pct: number | null;
 };
 type FeRow = { company: string; annee: number; taux_pct: number };
 
@@ -23,6 +24,7 @@ export type InsurerMetrics = {
   solvabilite_2_pct: number | null;
   notation: string | null;
   notation_agence: string | null;
+  ppb_pct: number | null; // réserve de rendement du fonds euros (% des encours)
   fe_taux: number | null; // meilleur taux de fonds euros du dernier millésime connu
   fe_annee: number | null;
 };
@@ -31,7 +33,7 @@ export async function GET(): Promise<NextResponse> {
   const [profilesRes, feRes] = await Promise.all([
     supabase
       .from("investissement_av_insurer_profiles")
-      .select("company, kind, solvabilite_2_pct, notation, notation_agence")
+      .select("company, kind, solvabilite_2_pct, notation, notation_agence, ppb_pct")
       .returns<ProfileRow[]>(),
     supabase
       .from("investissement_av_fonds_euros_history")
@@ -63,6 +65,7 @@ export async function GET(): Promise<NextResponse> {
       solvabilite_2_pct: p.solvabilite_2_pct,
       notation: p.notation,
       notation_agence: p.notation_agence,
+      ppb_pct: p.ppb_pct,
       fe_taux: fe?.taux ?? null,
       fe_annee: fe?.annee ?? null,
     };
@@ -73,7 +76,7 @@ export async function GET(): Promise<NextResponse> {
     if (!metrics[company]) {
       metrics[company] = {
         kind: null, solvabilite_2_pct: null, notation: null, notation_agence: null,
-        fe_taux: fe.taux, fe_annee: fe.annee,
+        ppb_pct: null, fe_taux: fe.taux, fe_annee: fe.annee,
       };
     }
   }
