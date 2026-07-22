@@ -27,6 +27,12 @@ Fill-only : n'écrit que les fonds DÉJÀ en base (update_funds_bulk, jamais
 d'insert) et, par défaut, seulement ceux SANS esg_exclusions (--overwrite pour
 rafraîchir, ex. nouvelle période EET).
 
+Le MÊME run remplit aussi les 3 champs de durabilité MiFID depuis les colonnes
+EET dédiées (cf. docs/mapping-eet-mifid.md et SUSTAIN_PATTERNS) :
+sustainable_investment_pct, taxonomy_alignment_pct, pai_considered — strictement
+fill-only (jamais d'--overwrite : préserve les valeurs de l'annexe Morningstar),
+avec sustainability_source = 'eet:<sgp>:<période>' posé sur les fonds enrichis.
+
 Usage :
     python3 scripts/scrapers/esg-exclusions-enricher.py --eet amundi-eet.csv            # dry-run
     python3 scripts/scrapers/esg-exclusions-enricher.py --dir data/eet/ --apply
@@ -43,7 +49,7 @@ from datetime import datetime, timezone, date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from db import get_client, update_funds_bulk, log_run
+from db import get_client, update_funds_bulk, log_run, now_iso
 
 # ─── Détection des colonnes EET ───────────────────────────────────────────────
 
@@ -72,6 +78,84 @@ SECTOR_PATTERNS: list[tuple[re.Pattern, str]] = [
 
 TRUE_VALUES  = {"y", "yes", "true", "1", "oui"}
 FALSE_VALUES = {"n", "no", "false", "0", "non"}
+
+# ─── Durabilité MiFID (mêmes fichiers EET, cf. docs/mapping-eet-mifid.md) ─────
+# Trois colonnes quantitatives de investissement_funds remplies depuis l'EET.
+# Motifs par PRIORITÉ décroissante : code FinDatEx V1.1.x d'abord (observé dans
+# les fichiers réels — les codes « usuels » 20510/20530/20440 du doc désignaient
+# d'autres champs), libellé générique en repli (variantes de version).
+#   sustainable_investment_pct : 20420 = part minimale/planifiée TOTALE d'inv.
+#     durables (art. 2(17)) ; replis 20180 (bloc art. 8) puis 20220 (art. 9,
+#     objectif environnemental — plancher conservateur si le social s'y ajoute).
+#   taxonomy_alignment_pct : 20610 = % minimal aligné taxinomie HORS dette
+#     souveraine (la variante affichée dans l'annexe) ; replis 20600 (incl.
+#     souverain) puis 20450 (bloc SFDR).
+#   pai_considered : 20100 (Y/N).
+SUSTAIN_PATTERNS: dict[str, list[re.Pattern]] = {
+    "sustainable_investment_pct": [
+        re.compile(r"^20420_|minimum_or_planned_investments_sustainable_investments$", re.I),
+        re.compile(r"^20180_|minimal_proportion_of_sustainable_investments", re.I),
+        re.compile(r"^20220_|minimum_sustainable_investment_with_environmental", re.I),
+    ],
+    "taxonomy_alignment_pct": [
+        re.compile(r"^20610_|aligned_eu_taxonomy_excl_sovereign_bonds$", re.I),
+        re.compile(r"^20600_|aligned_eu_taxonomy_incl_sovereign_bonds$", re.I),
+        re.compile(r"^20450_|sustainable_investments_taxonomy_aligned$", re.I),
+    ],
+    "pai_considered": [
+        re.compile(r"^20100_|consider.*(?:principle|principal).*adverse.*impact", re.I),
+    ],
+}
+
+
+def parse_pct(raw) -> float | None:
+    """Valeur EET → pourcentage 0-100, ou None. L'EET exprime les parts en
+    FRACTION (0.20 = 20 %) ; certains producteurs écrivent déjà en % → règle du
+    doc : v ≤ 1 → ×100. Bornes 0-100 strictes, arrondi 2 décimales."""
+    if raw is None:
+        return None
+    s = str(raw).strip().replace(",", ".").replace("%", "")
+    if not s:
+        return None
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    if 0 <= v <= 1:
+        v *= 100
+    if not (0 <= v <= 100):
+        return None
+    return round(v, 2)
+
+
+def map_sustain_headers(headers: list[str]) -> dict[str, list[int]]:
+    """{colonne DB: [index d'en-tête par priorité décroissante]}."""
+    out: dict[str, list[int]] = {}
+    for field, patterns in SUSTAIN_PATTERNS.items():
+        for pat in patterns:
+            for i, h in enumerate(headers):
+                if h and pat.search(str(h).strip()):
+                    out.setdefault(field, []).append(i)
+                    break  # une colonne par niveau de priorité
+    return out
+
+
+def parse_sustain_row(row: list, cols: dict[str, list[int]]) -> dict:
+    """Champs durabilité d'une ligne EET : première priorité renseignée.
+    Garde-fou plausibilité : la part taxinomie est un sous-ensemble de l'inv.
+    durable → si taxo > SI (+ epsilon), on jette la taxo (valeur douteuse)."""
+    out: dict = {}
+    for field, indexes in cols.items():
+        for i in indexes:
+            raw = row[i] if i < len(row) else None
+            v = parse_bool(raw) if field == "pai_considered" else parse_pct(raw)
+            if v is not None:
+                out[field] = v
+                break
+    si, taxo = out.get("sustainable_investment_pct"), out.get("taxonomy_alignment_pct")
+    if si is not None and taxo is not None and taxo > si + 0.01:
+        out.pop("taxonomy_alignment_pct", None)
+    return out
 
 
 def parse_bool(raw) -> bool | None:
@@ -150,25 +234,32 @@ def find_isin_by_values(rows: list[list]) -> int | None:
     return None
 
 
-def parse_eet_file(path: Path) -> tuple[dict[str, dict[str, bool]], dict[str, str]]:
+def parse_eet_file(
+    path: Path,
+) -> tuple[dict[str, dict[str, bool]], dict[str, str], dict[str, dict]]:
     """
-    Parse un fichier EET → ({isin: {clé: bool}}, {clé: en-tête source}).
-    Plusieurs colonnes pour une même clé : OR (une politique documentée suffit) ;
-    seules les valeurs booléennes explicites sont retenues (les seuils en % et
-    les champs descriptifs sont ignorés).
+    Parse un fichier EET → ({isin: {clé: bool}}, {clé: en-tête source},
+    {isin: champs durabilité MiFID}).
+    Plusieurs colonnes pour une même clé d'exclusion : OR (une politique
+    documentée suffit) ; seules les valeurs booléennes explicites sont retenues
+    (les seuils en % et les champs descriptifs sont ignorés). Les champs
+    durabilité (SI %, taxo %, PAI) sont lus par priorité de colonne
+    (cf. SUSTAIN_PATTERNS).
     """
     rows = read_rows(path)
     if not rows:
-        return {}, {}
+        return {}, {}, {}
     headers = [str(h) if h is not None else "" for h in rows[0]]
     isin_idx, sector_cols = map_headers(headers)
     if isin_idx is None:
         isin_idx = find_isin_by_values(rows)
-    if isin_idx is None or not sector_cols:
-        return {}, {}
+    sustain_cols = map_sustain_headers(headers)
+    if isin_idx is None or (not sector_cols and not sustain_cols):
+        return {}, {}, {}
 
     mapping_info = {key: headers[i] for i, key in sector_cols.items()}
     out: dict[str, dict[str, bool]] = {}
+    sustain: dict[str, dict] = {}
     for row in rows[1:]:
         if isin_idx >= len(row):
             continue
@@ -184,7 +275,13 @@ def parse_eet_file(path: Path) -> tuple[dict[str, dict[str, bool]], dict[str, st
             excl[key] = excl.get(key, False) or val
         if not excl:
             out.pop(isin, None)
-    return out, mapping_info
+        s = parse_sustain_row(row, sustain_cols)
+        if s:
+            # Plusieurs parts d'un même ISIN : on complète sans écraser.
+            cur = sustain.setdefault(isin, {})
+            for k, v in s.items():
+                cur.setdefault(k, v)
+    return out, mapping_info, sustain
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -203,24 +300,32 @@ def run(files: list[Path], apply: bool, overwrite: bool, limit: int | None,
 
     merged: dict[str, dict[str, bool]] = {}
     sources: dict[str, str] = {}
+    sustain_all: dict[str, dict] = {}
+    sustain_src: dict[str, str] = {}
     for path in files:
-        data, mapping = parse_eet_file(path)
+        data, mapping, sustain = parse_eet_file(path)
         label = f"eet:{source or path.stem}:{as_of_date}"
-        print(f"  {path.name} : {len(data)} ISIN")
-        if not data:
-            print("    ⚠️  aucune colonne ISIN/exclusion reconnue — en-têtes inattendus ?")
+        print(f"  {path.name} : {len(data)} ISIN excl., {len(sustain)} ISIN durabilité")
+        if not data and not sustain:
+            print("    ⚠️  aucune colonne ISIN/exclusion/durabilité reconnue — en-têtes inattendus ?")
             continue
         for key, header in sorted(mapping.items()):
             print(f"    {key:<22} ← {header}")
         for isin, excl in data.items():
             merged.setdefault(isin, {}).update(excl)
             sources[isin] = label
+        for isin, s in sustain.items():
+            cur = sustain_all.setdefault(isin, {})
+            for k, v in s.items():
+                cur.setdefault(k, v)
+            sustain_src.setdefault(isin, label)
 
-    if not merged:
-        print("\n  ⚠️  Aucune exclusion extraite")
+    if not merged and not sustain_all:
+        print("\n  ⚠️  Aucune donnée extraite")
         return
     if limit:
         merged = dict(list(merged.items())[:limit])
+        sustain_all = {k: v for k, v in sustain_all.items() if k in merged}
 
     # Statistiques par clé
     counts: dict[str, int] = {}
@@ -231,16 +336,23 @@ def run(files: list[Path], apply: bool, overwrite: bool, limit: int | None,
     print(f"\n  {len(merged)} ISIN au total — exclusions positives par clé :")
     for k, n in sorted(counts.items(), key=lambda kv: -kv[1]):
         print(f"    {k:<22} {n}")
+    s_counts = {f: sum(1 for s in sustain_all.values() if f in s) for f in SUSTAIN_PATTERNS}
+    print(f"  {len(sustain_all)} ISIN avec durabilité MiFID : "
+          + "  ".join(f"{f.replace('_pct','')}:{n}" for f, n in s_counts.items()))
 
     # Filtrage : ISINs déjà en base, et (sauf --overwrite) sans donnée existante.
+    # Les champs durabilité MiFID sont STRICTEMENT fill-only (jamais d'overwrite :
+    # ~200 valeurs posées par l'annexe Morningstar à préserver).
     client = get_client()
-    isins = list(merged.keys())
+    isins = sorted(set(merged) | set(sustain_all))
     existing: set[str] = set()
     already: set[str] = set()
+    sustain_null: dict[str, set[str]] = {}  # isin → champs MiFID encore NULL en base
     has_column = True
     for i in range(0, len(isins), 500):
         chunk = isins[i : i + 500]
-        cols = "isin, esg_exclusions" if has_column else "isin"
+        cols = ("isin, esg_exclusions, sustainable_investment_pct, "
+                "taxonomy_alignment_pct, pai_considered") if has_column else "isin"
         try:
             r = client.table("investissement_funds").select(cols).in_("isin", chunk).execute()
         except Exception as e:
@@ -256,26 +368,46 @@ def run(files: list[Path], apply: bool, overwrite: bool, limit: int | None,
             existing.add(row["isin"])
             if row.get("esg_exclusions") is not None:
                 already.add(row["isin"])
+            nulls = {f for f in SUSTAIN_PATTERNS if row.get(f) is None}
+            if nulls:
+                sustain_null[row["isin"]] = nulls
 
-    batch = [
-        {
-            "isin": isin,
-            "esg_exclusions": merged[isin],
-            "esg_exclusions_source": sources[isin],
-            "esg_exclusions_updated_at": as_of_date,
-        }
-        for isin in merged
-        if isin in existing and (overwrite or isin not in already)
-    ]
-    print(f"\n  En base : {len(existing)}/{len(merged)} — "
-          f"déjà renseignés : {len(already)}"
-          f"{' (écrasés)' if overwrite else ' (conservés, --overwrite pour rafraîchir)'}")
-    print(f"  À écrire : {len(batch)}")
+    batch: list[dict] = []
+    n_excl = n_sustain = 0
+    sustain_written = {f: 0 for f in SUSTAIN_PATTERNS}
+    for isin in isins:
+        row: dict = {"isin": isin}
+        if isin in merged and isin in existing and (overwrite or isin not in already):
+            row.update({
+                "esg_exclusions": merged[isin],
+                "esg_exclusions_source": sources[isin],
+                "esg_exclusions_updated_at": as_of_date,
+            })
+            n_excl += 1
+        # Durabilité MiFID : uniquement les champs trouvés ET NULL en base.
+        keep = {f: v for f, v in sustain_all.get(isin, {}).items()
+                if f in sustain_null.get(isin, set())}
+        if keep and isin in existing:
+            row.update(keep)
+            row["sustainability_source"] = sustain_src[isin]
+            row["sustainability_computed_at"] = now_iso()
+            n_sustain += 1
+            for f in keep:
+                sustain_written[f] += 1
+        if len(row) > 1:
+            batch.append(row)
+
+    print(f"\n  En base : {len(existing)}/{len(isins)} — "
+          f"exclusions déjà renseignées : {len(already)}"
+          f"{' (écrasées)' if overwrite else ' (conservées, --overwrite pour rafraîchir)'}")
+    print(f"  À écrire : {len(batch)} fonds — exclusions : {n_excl}, durabilité MiFID : {n_sustain} "
+          f"({'  '.join(f'{f}:{n}' for f, n in sustain_written.items())})")
 
     if not apply:
         print("\n  Aperçu (10 premiers) :")
         for row in batch[:10]:
-            print(f"  {row['isin']} → {json.dumps(row['esg_exclusions'], sort_keys=True)}")
+            payload = {k: v for k, v in row.items() if k != "isin"}
+            print(f"  {row['isin']} → {json.dumps(payload, sort_keys=True, default=str)}")
         print("\n  DRY-RUN — relancer avec --apply pour écrire.")
         return
 
