@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -216,15 +216,15 @@ function StackedBar({ segments }: { segments: BarSegment[] }) {
           />
         ))}
       </div>
-      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2.5">
+      <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
         {shown.map((s) => (
-          <li key={s.label} className="flex items-center gap-2 min-w-0">
-            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
-            <span className={`text-body truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
-            <span className="ml-auto shrink-0 flex items-baseline gap-2">
-              <span className={`text-body tabular-nums ${s.strong ? "text-ink font-semibold" : "text-ink font-medium"}`}>{EUR.format(s.value)}</span>
-              <span className="text-meta text-muted tabular-nums w-10 text-right">{Math.round((s.value / total) * 100)} %</span>
-            </span>
+          <li key={s.label} className="min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
+              <span className={`text-body truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
+            </div>
+            <p className={`mt-1.5 text-subhead tabular-nums leading-none ${s.strong ? "text-ink font-semibold" : "text-ink font-medium"}`}>{EUR.format(s.value)}</p>
+            <p className="mt-1 text-meta text-muted tabular-nums leading-none">{Math.round((s.value / total) * 100)} %</p>
           </li>
         ))}
       </ul>
@@ -291,9 +291,7 @@ function Stat({ label, value, sub, hint }: {
     <div className="min-w-0">
       <p className="text-label uppercase tracking-wide text-muted font-semibold truncate" title={label}>{label}</p>
       <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-1">
-        {hint ? (
-          <span className="cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2" title={hint}>{body}</span>
-        ) : body}
+        {hint ? <span title={hint}>{body}</span> : body}
       </p>
     </div>
   );
@@ -306,16 +304,16 @@ const eurAxis = (v: number) =>
   v === 0 ? "0" : `${(v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: Math.abs(v) < 10_000 ? 1 : 0 })} k`;
 
 function ProjTooltip({ active, payload, label }: {
-  active?: boolean; payload?: { name?: string; value?: number; color?: string }[]; label?: number | string;
+  active?: boolean; payload?: { name?: string; value?: number; color?: string; stroke?: string }[]; label?: number | string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-line bg-paper px-3 py-2 text-caption shadow-sm">
-      <p className="mb-1 text-muted">{label} an{Number(label) > 1 ? "s" : ""}</p>
-      <div className="space-y-1">
+      <p className="mb-1.5 text-muted">{label} an{Number(label) > 1 ? "s" : ""}</p>
+      <div className="space-y-1.5">
         {payload.map((p) => (
           <div key={p.name} className="flex items-center gap-2">
-            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} aria-hidden />
+            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: p.stroke || p.color }} aria-hidden />
             <span className="text-ink-2">{p.name}</span>
             <span className="ml-auto pl-3 tabular-nums font-medium text-ink">{EUR.format(p.value ?? 0)}</span>
           </div>
@@ -334,9 +332,16 @@ function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
     return <p className="text-caption text-muted">Augmentez la durée pour visualiser la projection.</p>;
   }
   const axisTick = { fontSize: 10, fill: CHART_AXIS, fontFamily: "var(--font-mono)" };
+  const activeDot = { r: 4, strokeWidth: 2, stroke: "var(--color-paper)" };
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={data} margin={{ top: 8, right: 2, left: 0, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={260}>
+      <ComposedChart data={data} margin={{ top: 10, right: 6, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="fraisRemuFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-ok)" stopOpacity={0.22} />
+            <stop offset="95%" stopColor="var(--color-ok)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
         <CartesianGrid stroke={CHART_GRID} vertical={false} strokeWidth={1} />
         <XAxis
           dataKey="annee" tick={axisTick} axisLine={false} tickLine={false}
@@ -348,22 +353,25 @@ function ProjectionChart({ data }: { data: ProjectionPoint[] }) {
         />
         <YAxis
           yAxisId="right" orientation="right" tick={axisTick} axisLine={false} tickLine={false}
-          width={38} tickFormatter={eurAxis} domain={[0, "auto"]}
+          width={40} tickFormatter={eurAxis} domain={[0, "auto"]} tickCount={5}
         />
-        <Tooltip content={(p) => <ProjTooltip {...(p as object)} />} />
+        <Tooltip
+          content={(p) => <ProjTooltip {...(p as object)} />}
+          cursor={{ stroke: CHART_AXIS, strokeWidth: 1, strokeDasharray: "3 3" }}
+        />
         <Line
           yAxisId="left" type="monotone" dataKey="valeurNette" name="Encours net"
-          stroke="var(--color-ink-2)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }}
+          stroke="var(--color-ink-2)" strokeWidth={1.75} dot={false} activeDot={activeDot}
         />
         <Line
-          yAxisId="right" type="monotone" dataKey="coutClient" name="Coût client cumulé"
-          stroke="var(--color-warn)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }}
+          yAxisId="right" type="monotone" dataKey="coutClient" name="Coût cumulé"
+          stroke="var(--color-warn)" strokeWidth={2} dot={false} activeDot={activeDot}
         />
-        <Line
-          yAxisId="right" type="monotone" dataKey="revenuCabinet" name="Rému cabinet cumulée"
-          stroke="var(--color-ok)" strokeWidth={2.25} dot={false} activeDot={{ r: 3.5 }}
+        <Area
+          yAxisId="right" type="monotone" dataKey="revenuCabinet" name="Rému cabinet"
+          stroke="var(--color-ok)" strokeWidth={2.75} fill="url(#fraisRemuFill)" dot={false} activeDot={activeDot}
         />
-      </LineChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
@@ -642,7 +650,7 @@ export function FeeSimulator() {
     return [
       { nom: "Frais d'entrée", montant: fc.entreeContrat + fc.entreeUC },
       { nom: "Gestion de l'enveloppe", montant: fc.gestionContratUC + fc.gestionContratFE },
-      { nom: "Frais courants des supports", montant: fc.gestionUC },
+      { nom: "Frais des supports", montant: fc.gestionUC },
       { nom: "Frais de sortie", montant: final.fraisSortie },
       ...(honoraireCumule > 0 ? [{ nom: "Honoraires de conseil (en sus)", montant: honoraireCumule }] : []),
     ];
