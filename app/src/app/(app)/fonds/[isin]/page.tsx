@@ -38,7 +38,7 @@ export default async function FondPage({
       .select(`
         isin, name, management_company, management_company_normalized, tickers,
         product_type, category, category_normalized, asset_class_broad, asset_class, allocation_profile, region_normalized, region_exposure, management_style,
-        currency, inception_date, track_record_years,
+        currency, fund_domicile, distribution_policy, min_subscription_eur, inception_date, track_record_years,
         hedged, distributor_france, ucits_compliant, data_source, field_sources,
         sfdr_article, sri, srri,
         performance_1y, performance_3y, performance_5y,
@@ -137,6 +137,9 @@ export default async function FondPage({
     region_normalized: fund.region_normalized,
     region_exposure: (fund as any).region_exposure ?? null,
     currency: fund.currency,
+    fund_domicile: (fund as any).fund_domicile ?? null,
+    distribution_policy: (fund as any).distribution_policy ?? null,
+    min_subscription_eur: (fund as any).min_subscription_eur ?? null,
     price_per_share: scpi?.price_per_share ?? null,
     dvm: scpi?.dvm ?? null,
     tof: scpi?.tof ?? null,
