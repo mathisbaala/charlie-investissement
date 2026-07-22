@@ -424,6 +424,44 @@ describe("GET /api/funds — robustesse pagination", () => {
     expect(orData).not.toContainEqual("entry_fee_max.is.null,entry_fee_max.lte.0");
   });
 
+  // ─── Relâchement gracieux (0 résultat → on desserre les filtres) ────────────
+
+  // 0 résultat + plusieurs filtres relâchables → on sonde les états cumulés EN
+  // PARALLÈLE et on s'arrête au PREMIER qui redonne des résultats (findIndex). Ici
+  // toutes les sondes count renvoient > 0 : on ne relâche donc QUE le premier filtre
+  // (relaxed.length === 1, pas les deux), et la page est rechargée pour cet état.
+  it("relâchement gracieux : s'arrête au premier filtre qui redonne des résultats", async () => {
+    // 1er chargement = 0 résultat (déclenche le relâchement) ; les requêtes suivantes
+    // (phase 1 + enrichissement du rechargement) retombent sur dataResult (count 7).
+    dataQueue = [{ data: [], error: null, count: 0 }];
+    dataResult = {
+      data: [{ isin: "FR0000000009", aum_eur: 10, share_class_group_id: "s", ter: 0, ongoing_charges: 0 }],
+      error: null,
+      count: 7,
+    };
+    countResult = { data: null, error: null, count: 7 }; // toute sonde count est > 0
+    const res = await GET(req("?drawdown_max=20&ter_max=1&sort_by=performance_3y"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(7);
+    expect(body.data.map((f: any) => f.isin)).toEqual(["FR0000000009"]);
+    // Un SEUL filtre relâché (le premier dans l'ordre de priorité), pas les deux.
+    expect(body.relaxed).toHaveLength(1);
+  });
+
+  // Aucun filtre relâchable ne redonne de résultat → aucune donnée, aucun drapeau
+  // `relaxed`, page vide cohérente (les sondes parallèles renvoient toutes 0).
+  it("relâchement gracieux : toutes les sondes à 0 → page vide sans drapeau relaxed", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    countResult = { data: null, error: null, count: 0 };
+    const res = await GET(req("?drawdown_max=20&ter_max=1&sort_by=performance_3y"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBe(0);
+    expect(body.data).toEqual([]);
+    expect(body.relaxed).toBeUndefined();
+  });
+
   // ─── Ranking de pertinence (toutes les pages) ───────────────────────────────
 
   // Une recherche texte passe par la RPC classée inv_funds_search (et non la vue

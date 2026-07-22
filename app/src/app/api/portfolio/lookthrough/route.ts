@@ -44,6 +44,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select("isin, position_name, ticker, weight").in("isin", isins).limit(4000),
   ]);
 
+  // Chaque volet (géo/secteurs/chevauchements) dégrade proprement en vide si sa
+  // requête échoue : on LOGGUE l'erreur plutôt que de la masquer silencieusement.
+  for (const [label, res] of [["geos", geoRes], ["sectors", secRes], ["holdings", holdRes]] as const) {
+    if (res.error) console.error(`[lookthrough] lecture ${label} échouée (dégradé):`, res.error);
+  }
+
   // Libellé canonique par code pays : un même pays = une seule ligne, quelle que
   // soit la langue du libellé selon le fonds (« United States » vs « États-Unis »).
   const geoRows = (geoRes.data ?? []) as any[];

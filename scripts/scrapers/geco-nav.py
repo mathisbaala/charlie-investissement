@@ -304,21 +304,48 @@ def incremental_points(series: list[dict], last: str | None,
     return [p for p in series if p["date"] >= min_backfill]
 
 
+# Codes HTTP transitoires (rate limit AMF / hoquet serveur) → on RETENTE avec
+# backoff au lieu de compter le fonds « sans VL » pour toute la semaine. Sans ça,
+# un 429/503 ponctuel figeait silencieusement la VL du fonds jusqu'au run suivant.
+CHART_RETRIES     = 3
+CHART_BACKOFF_SEC = 1.5
+
+
+class ChartFetchError(RuntimeError):
+    """Échec RÉSEAU/serveur du endpoint chart (transitoire, à distinguer d'une
+    série vide qui, elle, signifie « le fonds ne publie plus de VL »)."""
+
+
 def fetch_series(session: requests.Session, share_id: int) -> list[dict]:
-    """Renvoie [{date 'YYYY-MM-DD', nav, currency}] depuis l'API chart GECO, ou []."""
+    """Renvoie [{date 'YYYY-MM-DD', nav, currency}] depuis l'API chart GECO, ou [].
+
+    Une série vide (HTTP 200, x/y vides) → [] : le fonds ne publie plus de VL
+    (soldé/maturé/basse fréquence), ce N'EST PAS une erreur. Un échec réseau ou
+    un code transitoire (429/5xx/timeout) lève ChartFetchError APRÈS quelques
+    retries à backoff — l'appelant le compte à part (retryable ≠ fonds mort)."""
     start = (date.today() - timedelta(days=365 * LOOKBACK_YEARS + 30)).isoformat()
     end   = date.today().isoformat()
-    try:
-        r = session.get(
-            f"{GECO_BASE}/funds/chart/{share_id}",
-            headers=HEADERS, params={"startDate": start, "endDate": end}, timeout=TIMEOUT,
-        )
-        if r.status_code != 200:
-            raise RuntimeError(f"HTTP {r.status_code}")
-        data = r.json()
-    except (Exception, ValueError) as e:
-        raise RuntimeError(str(e)[:120])
-    return parse_chart_payload(data)
+    last_err = "?"
+    for attempt in range(CHART_RETRIES):
+        try:
+            r = session.get(
+                f"{GECO_BASE}/funds/chart/{share_id}",
+                headers=HEADERS, params={"startDate": start, "endDate": end},
+                timeout=TIMEOUT,
+            )
+            if r.status_code == 200:
+                return parse_chart_payload(r.json())  # peut être [] (fonds sans VL)
+            # 429 / 5xx = transitoire → retry ; 4xx (hors 429) = définitif → abandon.
+            last_err = f"HTTP {r.status_code}"
+            if r.status_code != 429 and r.status_code < 500:
+                raise ChartFetchError(last_err)
+        except ChartFetchError:
+            raise
+        except (Exception, ValueError) as e:  # réseau/timeout/JSON illisible
+            last_err = str(e)[:120]
+        if attempt < CHART_RETRIES - 1:
+            time.sleep(CHART_BACKOFF_SEC * (attempt + 1))
+    raise ChartFetchError(last_err)
 
 
 # ─── Run ─────────────────────────────────────────────────────────────────────
@@ -352,7 +379,11 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
 
     min_backfill = (date.today() - timedelta(days=365 * LOOKBACK_YEARS)).isoformat()
     lock = threading.Lock()
-    state = {"ok": 0, "no_share": 0, "no_nav": 0, "prices": 0, "done": 0, "resolved": 0}
+    # no_nav_dead = série GECO vide (fonds soldé/maturé/basse fréquence — normal).
+    # no_nav_err  = échec réseau/serveur du endpoint chart APRÈS retries (à surveiller :
+    #               ces fonds-là devraient être repris au prochain run, pas ignorés).
+    state = {"ok": 0, "no_share": 0, "no_nav_dead": 0, "no_nav_err": 0,
+             "prices": 0, "done": 0, "resolved": 0}
     errors = []
     new_cache: list[dict] = []  # résolutions live à persister en fin de run
 
@@ -389,14 +420,18 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
         try:
             series = fetch_series(session, share_id)
         except Exception as e:
+            # Échec réseau/serveur (déjà retenté à backoff dans fetch_series) →
+            # compté à part comme retryable ; on trace l'erreur pour le suivi.
             with lock:
                 errors.append({"isin": isin, "error": str(e)[:120]})
-                state["no_nav"] += 1
+                state["no_nav_err"] += 1
                 state["done"] += 1
             return
         if not series:
+            # Série vide = le fonds ne publie plus de VL (soldé/maturé/basse
+            # fréquence). Attendu, pas une erreur : aucune ligne d'erreur tracée.
             with lock:
-                state["no_nav"] += 1
+                state["no_nav_dead"] += 1
                 state["done"] += 1
             return
 
@@ -420,7 +455,8 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
                           + ("" if apply else "  [dry-run]"))
             if done % 25 == 0 or done == len(targets):
                 print(f"  [{done:5d}/{len(targets)}] ok:{state['ok']} "
-                      f"no_share:{state['no_share']} no_nav:{state['no_nav']} "
+                      f"no_share:{state['no_share']} "
+                      f"vides:{state['no_nav_dead']} err:{state['no_nav_err']} "
                       f"VL:{state['prices']}", flush=True)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
@@ -432,8 +468,13 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
         persist_share_cache(client, new_cache)
 
     print(f"\n  → {state['ok']}/{len(targets)} OPCVM résolus sur GECO | "
-          f"{state['no_share']} sans share | {state['no_nav']} sans VL | "
+          f"{state['no_share']} sans share | "
+          f"{state['no_nav_dead']} série vide (fonds sans VL) | "
+          f"{state['no_nav_err']} échec chart (retryable) | "
           f"{state['prices']} VL {'écrites' if apply else '(dry-run)'}")
+    if state["no_nav_err"]:
+        print(f"  ⚠️  {state['no_nav_err']} fonds en échec réseau/serveur sur le "
+              f"endpoint chart (repris au prochain run) — à surveiller si ça grossit.")
     print(f"  cache : {state['resolved']} résolutions live "
           f"({len(new_cache)} mises en cache), reste servi par le cache")
     if errors:
@@ -448,8 +489,12 @@ def run(apply: bool, limit: int | None, isin_arg: str | None,
     # La série VL est écrite dans tous les cas ; seul le bookkeeping est sauté.
     if apply and not isin_arg:
         status = "success" if state["ok"] else "partial"
+        # « failed » = seulement les vrais échecs (résolution introuvable + chart
+        # en erreur réseau). Les séries vides (fonds soldés/maturés) ne sont PAS
+        # des échecs : les compter gonflait records_failed et faisait passer un run
+        # sain pour « partial » alors que rien n'était cassé.
         log_run(SOURCE, status, records_processed=state["ok"],
-                records_failed=state["no_share"] + state["no_nav"],
+                records_failed=state["no_share"] + state["no_nav_err"],
                 errors=errors[:50], started_at=started)
     return 0
 

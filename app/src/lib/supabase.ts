@@ -7,6 +7,26 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // déploiements preview Vercel, où SUPABASE_URL n'est pas injectée.
 let client: SupabaseClient | null = null;
 
+// Garde-temps réseau : une requête PostgREST qui gèle (contention CPU Supabase,
+// verrou, socket pendante) ne doit pas bloquer indéfiniment la route serverless.
+// On avorte au-delà de ce délai — plus large que le statement_timeout SQL, donc
+// c'est un vrai filet de dernier recours, pas un couperet sur les requêtes lentes
+// légitimes. Le signal éventuel de l'appelant est préservé (course des deux).
+const FETCH_TIMEOUT_MS = 18_000;
+
+const timedFetch: typeof fetch = (input, init) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const caller = init?.signal;
+  if (caller) {
+    if (caller.aborted) ctrl.abort();
+    else caller.addEventListener("abort", () => ctrl.abort(), { once: true });
+  }
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+};
+
 function getClient(): SupabaseClient {
   if (client) return client;
 
@@ -18,7 +38,9 @@ function getClient(): SupabaseClient {
     );
   }
 
-  client = createClient(supabaseUrl, supabaseKey);
+  client = createClient(supabaseUrl, supabaseKey, {
+    global: { fetch: timedFetch },
+  });
   return client;
 }
 
