@@ -54,6 +54,7 @@ export default async function FondPage({
         pea_eligible, per_eligible, av_lux_eligible,
         av_fr_eligible, pea_pme_eligible, cto_eligible,
         taxonomy_alignment_pct, sustainable_investment_pct, pai_considered,
+        esg_exclusions, esg_exclusions_updated_at,
         aum_eur, morningstar_rating, labels, kid_url,
         data_completeness
       `)
@@ -193,6 +194,8 @@ export default async function FondPage({
     taxonomy_alignment_pct: (fund as any).taxonomy_alignment_pct ?? null,
     sustainable_investment_pct: (fund as any).sustainable_investment_pct ?? null,
     pai_considered: (fund as any).pai_considered ?? null,
+    esg_exclusions: (fund as any).esg_exclusions ?? null,
+    esg_exclusions_updated_at: (fund as any).esg_exclusions_updated_at ?? null,
     aum_eur: fund.aum_eur,
     morningstar_rating: fund.morningstar_rating,
     labels: Array.isArray(fund.labels) ? fund.labels : null,

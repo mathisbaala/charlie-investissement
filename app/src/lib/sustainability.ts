@@ -45,3 +45,38 @@ export function sfdrInfo(article: number | null | undefined): { tag: string; tit
       return null;
   }
 }
+
+// ─── Exclusions sectorielles documentées (EET) ───────────────────────────────
+// Clés canoniques de investissement_funds.esg_exclusions (cf. COMMENT SQL de la
+// colonne et esg-exclusions-enricher.py) → libellé d'affichage. L'ordre est
+// celui d'affichage : thèmes du recueil client d'abord, normes ensuite.
+export const EXCLUSION_KEY_LABELS: { key: string; label: string }[] = [
+  { key: "tobacco",               label: "Tabac" },
+  { key: "controversial_weapons", label: "Armes controversées" },
+  { key: "weapons",               label: "Armement" },
+  { key: "fossil",                label: "Énergies fossiles" },
+  { key: "thermal_coal",          label: "Charbon thermique" },
+  { key: "gambling",              label: "Jeux d'argent" },
+  { key: "alcohol",               label: "Alcool" },
+  { key: "adult_entertainment",   label: "Divertissement pour adultes" },
+  { key: "nuclear",               label: "Nucléaire" },
+  { key: "ungc_violations",       label: "Violations Pacte mondial ONU" },
+];
+
+/** Exclusions documentées d'un fonds, triées pour l'affichage :
+ *  {excluded} = secteurs que le fonds EXCLUT, {notExcluded} = secteurs qu'il
+ *  documente ne PAS exclure. Clés inconnues du vocabulaire : ignorées. */
+export function exclusionEntries(
+  esgExclusions: Record<string, boolean> | null | undefined,
+): { excluded: { key: string; label: string }[]; notExcluded: { key: string; label: string }[] } {
+  const excluded: { key: string; label: string }[] = [];
+  const notExcluded: { key: string; label: string }[] = [];
+  if (esgExclusions) {
+    for (const { key, label } of EXCLUSION_KEY_LABELS) {
+      const v = esgExclusions[key];
+      if (v === true) excluded.push({ key, label });
+      else if (v === false) notExcluded.push({ key, label });
+    }
+  }
+  return { excluded, notExcluded };
+}

@@ -405,6 +405,11 @@ export type FundDetailHF = {
   taxonomy_alignment_pct: number | null;
   sustainable_investment_pct: number | null;
   pai_considered: boolean | null;
+  // Exclusions sectorielles documentées (EET, migration 20260721160000) :
+  // {clé canonique: bool} — true = le fonds exclut le secteur, false = il
+  // documente ne PAS l'exclure ; clé absente/null = inconnu.
+  esg_exclusions: Record<string, boolean> | null;
+  esg_exclusions_updated_at: string | null;
   pea_eligible: boolean | null;
   per_eligible: boolean | null;
   av_lux_eligible: boolean | null;

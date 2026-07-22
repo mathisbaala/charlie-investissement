@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { officialLabelsOf, sfdrInfo, OFFICIAL_LABELS } from '../lib/sustainability'
+import { officialLabelsOf, sfdrInfo, OFFICIAL_LABELS, exclusionEntries } from '../lib/sustainability'
 
 describe('officialLabelsOf', () => {
   it('ne garde que les labels officiels (ignore les tags internes)', () => {
@@ -38,5 +38,25 @@ describe('sfdrInfo', () => {
     expect(sfdrInfo(null)).toBe(null)
     expect(sfdrInfo(undefined)).toBe(null)
     expect(sfdrInfo(7)).toBe(null)
+  })
+})
+
+describe('exclusionEntries', () => {
+  it('sépare exclut / n\'exclut pas, dans l\'ordre du vocabulaire', () => {
+    const { excluded, notExcluded } = exclusionEntries({
+      gambling: false, tobacco: true, controversial_weapons: true, fossil: false,
+    })
+    expect(excluded.map((e) => e.key)).toEqual(['tobacco', 'controversial_weapons'])
+    expect(notExcluded.map((e) => e.key)).toEqual(['fossil', 'gambling'])
+    expect(excluded[0].label).toBe('Tabac')
+  })
+  it('ignore les clés hors vocabulaire', () => {
+    const { excluded, notExcluded } = exclusionEntries({ crypto_mining: true } as Record<string, boolean>)
+    expect(excluded).toHaveLength(0)
+    expect(notExcluded).toHaveLength(0)
+  })
+  it('null/undefined → vide (la carte se masque)', () => {
+    expect(exclusionEntries(null)).toEqual({ excluded: [], notExcluded: [] })
+    expect(exclusionEntries(undefined)).toEqual({ excluded: [], notExcluded: [] })
   })
 })
