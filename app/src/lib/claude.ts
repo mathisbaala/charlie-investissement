@@ -221,11 +221,16 @@ Retourne un objet JSON valide avec ces champs optionnels :
 - sector: tableau parmi ["Technologie","Santé","Finance","Consommation","Industrie","Énergie","Immobilier","Environnement","Communication","Matériaux"]
 - exclude_sectors: secteurs à EXCLURE (même liste que sector). Pour les formulations NÉGATIVES : « peu exposé à X », « faible exposition X », « sans X », « hors X », « pas de X », « peu de X », « éviter X ». NE JAMAIS mettre un secteur en positif (sector) quand la phrase est négative — utiliser exclude_sectors.
 - exclude_regions: zones à EXCLURE (même liste que region). Mêmes déclencheurs négatifs appliqués à une zone (« peu exposé aux US », « hors USA », « sans Chine »).
-- insurers: assureurs référençant le fonds, parmi ["BNP Paribas Cardif","Suravenir","Linxea","AXA France","SwissLife France","Allianz France","AG2R La Mondiale","Generali Luxembourg","Swiss Life Luxembourg","Wealins","Cardif Lux Vie","Baloise Life","AXA Wealth Europe"]
+- insurers: assureurs/distributeurs référençant le fonds, parmi ["AG2R La Mondiale","BNP Paribas Cardif","Suravenir","Generali Vie","CNP Luxembourg","Linxea","Bourse Direct","Spirica","AXA France","SwissLife France","Swiss Life Luxembourg","BoursoBank","Oradéa Vie","Wealins","APICIL","Selencia","Generali Retraite","CNP Assurances","Sogelife","Generali Luxembourg","Allianz France","Cardif Lux Vie","Fortuneo","BPCE Vie","Asac Fapes","Suravenir Luxembourg","Apicil / OneLife","Abeille Vie","Predica","Prépar Vie","Sogécap","Baloise Life","Easybourse","AXA Wealth Europe","CALI Europe","Crédit Agricole Assurances Retraite","Afi Esca","Groupama Gan Vie","Trade Republic","Afer","CNP Retraite","MMA Vie","Yomoni","AFI ESCA Luxembourg","Allianz Life Luxembourg","Vitis Life","ACM Vie","La France Mutualiste","Utmost Luxembourg S.A.","Agipi","LCL","La Banque Postale Life","Garance","Le Conservateur","Banque Populaire","Caisse d'Épargne","APICIL Luxembourg","Carac","MAAF Vie","GMF Vie","Maif","MACSF","Macif Vie","Monceau Assurances"]
   (mapping : "AXA" / "chez AXA" → "AXA France" ; "Swiss Life" / "SwissLife" → "SwissLife France" ;
    "Allianz" → "Allianz France" ; "Cardif" / "BNP" → "BNP Paribas Cardif" ; "Suravenir" → "Suravenir" ;
-   "Linxea" → "Linxea" ; "AG2R" / "La Mondiale" → "AG2R La Mondiale" ; déclenché par "référencé chez X",
-   "disponible chez/sur X", "assurance vie X", "je travaille avec X")
+   "Linxea" → "Linxea" ; "AG2R" / "La Mondiale" → "AG2R La Mondiale" ; "Generali" → "Generali Vie" ;
+   "Boursorama" → "BoursoBank" ; "Crédit Agricole" → "Predica" ; "Groupama" / "Gan" → "Groupama Gan Vie" ;
+   "Fortuneo" → "Fortuneo" (courtier bourse/PEA — pour « assurance vie Fortuneo », l'assureur du contrat
+   est Suravenir : mettre ["Suravenir"]) ; déclenché par "référencé chez X", "disponible chez/sur X",
+   "assurance vie X", "je travaille avec X".
+   IMPORTANT : un nom ABSENT de cette liste ne doit JAMAIS être remplacé par un autre assureur
+   « proche » — dans ce cas, OMETTRE insurers (mieux vaut aucun filtre d'assureur qu'un mauvais).)
 - management_style: tableau parmi ["passif","actif","smart_beta","alternatif"]
 - currency: tableau ex: ["EUR","USD"]
 - morningstar_min: note Morningstar min 1-5
@@ -287,7 +292,9 @@ Règles de mapping :
 - "fonds daté" / "obligataire daté" / "fonds à échéance" / "à échéance" / "target maturity" / "fonds de portage" / "millésimé" / "fonds obligataire 20XX" → target_maturity:true + asset_class:["obligation"] (+ maturity_year_min/max si une année est citée)
 - "diversifié" / "multi-actifs" / "multi-asset" / "allocation" / "patrimonial" / "flexible" / "mixte" / "profilé" → asset_class:["diversifie"]
 - "monétaire" / "money market" / "cash" / "trésorerie" / "court terme" → asset_class:["monetaire"]
-- "immobilier" / "SCPI" / "pierre papier" / "foncier" / "SCI" → asset_class:["immobilier"]
+- "immobilier" / "pierre papier" / "foncier" / "SCI" / "SC" → asset_class:["immobilier"]
+- "SCPI" → universe:["scpi"] : type de produit PRÉCIS, ne JAMAIS l'élargir à asset_class:["immobilier"]
+  seul (les SC, SCI et OPCI investissent en immobilier mais NE SONT PAS des SCPI). Chip "SCPI".
 - "matières premières" / "or" / "métaux" / "commodités" / "commodities" → asset_class:["matieres_premieres"]
 - "ESG" ou "durable" → sfdr:[8,9]
 - "article 9" ou "impact" → sfdr:[9]
@@ -343,7 +350,9 @@ Exemples :
 - "fonds action monde peu exposé tech/US" → {"asset_class":["action"],"region":["world"],"exclude_sectors":["Technologie"],"exclude_regions":["usa"],"chips":["Actions","Monde","Hors tech","Hors US"]}
 - "ETF actions hors Chine sans énergie" → {"universe":["etf"],"asset_class":["action"],"exclude_regions":["china"],"exclude_sectors":["Énergie"],"chips":["ETF","Actions","Hors Chine","Hors énergie"]}
 - "je travaille avec Suravenir, montre les ETF obligataires" → {"universe":["etf"],"asset_class":["obligation"],"insurers":["Suravenir"],"chips":["ETF","Obligataire","Suravenir"]}
-- "SCPI immobilier de rendement" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
+- "SCPI immobilier de rendement" → {"universe":["scpi"],"chips":["SCPI"]}
+- "SCPI disponibles en assurance vie" → {"universe":["scpi"],"envelopes":["AV-FR","AV-LUX"],"chips":["SCPI","Assurance-vie"]}
+- "fonds immobilier / pierre papier" → {"asset_class":["immobilier"],"chips":["Immobilier"]}
 - "FCPR disponibles en assurance-vie" → {"universe":["fcpr"],"envelopes":["AV-LUX"],"chips":["FCPR","Assurance-vie"]}
 - "fonds de private equity non coté" → {"universe":["fcpr","fcpi","fip","fpci"],"chips":["Private equity","Non coté"]}
 - "fonds monétaire euro" → {"asset_class":["monetaire"],"currency":["EUR"],"chips":["Monétaire","EUR"]}
