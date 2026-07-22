@@ -23,7 +23,7 @@
 > pro — fundinfo/fundkis/WM Datenservice) ; pistes publiques restantes : Franklin Templeton,
 > Invesco, Robeco, DWS, UBS.
 
-> Dernier audit : 2026-07-22 (32ᵉ passe — reprise post-sprint, vue d'ensemble). **Santé : bonne, 2 chantiers concrets ouverts.** **`vitest run` = 950 tests verts** (64 fichiers, +71 depuis la 31ᵉ passe), **0 marqueur `TODO/FIXME` réel, 0 test désactivé, 0 issue GitHub, CI verte** (KID/drain compo/SFDR DDA tous `success` ce matin — le run SFDR planifié du 21/07 confirme le bug hebdo **réglé**). **Livré sur `main` depuis la 31ᵉ passe** (tout commité) : suite du sprint Frais (héros 100 % métriques, décomposition lisible, rétro fonds euros au PDF `366de19`, projection robuste `b814bf8`), **durabilité MiFID depuis les EET** (`8416429` + fiche fonds `3af9928`), **hygiène DB consignée** (`697fc7b`), **contexte LLM KID 4k→18k** pour le fallback Haiku (`b3d5fc5`), **contact générique** (`bd38c9b`). **2 chantiers ouverts trouvés cette passe** : (1) 🐛 **le travail PDF non commité casse `tsc`** — 1 erreur de type (`loadLogo(): string|null` vs prop `logo?: string` dans `optimize/pdf/route.ts`) ; feature cohérente (logo Charlie unifié sur les 3 PDF + hiérarchie typo resserrée) **prête à finir/commit** ; (2) 🚧 **branche `feat/partenaires-solidite-fonds-euros` (Joseph) non mergée** — 8 commits actifs du **22/07** (solidité assureur + fonds euros GVFM + 6 migrations), à reviewer/intégrer. **Hygiène git** : 3 branches remote mergées à élaguer. Tout le reste = drains auto passifs + décisions tranchées.
+> Dernier audit : 2026-07-22 (32ᵉ passe — reprise post-sprint, vue d'ensemble). **Santé : bonne, 2 chantiers concrets ouverts.** **`vitest run` = 950 tests verts** (64 fichiers, +71 depuis la 31ᵉ passe), **0 marqueur `TODO/FIXME` réel, 0 test désactivé, 0 issue GitHub, CI verte** (KID/drain compo/SFDR DDA tous `success` ce matin — le run SFDR planifié du 21/07 confirme le bug hebdo **réglé**). **Livré sur `main` depuis la 31ᵉ passe** (tout commité) : suite du sprint Frais (héros 100 % métriques, décomposition lisible, rétro fonds euros au PDF `366de19`, projection robuste `b814bf8`), **durabilité MiFID depuis les EET** (`8416429` + fiche fonds `3af9928`), **hygiène DB consignée** (`697fc7b`), **contexte LLM KID 4k→18k** pour le fallback Haiku (`b3d5fc5`), **contact générique** (`bd38c9b`). **Trouvé + traité cette passe** : (1) 🐛 **le travail PDF cassait `tsc`** (1 erreur de type sur le logo unifié) → **RÉGLÉ** — commité `8dec9fd` (« logo Charlie sur tous les documents »), poussé sur `origin/main`, `tsc` = 0 ✅ (corrigé dans le tree partagé, cf. [[multi-agent-shared-worktree-hazard]]) ; (2) 🧹 **2 branches `claude/*` mergées élaguées** (`sweet-cori`, `wizardly-rhodes`) — la branche de Sacha (`sacha/releve-ia-revue`) **gardée sur consigne Mathis** (« on ne touche pas aux branches des stagiaires ») ; (3) 🔑 **clé anon Supabase re-vérifiée** — `anon` a **0 droit** sur toute donnée produit, ne touche plus que 3 tables d'apps sœurs (`charlie_dossier`, `waitlist`, `waitlist_survey_responses`) ; désactiver la clé legacy = action **dashboard** (hors outillage) + risque apps sœurs → reste gated sur confirmation de leur clé (voir ⏸️). **1 seul chantier ouvert restant** : 🚧 **branche `feat/partenaires-solidite-fonds-euros` (Joseph) non mergée** — 8 commits actifs du **22/07** (solidité assureur + fonds euros GVFM + 6 migrations), **à intégrer quand Joseph a fini**. Tout le reste = drains auto passifs + décisions tranchées.
 >
 > Dernier audit : 2026-07-21 (31ᵉ passe — **périmètre Frais uniquement**, sprint UX rému + décisions produit). **Santé frais : excellente.** `tsc` = 0 / **879 tests verts** (+3), code frais propre (0 marqueur, 0 test désactivé), `main` synchro `origin/main`. **3 commits frais livrés & vérifiés prod** (`www.charliewealth.fr`, dpl `dpl_FWC9RX…` READY) : (1) **KPI attendus par le CGP + fiabilité rému** `122af70` (ETF→rétro 0, commission d'entrée nette de la part incompressible assureur, rétro fonds euros consommée) ; (2) **bandeau rému réorganisé en 2 comptabilités** `d30291d` — « Ce que je gagne » (rému cabinet · upfront · récurrent) / « Côté client » (coût total · gain net · réduction de rendement PRIIPs) ; doublon « frais/gain brut » déplacé en carte détail ; découpage `revenuCabinetUpfront`/`revenuCabinetRecurrent` exposé par le moteur (invariant somme = revenu cabinet) ; (3) **tuile « Récurrent » = 1re année** `958fa2c` au lieu de la moyenne lissée (qui surévaluait l'an 1) — écran **et** PDF cabinet alignés, vérifié live (28 €/an). **2 décisions produit tranchées par Mathis** (voir « ⏸️ ») : persistance = **session-only, jamais de compte** ; vue cabinet agrégée = **différée jusqu'au product-market fit**. **Aucun bug frais ouvert, aucun chantier frais actionnable** : SCPI/PE dans le calculateur **écarté** (tranché 21/07 — le calculateur reste **AV + fonds cotés** ; spec conservée pour reprise éventuelle).
 >
@@ -135,13 +135,13 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 - **Comment l'aborder** : 1) confirmer avec Mathis/Joseph que la branche est finie (dernier commit du jour — peut-être encore en cours) ; 2) `/recul` ou `/verification` sur un worktree isolé (le tree principal a du WIP PDF non commité) ; 3) vérifier l'ordre + l'idempotence des 6 migrations avant `apply_migration` (project `dehigtgzizsdehyhmjxn`) ; 4) merge direct dans `main` (pas de PR — cf. [[no-pr-direct-merge-main]]) + `/finito`.
 - **Effort estimé** : moyen (review + migrations + QA)
 
-### Exclusions sectorielles ESG réelles (EET) — code livré, collecte à lancer
-- **Priorité** : 🟡 Moyenne
-- **Détecté le** : 2026-07-21
+### Exclusions sectorielles ESG réelles (EET) — LIVRÉ & EN PROD, collecte continue seule
+- **Priorité** : ⚪ Mineure (le gros est fait — reste = enrichissement passif)
+- **Détecté le** : 2026-07-21 · **statut re-vérifié le 2026-07-22**
 - **Où** : `supabase/migrations/20260721160000_esg_exclusions.sql` + `scripts/scrapers/esg-exclusions-enricher.py` + `app/src/lib/profileToConstraints.ts` (`passesSectorExclusions`, `EXCLUSION_GUARANTEE_LABELS`)
-- **Le problème** : le générateur d'allocation applique les exclusions client (tabac/armes/fossiles/jeux/alcool) sans donnée fonds par fonds — `investissement_funds` ne portait rien. Livré (21/07) : colonne `esg_exclusions` jsonb (+ source + date), ingestion des fichiers EET (FinDatEx) par pattern-matching d'en-têtes, moteur branché (donnée EET prioritaire, repli proxy labels ISR/Greenfin, best-effort jeux/alcool), exclusions jamais levées par l'assouplissement gracieux. `tsc` 0, 840 tests verts.
-- **Comment l'aborder** : 1) **appliquer la migration** via MCP Supabase (`apply_migration`, project `dehigtgzizsdehyhmjxn`) AVANT tout déploiement du code app (la vue `_ref` doit porter la colonne) ; 2) récupérer des fichiers EET de SGP (pages « informations durabilité » SFDR, doc centers, fundinfo.com, fundkis.com/disclose — cf. `data/eet/README.md`) ; 3) `python3 scripts/scrapers/esg-exclusions-enricher.py --dir data/eet/ --apply`.
-- **Effort estimé** : moyen (la collecte des fichiers EET est le gros du travail restant)
+- **Où en est-on (22/07)** : **migration appliquée** (colonne `esg_exclusions` jsonb présente en prod) et **données qui remontent** — **2 171 fonds** portent des exclusions (en hausse depuis les 1 203 du 21/07). Le moteur d'allocation est branché (donnée EET prioritaire, repli proxy labels ISR/Greenfin, exclusions jamais levées par l'assouplissement gracieux). C'est **substantiellement traité** (chantier data ESG mené côté stagiaire, Sacha) — il n'y a **plus de code ni de migration à poser**.
+- **Comment l'aborder** : rien de bloquant. Seul reste optionnel = **continuer à collecter des fichiers EET** de nouvelles SGP (pistes publiques restantes : Franklin Templeton, Invesco, Robeco, DWS, UBS — cf. bandeau en tête) puis `python3 scripts/scrapers/esg-exclusions-enricher.py --dir data/eet/ --apply`. Enrichissement pur, à faire au fil de l'eau.
+- **Effort estimé** : rapide (collecte opportuniste, non prioritaire)
 
 ### Drain composition look-through (OPCVM)
 - **Priorité** : 🟡 Moyenne
@@ -164,12 +164,13 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## ⏸️ En suspens / mis de côté (décisions prises — ne pas re-proposer sans signal)
 
-### 🛑 SCPI & PE dans le calculateur de rémunération — ÉCARTÉ pour l'instant (tranché 21/07)
+### 🛑 SCPI & PE dans le calculateur de rémunération — ÉCARTÉ pour l'instant (tranché 21/07, reconfirmé 22/07)
 - **Priorité** : ⚪ — **différé (décision Mathis 21/07)**
 - **Détecté le** : 2026-07-21
 - **Où** : `lib/remuneration.ts`, `lib/cabinet.ts`, `RemunerationSummary.tsx`, `CabinetForm.tsx` · spec conservée = `docs/spec-scpi-pe-remuneration.md`
-- **Décision** : le calculateur de frais **reste sur l'assurance-vie + les fonds cotés** (OPCVM/ETF/…). On **ne modélise PAS** la SCPI ni le PE pour l'instant — le revenu cabinet SCPI/PE (commission de souscription par ligne) n'est pas suivi, et c'est assumé. **Ne pas re-proposer** sans signal explicite de Mathis. La spec (`docs/spec-scpi-pe-remuneration.md`, taux par défaut + câblage prêts) reste au chaud pour une reprise éventuelle.
-- **Effort** : n/a (différé)
+- **Décision** : le calculateur de frais **reste sur l'assurance-vie + les fonds cotés** (OPCVM/ETF/…). On **ne modélise PAS** la SCPI ni le PE pour l'instant — le revenu cabinet SCPI/PE (commission de souscription par ligne) n'est pas suivi, et c'est assumé.
+- **⭐ Directive Mathis (22/07)** : avant d'ouvrir le non-coté, la **priorité est d'être TOTALEMENT exhaustif et complet sur le coté** (AV + OPCVM/ETF/…) — **savoir tout mapper** (chaque support → coût client + rémunération cabinet, sans trou). Le non-coté (SCPI/PE) viendra **plus tard**, une fois le coté maîtrisé de bout en bout. La spec (`docs/spec-scpi-pe-remuneration.md`, taux par défaut + câblage prêts) reste au chaud.
+- **Effort** : n/a (différé — le chantier actif est l'exhaustivité du coté)
 
 ### 🛑 Persistance portefeuille ↔ client — SESSION-ONLY, jamais de compte (tranché 21/07)
 - **Priorité** : ⚪ — **tranché définitivement**
@@ -182,9 +183,11 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ### P2 anti-scraping — Vercel WAF — ✅ POSÉ & VALIDÉ 29/06 (voir « ✅ Réglés »)
 - **Statut** : **réglé** — les 2 règles WAF sont posées et **actives** dans la console Vercel (Firewall → Custom Rules), validées en direct sur la prod. Reste comme **frein d'urgence optionnel** = Attack Challenge Mode (à n'allumer qu'en cas d'attaque active). Détail dans « ✅ Réglés ».
 
-### Toggle legacy anon key Supabase — LAISSÉ ACTIF (décision Mathis 29/06, ne pas y toucher)
-- **Priorité** : ⚪ — **tranché : on ne touche pas**
-- **Décision** : Mathis ne prend aucun risque tant qu'il n'est pas sûr que les apps sœurs (waitlist/dossier/screener) tournent sur la publishable key → **la legacy anon key reste active**. C'est **sans danger** : la vraie protection est le `REVOKE` au niveau base (anon n'accède à aucune donnée `investissement_*`), indépendant des clés. Ne re-proposer le toggle que si Mathis confirme un jour la clé utilisée par les apps sœurs.
+### Toggle legacy anon key Supabase — gated sur la clé des apps sœurs (Mathis a redemandé le 22/07)
+- **Priorité** : ⚪ — **techniquement déjà sûr ; désactivation gated (pas de risque produit)**
+- **Re-vérifié le 22/07 (SQL en direct)** : le rôle `anon` a **0 droit** sur **toute** donnée produit (`investissement_*` / `screener_*` = 0 privilège). Il ne peut plus toucher que **3 tables d'apps sœurs** : `charlie_dossier` (CRUD, app Prospection/cabinet — RLS permissive **intentionnelle**, cf. [[charlie-dossier-sibling-app-rls]]), `waitlist` (INSERT), `waitlist_survey_responses` (INSERT). Donc la clé legacy est **déjà inoffensive** côté Charlie Investissement.
+- **Réponse à « peut-on la régler / ne pas la laisser ? »** : **pas depuis ici, et ce n'est pas un trou de sécurité.** Deux raisons concrètes : (1) désactiver la clé legacy est un **toggle du dashboard Supabase** — aucun outil MCP ne le fait, c'est une action manuelle Mathis ; (2) `anon` reste le rôle d'auth des **3 tables d'apps sœurs** — si le formulaire waitlist ou l'app `charlie_dossier` envoie **encore** la vieille clé anon (JWT) depuis le navigateur, la couper **casse** ces apps (inscriptions waitlist, app dossier). ⚠️ **NE PAS durcir les grants/RLS de `charlie_dossier`** pour contourner — régression déjà annulée le 29/06 (casse l'app sœur).
+- **Procédure sûre pour la retirer vraiment** : 1) confirmer dans le code des **apps sœurs** (waitlist + Prospection/charlie_dossier) qu'elles utilisent la **nouvelle publishable key** `sb_publishable_…` (et non la legacy anon JWT) ; 2) Mathis désactive la clé legacy dans le dashboard ; 3) on re-vérifie que les 3 tables sœurs + le produit répondent toujours. Tant que l'étape 1 n'est pas faite, **laisser active** = zéro risque produit.
 
 ### Scrapers bloqués par IP datacenter (AV bancassureurs + ETF Invesco/UBS)
 - **Priorité** : ⚪ Mineure
@@ -219,8 +222,8 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
   trimestrielle déjà en place) — pas un chantier ouvert.
 
 ### 🛑 Transparence du score d'adéquation (« pourquoi ça colle ») — WON'T-DO ferme (ne JAMAIS re-proposer)
-- **Priorité** : ⚪ — **tranché définitivement (25/06)**
-- **Décision** : **non, il n'y aura pas de transparence de score d'adéquation.** Ce n'est pas dans les objectifs produit. À ne plus jamais lister ni re-proposer dans les audits, même si `fitScore.ts` calcule des sous-scores exploitables. Cf. mémoire [[fit-score-transparency-wontdo]].
+- **Priorité** : ⚪ — **tranché définitivement (25/06, reconfirmé 22/07)**
+- **Décision** : **non, il n'y aura pas de transparence de score d'adéquation.** Ce n'est pas dans les objectifs produit. **Reconfirmé par Mathis le 22/07** : « je ne veux pas que ce soit indiqué, c'est inutile — il fait sa recherche, on lui montre ; ça n'alourdit ni le visuel ni la justification. » À ne plus jamais lister ni re-proposer dans les audits, même si `fitScore.ts` calcule des sous-scores exploitables. Cf. mémoire [[fit-score-transparency-wontdo]].
 
 ### SCPI — matérialiser la série de rendement total (différé ~2-3 ans)
 - **Priorité** : ⚪ Mineure
@@ -239,13 +242,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 
 ## 🧹 Dette technique
 
-### Élaguer 3 branches remote mergées
-- **Priorité** : ⚪ Mineure
+### Élagage branches remote — 2 `claude/*` faites le 22/07, branches stagiaires gardées
+- **Priorité** : ⚪ Mineure — **partiellement réglé 22/07**
 - **Détecté le** : 2026-07-22
-- **Où** : `origin/claude/sweet-cori-aaebd5`, `origin/claude/wizardly-rhodes-1511be`, `origin/sacha/releve-ia-revue-portefeuille`
-- **Le problème** : ces 3 branches sont à **0 commit en avance sur `main`** (déjà mergées) → bruit. (`feat/partenaires-solidite-fonds-euros` = **8 en avance**, à NE PAS élaguer — voir « 🚧 Chantiers en cours ».)
-- **Comment l'aborder** : `git push origin --delete claude/sweet-cori-aaebd5 claude/wizardly-rhodes-1511be sacha/releve-ia-revue-portefeuille` puis `git remote prune origin`. À faire **après** avoir mergé/traité la branche partenaires.
-- **Effort estimé** : rapide
+- **Fait le 22/07** : `origin/claude/sweet-cori-aaebd5` + `origin/claude/wizardly-rhodes-1511be` (nos 2 branches, 0 commit en avance sur `main`) **supprimées** + `git remote prune`.
+- **Délibérément gardées (consigne Mathis 22/07 — « on ne touche pas aux branches des stagiaires ») :**
+  - `origin/sacha/releve-ia-revue-portefeuille` — mergée (0 en avance) mais laissée par consigne.
+  - `origin/feat/partenaires-solidite-fonds-euros` (Joseph) — **8 commits en avance, NON mergée** : chantier actif, à intégrer d'abord (voir « 🚧 Chantiers en cours »).
+- **Reste** : rien de notre côté. Élaguer `sacha/*` et `feat/partenaires-*` **seulement** après feu vert / merge, sous la main des stagiaires.
 
 ### (élagage 4 branches mergées — réglé le 20/07)
 Les 3 branches remote mergées (`claude/elegant-pike-78de33`, `joseph/backtest-comparaison-pea`, `fix/liberalys-apicil-attribution`) **et** la locale `fix/liberalys-apicil-attribution` sont **supprimées le 20/07** après re-vérif (0 commit en avance sur `main`, `--no-merged` vide) + `git remote prune`. Reste `main`/`origin/main` seules. Voir « ✅ Réglés ».
