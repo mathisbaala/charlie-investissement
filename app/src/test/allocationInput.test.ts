@@ -94,6 +94,24 @@ describe("toFundInput", () => {
   });
 });
 
+describe("toFundInput — durabilité (labels + esg_exclusions)", () => {
+  it("mappe labels et esg_exclusions, null si absents", () => {
+    const fi = toFundInput(
+      row({
+        isin: "A", asset_class_broad: "action", performance_1y: 8, volatility_1y: 14,
+        labels: ["isr"], esg_exclusions: { tobacco: true, gambling: false },
+      }),
+    )!;
+    expect(fi.labels).toEqual(["isr"]);
+    expect(fi.esgExclusions).toEqual({ tobacco: true, gambling: false });
+    const bare = toFundInput(
+      row({ isin: "B", asset_class_broad: "action", performance_1y: 8, volatility_1y: 14 }),
+    )!;
+    expect(bare.labels).toBeNull();
+    expect(bare.esgExclusions).toBeNull();
+  });
+});
+
 describe("toFundInput — notation", () => {
   it("mappe morningstar_rating → rating (et null si absent)", () => {
     const rated = toFundInput(row({ isin: "A", asset_class_broad: "action", performance_1y: 8, volatility_1y: 14, morningstar_rating: 4 }));

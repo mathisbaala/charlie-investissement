@@ -121,6 +121,81 @@ export function regionsForGeographies(geographies: string[]): Set<string> | null
   return out.size > 0 ? out : null;
 }
 
+// ─── Exclusions sectorielles ESG du profil (tabac, armes, fossiles…) ──────────
+
+/** Exclusions sectorielles proposées par le profil client (recueil DDA). */
+export const SECTOR_EXCLUSIONS = ["tabac", "armes", "fossiles", "jeux", "alcool"] as const;
+export type SectorExclusion = (typeof SECTOR_EXCLUSIONS)[number];
+
+// Clés de la donnée esg_exclusions (EET, FinDatEx) couvrant chaque exclusion du
+// profil. « armes » : l'exclusion des armes controversées (standard PAB/CTB)
+// suffit ; une exclusion armement TOTALE (weapons) la couvre a fortiori.
+// « fossiles » exige la clé fossil — l'exclusion du seul charbon thermique
+// n'exclut pas les fossiles.
+const EXCLUSION_DATA_KEYS: Record<SectorExclusion, string[]> = {
+  tabac: ["tobacco"],
+  armes: ["controversial_weapons", "weapons"],
+  fossiles: ["fossil"],
+  jeux: ["gambling"],
+  alcool: ["alcohol"],
+};
+
+/**
+ * Proxy « labels » : labels officiels dont le RÉFÉRENTIEL garantit l'exclusion,
+ * utilisé en REPLI quand la donnée esg_exclusions est absente pour le fonds.
+ * — Label ISR (référentiel V3, en vigueur mars 2025) : exclusion des armes
+ *   controversées et des producteurs de tabac. Son exclusion fossile est
+ *   PARTIELLE (charbon thermique + hydrocarbures non conventionnels) → non
+ *   retenue comme garantie « fossiles ».
+ * — Greenfin : exclusion des énergies fossiles.
+ * — Aucun label français ne garantit jeux/alcool → tableau vide : sans donnée,
+ *   on n'écarte pas (best-effort, on n'écarte que le documenté-négatif).
+ */
+export const EXCLUSION_GUARANTEE_LABELS: Record<SectorExclusion, string[]> = {
+  tabac: ["isr"],
+  armes: ["isr"],
+  fossiles: ["greenfin"],
+  jeux: [],
+  alcool: [],
+};
+
+/**
+ * Un fonds satisfait-il les exclusions sectorielles demandées ? Pour chaque
+ * exclusion : la donnée EET (esgExclusions) prime — true = conforme, false =
+ * écarté (le fonds documente qu'il n'exclut PAS) ; sans donnée, repli sur le
+ * proxy labels (le label doit GARANTIR l'exclusion) ; si aucun label ne peut la
+ * garantir (jeux/alcool), le fonds est conservé (on ne peut pas exiger une
+ * garantie qui n'existe pas — l'exclusion reste appliquée dès que la donnée
+ * arrive en base).
+ */
+export function passesSectorExclusions(
+  f: Pick<FundInput, "esgExclusions" | "labels">,
+  exclusions: SectorExclusion[],
+): boolean {
+  for (const ex of exclusions) {
+    const data = f.esgExclusions;
+    const documented = EXCLUSION_DATA_KEYS[ex]
+      .map((k) => data?.[k])
+      .filter((v): v is boolean => v !== undefined);
+    if (documented.length > 0) {
+      if (documented.some((v) => v)) continue; // exclusion documentée → conforme
+      return false; // documenté : le fonds n'exclut pas ce secteur
+    }
+    const guarantee = EXCLUSION_GUARANTEE_LABELS[ex];
+    if (guarantee.length === 0) continue; // aucune garantie possible → best-effort
+    const labels = f.labels ?? [];
+    if (!guarantee.some((l) => labels.includes(l))) return false;
+  }
+  return true;
+}
+
+/** Restreint une liste libre aux exclusions sectorielles connues. */
+export function toSectorExclusions(raw: string[] | null | undefined): SectorExclusion[] {
+  return (raw ?? []).filter((e): e is SectorExclusion =>
+    (SECTOR_EXCLUSIONS as readonly string[]).includes(e),
+  );
+}
+
 export interface UniverseFilterOptions {
   /** Frais courants maximum, en pourcentage (0.5 = 0,5 %). */
   maxTer?: number | null;
@@ -132,14 +207,19 @@ export interface UniverseFilterOptions {
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller (« jeter un fonds »). */
   exclude?: string[] | null;
+  /** Exclusions sectorielles ESG du profil (cf. passesSectorExclusions). */
+  exclusions?: string[] | null;
 }
 
 /**
  * Restreint l'univers selon les préférences « dures » (frais max, ESG, zones
- * géographiques, plafond SRI, exclusions manuelles). Un fonds dont la donnée est
- * absente n'est PAS écarté (on ne pénalise pas un trou de données) — sauf pour
- * les exclusions manuelles, toujours appliquées. Renvoie l'univers filtré + le
- * nombre de fonds retirés.
+ * géographiques, plafond SRI, exclusions manuelles, exclusions sectorielles).
+ * Un fonds dont la donnée est absente n'est PAS écarté (on ne pénalise pas un
+ * trou de données) — sauf pour les exclusions manuelles, toujours appliquées,
+ * et les exclusions sectorielles garantissables (tabac/armes/fossiles), où
+ * l'absence de donnée ET de label garant vaut refus : une exclusion demandée
+ * par le client est une contrainte d'adéquation, pas une préférence molle.
+ * Renvoie l'univers filtré + le nombre de fonds retirés.
  *
  * Les zones géographiques ne contraignent QUE la classe actions : quand un
  * client demande une exposition « monde + Asie », il parle de ses actions — pas
@@ -153,6 +233,7 @@ export function filterUniverse(
   const { maxTer, esg, sriMax } = opts;
   const regions = regionsForGeographies(opts.geographies ?? []);
   const excluded = new Set((opts.exclude ?? []).map((s) => s.toUpperCase()));
+  const sectorExclusions = toSectorExclusions(opts.exclusions);
   const kept = funds.filter((f) => {
     if (excluded.has(f.isin.toUpperCase())) return false;
     if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
@@ -160,6 +241,7 @@ export function filterUniverse(
     if (esg === "art9" && f.sfdr !== 9) return false;
     if (regions && f.assetClass === "actions" && f.region != null && !regions.has(f.region)) return false;
     if (sriMax != null && f.sri != null && f.sri > sriMax) return false;
+    if (sectorExclusions.length > 0 && !passesSectorExclusions(f, sectorExclusions)) return false;
     return true;
   });
   return { funds: kept, dropped: funds.length - kept.length };
@@ -167,16 +249,18 @@ export function filterUniverse(
 
 /**
  * Restreint l'univers selon les préférences « dures » du profil (frais max, ESG,
- * zones géographiques). Enveloppe de `filterUniverse` pilotée par le profil.
+ * zones géographiques, exclusions sectorielles). Enveloppe de `filterUniverse`
+ * pilotée par le profil.
  */
 export function filterFundsByProfile(
   funds: FundInput[],
   profile: Pick<RichClientProfile, "max_ter" | "esg"> &
-    Partial<Pick<RichClientProfile, "geographies">>,
+    Partial<Pick<RichClientProfile, "geographies" | "exclusions">>,
 ): { funds: FundInput[]; dropped: number } {
   return filterUniverse(funds, {
     maxTer: profile.max_ter,
     esg: profile.esg,
     geographies: profile.geographies ?? [],
+    exclusions: profile.exclusions ?? [],
   });
 }

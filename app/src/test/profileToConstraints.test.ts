@@ -193,3 +193,61 @@ describe("filterUniverse", () => {
     expect(dropped).toBe(0);
   });
 });
+
+describe("filterUniverse — exclusions sectorielles ESG (donnée EET + proxy labels)", () => {
+  function f(over: Partial<FundInput> & { isin: string }): FundInput {
+    return { name: over.isin, assetClass: "actions", expectedReturn: 0.08, volatility: 0.12, ...over };
+  }
+  const universe: FundInput[] = [
+    f({ isin: "DATA_OK", esgExclusions: { tobacco: true, fossil: true, gambling: true } }),
+    // Donnée EET négative MAIS label ISR : la donnée réelle prime sur le proxy.
+    f({ isin: "DATA_NON", esgExclusions: { tobacco: false }, labels: ["isr"] }),
+    f({ isin: "LABEL_ISR", labels: ["isr"] }),
+    f({ isin: "LABEL_GREENFIN", labels: ["greenfin"] }),
+    f({ isin: "SANS_RIEN" }),
+  ];
+
+  it("tabac : donnée EET prioritaire, repli label ISR, refus sans garantie", () => {
+    const { funds, dropped } = filterUniverse(universe, { exclusions: ["tabac"] });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["DATA_OK", "LABEL_ISR"]);
+    expect(dropped).toBe(3);
+  });
+  it("fossiles : seul Greenfin garantit en repli (exclusion fossile ISR partielle, non retenue)", () => {
+    const { funds } = filterUniverse(universe, { exclusions: ["fossiles"] });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["DATA_OK", "LABEL_GREENFIN"]);
+  });
+  it("armes : l'exclusion armement totale (weapons) couvre les armes controversées", () => {
+    const u = [
+      f({ isin: "CTRV", esgExclusions: { controversial_weapons: true } }),
+      f({ isin: "TOTAL", esgExclusions: { weapons: true } }),
+      f({ isin: "REFUS", esgExclusions: { controversial_weapons: false } }),
+    ];
+    const { funds } = filterUniverse(u, { exclusions: ["armes"] });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["CTRV", "TOTAL"]);
+  });
+  it("jeux/alcool : best-effort — sans donnée on garde, documenté-négatif on écarte", () => {
+    // Aucun label ne garantit jeux/alcool → l'absence de donnée ne disqualifie pas.
+    const { funds } = filterUniverse(universe, { exclusions: ["jeux"] });
+    expect(funds).toHaveLength(5);
+    const neg = filterUniverse([f({ isin: "CASINO", esgExclusions: { gambling: false } })], {
+      exclusions: ["jeux"],
+    });
+    expect(neg.funds).toHaveLength(0);
+  });
+  it("cumule plusieurs exclusions (toutes doivent être satisfaites)", () => {
+    const { funds } = filterUniverse(universe, { exclusions: ["tabac", "fossiles"] });
+    expect(funds.map((x) => x.isin)).toEqual(["DATA_OK"]);
+  });
+  it("ignore les exclusions inconnues (liste libre → vocabulaire connu)", () => {
+    const { funds } = filterUniverse(universe, { exclusions: ["crypto_mining", ""] });
+    expect(funds).toHaveLength(5);
+  });
+  it("est appliqué par filterFundsByProfile quand le profil porte des exclusions", () => {
+    const { funds } = filterFundsByProfile(universe, {
+      max_ter: null,
+      esg: "indifferent",
+      exclusions: ["tabac"],
+    });
+    expect(funds.map((x) => x.isin).sort()).toEqual(["DATA_OK", "LABEL_ISR"]);
+  });
+});

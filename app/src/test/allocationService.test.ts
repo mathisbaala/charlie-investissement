@@ -84,6 +84,14 @@ describe("paramsFromQuery", () => {
     if ("error" in p) throw new Error("inattendu");
     expect(p.exclude).toEqual(["FR0000000000", "LU1111111111"]);
   });
+  it("parse les exclusions sectorielles en écartant les valeurs inconnues", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B&exclusions=tabac,ARMES,inconnu,jeux"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.exclusions).toEqual(["tabac", "armes", "jeux"]);
+    const def = paramsFromQuery(new URLSearchParams("contract=A::B"));
+    if ("error" in def) throw new Error("inattendu");
+    expect(def.exclusions).toEqual([]);
+  });
   it("parse la méthode de pondération (hrp), défaut sharpe", () => {
     const hrp = paramsFromQuery(new URLSearchParams("contract=A::B&method=HRP"));
     if ("error" in hrp) throw new Error("inattendu");

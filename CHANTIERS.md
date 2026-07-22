@@ -1,5 +1,28 @@
 # Chantiers — Charlie Investissement
 
+> 🏷️ **21/07 — Labels officiels branchés sur les registres (chantier data exclusions ESG)** :
+> nouveau scraper `scripts/scrapers/labels-registries.py` — télécharge le **référentiel
+> Banque de France des OPC labellisés** (trimestriel, ISIN par part, labels ISR/Greenfin/
+> Finansol/CIES/Relance) + l'**export Excel mensuel de lelabelisr.fr**, fusion **additive
+> stricte** par ISIN (jamais de retrait), dry-run par défaut. Run `--apply` du 21/07 :
+> **2 287 fonds mis à jour** → `isr` 368→**2 448**, `greenfin` 0→**227**, `finansol`
+> 90→**118** ; MV assureurs rafraîchie. Fix au passage : `PRESERVED_LABELS` de
+> `populate-screener-labels.py` ne préservait que les variantes capitalisées (`"ISR"`) —
+> les tags minuscules consommés par le moteur auraient été effacés au prochain recalcul ;
+> ajout de `"isr"/"greenfin"/"finansol"`. Côté annexes SFDR : run `--apply --redo` passé
+> sur les 632 fonds Morningstar sans tag `excl-*` → quasi épuisé (46 annexes encore
+> servies, +1 tag) ; l'univers MS-299 (817 fonds) est **saturé** et EPR/GECO ne servent
+> pas l'annexe (endpoints kid/DIC uniquement) → étendre la couverture `excl-*` exigera une
+> nouvelle source (les fichiers EET restent la voie primaire). `excl-jeux` (26) et
+> `excl-alcool` (8) restent trop rares pour devenir des garanties applicables.
+> **Suite le 21/07 après-midi** : migration `20260721160000_esg_exclusions` appliquée par
+> Mathis (vérifiée prod) → **6 EET publics collectés** (Lazard Frères Gestion 427, Fidelity
+> 291, Pictet 205, Schroders 141, Vanguard 127, Lazard AM 12) → **1 203 fonds écrits en
+> prod, 0 échec**, remontée `_cgp_ref` vérifiée des deux côtés. BNPP AM/Amundi/CPR/
+> Rothschild/OFI/Natixis/DNCA/CM-AM/AllianzGI/JPM/BlackRock : pas d'EET public (plateformes
+> pro — fundinfo/fundkis/WM Datenservice) ; pistes publiques restantes : Franklin Templeton,
+> Invesco, Robeco, DWS, UBS.
+
 > Dernier audit : 2026-07-21 (31ᵉ passe — **périmètre Frais uniquement**, sprint UX rému + décisions produit). **Santé frais : excellente.** `tsc` = 0 / **879 tests verts** (+3), code frais propre (0 marqueur, 0 test désactivé), `main` synchro `origin/main`. **3 commits frais livrés & vérifiés prod** (`www.charliewealth.fr`, dpl `dpl_FWC9RX…` READY) : (1) **KPI attendus par le CGP + fiabilité rému** `122af70` (ETF→rétro 0, commission d'entrée nette de la part incompressible assureur, rétro fonds euros consommée) ; (2) **bandeau rému réorganisé en 2 comptabilités** `d30291d` — « Ce que je gagne » (rému cabinet · upfront · récurrent) / « Côté client » (coût total · gain net · réduction de rendement PRIIPs) ; doublon « frais/gain brut » déplacé en carte détail ; découpage `revenuCabinetUpfront`/`revenuCabinetRecurrent` exposé par le moteur (invariant somme = revenu cabinet) ; (3) **tuile « Récurrent » = 1re année** `958fa2c` au lieu de la moyenne lissée (qui surévaluait l'an 1) — écran **et** PDF cabinet alignés, vérifié live (28 €/an). **2 décisions produit tranchées par Mathis** (voir « ⏸️ ») : persistance = **session-only, jamais de compte** ; vue cabinet agrégée = **différée jusqu'au product-market fit**. **Aucun bug frais ouvert, aucun chantier frais actionnable** : SCPI/PE dans le calculateur **écarté** (tranché 21/07 — le calculateur reste **AV + fonds cotés** ; spec conservée pour reprise éventuelle).
 >
 > Dernier audit : 2026-07-20 (30ᵉ passe — sprint Analyse IA relevé + export PDF frais, ~3 h après la 29ᵉ). **Santé : excellente, tout livré & vérifié prod.** `tsc` = 0 / **794 tests verts** (+29 depuis la 29ᵉ passe), working tree **propre**, **`main` seule branche**, **0 issue GitHub**, **CI 100 % verte** (hebdo + mensuel + Morningstar EMEA + drain compo tous `success` ce matin). **11 commits livrés en prod depuis la 29ᵉ passe** (doc `767ad51`), tous archivés en « ✅ Réglés » : (1) **lecture IA du relevé (Vision) gated par la réconciliation déterministe** `a4941f7` — `/api/releve` réconcilie d'abord le total en déterministe (0 token), n'appelle Vision **que si** ça ne colle pas ; CSV/Excel = **0 token toujours** ; signalement des supports hors catalogue (+ fix ISSUE-001 espace manquant `07506b0`/`a96dfb3`) ; (2) **export PDF frais client/cabinet + optimisation coûts IA** `538125e` — 2 docs PDF (client DDA + cabinet interne, `buildFraisReport`→`/api/frais/pdf`, **0 IA**), DICI déterministe d'abord (`diciParse`+`pdfText`), **`botGuard` + anti-burst posés sur TOUTES les routes IA** (parse/parse-profile/dici, qui manquaient) ; (3) **PDF relevé illisible en prod corrigé** `ba1ecd2`→`3c4d598` — cause racine du **422** = worker `pdfjs` non embarqué dans la lambda serverless + `@napi-rs/canvas` non tracé ; **vérifié live 20/07** ; (4) polish : **bandeau d'analyse en carte d'identité** `ef915d0` + **épure du texte profil / départage rétrocessions clarifié** `a3b9b36`. **En plus de l'archivage, cette passe a mené une revue adversariale approfondie de ces 11 commits (2 agents parallèles) → 5 défauts réels trouvés & CORRIGÉS** (cap de coût manquant sur `parse-profile`, frais « Néant » happant le taux voisin dans `findPointFee`, synthèse stale à l'import d'un 2ᵉ relevé, « NaN € » de réconciliation, ordre rate-limit/catch) — `tsc` = 0 / **796 tests verts** (+2 régression), voir « ✅ Réglés ». **Aucun chantier bloquant, aucun bug ouvert. Surveillance SFDR close** — run planifié #7 du 21/07 **VERT** (`success`, 06:28–07:28 UTC, ~1 h, bien sous le timeout de 2 h) — tout le reste = drains auto passifs + décisions tranchées.
@@ -99,6 +122,14 @@ chantier neuf** = hygiène git (22 branches mergées à élaguer, ⚪ mineure).
 ---
 
 ## 🚧 Chantiers en cours
+
+### Exclusions sectorielles ESG réelles (EET) — code livré, collecte à lancer
+- **Priorité** : 🟡 Moyenne
+- **Détecté le** : 2026-07-21
+- **Où** : `supabase/migrations/20260721160000_esg_exclusions.sql` + `scripts/scrapers/esg-exclusions-enricher.py` + `app/src/lib/profileToConstraints.ts` (`passesSectorExclusions`, `EXCLUSION_GUARANTEE_LABELS`)
+- **Le problème** : le générateur d'allocation applique les exclusions client (tabac/armes/fossiles/jeux/alcool) sans donnée fonds par fonds — `investissement_funds` ne portait rien. Livré (21/07) : colonne `esg_exclusions` jsonb (+ source + date), ingestion des fichiers EET (FinDatEx) par pattern-matching d'en-têtes, moteur branché (donnée EET prioritaire, repli proxy labels ISR/Greenfin, best-effort jeux/alcool), exclusions jamais levées par l'assouplissement gracieux. `tsc` 0, 840 tests verts.
+- **Comment l'aborder** : 1) **appliquer la migration** via MCP Supabase (`apply_migration`, project `dehigtgzizsdehyhmjxn`) AVANT tout déploiement du code app (la vue `_ref` doit porter la colonne) ; 2) récupérer des fichiers EET de SGP (pages « informations durabilité » SFDR, doc centers, fundinfo.com, fundkis.com/disclose — cf. `data/eet/README.md`) ; 3) `python3 scripts/scrapers/esg-exclusions-enricher.py --dir data/eet/ --apply`.
+- **Effort estimé** : moyen (la collecte des fichiers EET est le gros du travail restant)
 
 ### Drain composition look-through (OPCVM)
 - **Priorité** : 🟡 Moyenne
