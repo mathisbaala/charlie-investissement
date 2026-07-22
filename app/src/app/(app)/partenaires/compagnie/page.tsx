@@ -180,10 +180,14 @@ export default async function InsurerPage({
             {profile?.positionnement && (
               <p className="text-body text-ink-2 mt-3 max-w-[75ch]">{profile.positionnement}</p>
             )}
-            {profile?.fonds_euros && (
+            {/* Label indicatif du fonds euros : repli SEULEMENT quand l'historique
+                sourcé (graphes « Rendement des fonds euros » ci-dessous) est absent.
+                Sinon l'indicatif 2025 ferait doublon avec la donnée réelle. */}
+            {profile?.fonds_euros && feFunds.length === 0 && (
               <div className="mt-3 inline-flex items-baseline gap-2 rounded-lg bg-paper-2 border border-line px-3 py-1.5">
                 <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Fonds euros</span>
                 <span className="text-body text-ink-2 font-medium">{profile.fonds_euros}</span>
+                <span className="text-caption text-muted-2">indicatif</span>
               </div>
             )}
             </div>

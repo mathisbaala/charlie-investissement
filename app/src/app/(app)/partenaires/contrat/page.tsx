@@ -426,7 +426,7 @@ export default async function ContractPage({
         />
         <StatCard
           label="Frais courants moyens"
-          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "-"}
+          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "—"}
           sub="des supports (hors contrat)"
         />
         <StatCard
@@ -434,13 +434,13 @@ export default async function ContractPage({
           value={
             cost.total != null
               ? `${cost.contractSourced ? "" : "~ "}${cost.total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %/an`
-              : "-"
+              : "—"
           }
           sub="supports + gestion du contrat"
         />
         <StatCard
           label="SRI moyen"
-          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "-"}
+          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "—"}
           sub="des supports"
         />
       </div>
@@ -467,10 +467,14 @@ export default async function ContractPage({
             <p className="text-body text-ink-2 mt-2 max-w-[75ch]">{profile.positionnement}</p>
           )}
 
-          {profile.fonds_euros && (
+          {/* Label indicatif du fonds euros : repli SEULEMENT quand l'historique
+              sourcé (bloc « Rendement des fonds euros » ci-dessous) est absent, pour
+              éviter le doublon avec la donnée réelle. */}
+          {profile.fonds_euros && feFunds.length === 0 && (
             <div className="mt-3 inline-flex items-baseline gap-2 rounded-lg bg-paper-2 border border-line px-3 py-1.5">
               <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Fonds euros</span>
               <span className="text-body text-ink-2 font-medium">{profile.fonds_euros}</span>
+              <span className="text-caption text-muted-2">indicatif</span>
             </div>
           )}
 
