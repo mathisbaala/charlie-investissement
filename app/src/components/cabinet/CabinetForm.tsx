@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { BrandingCard } from "@/components/cabinet/BrandingCard";
 import { X, ChevronDown, ChevronRight, Search, Loader2 } from "@/components/ui/icons";
 import {
   EMPTY_CABINET,
@@ -280,6 +281,9 @@ export function CabinetForm() {
           aria-label="Nom du cabinet / conseiller"
         />
       </Card>
+
+      {/* Ma marque — personnalisation du screener aux couleurs du cabinet */}
+      <BrandingCard />
 
       {/* Partenariats */}
       <Card className="p-5 space-y-4">

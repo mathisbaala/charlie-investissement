@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo, ChevronRight } from "@/components/ui/icons";
+import { useBrand } from "@/components/BrandProvider";
 
 
 function breadcrumb(pathname: string): { label: string; href: string }[] {
@@ -48,14 +49,49 @@ export function Topbar({ onGuideToggle, guideOpen }: TopbarProps) {
   const crumbs = breadcrumb(pathname);
   const title = pageTitle(pathname);
   const isBrand = title === "Charlie";
+  // Marque du cabinet (si le CGP a personnalisé le screener avec l'URL de son site).
+  const { logo: clientLogo, name: clientName } = useBrand();
 
   return (
     <header
       className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center gap-4 px-5 border-b border-line bg-paper"
       style={{ marginLeft: "60px" }}
     >
-      {/* Titre de page (à la place du wordmark). Accueil/fiche = brand cliquable. */}
-      {isBrand ? (
+      {/* Marque : logo et/ou nom du cabinet s'il est personnalisé, sinon le
+         wordmark « Charlie ». Cliquable, ramène à l'accueil, et coexiste avec le
+         titre de la page courante. */}
+      {clientLogo || clientName ? (
+        <div className="flex items-center gap-3 shrink-0 min-w-0">
+          <Link href="/accueil" className="flex items-center gap-2 shrink-0 min-w-0">
+            {clientLogo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={clientLogo}
+                alt="Logo du cabinet"
+                className="h-7 w-auto max-w-[160px] object-contain"
+              />
+            )}
+            {/* Le nom fait office de marque quand la page est « brand » (accueil,
+               fiche) ; sur les pages à titre, le titre prend le relais. */}
+            {isBrand && clientName && (
+              <span
+                className="text-ink text-title leading-none truncate"
+                style={{ fontFamily: "var(--font-sans)" }}
+              >
+                {clientName}
+              </span>
+            )}
+          </Link>
+          {!isBrand && (
+            <h1
+              className="text-ink text-title leading-none shrink-0 truncate"
+              style={{ fontFamily: "var(--font-sans)" }}
+            >
+              {title}
+            </h1>
+          )}
+        </div>
+      ) : isBrand ? (
         <Link href="/accueil" className="flex items-center gap-1.5 shrink-0">
           <span
             className="text-ink text-title leading-none"
