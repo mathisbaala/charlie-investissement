@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
 import type { ContractType } from "@/lib/insurer-envelope";
+import { bestFeSeries, type FeRate } from "@/lib/fonds-euros";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight, X, Shield } from "@/components/ui/icons";
@@ -62,6 +63,38 @@ function fmtPct(v: number | null | undefined): string {
 function fmtFee(frac: number | null | undefined): string {
   const p = feeFracToPct(frac);
   return p == null ? "—" : `${p.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
+}
+
+// Trajectoire compacte du fonds euros dans une cellule : mini barres par millésime
+// (2-4 dernières années), le plus récent en accent. La tendance vaut mieux qu'un
+// point isolé pour un CGP. `—` si l'assureur n'a pas d'historique sourcé.
+function FeSparkline({ rates }: { rates: FeRate[] }) {
+  if (!rates.length) return <>—</>;
+  const shown = rates.slice(-4);
+  const max = Math.max(...shown.map((r) => Number(r.taux_pct)), 0.01);
+  return (
+    <span className="inline-flex items-end gap-1.5">
+      {shown.map((r, i) => {
+        const last = i === shown.length - 1;
+        return (
+          <span key={r.annee} className="flex flex-col items-center gap-0.5">
+            <span className={`text-caption tabular-nums ${last ? "text-ink font-semibold" : "text-muted-2"}`}>
+              {Number(r.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+            </span>
+            <span className="w-3.5 h-8 flex items-end rounded-sm bg-paper-2 overflow-hidden">
+              <span
+                className="block w-full rounded-sm"
+                style={{ height: `${Math.max(10, (Number(r.taux_pct) / max) * 100)}%`,
+                         background: last ? "color-mix(in oklch, var(--color-accent) 70%, transparent)"
+                                          : "color-mix(in oklch, var(--color-accent) 35%, transparent)" }}
+              />
+            </span>
+            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 // href de la page sans le contrat d'index i (retrait de colonne), ou vers la
@@ -124,6 +157,23 @@ export default async function ComparateurPage({
     );
   }
 
+  // Trajectoire pluriannuelle du fonds euros par assureur (comme la fiche contrat) :
+  // une seule requête pour toutes les compagnies affichées, puis on retient la série
+  // phare de chacune (cf. bestFeSeries). Lecture directe — la RPC de comparaison
+  // n'expose que le dernier taux, pas l'historique, or la tendance est ce qu'un CGP lit.
+  const companies = [...new Set(ordered.map((r) => r.company))];
+  const { data: feRows } = await supabase
+    .from("investissement_av_fonds_euros_history")
+    .select("company, fonds_euros_nom, annee, taux_pct")
+    .in("company", companies)
+    .order("annee", { ascending: true });
+  const feByCompany = new Map<string, FeRate[]>();
+  for (const r of (feRows as (FeRate & { company: string })[] | null) ?? []) {
+    const arr = feByCompany.get(r.company) ?? [];
+    arr.push(r);
+    feByCompany.set(r.company, arr);
+  }
+
   // Lignes d'attributs : label + rendu par contrat. `emphasis` = ligne saillante
   // (coût total). `section` ouvre un groupe (assureur).
   const rowsDef: { label: string; sub?: string; emphasis?: boolean; section?: string; render: (r: Row) => React.ReactNode }[] = [
@@ -150,6 +200,9 @@ export default async function ComparateurPage({
     { label: "Fonds euros (dernier taux)", render: (r) => r.fonds_euros_taux_pct != null
       ? <span className="tabular-nums">{`${fmtPct(r.fonds_euros_taux_pct)}${r.fonds_euros_annee ? ` (${r.fonds_euros_annee})` : ""}`}</span>
       : "—" },
+    { label: "Fonds euros — trajectoire", sub: "taux servis, nets de frais", render: (r) => (
+      <FeSparkline rates={bestFeSeries(feByCompany.get(r.company) ?? [])} />
+    ) },
     { label: "SRI moyen", render: (r) => r.sri_avg != null ? <span className="tabular-nums">{`${Number(r.sri_avg).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7`}</span> : "—" },
     { label: "Classe dominante", render: (r) => r.top_class ? (CLASS_LABEL[r.top_class] ?? r.top_class) : "—" },
     { label: "Gestion sous mandat", render: (r) => r.gestion_sous_mandat == null ? "—" : r.gestion_sous_mandat ? "Disponible" : "Non" },

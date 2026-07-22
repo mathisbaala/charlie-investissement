@@ -33,7 +33,9 @@ type InsurerProfile = {
   notation_agence: string | null;
   notation_annee: number | null;
   ppb_pct: number | null;
+  ppb_annee: number | null;
   encours_vie_mds: number | null;
+  encours_annee: number | null;
   sfcr_annee: number | null;
   sfcr_url: string | null;
 };
@@ -212,8 +214,25 @@ function TermRow({ label, value }: { label: string; value: string | null | undef
   );
 }
 
+// Niveau de confiance d'une ligne de conditions, en langage CGP : d'où vient le
+// chiffre et combien on peut s'y fier. Pastille + libellé, pas de jargon.
+const CONF_BADGE: Record<ContractTerms["confidence"], { label: string; cls: string; dot: string }> = {
+  scraped:    { label: "Sourcé (DIC)",      cls: "text-ok bg-ok-soft border-ok/20",     dot: "bg-ok" },
+  curated:    { label: "Vérifié",           cls: "text-ink-2 bg-paper-2 border-line",   dot: "bg-accent/60" },
+  indicative: { label: "Ordre de grandeur", cls: "text-muted-2 bg-paper-2 border-line", dot: "border-[1.5px] border-muted-2" },
+};
+
+// Fraîcheur : « au JJ/MM/AAAA » à partir d'une date ISO (as_of). Null si absente/mal formée.
+function fmtAsOf(iso: string | null): string | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `au ${m[3]}/${m[2]}/${m[1]}` : null;
+}
+
 // Bloc « Conditions du contrat » quand les T&C sont sourcées (terms présent).
 function TermsCard({ terms }: { terms: ContractTerms }) {
+  const conf = CONF_BADGE[terms.confidence];
+  const asOf = fmtAsOf(terms.as_of);
   const fraisArb = fmtPct(terms.frais_arbitrage_pct) ?? terms.frais_arbitrage_note;
   const fe = terms.fonds_euros_taux_pct != null
     ? `${fmtPct(terms.fonds_euros_taux_pct)}${terms.fonds_euros_annee ? ` (${terms.fonds_euros_annee})` : ""}`
@@ -277,6 +296,25 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
           )}
         </div>
       </div>
+
+      {/* Fraîcheur + niveau de confiance de la source (honnêteté vis-à-vis du CGP) */}
+      <div className="mt-4 pt-3 border-t border-line-soft flex items-center justify-between gap-3 flex-wrap">
+        <span className={`inline-flex items-center gap-1.5 text-caption font-medium rounded-full px-2.5 py-0.5 border ${conf.cls}`}>
+          <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${conf.dot}`} />
+          {conf.label}
+          {asOf && <span className="text-muted-2 font-normal">· {asOf}</span>}
+        </span>
+        {terms.source_url && (
+          <a
+            href={terms.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-caption text-muted hover:text-accent-ink transition-colors underline decoration-line underline-offset-2"
+          >
+            Voir la source
+          </a>
+        )}
+      </div>
     </Card>
   );
 }
@@ -300,7 +338,7 @@ export default async function ContractPage({
     supabase
       .from("investissement_av_insurer_profiles")
       .select(
-        "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+        "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, ppb_annee, encours_vie_mds, encours_annee, sfcr_annee, sfcr_url",
       )
       .eq("company", o.company)
       .maybeSingle<InsurerProfile>(),
@@ -424,7 +462,7 @@ export default async function ContractPage({
         />
         <StatCard
           label="Frais courants moyens"
-          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "-"}
+          value={terPct != null ? `${terPct.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : "—"}
           sub="des supports (hors contrat)"
         />
         <StatCard
@@ -432,13 +470,13 @@ export default async function ContractPage({
           value={
             cost.total != null
               ? `${cost.contractSourced ? "" : "~ "}${cost.total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %/an`
-              : "-"
+              : "—"
           }
           sub="supports + gestion du contrat"
         />
         <StatCard
           label="SRI moyen"
-          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "-"}
+          value={sriAvg != null ? `${sriAvg.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} / 7` : "—"}
           sub="des supports"
         />
       </div>
@@ -465,10 +503,14 @@ export default async function ContractPage({
             <p className="text-body text-ink-2 mt-2 max-w-[75ch]">{profile.positionnement}</p>
           )}
 
-          {profile.fonds_euros && (
+          {/* Label indicatif du fonds euros : repli SEULEMENT quand l'historique
+              sourcé (bloc « Rendement des fonds euros » ci-dessous) est absent, pour
+              éviter le doublon avec la donnée réelle. */}
+          {profile.fonds_euros && feFunds.length === 0 && (
             <div className="mt-3 inline-flex items-baseline gap-2 rounded-lg bg-paper-2 border border-line px-3 py-1.5">
               <span className="text-caption uppercase tracking-widest text-muted-2 font-semibold">Fonds euros</span>
               <span className="text-body text-ink-2 font-medium">{profile.fonds_euros}</span>
+              <span className="text-caption text-muted-2">indicatif</span>
             </div>
           )}
 
@@ -503,12 +545,12 @@ export default async function ContractPage({
                 <SolidityStat
                   label="PPB"
                   value={profile.ppb_pct != null ? `${Number(profile.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : null}
-                  sub="réserve de rendement"
+                  sub={profile.ppb_annee ? `réserve de rendement · fin ${profile.ppb_annee}` : "réserve de rendement"}
                 />
                 <SolidityStat
                   label="Encours vie"
                   value={profile.encours_vie_mds != null ? `${Number(profile.encours_vie_mds).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Md€` : null}
-                  sub="provisions techniques"
+                  sub={profile.encours_annee ? `provisions techniques · ${profile.encours_annee}` : "provisions techniques"}
                 />
               </div>
             </div>

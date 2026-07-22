@@ -17,6 +17,16 @@ import { ContractCompareToggle } from "@/components/ContractCompareToggle";
 // ─── Types (mêmes formes que les RPC du screener) ──────────────────────────────
 
 type Insurer = { company: string; funds: number };
+// Métriques d'un coup d'œil sur la carte assureur (cf. /api/screener/insurer-metrics).
+type InsurerMetrics = {
+  kind: "fr" | "lux" | null;
+  solvabilite_2_pct: number | null;
+  notation: string | null;
+  notation_agence: string | null;
+  ppb_pct: number | null;
+  fe_taux: number | null;
+  fe_annee: number | null;
+};
 type ContractVariant = { contract: string; key: string };
 type Contract = {
   company: string; contract: string; key: string; funds: number;
@@ -60,9 +70,59 @@ const CARD_HEIGHT = "h-[300px]";
 
 // ─── Carte assureur (hauteur fixe · liste de contrats scrollable) ────────────────
 
+// Ligne de métriques d'un coup d'œil (marketplace) : solidité + meilleur fonds euros.
+// N'affiche que ce qui est sourcé — rien si l'assureur n'a aucune métrique (pas de
+// bloc vide). Chiffres factuels : Solvabilité II (SFCR), PPB (réserve de rendement,
+// GVfM) et meilleur taux de fonds euros du dernier millésime (GVfM).
+function InsurerMetricsRow({ m }: { m: InsurerMetrics | undefined }) {
+  if (!m) return null;
+  const hasSolva = m.solvabilite_2_pct != null;
+  const hasPpb = m.ppb_pct != null;
+  const hasFe = m.fe_taux != null;
+  if (!hasSolva && !hasPpb && !hasFe) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {hasSolva && (
+        <span
+          className="inline-flex items-baseline gap-1 rounded-md bg-paper-2 border border-line-soft px-2 py-0.5"
+          title="Ratio de couverture du SCR (Solvabilité II) — solidité de l'assureur"
+        >
+          <span className="text-caption text-muted-2">Solva. II</span>
+          <span className="text-caption text-ink-2 font-semibold tabular-nums">
+            {Number(m.solvabilite_2_pct).toLocaleString("fr-FR")} %
+          </span>
+        </span>
+      )}
+      {hasPpb && (
+        <span
+          className="inline-flex items-baseline gap-1 rounded-md bg-paper-2 border border-line-soft px-2 py-0.5"
+          title="Provision pour participation aux bénéfices — réserve de rendement du fonds euros (en % des encours)"
+        >
+          <span className="text-caption text-muted-2">PPB</span>
+          <span className="text-caption text-ink-2 font-semibold tabular-nums">
+            {Number(m.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
+          </span>
+        </span>
+      )}
+      {hasFe && (
+        <span
+          className="inline-flex items-baseline gap-1 rounded-md bg-paper-2 border border-line-soft px-2 py-0.5"
+          title="Meilleur taux de fonds euros du dernier millésime connu (net de frais, source GVfM)"
+        >
+          <span className="text-caption text-muted-2">Fonds €</span>
+          <span className="text-caption text-ink-2 font-semibold tabular-nums">
+            {Number(m.fe_taux).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %
+          </span>
+          {m.fe_annee && <span className="text-caption text-muted-2">{m.fe_annee}</span>}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function InsurerCard(
-  { insurer, allContracts, env, hideClosed, query }:
-  { insurer: Insurer; allContracts: Contract[]; env: Envelope; hideClosed: boolean; query: string },
+  { insurer, metrics, allContracts, env, hideClosed, query }:
+  { insurer: Insurer; metrics: InsurerMetrics | undefined; allContracts: Contract[]; env: Envelope; hideClosed: boolean; query: string },
 ) {
   // Contrats visibles : enveloppe active + filtre statut commercial.
   let visible = visibleContracts(allContracts, insurer.company, env, hideClosed);
@@ -109,6 +169,10 @@ function InsurerCard(
         </div>
         <ChevronRight size={15} className="text-muted group-hover:text-accent-ink shrink-0 mt-0.5" />
       </Link>
+
+      {/* Métriques d'un coup d'œil — la marketplace montre ce que vaut l'assureur,
+          pas seulement combien de supports il référence. */}
+      <InsurerMetricsRow m={metrics} />
 
       {visible.length > 0 ? (
         // Tableau de contrats : en-tête figé, lignes défilantes (scrollbar fine).
@@ -227,6 +291,7 @@ function EnvelopeTabs(
 export default function AssureursPage() {
   const [insurers, setInsurers]   = useState<Insurer[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [metrics, setMetrics]     = useState<Record<string, InsurerMetrics>>({});
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
   const [q, setQ]                 = useState("");
@@ -240,11 +305,15 @@ export default function AssureursPage() {
     Promise.all([
       fetch("/api/screener/insurers").then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
       fetch("/api/screener/contracts").then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
+      // Métriques (solidité + fonds euros) : non bloquant — un échec laisse juste les
+      // cartes sans chiffres, sans casser la liste. `.catch` → objet vide.
+      fetch("/api/screener/insurer-metrics").then((r) => (r.ok ? r.json() : { data: {} })).catch(() => ({ data: {} })),
     ])
-      .then(([ins, con]) => {
+      .then(([ins, con, met]) => {
         if (cancelled) return;
         setInsurers((ins.data ?? []) as Insurer[]);
         setContracts((con.data ?? []) as Contract[]);
+        setMetrics((met.data ?? {}) as Record<string, InsurerMetrics>);
       })
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -366,6 +435,7 @@ export default function AssureursPage() {
               <InsurerCard
                 key={insurer.company}
                 insurer={insurer}
+                metrics={metrics[insurer.company]}
                 allContracts={contractsByCompany.get(insurer.company) ?? []}
                 env={env}
                 hideClosed={hideClosed}

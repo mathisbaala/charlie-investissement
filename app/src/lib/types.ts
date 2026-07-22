@@ -365,6 +365,9 @@ export type FundDetailHF = {
   region_normalized: string | null;
   region_exposure: string | null;      // exposition géographique brute
   currency: string | null;
+  fund_domicile: string | null;        // domicile du fonds (déduit du préfixe ISIN)
+  distribution_policy: string | null;  // 'capitalisation' | 'distribution' (déduit du nom)
+  min_subscription_eur: number | null; // minimum d'investissement initial, en €
   price_per_share: number | null;       // prix de part (SCPI — investissement_scpi_metrics)
   dvm: number | null;                   // SCPI : taux de distribution (DVM), en % (ex. 5.0)
   tof: number | null;                   // SCPI : taux d'occupation financier, en % (ex. 91.2)

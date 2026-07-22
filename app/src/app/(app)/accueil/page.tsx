@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TypingPrompt } from "@/components/screener/TypingPrompt";
 import { FilterPanel } from "@/components/screener/FilterPanel";
+import { FluidLogo } from "@/components/branding/FluidLogo";
+import { useBrand } from "@/components/BrandProvider";
 import { Btn } from "@/components/ui/Btn";
 import { Search, Clock, RotateCcw, ChevronRight, SlidersHorizontal, ArrowRight } from "@/components/ui/icons";
 import { addSearch, getRecentSearches } from "@/lib/searches";
@@ -22,6 +24,9 @@ import type { ParsedFilters } from "@/lib/types";
 export default function AccueilPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  // Logo du cabinet en filigrane animé (repli sur le logo Charlie si non personnalisé).
+  const { logo: clientLogo } = useBrand();
+  const watermark = clientLogo ?? "/charlie-logo.png";
 
   // Filtres réglés à la main (panneau) avant de lancer la recherche. Ils voyagent
   // vers /recherche via l'URL, seuls ou combinés à la requête texte.
@@ -68,8 +73,11 @@ export default function AccueilPage() {
   const hasHistory = recentSearches.length > 0 || viewedFunds.length > 0;
 
   return (
-    <div className="h-full overflow-y-auto bg-cream px-4 sm:px-8 py-14 sm:py-20">
-      <div className="max-w-[960px] mx-auto">
+    <div className="relative h-full overflow-y-auto bg-cream px-4 sm:px-8 py-14 sm:py-20">
+      {/* Logo du cabinet en filigrane, déformé « comme dans la brume » au survol */}
+      <FluidLogo src={watermark} className="z-0" />
+
+      <div className="relative z-10 max-w-[960px] mx-auto">
 
         {/* Une seule grande phrase : ce à quoi l'outil sert. Rien de plus —
             l'espace fait le reste. (Le titre « Charlie » vit dans la Topbar.) */}

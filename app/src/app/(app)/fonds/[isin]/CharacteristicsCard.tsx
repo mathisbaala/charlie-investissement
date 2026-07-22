@@ -49,6 +49,17 @@ function allocationProfileLabel(p: string | null): string | null {
   return ALLOCATION_PROFILE_LABELS[p.toLowerCase()] ?? capitalize(p);
 }
 
+// Politique de distribution des revenus : capitalisation (réinvestis) vs
+// distribution (versés). Structurant pour l'adéquation client (croissance vs revenus).
+const DISTRIBUTION_LABELS: Record<string, string> = {
+  capitalisation: "Capitalisation",
+  distribution: "Distribution",
+};
+function distributionLabel(p: string | null): string | null {
+  if (!p) return null;
+  return DISTRIBUTION_LABELS[p.toLowerCase()] ?? capitalize(p);
+}
+
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
@@ -143,6 +154,9 @@ export function CharacteristicsCard({ fund }: { fund: FundDetailHF }) {
           <Row label="Catégorie" value={capitalize(fund.category_normalized)} />
           <Row label="Zone géographique" value={capitalize(fund.region_normalized)} />
           <Row label="Devise" value={fund.currency} />
+          <Row label="Domicile" value={fund.fund_domicile} />
+          <Row label="Politique de revenus" value={distributionLabel(fund.distribution_policy)} />
+          <Row label="Minimum d'investissement" value={fund.min_subscription_eur != null ? fmtEur(fund.min_subscription_eur) : null} />
           <Row label="Prix de part" value={fund.price_per_share != null ? fmtEur(fund.price_per_share) : null} />
           <Row label={`Taux de distribution${yearSuffix}`} value={fund.dvm != null ? `${nf2.format(fund.dvm)} %` : null} />
           <Row label={`Taux d'occupation${yearSuffix}`} value={fund.tof != null ? `${nf1.format(fund.tof)} %` : null} />

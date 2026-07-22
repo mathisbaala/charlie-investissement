@@ -5,6 +5,7 @@ import { Rail } from "@/components/chrome/Rail";
 import { Topbar } from "@/components/chrome/Topbar";
 import { GuidePanel } from "@/components/chrome/GuidePanel";
 import { SelectionProvider } from "@/components/SelectionProvider";
+import { BrandProvider } from "@/components/BrandProvider";
 import { ContractCompareProvider } from "@/components/ContractCompareProvider";
 import { ContractCompareBar } from "@/components/ContractCompareBar";
 import { RateLimitDialog } from "@/components/ui/RateLimitDialog";
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [guideOpen, setGuideOpen] = useState(false);
 
   return (
+    <BrandProvider>
     <SelectionProvider>
       <ContractCompareProvider>
       <div className="flex h-full min-h-screen bg-cream overflow-x-hidden">
@@ -48,5 +50,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       </ContractCompareProvider>
     </SelectionProvider>
+    </BrandProvider>
   );
 }

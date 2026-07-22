@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Logo, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator, Sigma } from "@/components/ui/icons";
 import { loadStoredCabinet } from "@/lib/cabinet";
+import { useBrand } from "@/components/BrandProvider";
 
 // La recherche n'a pas d'onglet dédié : c'est le prolongement de l'accueil, qu'on
 // atteint en lançant une requête / un profil client (ou en partant d'un assureur).
@@ -90,12 +91,22 @@ export function Rail() {
   useEffect(() => {
     setCabinetConfigured(loadStoredCabinet().insurers.length > 0);
   }, [pathname]);
+  const { logo: clientLogo } = useBrand();
 
   return (
     <aside className="fixed top-0 left-0 bottom-0 z-50 w-[60px] flex flex-col items-center py-3 border-r border-line bg-paper">
-      {/* Logo top */}
-      <Link href="/accueil" className="mb-4 mt-0.5">
-        <Logo size={26} />
+      {/* Logo top — logo du cabinet s'il est personnalisé, sinon le mark Charlie */}
+      <Link href="/accueil" className="mb-4 mt-0.5 flex items-center justify-center">
+        {clientLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={clientLogo}
+            alt="Logo du cabinet"
+            className="h-7 w-7 object-contain"
+          />
+        ) : (
+          <Logo size={26} />
+        )}
       </Link>
 
       {/* Onglets de travail */}
