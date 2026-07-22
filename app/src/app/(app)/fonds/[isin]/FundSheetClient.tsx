@@ -13,6 +13,7 @@ import { KpiStrip } from "./KpiStrip";
 import { CharacteristicsCard } from "./CharacteristicsCard";
 import { RisqueCard } from "./RisqueCard";
 import { EnveloppesCard } from "./EnveloppesCard";
+import { AvantageFiscalCard } from "./AvantageFiscalCard";
 import { FeesCard } from "./FeesCard";
 import { TrackingDifferenceCard } from "./TrackingDifferenceCard";
 import { PerfNetteCard } from "./PerfNetteCard";
@@ -170,6 +171,7 @@ export function FundSheetClient({ fund }: Props) {
           <CharacteristicsCard fund={fund} />
           {!isPE && <RisqueCard fund={fund} />}
           <EnveloppesCard fund={fund} />
+          <AvantageFiscalCard fund={fund} />
           <ReferencementCard fund={fund} />
           <FeesCard fund={fund} />
           {!isPE && <TrackingDifferenceCard fund={fund} />}

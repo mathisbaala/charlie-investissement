@@ -90,6 +90,7 @@ export function buildParams(
   if (f.retrocession_min != null)    sp.set("retrocession_min",  String(f.retrocession_min));
   if (f.envelopes?.length)           sp.set("envelopes",         f.envelopes.join(","));
   if (f.universe?.length)            sp.set("universe",          f.universe.join(","));
+  if (f.tax_schemes?.length)         sp.set("tax_scheme",        f.tax_schemes.join(","));
   if (f.asset_class?.length)         sp.set("asset_class",       f.asset_class.join(","));
   if (f.allocation_profile?.length)  sp.set("allocation_profile",f.allocation_profile.join(","));
   if (f.insurers?.length)            sp.set("insurer",           f.insurers.join(","));
@@ -148,7 +149,8 @@ export function filtersFromParams(sp: URLSearchParams): ParsedFilters {
   if (sp.get("target_maturity") === "true") f.target_maturity = true;
 
   const arrKeys: [string, keyof ParsedFilters][] = [
-    ["envelopes", "envelopes"], ["universe", "universe"], ["asset_class", "asset_class"],
+    ["envelopes", "envelopes"], ["universe", "universe"], ["tax_scheme", "tax_schemes"],
+    ["asset_class", "asset_class"],
     ["allocation_profile", "allocation_profile"], ["insurer", "insurers"], ["contracts", "contracts"],
     ["gestionnaire_in", "gestionnaires"], ["region", "region"], ["sector", "sector"],
     ["exclude_sector", "exclude_sectors"], ["exclude_region", "exclude_regions"],
@@ -234,6 +236,12 @@ const MGMT_STYLE_FILTER_LABELS: Record<string, string> = {
 const LABEL_FILTER_LABELS: Record<string, string> = {
   isr: "Label ISR", greenfin: "Label Greenfin", finansol: "Label Finansol",
 };
+// Dispositifs de défiscalisation (colonne tax_scheme). Source unique partagée
+// entre l'UI (FilterPanel) et le bandeau de contexte du screener.
+export const TAX_SCHEME_LABELS: Record<string, string> = {
+  fip: "FIP", fip_corse: "FIP Corse", fip_outremer: "FIP Outre-mer",
+  fcpi: "FCPI", fcpr: "FCPR",
+};
 
 export function describeScreenerFilters(f: ParsedFilters): string[] {
   const out: string[] = [];
@@ -254,6 +262,7 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
     );
   }
   for (const l of f.labels ?? []) out.push(LABEL_FILTER_LABELS[l] ?? l);
+  for (const t of f.tax_schemes ?? []) out.push(TAX_SCHEME_LABELS[t] ?? t);
   for (const e of f.envelopes ?? [])        out.push(ENVELOPE_FILTER_LABELS[e] ?? e);
   for (const a of f.asset_class ?? [])      out.push(ASSET_BROAD_FILTER_LABELS[a] ?? a);
   for (const m of f.management_style ?? []) out.push(MGMT_STYLE_FILTER_LABELS[m] ?? m);

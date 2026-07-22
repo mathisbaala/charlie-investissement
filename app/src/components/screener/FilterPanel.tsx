@@ -674,6 +674,28 @@ export function FilterPanel({
 
         <Divider />
 
+        {/* Défiscalisation (dispositif fiscal : FIP / FCPI / FCPR) */}
+        <Section title="Défiscalisation">
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { val: "fip",          label: "FIP" },
+              { val: "fip_corse",    label: "FIP Corse" },
+              { val: "fip_outremer", label: "FIP Outre-mer" },
+              { val: "fcpi",         label: "FCPI" },
+              { val: "fcpr",         label: "FCPR" },
+            ].map(({ val, label }) => (
+              <SfdrPill
+                key={val}
+                label={label}
+                active={(f.tax_schemes ?? []).includes(val)}
+                onToggle={() => set("tax_schemes", toggleArr(f.tax_schemes, val))}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Divider />
+
         {/* Zone géographique */}
         <Section title="Zone géographique">
           <div className="flex gap-1.5 flex-wrap">

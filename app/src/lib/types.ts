@@ -82,6 +82,13 @@ export type Fund = {
   pea_pme_eligible: boolean | null;
   cto_eligible: boolean | null;
   ucits_compliant: boolean | null;
+
+  // Défiscalisation (FIP/FCPI/FCPR) : renseignée pour les fonds fiscaux, null sinon.
+  tax_scheme?: string | null;          // 'fip' | 'fip_corse' | 'fip_outremer' | 'fcpi' | 'fcpr'
+  tax_reduction_rate?: number | null;  // fraction (ex. 0.18) de réduction d'IR à la souscription
+  tax_lock_up_years?: number | null;   // durée de blocage minimale (ans)
+  vintage_year?: number | null;        // millésime (année de collecte)
+
   is_institutional: boolean | null;
   accessible_retail: boolean | null;
   hedged: boolean | null;
@@ -303,6 +310,7 @@ export type ParsedFilters = {
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
+  tax_schemes?: string[];     // dispositifs de défiscalisation (fip/fip_corse/fip_outremer/fcpi/fcpr) → colonne tax_scheme
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
   allocation_profile?: string[]; // profil d'allocation des diversifiés (prudent/equilibre/dynamique/flexible)
   insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
@@ -416,6 +424,13 @@ export type FundDetailHF = {
   av_fr_eligible: boolean | null;
   pea_pme_eligible: boolean | null;
   cto_eligible: boolean | null;
+  // Défiscalisation (FIP/FCPI/FCPR) : renseignée pour les fonds fiscaux, null sinon.
+  // tax_reduction_rate = fraction de réduction d'IR à la souscription (0.18/0.30 ;
+  // 0.0 pour un FCPR, dont l'avantage porte sur l'exonération des plus-values).
+  tax_scheme: string | null;          // 'fip' | 'fip_corse' | 'fip_outremer' | 'fcpi' | 'fcpr'
+  tax_reduction_rate: number | null;  // fraction (ex. 0.18) — jamais convertie en base
+  tax_lock_up_years: number | null;   // durée de blocage minimale (ans)
+  vintage_year: number | null;        // millésime (année de collecte)
   // Frais détaillés (migration 20260529000004)
   entry_fee_max: number | null;
   exit_fee_max: number | null;

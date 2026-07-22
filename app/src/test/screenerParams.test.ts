@@ -56,6 +56,38 @@ describe('buildParams — filtre profil d\'allocation', () => {
   })
 })
 
+// Défiscalisation : dispositif fiscal (FIP/FCPI/FCPR) demandé par un CGP cherchant du
+// produit défisc. buildParams doit sérialiser tax_schemes vers le paramètre tax_scheme
+// pour que l'API filtre la vue sur la colonne tax_scheme (in.(...)).
+describe('buildParams — filtre défiscalisation', () => {
+  it('sérialise tax_schemes vers le paramètre "tax_scheme"', () => {
+    const f: ParsedFilters = { tax_schemes: ['fip'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('tax_scheme')).toBe('fip')
+  })
+
+  it('joint plusieurs dispositifs par des virgules', () => {
+    const f: ParsedFilters = { tax_schemes: ['fip', 'fcpi', 'fcpr'] }
+    const sp = buildParams(f, 1, 'data_completeness', 'desc')
+    expect(sp.get('tax_scheme')).toBe('fip,fcpi,fcpr')
+  })
+
+  it('n\'émet pas "tax_scheme" quand il est absent', () => {
+    const sp = buildParams({}, 1, 'data_completeness', 'desc')
+    expect(sp.has('tax_scheme')).toBe(false)
+  })
+
+  it('round-trip URL → filtres', () => {
+    const sp = buildParams({ tax_schemes: ['fip_corse', 'fip_outremer'] }, 1, 'data_completeness', 'desc')
+    expect(filtersFromParams(sp).tax_schemes).toEqual(['fip_corse', 'fip_outremer'])
+  })
+
+  it('décrit chaque dispositif pour le bandeau de contexte', () => {
+    expect(describeScreenerFilters({ tax_schemes: ['fip', 'fip_corse', 'fcpr'] }))
+      .toEqual(['FIP', 'FIP Corse', 'FCPR'])
+  })
+})
+
 describe('buildParams — filtre assureur (référencement)', () => {
   it('sérialise insurers vers le paramètre "insurer"', () => {
     const f: ParsedFilters = { insurers: ['AXA France'] }

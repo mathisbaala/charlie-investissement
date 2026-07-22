@@ -48,7 +48,8 @@ const COLS = [
   "track_record_years","kid_url","data_completeness","updated_at",
   "share_class_group_id","insurers","contracts","tickers",
   "benchmark_index","benchmark_variant","benchmark_is_category",
-  "alpha_1y","alpha_3y","alpha_5y","maturity_year"
+  "alpha_1y","alpha_3y","alpha_5y","maturity_year",
+  "tax_scheme","tax_reduction_rate"
 ].join(",");
 
 function p(sp: URLSearchParams, key: string) { return sp.get(key); }
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const retroMin= num(p(sp, "retrocession_min")); // en % → diviser par 100 pour fraction DB
   const envelopes = arr(p(sp, "envelopes"));
   const universe  = arr(p(sp, "universe"));
+  const taxSchemes = arr(p(sp, "tax_scheme"));  // dispositifs défisc (fip/fcpi/fcpr…) → colonne tax_scheme
   const assetClasses = arr(p(sp, "asset_class"));
   const allocProfiles = arr(p(sp, "allocation_profile"));
   const insurers     = arr(p(sp, "insurer"));
@@ -135,7 +137,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // que de le réduire à la poignée « complète » — même esprit que la recherche par ISIN.
   const PE_PRODUCT_TYPES = ["fcpr", "fcpi", "fip", "fpci"];
   const peOnly = universe.length > 0 && universe.every(u => PE_PRODUCT_TYPES.includes(u));
-  const minCompleteness = peOnly
+  // Un dispositif de défiscalisation explicitement demandé (FIP/FCPI/FCPR) relève du même
+  // registre : produits fiscaux non cotés, structurellement peu renseignés → on bypasse
+  // aussi le plancher de complétude pour ne pas réduire l'offre à la poignée « complète ».
+  const bypassCompleteness = peOnly || taxSchemes.length > 0;
+  const minCompleteness = bypassCompleteness
     ? 0
     : prioritizeComplete ? INTENT_MIN_COMPLETENESS : BASE_MIN_COMPLETENESS;
 
@@ -164,6 +170,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     vol3Max != null || shMin != null || sh3Min != null || ddMax != null ||
     noEntryFee || aumMin != null || trMin != null || mstarMin != null ||
     retroMin != null || envelopes.length > 0 || universe.length > 0 ||
+    taxSchemes.length > 0 ||
     assetClasses.length > 0 || allocProfiles.length > 0 || insurers.length > 0 ||
     contracts.length > 0 || regions.length > 0 || sectors.length > 0 ||
     exclSectors.length > 0 || exclRegions.length > 0 || mgmtStyles.length > 0 ||
@@ -290,6 +297,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // 15/07/2026 : les CGP doivent voir l'intégralité du catalogue ; le tri par
   // data_completeness et le plancher de complétude relèguent naturellement les
   // supports peu renseignés en fin de classement sans les cacher.
+
+  // Défiscalisation : dispositif fiscal du fonds (FIP/FCPI/FCPR). Filtre STRUCTURANT
+  // (jamais relâché) — le CGP demande explicitement du produit défisc. tax_scheme est
+  // NULL hors univers fiscal → in.(...) écarte de facto tous les fonds non défisc.
+  if (taxSchemes.length) q = q.in("tax_scheme", taxSchemes);
 
   // Classe d'actif (nature des sous-jacents) → colonne asset_class_broad.
   // Distinct de l'univers produit (product_type) : un OPCVM peut être actions ou obligataire.
@@ -649,7 +661,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     vol_max: volMax, vol_3y_max: vol3Max, sharpe_min: shMin, sharpe_3y_min: sh3Min,
     drawdown_max: ddMax, no_entry_fee: noEntryFee || undefined,
     aum_min: aumMin, track_record_min: trMin, morningstar_min: mstarMin,
-    retrocession_min: retroMin, envelopes, universe, asset_class: assetClasses,
+    retrocession_min: retroMin, envelopes, universe, tax_scheme: taxSchemes,
+    asset_class: assetClasses,
     allocation_profile: allocProfiles,
     insurer: insurers, contracts, region: regions, sector: sectors,
     exclude_sector: exclSectors, exclude_region: exclRegions,
