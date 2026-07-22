@@ -74,7 +74,7 @@ CONTRACTS: list[dict] = [
 FIELDS_DOC = {
     "frais_entree_pct": "Frais/droits d'entrée MAXIMUM en % (float, ex 3.0). null si 0 non confirmé.",
     "frais_gestion_uc_pct": "Frais de gestion annuels de l'enveloppe sur unités de compte, en % (ex 0.60). Dans un DIC = 'coûts récurrents' hors coûts du support.",
-    "frais_gestion_fonds_euros_pct": "Frais de gestion annuels sur le fonds en euros, en % (ex 0.60).",
+    "frais_gestion_fonds_euros_pct": "Frais de gestion annuels sur le fonds en euros, en % (ex 0.60, norme 0.50 a 0.85). NE PAS confondre avec la reduction de garantie du capital (ex 'capital garanti net de 2 % de frais' = garantie 98 %, ce n'est PAS un frais) : dans ce cas laisser null ou mettre le vrai frais de gestion s'il est indique separement.",
     "frais_arbitrage_pct": "Frais d'un arbitrage en % (ex 0.50). null si gratuit → mettre frais_arbitrage_note.",
     "frais_arbitrage_note": "Texte si arbitrage gratuit/plafonné (ex 'gratuit en ligne'). Sinon null.",
     "fonds_euros_nom": "Nom du fonds en euros du contrat (ex 'Netissima'). Sinon null.",
@@ -184,8 +184,17 @@ def _normalize(raw: dict, key: str, company: str, contract: str, source_url: str
             n = float(v)
         except (TypeError, ValueError):
             continue
-        # Frais plausibles ≤ 10 % ; fonds euros ≤ 8 %. Écarte les aberrations.
-        cap = 8.0 if f == "fonds_euros_taux_pct" else 10.0
+        # Frais plausibles ≤ 10 % ; taux fonds euros ≤ 8 %. Écarte les aberrations.
+        # Frais de gestion du FONDS EUROS : plafond serré à 1,2 %. Au-delà, c'est
+        # presque toujours la RÉDUCTION DE GARANTIE en capital captée par erreur
+        # (ex. « capital garanti net de 2 % de frais » = 98 %), et non un frais de
+        # gestion réel (norme 0,50 à 0,85 %). On rejette pour ne pas gonfler le coût.
+        if f == "fonds_euros_taux_pct":
+            cap = 8.0
+        elif f == "frais_gestion_fonds_euros_pct":
+            cap = 1.2
+        else:
+            cap = 10.0
         if 0 <= n <= cap:
             row[f] = round(n, 2)
     for f in _STR_FIELDS:
