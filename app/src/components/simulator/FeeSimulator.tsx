@@ -201,9 +201,9 @@ function StackedBar({ segments }: { segments: BarSegment[] }) {
   const total = shown.reduce((a, s) => a + s.value, 0);
   if (total <= 0) return null;
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       <div
-        className="flex h-2.5 w-full overflow-hidden rounded-full bg-line-soft"
+        className="flex h-4 w-full overflow-hidden rounded-full bg-line-soft"
         role="img"
         aria-label={shown.map((s) => `${s.label} : ${Math.round((s.value / total) * 100)} %`).join(", ")}
       >
@@ -216,14 +216,14 @@ function StackedBar({ segments }: { segments: BarSegment[] }) {
           />
         ))}
       </div>
-      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2">
+      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2.5">
         {shown.map((s) => (
           <li key={s.label} className="flex items-center gap-2 min-w-0">
-            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
-            <span className={`text-meta truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
+            <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} aria-hidden />
+            <span className={`text-body truncate ${s.strong ? "text-ink font-medium" : "text-ink-2"}`} title={s.label}>{s.label}</span>
             <span className="ml-auto shrink-0 flex items-baseline gap-2">
-              <span className={`text-meta tabular-nums ${s.strong ? "text-ink font-medium" : "text-ink"}`}>{EUR.format(s.value)}</span>
-              <span className="text-caption text-muted tabular-nums w-9 text-right">{Math.round((s.value / total) * 100)} %</span>
+              <span className={`text-body tabular-nums ${s.strong ? "text-ink font-semibold" : "text-ink font-medium"}`}>{EUR.format(s.value)}</span>
+              <span className="text-meta text-muted tabular-nums w-10 text-right">{Math.round((s.value / total) * 100)} %</span>
             </span>
           </li>
         ))}
@@ -278,6 +278,26 @@ const LegendDot = ({ color, label }: { color: string; label: string }) => (
     {label}
   </span>
 );
+
+// Métrique compacte : intitulé en capitale + chiffre. Jamais de phrase — un site
+// se lit en chiffres et en blocs, pas en paragraphes.
+function Stat({ label, value, sub, hint }: {
+  label: string; value: string; sub?: string; hint?: string;
+}) {
+  const body = (
+    <>{value}{sub && <span className="text-caption text-muted font-normal"> {sub}</span>}</>
+  );
+  return (
+    <div className="min-w-0">
+      <p className="text-label uppercase tracking-wide text-muted font-semibold truncate" title={label}>{label}</p>
+      <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-1">
+        {hint ? (
+          <span className="cursor-help decoration-dotted underline underline-offset-2 decoration-muted-2" title={hint}>{body}</span>
+        ) : body}
+      </p>
+    </div>
+  );
+}
 
 // Format compact et HOMOGÈNE pour les axes du graphe : toujours en milliers
 // (« k »), une décimale seulement sous 10 k — sinon recharts peut tomber sur des
@@ -894,35 +914,23 @@ export function FeeSimulator() {
                   (pas de doublon d'indicateur). */}
               <Card className="px-5 py-5 sm:px-6 sm:py-6">
                 <p className="text-label uppercase tracking-widest text-muted font-semibold">Ma rémunération</p>
-                <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                  <span className="text-display-lg font-semibold tabular-nums text-ok leading-none">{EUR.format(revenuCabinet)}</span>
-                  <span className="text-body-lg text-ink-2">
-                    <span className="tabular-nums font-medium text-ink">{EUR.format(revenuUpfront)}</span> à l’entrée, puis <span className="tabular-nums font-medium text-ink">{EUR.format(revenuRecurrentAn1)}</span>/an récurrent
-                  </span>
+                <p className="text-display-lg font-semibold tabular-nums text-ok leading-none mt-2">{EUR.format(revenuCabinet)}</p>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3.5">
+                  <Stat label="À l’entrée" value={EUR.format(revenuUpfront)} />
+                  <Stat label="Récurrent" value={EUR.format(revenuRecurrentAn1)} sub="/an" />
+                  {tauxRetro != null && <Stat label="Taux de rétrocession" value={pct(tauxRetro)} sub="/an" />}
+                  {partUCRecurrent != null && <Stat label="Récurrent lié aux UC" value={`${partUCRecurrent} %`} />}
                 </div>
-                {(tauxRetro != null || partUCRecurrent != null) && (
-                  <div className="mt-3.5 flex flex-wrap gap-x-8 gap-y-2.5">
-                    {tauxRetro != null && (
-                      <div>
-                        <p className="text-label uppercase tracking-wide text-muted font-semibold">Taux de rétrocession</p>
-                        <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-0.5">{pct(tauxRetro)}<span className="text-caption text-muted font-normal"> /an</span></p>
-                      </div>
-                    )}
-                    {partUCRecurrent != null && (
-                      <div>
-                        <p className="text-label uppercase tracking-wide text-muted font-semibold">Récurrent lié aux UC</p>
-                        <p className="text-subhead font-semibold tabular-nums text-ink leading-none mt-0.5">{partUCRecurrent} %</p>
-                      </div>
-                    )}
+                <div className="mt-4 pt-3.5 border-t border-line-soft">
+                  <p className="text-label uppercase tracking-widest text-muted font-semibold mb-2.5">Côté client</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
+                    <Stat label="Coût total" value={EUR.format(coutTotalClient)} />
+                    <Stat
+                      label="Réduction de rendement" value={`${pct(riy)}/an`} sub="RIY"
+                      hint="RIY (Reduction in Yield) — réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
+                    />
                   </div>
-                )}
-                <p className="text-body text-ink-2 mt-4 pt-3.5 border-t border-line-soft">
-                  Pour le client, <span className="tabular-nums font-medium text-ink">{EUR.format(coutTotalClient)}</span> de frais, soit un rendement réduit de{" "}
-                  <span
-                    className="cursor-help tabular-nums font-medium text-ink decoration-dotted underline underline-offset-2 decoration-muted-2"
-                    title="RIY (Reduction in Yield) — réduction de rendement annuelle : de combien, en points de %/an, les frais rabaissent la performance. Indicateur standardisé PRIIPs."
-                  >{pct(riy)}/an (RIY)</span>.
-                </p>
+                </div>
               </Card>
 
               {/* ── Bloc 2 · Décomposition commutable ─────────────────────────
