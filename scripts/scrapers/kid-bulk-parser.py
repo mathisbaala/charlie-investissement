@@ -413,7 +413,7 @@ Champs à extraire (null si absent) :
 - perf_scenario_moderate_5y: nombre décimal en fraction (scénario modéré 5 ans)
 
 Texte KID :
-{text[:4000]}
+{text[:18000]}
 
 JSON:"""
 
