@@ -21,8 +21,8 @@ import { filterUniverse, toSectorExclusions, GEO_TO_REGIONS } from "./profileToC
 const VIEW = "investissement_funds_cgp_ref";
 const COLS =
   "isin, name, product_type, asset_class_broad, category_normalized, " +
-  "region_normalized, management_style, gestionnaire, risk_score, sfdr_article, " +
-  "labels, esg_exclusions, morningstar_rating, ter, ongoing_charges, " +
+  "region_normalized, sector, labels, esg_exclusions, management_style, gestionnaire, " +
+  "risk_score, sfdr_article, morningstar_rating, ter, ongoing_charges, " +
   "performance_1y, performance_3y, performance_5y, volatility_1y, volatility_3y, " +
   "data_completeness";
 
@@ -47,7 +47,8 @@ export interface OptimizeParams {
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller. */
   exclude?: string[];
-  /** Exclusions sectorielles ESG du profil (tabac/armes/fossiles/jeux/alcool). */
+  /** Exclusions éthiques du client (tabac, armes, fossiles, jeux, alcool) —
+   *  contrainte de mandat : appliquée à TOUS les replis, jamais assouplie. */
   exclusions?: string[];
   /** Méthode de pondération : max-Sharpe (défaut) ou HRP. */
   method?: AllocationMethod;
@@ -105,6 +106,23 @@ export interface OptimizeError {
   error: string;
   detail?: string;
   status: number;
+}
+
+/**
+ * true si l'univers `funds` peut servir CHAQUE classe cible demandée (au moins
+ * un fonds par classe à poids > 0). Garde du mode strict des exclusions : sans
+ * elle, un univers strict réduit à une seule classe (ex. immobilier, exempté de
+ * déclaration) passerait le seuil minAssets et produirait un portefeuille
+ * dégénéré à 100 % sur cette classe. Fonction pure (testable).
+ */
+export function coversClassTargets(
+  funds: Pick<FundInput, "assetClass">[],
+  targets: Partial<Record<AssetClass, number>> | undefined,
+): boolean {
+  if (!targets) return true;
+  return Object.entries(targets).every(
+    ([cls, w]) => (w ?? 0) <= 0 || funds.some((f) => f.assetClass === cls),
+  );
 }
 
 /**
@@ -225,7 +243,24 @@ export async function optimizeContract(
   // aussi être REPRÉSENTÉE dans la sélection (cf. coverRegions). Si elle est
   // levée pour préserver la diversification, la couverture l'est aussi.
   let geoActive = (params.geographies?.length ?? 0) > 0;
+  // Exclusions éthiques : d'abord en mode STRICT (les fonds exposés doivent
+  // DÉCLARER l'exclusion dans leur politique — annexe SFDR), qui garantit la
+  // conformité ligne à ligne. Si la couverture de données ne laisse pas assez
+  // de fonds, repli sur le filtre de mandat seul (toujours actif, lui).
   let filtered = filterUniverse(inputs, filterOpts);
+  if ((params.exclusions?.length ?? 0) > 0) {
+    const strict = filterUniverse(inputs, { ...filterOpts, declaredPolicyStrict: true });
+    if (strict.funds.length >= minAssets && coversClassTargets(strict.funds, classTargets)) {
+      filtered = strict;
+      filterNotes.push(
+        "Exclusions du client appliquées en mode strict : fonds prouvant chaque exclusion (donnée EET, politique déclarée en annexe SFDR ou label garant) ou structurellement non exposés.",
+      );
+    } else {
+      filterNotes.push(
+        "Couverture de preuve insuffisante dans ce contrat : exclusions appliquées sur le mandat des fonds (secteur/nom) et les incompatibilités documentées (EET).",
+      );
+    }
+  }
   if (filtered.funds.length < minAssets && geoActive) {
     const retry = filterUniverse(inputs, { ...filterOpts, geographies: [] });
     if (retry.funds.length >= minAssets) {
@@ -237,6 +272,8 @@ export async function optimizeContract(
     }
   }
   if (filtered.funds.length < minAssets) {
+    // Repli « univers complet » : on lève les PRÉFÉRENCES, jamais les exclusions
+    // manuelles ni les exclusions ÉTHIQUES (mandat du client).
     const bare = filterUniverse(inputs, {
       exclude: params.exclude ?? [],
       exclusions: params.exclusions ?? [],
@@ -433,6 +470,7 @@ export function paramsFromQuery(p: URLSearchParams): OptimizeParams | { error: s
         ? Math.min(Math.max(Math.round(Number(sriMaxRaw)), 1), 7)
         : null,
     exclude: isinList(p.get("exclude")),
+    // Exclusions éthiques : seules les valeurs du vocabulaire du profil passent.
     exclusions: toSectorExclusions(
       (p.get("exclusions") ?? "").split(",").map((s) => s.trim().toLowerCase()),
     ),

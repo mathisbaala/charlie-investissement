@@ -17,11 +17,15 @@ export interface FundRow {
   asset_class_broad?: string | null;
   category_normalized?: string | null;
   region_normalized?: string | null;
+  sector?: string | null;
+  /** Tags screener (JSONB array) — porte les labels durabilité (isr/greenfin/
+   *  finansol) et les tags « excl-* » de la politique d'exclusion déclarée
+   *  (annexe SFDR, enricher sfdr-annex). */
+  labels?: string[] | null;
   management_style?: string | null;
   gestionnaire?: string | null;
   risk_score?: number | null; // SRI 1–7
   sfdr_article?: number | null;
-  labels?: string[] | null; // labels durabilité (isr/greenfin/finansol)
   esg_exclusions?: Record<string, boolean> | null; // exclusions EET {clé: bool}
   morningstar_rating?: number | null; // 1–5 étoiles
 
@@ -130,6 +134,8 @@ export function toFundInput(row: FundRow): FundInput | null {
     managementStyle: row.management_style ?? null,
     gestionnaire: row.gestionnaire ?? null,
     region: row.region_normalized ?? null,
+    sector: row.sector ?? null,
+    exclusionPolicies: (row.labels ?? []).filter((l) => l.startsWith("excl-")),
     dataCompleteness: row.data_completeness ?? null,
   };
 }

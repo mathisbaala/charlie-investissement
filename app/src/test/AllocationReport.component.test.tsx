@@ -39,9 +39,10 @@ describe("AllocationReport", () => {
     expect(screen.getByText("Répartition par classe d'actifs")).toBeTruthy();
     expect(screen.getByText("Portefeuille détaillé")).toBeTruthy();
     expect(screen.getByText("Profil de risque")).toBeTruthy();
-    expect(screen.getByText("Analyse et justification par support")).toBeTruthy();
-    expect(screen.getByText("Nos convictions de gestion")).toBeTruthy();
     expect(screen.getByText("Avertissements")).toBeTruthy();
+    // Réservées au PDF client : absentes de la restitution écran.
+    expect(screen.queryByText("Analyse et justification par support")).toBeNull();
+    expect(screen.queryByText("Nos convictions de gestion")).toBeNull();
   });
 
   it("liste chaque support avec son ISIN dans le tableau", () => {

@@ -179,6 +179,72 @@ def parse_annex(text: str) -> dict:
     return out
 
 
+# ─── Politique d'exclusion (tags normalisés « excl-* » dans labels) ──────────
+# Le template RTS décrit les « éléments contraignants de la stratégie
+# d'investissement » : c'est là que vivent les exclusions sectorielles. On ne
+# tague un thème que si un mot-clé du thème apparaît PRÈS d'un marqueur
+# d'exclusion (exclut / interdit / écarte / liste noire / zéro tolérance…) —
+# jamais sur simple mention : les tableaux PAI citent « combustibles fossiles »
+# comme indicateur d'exposition, sans exclusion. Les tags alimentent le mode
+# strict du moteur d'allocation (exclusions éthiques du profil client) et sont
+# PRÉSERVÉS par populate-screener-labels (cf. PRESERVED_LABELS).
+
+_EXCL_MARKER = re.compile(
+    r"exclu\w*|interdit\w*|[ée]cart[ée]\w*|banni\w*|liste\s+noire|black[- ]?list"
+    r"|ne\s+(?:peut|peuvent|doit|doivent)\s+pas\s+(?:être\s+)?invest"
+    r"|n['’]invest\w*\s+pas|aucune?\s+(?:exposition|investissement|position)"
+    r"|z[ée]ro\s+tol[ée]rance|s['’]interdit|restrictions?\s+sectorielle",
+    re.IGNORECASE)
+
+_EXCL_THEMES = {
+    "excl-fossiles": re.compile(
+        r"combustibles?\s+fossiles?|[ée]nergies?\s+fossiles?|charbon|p[ée]trole"
+        r"|gaz\s+(?:naturel|de\s+schiste)|hydrocarbures|sables?\s+bitumineux"
+        r"|fossil\s+fuels?|thermal\s+coal|\boil\b", re.IGNORECASE),
+    "excl-tabac": re.compile(r"tabac|tobacco", re.IGNORECASE),
+    "excl-armes": re.compile(r"\barmes?\b|armement|weapons?", re.IGNORECASE),
+    "excl-jeux": re.compile(
+        r"jeux\s+d['’]argent|jeux\s+de\s+hasard|gambling|paris\s+sportifs|casinos?",
+        re.IGNORECASE),
+    "excl-alcool": re.compile(
+        r"alcool|alcohol|spiritueux|boissons?\s+alcoolis", re.IGNORECASE),
+}
+
+_EXCL_WINDOW = 260  # caractères de contexte autour du mot-clé thème
+
+
+def parse_exclusions(text: str) -> list[str]:
+    """Tags « excl-* » déclarés par l'annexe (liste triée, vide si rien)."""
+    flat = re.sub(r"\s+", " ", text.lower())
+    tags: list[str] = []
+    for tag, theme_re in _EXCL_THEMES.items():
+        for m in theme_re.finditer(flat):
+            lo = max(0, m.start() - _EXCL_WINDOW)
+            win = flat[lo:m.end() + _EXCL_WINDOW]
+            if not _EXCL_MARKER.search(win):
+                continue
+            # Armes : l'exclusion des seules armes CONTROVERSÉES (obligatoire en
+            # droit français) ne vaut PAS exclusion de l'armement — on ignore les
+            # occurrences dont le voisinage immédiat dit « controversées ».
+            if tag == "excl-armes":
+                around = flat[max(0, m.start() - 60):m.end() + 60]
+                if re.search(r"controvers|non\s+conventionnelles|prohib[ée]es\s+par", around):
+                    continue
+            tags.append(tag)
+            break
+    return sorted(tags)
+
+
+def merged_labels(existing: list | None, new_tags: list[str]) -> list[str] | None:
+    """labels fusionnés (existants ∪ nouveaux tags), ou None si rien à écrire.
+    Additif STRICT : ne retire jamais un label existant."""
+    if not new_tags:
+        return None
+    cur = [str(x) for x in (existing or [])]
+    merged = sorted(set(cur) | set(new_tags))
+    return merged if merged != sorted(cur) else None
+
+
 def _sane(parsed: dict) -> dict:
     """Garde-fous de plausibilité. Taxo > SI est suspect (la part taxo est un
     sous-ensemble de l'inv. durable) → on jette la taxo dans ce cas plutôt que
@@ -192,14 +258,31 @@ def _sane(parsed: dict) -> dict:
 
 # ─── Chargement des cibles ───────────────────────────────────────────────────
 
-def load_targets(client, isin_filter: str | None) -> list[dict]:
+def referenced_isins(client) -> set[str]:
+    """ISIN référencés dans au moins un contrat (MV assureurs) — permet de
+    prioriser le drain sur les fonds que le moteur d'allocation peut réellement
+    servir aux CGP, avant la longue traîne jamais référencée."""
+    out: set[str] = set()
+    offset, page = 0, 1000
+    while True:
+        chunk = client.table("investissement_fund_insurers_mv").select("isin") \
+            .not_.is_("contracts", "null") \
+            .order("isin").range(offset, offset + page - 1).execute().data or []
+        out.update(r["isin"] for r in chunk)
+        if len(chunk) < page:
+            break
+        offset += page
+    return out
+
+
+def load_targets(client, isin_filter: str | None, redo: bool = False) -> list[dict]:
     """Fonds Art.8/9 avec kid_url Morningstar, non encore traités par CE source.
 
     On re-traite tant que sustainability_source n'est pas un marqueur 'sfdr-annex*'
     (donc on peut compléter des fonds que sfdr-enricher.py 'kid' avait marqués sans
     rien trouver, sans jamais écraser une valeur non-nulle existante)."""
     sel = ("isin, name, kid_url, sfdr_article, sustainable_investment_pct, "
-           "taxonomy_alignment_pct, pai_considered, sustainability_source")
+           "taxonomy_alignment_pct, pai_considered, sustainability_source, labels")
     if isin_filter:
         return client.table("investissement_funds").select(sel) \
             .eq("isin", isin_filter).execute().data or []
@@ -216,9 +299,16 @@ def load_targets(client, isin_filter: str | None) -> list[dict]:
         if len(chunk) < page:
             break
         offset += page
-    # Skip ceux déjà traités par cette source (idempotence des runs).
-    funds = [f for f in funds
-             if not str(f.get("sustainability_source") or "").startswith("sfdr-annex")]
+    # Skip ceux déjà traités par cette source (idempotence des runs) — sauf en
+    # --redo (utile pour repasser l'extraction des politiques d'exclusion sur
+    # des fonds traités avant qu'elle n'existe). En redo on ne re-lit que ceux
+    # SANS tag excl-* (ne re-télécharge pas ce qui est déjà taggé).
+    if redo:
+        funds = [f for f in funds
+                 if not any(str(l).startswith("excl-") for l in (f.get("labels") or []))]
+    else:
+        funds = [f for f in funds
+                 if not str(f.get("sustainability_source") or "").startswith("sfdr-annex")]
     return funds
 
 
@@ -233,12 +323,12 @@ def _fill_only(fund: dict, parsed: dict) -> dict:
 
 # ─── PoC ──────────────────────────────────────────────────────────────────────
 
-def run_poc(limit: int) -> None:
+def run_poc(limit: int, redo: bool = False) -> None:
     print("=" * 70)
     print("  SFDR-ANNEX enricher — PoC (AUCUNE écriture)")
     print("=" * 70)
     client = get_client()
-    funds = load_targets(client, None)[: max(limit * 4, limit)]
+    funds = load_targets(client, None, redo=redo)[: max(limit * 4, limit)]
     print(f"  {len(funds)} candidats chargés, cible {limit} annexes lues\n")
 
     seen = good = 0
@@ -259,14 +349,16 @@ def run_poc(limit: int) -> None:
             seen += 1
             continue
         parsed = _sane(parse_annex(text))
+        excl = parse_exclusions(text)
         seen += 1
         n = len(parsed)
-        if n:
+        if n or excl:
             good += 1
         print(f"  [{f['isin']}] art{f['sfdr_article']}  "
               f"SI={parsed.get('sustainable_investment_pct')!s:>6}  "
               f"TAXO={parsed.get('taxonomy_alignment_pct')!s:>6}  "
-              f"PAI={parsed.get('pai_considered')!s:>5}  ({n}/3 champs)")
+              f"PAI={parsed.get('pai_considered')!s:>5}  ({n}/3 champs)  "
+              f"EXCL={','.join(t.removeprefix('excl-') for t in excl) or '-'}")
         print(f"        {url}")
 
     print(f"\n  PoC : {seen} annexes lues, {good} avec ≥1 champ extrait")
@@ -277,20 +369,27 @@ def run_poc(limit: int) -> None:
 
 # ─── Run plein (fill-only) ───────────────────────────────────────────────────
 
-def run_apply(limit: int | None, isin_filter: str | None) -> None:
+def run_apply(limit: int | None, isin_filter: str | None, redo: bool = False,
+              referenced_only: bool = False) -> None:
     print("=" * 70)
     print("  SFDR-ANNEX enricher — APPLY (fill-only strict)")
     print("=" * 70)
     started = datetime.now(timezone.utc)
     client = get_client()
-    funds = load_targets(client, isin_filter)
+    funds = load_targets(client, isin_filter, redo=redo)
+    if referenced_only:
+        refs = referenced_isins(client)
+        before = len(funds)
+        funds = [f for f in funds if f["isin"] in refs]
+        print(f"  --referenced-only : {len(funds)} fonds référencés (sur {before})")
     if limit:
         funds = funds[:limit]
     print(f"  {len(funds)} fonds Art.8/9 à traiter\n")
 
     updates: list[dict] = []
     seen_annex = found = 0
-    col_count = {"sustainable_investment_pct": 0, "taxonomy_alignment_pct": 0, "pai_considered": 0}
+    col_count = {"sustainable_investment_pct": 0, "taxonomy_alignment_pct": 0,
+                 "pai_considered": 0, "exclusion_tags": 0}
 
     for i, f in enumerate(funds, 1):
         if i % 500 == 0:
@@ -301,6 +400,7 @@ def run_apply(limit: int | None, isin_filter: str | None) -> None:
         marker = "sfdr-annex-none"
         keep: dict = {}
 
+        labels_update: list[str] | None = None
         if url:
             pdf = download_pdf(url)
             time.sleep(SLEEP_BETWEEN)
@@ -310,7 +410,12 @@ def run_apply(limit: int | None, isin_filter: str | None) -> None:
                     seen_annex += 1
                     parsed = _sane(parse_annex(text))
                     keep = _fill_only(f, parsed)
-                    if keep:
+                    # Politique d'exclusion → tags excl-* fusionnés dans labels
+                    # (additif : ne retire jamais un label existant).
+                    labels_update = merged_labels(f.get("labels"), parse_exclusions(text))
+                    if labels_update is not None:
+                        col_count["exclusion_tags"] += 1
+                    if keep or labels_update is not None:
                         marker = "sfdr-annex"
                         found += 1
                         for k in keep:
@@ -323,12 +428,15 @@ def run_apply(limit: int | None, isin_filter: str | None) -> None:
             "sustainability_computed_at": now_iso(),
             **keep,
         }
+        if labels_update is not None:
+            row["labels"] = labels_update
         updates.append(row)
 
     print(f"\n  → {seen_annex} annexes lues, {found} fonds enrichis (≥1 champ)")
     print(f"     SI:{col_count['sustainable_investment_pct']}  "
           f"TAXO:{col_count['taxonomy_alignment_pct']}  "
-          f"PAI:{col_count['pai_considered']}")
+          f"PAI:{col_count['pai_considered']}  "
+          f"EXCL:{col_count['exclusion_tags']}")
 
     if updates:
         print(f"  Écriture fill-only ({len(updates)} fonds)…", end=" ", flush=True)
@@ -346,11 +454,16 @@ if __name__ == "__main__":
     p.add_argument("--apply", action="store_true", help="Écrire (fill-only) dans Supabase")
     p.add_argument("--limit", type=int, help="Limiter à N fonds")
     p.add_argument("--isin", type=str, help="Un seul ISIN")
+    p.add_argument("--referenced-only", action="store_true",
+                   help="Ne traiter que les fonds référencés dans au moins un contrat")
+    p.add_argument("--redo", action="store_true",
+                   help="Repasser les fonds déjà traités mais sans tag excl-* (politiques d'exclusion)")
     args = p.parse_args()
 
     if args.poc:
-        run_poc(limit=args.limit or 8)
+        run_poc(limit=args.limit or 8, redo=args.redo)
     elif args.apply:
-        run_apply(limit=args.limit, isin_filter=args.isin)
+        run_apply(limit=args.limit, isin_filter=args.isin, redo=args.redo,
+                  referenced_only=args.referenced_only)
     else:
         p.error("Préciser --poc ou --apply")

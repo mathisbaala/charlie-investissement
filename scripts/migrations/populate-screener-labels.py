@@ -48,8 +48,11 @@ PRESERVED_LABELS = frozenset([
     "Technology", "Impact",
     # Labels officiels normalisés (registres BdF / lelabelisr.fr via
     # labels-registries.py) — en minuscules, consommés par le moteur
-    # (le filtre d'exclusions ESG teste "isr"/"greenfin"/"finansol").
+    # (EXCLUSION_GUARANTEE_LABELS teste "isr"/"greenfin"/"finansol").
     "isr", "greenfin", "finansol",
+    # Politique d'exclusion déclarée (annexe SFDR, sfdr-annex-enricher) —
+    # consommée par le moteur d'allocation (exclusions éthiques du client).
+    "excl-fossiles", "excl-tabac", "excl-armes", "excl-jeux", "excl-alcool",
 ])
 
 

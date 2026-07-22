@@ -122,6 +122,25 @@ export function regionsForGeographies(geographies: string[]): Set<string> | null
 }
 
 // ─── Exclusions sectorielles ESG du profil (tabac, armes, fossiles…) ──────────
+// Deux modes, trois sources de preuve. Contrainte de MANDAT, pas une préférence :
+// jamais assouplie par le service.
+//
+// Mode PAR DÉFAUT (toujours actif) — on n'écarte que le PROUVÉ-INCOMPATIBLE :
+//   • donnée EET documentée négative (le fonds déclare ne PAS exclure le
+//     secteur, passesSectorExclusions) ;
+//   • mandat du fonds dédié au thème exclu (mots-clés/secteur,
+//     ethicalExclusionViolation).
+//   Sans donnée, le fonds est conservé (best-effort, on ne pénalise pas un trou
+//   de données).
+//
+// Mode STRICT (tenté d'abord par le service quand l'univers le permet) — chaque
+// exclusion doit être PROUVÉE par l'une des sources (satisfiesDeclaredExclusions) :
+//   • donnée EET documentée positive (le fonds déclare exclure) ;
+//   • tag de politique déclarée excl-* (annexe SFDR) ;
+//   • label officiel dont le référentiel GARANTIT l'exclusion (isr → tabac/armes,
+//     greenfin → fossiles).
+//   Les classes structurellement non exposées (monétaire, fonds euros,
+//   immobilier, crypto) sont exemptées de preuve.
 
 /** Exclusions sectorielles proposées par le profil client (recueil DDA). */
 export const SECTOR_EXCLUSIONS = ["tabac", "armes", "fossiles", "jeux", "alcool"] as const;
@@ -142,14 +161,13 @@ const EXCLUSION_DATA_KEYS: Record<SectorExclusion, string[]> = {
 
 /**
  * Proxy « labels » : labels officiels dont le RÉFÉRENTIEL garantit l'exclusion,
- * utilisé en REPLI quand la donnée esg_exclusions est absente pour le fonds.
+ * accepté comme PREUVE en mode strict quand la donnée esg_exclusions manque.
  * — Label ISR (référentiel V3, en vigueur mars 2025) : exclusion des armes
  *   controversées et des producteurs de tabac. Son exclusion fossile est
  *   PARTIELLE (charbon thermique + hydrocarbures non conventionnels) → non
  *   retenue comme garantie « fossiles ».
  * — Greenfin : exclusion des énergies fossiles.
- * — Aucun label français ne garantit jeux/alcool → tableau vide : sans donnée,
- *   on n'écarte pas (best-effort, on n'écarte que le documenté-négatif).
+ * — Aucun label français ne garantit jeux/alcool → tableau vide.
  */
 export const EXCLUSION_GUARANTEE_LABELS: Record<SectorExclusion, string[]> = {
   tabac: ["isr"],
@@ -160,13 +178,11 @@ export const EXCLUSION_GUARANTEE_LABELS: Record<SectorExclusion, string[]> = {
 };
 
 /**
- * Un fonds satisfait-il les exclusions sectorielles demandées ? Pour chaque
- * exclusion : la donnée EET (esgExclusions) prime — true = conforme, false =
- * écarté (le fonds documente qu'il n'exclut PAS) ; sans donnée, repli sur le
- * proxy labels (le label doit GARANTIR l'exclusion) ; si aucun label ne peut la
- * garantir (jeux/alcool), le fonds est conservé (on ne peut pas exiger une
- * garantie qui n'existe pas — l'exclusion reste appliquée dès que la donnée
- * arrive en base).
+ * Couche « documenté-négatif » du mode par défaut : un fonds n'est écarté que si
+ * la donnée EET (esgExclusions) documente qu'il n'exclut PAS un secteur demandé
+ * (toutes les clés couvrantes à false). Documenté positif → conforme ; absence
+ * de donnée → conservé (best-effort : on ne pénalise pas un trou de données, le
+ * mode strict — satisfiesDeclaredExclusions — exige la preuve, lui).
  */
 export function passesSectorExclusions(
   f: Pick<FundInput, "esgExclusions" | "labels">,
@@ -177,14 +193,9 @@ export function passesSectorExclusions(
     const documented = EXCLUSION_DATA_KEYS[ex]
       .map((k) => data?.[k])
       .filter((v): v is boolean => v !== undefined);
-    if (documented.length > 0) {
-      if (documented.some((v) => v)) continue; // exclusion documentée → conforme
+    if (documented.length > 0 && !documented.some((v) => v)) {
       return false; // documenté : le fonds n'exclut pas ce secteur
     }
-    const guarantee = EXCLUSION_GUARANTEE_LABELS[ex];
-    if (guarantee.length === 0) continue; // aucune garantie possible → best-effort
-    const labels = f.labels ?? [];
-    if (!guarantee.some((l) => labels.includes(l))) return false;
   }
   return true;
 }
@@ -196,29 +207,131 @@ export function toSectorExclusions(raw: string[] | null | undefined): SectorExcl
   );
 }
 
+// Limite assumée du filtre de mandat : sans inventaires ligne à ligne, on
+// écarte les fonds DONT LE MANDAT MÊME porte sur le thème exclu (secteur
+// normalisé, nom, catégorie) — un fonds généraliste peut détenir une position
+// marginale ; la revue IA et le look-through servent de contrôles complémentaires.
+
+/** Vocabulaire d'exclusion du profil client (cf. EXCLUSION_OPTIONS du formulaire). */
+export const ETHICAL_EXCLUSIONS = ["tabac", "armes", "fossiles", "jeux", "alcool"] as const;
+export type EthicalExclusion = (typeof ETHICAL_EXCLUSIONS)[number];
+
+// Mots-clés par thème, appliqués au nom + catégorie du fonds (français/anglais).
+// Volontairement CIBLÉS pour ne pas écarter à tort : « gaming » (jeux vidéo)
+// n'est pas « gambling » ; « energy transition »/« renewables » n'est pas du
+// pétrole — mais le SECTEUR normalisé « Énergie » (qui couvre l'énergie classique)
+// tombe avec « fossiles », comme dans le screener.
+const ETHICAL_KEYWORDS: Record<EthicalExclusion, RegExp> = {
+  tabac: /tabac|tobacco/i,
+  armes: /d[ée]fen[cs]e|armement|\bmilitary\b|weapon|aerospace/i,
+  fossiles: /p[ée]trole|petroleum|\boil\b|\bgas\b|fossil|charbon|\bcoal\b/i,
+  jeux: /casino|gambling|betting|jeux\s+d['’]argent/i,
+  alcool: /alcool|alcohol|spirits|brewer|\bwines?\b|\bvins?\b/i,
+};
+
+// Secteur normalisé de la base → thème exclu (fonds sectoriels dédiés).
+const ETHICAL_SECTOR: Partial<Record<EthicalExclusion, string>> = {
+  fossiles: "Énergie",
+};
+
+/** Exclusion du profil → tag de politique déclarée (labels du fonds). */
+export const EXCLUSION_TO_POLICY_TAG: Record<EthicalExclusion, string> = {
+  tabac: "excl-tabac",
+  armes: "excl-armes",
+  fossiles: "excl-fossiles",
+  jeux: "excl-jeux",
+  alcool: "excl-alcool",
+};
+
+// Classes d'actifs structurellement NON exposées aux thèmes éthiques (pas
+// d'entreprises en portefeuille) : le mode « politique déclarée » ne leur
+// demande pas d'annexe — un fonds monétaire n'a pas à déclarer qu'il exclut
+// le tabac pour être conforme.
+const POLICY_EXEMPT_CLASSES = new Set(["monetaire", "fonds_euros", "immobilier", "crypto"]);
+
+/**
+ * Mode STRICT : true si le fonds PROUVE chaque exclusion demandée — donnée EET
+ * documentée positive (esgExclusions), tag de politique déclarée excl-* (annexe
+ * SFDR), ou label officiel garant (isr → tabac/armes, greenfin → fossiles) — ou
+ * n'a structurellement pas besoin de preuve (classe non exposée). Fonction pure.
+ */
+export function satisfiesDeclaredExclusions(
+  fund: Pick<FundInput, "assetClass" | "exclusionPolicies" | "esgExclusions" | "labels">,
+  exclusions: string[] | null | undefined,
+): boolean {
+  if (!exclusions?.length) return true;
+  if (POLICY_EXEMPT_CLASSES.has(fund.assetClass)) return true;
+  const declared = new Set(fund.exclusionPolicies ?? []);
+  const labels = fund.labels ?? [];
+  return exclusions.every((e) => {
+    const excl = e as EthicalExclusion;
+    const tag = EXCLUSION_TO_POLICY_TAG[excl];
+    if (!tag) return true; // valeur inconnue : pas d'exigence
+    // Preuve 1 : donnée EET documentée (elle prime — un documenté-négatif ne
+    // peut pas être « rattrapé » par un tag ou un label).
+    const documented = (EXCLUSION_DATA_KEYS[excl] ?? [])
+      .map((k) => fund.esgExclusions?.[k])
+      .filter((v): v is boolean => v !== undefined);
+    if (documented.length > 0) return documented.some((v) => v);
+    // Preuve 2 : politique déclarée (tag excl-* d'annexe SFDR).
+    if (declared.has(tag)) return true;
+    // Preuve 3 : label officiel dont le référentiel garantit l'exclusion.
+    return (EXCLUSION_GUARANTEE_LABELS[excl] ?? []).some((l) => labels.includes(l));
+  });
+}
+
+/**
+ * Thème d'exclusion violé par le MANDAT du fonds (secteur, nom ou catégorie),
+ * ou null si le fonds est compatible. Fonction pure (testable).
+ */
+export function ethicalExclusionViolation(
+  fund: Pick<FundInput, "name" | "category" | "sector">,
+  exclusions: string[] | null | undefined,
+): EthicalExclusion | null {
+  if (!exclusions?.length) return null;
+  const text = `${fund.name ?? ""} ${fund.category ?? ""}`;
+  for (const raw of exclusions) {
+    const excl = raw as EthicalExclusion;
+    const re = ETHICAL_KEYWORDS[excl];
+    if (!re) continue; // valeur inconnue : ignorée (pas de sur-exclusion)
+    if (ETHICAL_SECTOR[excl] && fund.sector === ETHICAL_SECTOR[excl]) return excl;
+    if (re.test(text)) return excl;
+  }
+  return null;
+}
+
 export interface UniverseFilterOptions {
   /** Frais courants maximum, en pourcentage (0.5 = 0,5 %). */
   maxTer?: number | null;
   /** Préférence ESG (art8 → SFDR 8/9 ; art9 → SFDR 9 ; sinon tout). */
   esg?: string | null;
+  /** Exclusions éthiques du client (tabac, armes, fossiles, jeux, alcool) —
+   *  contrainte de mandat, jamais assouplie. */
+  exclusions?: string[] | null;
+  /** Mode STRICT des exclusions éthiques : en plus d'écarter les mandats
+   *  contraires et les documentés-négatifs, exige que les fonds exposés
+   *  (actions, obligations, diversifié, alternatif) PROUVENT chaque exclusion
+   *  demandée (donnée EET positive, tag excl-*, ou label garant — cf.
+   *  satisfiesDeclaredExclusions). À n'activer que si l'univers restant le
+   *  permet — le service essaie strict d'abord, puis retombe sur le mode
+   *  par défaut. */
+  declaredPolicyStrict?: boolean;
   /** Zones géographiques du profil (vocabulaire UI, cf. GEO_TO_REGIONS). */
   geographies?: string[] | null;
   /** Plafond SRI par fonds (adéquation MIF : jamais plus risqué que la tolérance). */
   sriMax?: number | null;
   /** ISIN écartés à la main par le conseiller (« jeter un fonds »). */
   exclude?: string[] | null;
-  /** Exclusions sectorielles ESG du profil (cf. passesSectorExclusions). */
-  exclusions?: string[] | null;
 }
 
 /**
  * Restreint l'univers selon les préférences « dures » (frais max, ESG, zones
  * géographiques, plafond SRI, exclusions manuelles, exclusions sectorielles).
  * Un fonds dont la donnée est absente n'est PAS écarté (on ne pénalise pas un
- * trou de données) — sauf pour les exclusions manuelles, toujours appliquées,
- * et les exclusions sectorielles garantissables (tabac/armes/fossiles), où
- * l'absence de donnée ET de label garant vaut refus : une exclusion demandée
- * par le client est une contrainte d'adéquation, pas une préférence molle.
+ * trou de données) — sauf pour les exclusions manuelles, toujours appliquées.
+ * Les exclusions sectorielles écartent le prouvé-incompatible (mandat contraire,
+ * donnée EET documentée négative) ; en mode strict (declaredPolicyStrict), la
+ * PREUVE de chaque exclusion est en plus exigée (cf. bandeau en tête de section).
  * Renvoie l'univers filtré + le nombre de fonds retirés.
  *
  * Les zones géographiques ne contraignent QUE la classe actions : quand un
@@ -236,6 +349,8 @@ export function filterUniverse(
   const sectorExclusions = toSectorExclusions(opts.exclusions);
   const kept = funds.filter((f) => {
     if (excluded.has(f.isin.toUpperCase())) return false;
+    if (ethicalExclusionViolation(f, opts.exclusions) !== null) return false;
+    if (opts.declaredPolicyStrict && !satisfiesDeclaredExclusions(f, opts.exclusions)) return false;
     if (maxTer != null && f.ter != null && f.ter * 100 > maxTer + 1e-9) return false;
     if (esg === "art8" && !(f.sfdr === 8 || f.sfdr === 9)) return false;
     if (esg === "art9" && f.sfdr !== 9) return false;

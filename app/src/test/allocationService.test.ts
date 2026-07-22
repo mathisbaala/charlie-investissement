@@ -5,6 +5,7 @@ import {
   shortlist,
   lowCoverageIsins,
   applyUcRetroShare,
+  coversClassTargets,
 } from "../lib/allocationService";
 import type { FundInput } from "../lib/optimizer";
 
@@ -65,6 +66,32 @@ describe("paramsFromQuery", () => {
     const p = paramsFromQuery(new URLSearchParams("contract=A::B&geo=europe,amerique_nord,mars"));
     if ("error" in p) throw new Error("inattendu");
     expect(p.geographies).toEqual(["europe", "amerique_nord"]);
+  });
+  it("parse les exclusions éthiques en ignorant les valeurs hors vocabulaire", () => {
+    const p = paramsFromQuery(
+      new URLSearchParams("contract=A::B&exclusions=armes,FOSSILES,nucleaire,tabac"),
+    );
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.exclusions).toEqual(["armes", "fossiles", "tabac"]);
+  });
+  it("exclusions absentes → liste vide (aucune contrainte)", () => {
+    const p = paramsFromQuery(new URLSearchParams("contract=A::B"));
+    if ("error" in p) throw new Error("inattendu");
+    expect(p.exclusions).toEqual([]);
+  });
+});
+
+describe("coversClassTargets (garde du mode strict)", () => {
+  const funds = [{ assetClass: "immobilier" as const }, { assetClass: "actions" as const }];
+  it("vrai quand chaque classe cible a au moins un fonds", () => {
+    expect(coversClassTargets(funds, { actions: 70, immobilier: 30 })).toBe(true);
+  });
+  it("faux quand une classe cible n'est plus servable (régression : portefeuille dégénéré 100 % immobilier)", () => {
+    expect(coversClassTargets([{ assetClass: "immobilier" }], { actions: 70, obligations: 30 })).toBe(false);
+  });
+  it("ignore les classes à poids nul et l'absence de cibles", () => {
+    expect(coversClassTargets([{ assetClass: "actions" }], { actions: 100, obligations: 0 })).toBe(true);
+    expect(coversClassTargets([], undefined)).toBe(true);
   });
   it("parse esg, terMax et sriMax (borné 1 à 7)", () => {
     const p = paramsFromQuery(new URLSearchParams("contract=A::B&esg=art8&terMax=1.5&sriMax=9"));

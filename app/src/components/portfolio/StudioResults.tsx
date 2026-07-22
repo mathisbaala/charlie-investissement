@@ -118,7 +118,9 @@ function GoalsCard({
 
   return (
     <Card className="px-5 py-5">
-      <h2 className="text-label text-ink font-semibold mb-1">Projets du client</h2>
+      {/* Titre de SECTION (18px) — nettement au-dessus des noms de projets
+          (12px gras), sinon titre et sous-titres se confondent. */}
+      <h2 className="text-title text-ink font-semibold mb-1">Projets du client</h2>
       <p className="text-meta text-muted mb-4">
         Probabilités par simulation Monte Carlo, hors frais et fiscalité,
         performances non garanties.
@@ -298,6 +300,7 @@ export function StudioResults() {
         </Card>
       )}
 
+
       {/* Fonds retiré : suggestion d'un remplaçant similaire */}
       {lastRemoved && (
         <Card className="px-5 py-3 border-clay/40">
@@ -378,31 +381,21 @@ export function StudioResults() {
         amountEur={amountEur}
       />
 
-      {shown.notes.length > 0 && (() => {
-        // En mode démo, un fonds imposé « introuvable dans l'univers » vient
-        // presque toujours d'une sélection du screener (base réelle) posée sur
-        // l'univers d'exemple, qui ne la contient pas. On garde la note factuelle
-        // mais on ajoute une consigne : choisir son contrat pour les retrouver.
-        const hasUnresolvedImposed =
-          source === "demo" &&
-          shown.notes.some((n) => n.includes("introuvable dans l'univers"));
-        return (
+      {/* Les diagnostics techniques du moteur (allocation.notes : fonds
+          remplacés, contraintes assouplies…) ne sont volontairement PLUS
+          affichés — détails d'ingénierie sans intérêt pour le CGP. Une seule
+          exception, actionnable : en mode démo, des fonds imposés issus du
+          screener sont introuvables dans l'univers d'exemple. */}
+      {source === "demo" &&
+        shown.notes.some((n) => n.includes("introuvable dans l'univers")) && (
           <Card className="px-5 py-3">
-            <ul className="space-y-1">
-              {shown.notes.map((n, i) => (
-                <li key={i} className="text-meta text-muted">ⓘ {n}</li>
-              ))}
-            </ul>
-            {hasUnresolvedImposed && (
-              <p className="text-meta text-ink-2 mt-2">
-                Ces fonds proviennent de votre recherche : l’univers d’exemple ne
-                les contient pas. Sélectionnez votre contrat dans les réglages
-                pour les intégrer au portefeuille.
-              </p>
-            )}
+            <p className="text-meta text-ink-2">
+              ⓘ Certains fonds imposés proviennent de votre recherche : l’univers
+              d’exemple ne les contient pas. Sélectionnez votre contrat dans les
+              réglages pour les intégrer au portefeuille.
+            </p>
           </Card>
-        );
-      })()}
+        )}
 
       <div className="flex justify-end gap-2">
         {/* Passe le portefeuille généré au simulateur de frais : lignes (poids

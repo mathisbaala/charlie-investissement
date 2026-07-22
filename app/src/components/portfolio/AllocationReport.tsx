@@ -181,31 +181,8 @@ export function AllocationReport({
         </div>
       </Card>
 
-      {/* Justification par support */}
-      <Card className="px-5 py-4">
-        <h3 className="text-label text-ink font-semibold mb-3">Analyse et justification par support</h3>
-        <div className="space-y-3">
-          {p.perFundRationale.map((r, i) => (
-            <div key={r.isin}>
-              <div className="text-meta text-ink font-medium">{i + 1}. {r.name}</div>
-              <p className="text-meta text-ink-2 leading-relaxed">{r.text}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Convictions */}
-      <Card className="px-5 py-4">
-        <h3 className="text-label text-ink font-semibold mb-3">Nos convictions de gestion</h3>
-        <div className="space-y-3">
-          {p.convictions.map((c, i) => (
-            <div key={i}>
-              <div className="text-meta text-ink font-medium">{c.title}</div>
-              <p className="text-meta text-ink-2 leading-relaxed">{c.text}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* Justification par support et convictions : volontairement absentes à
+          l'écran (destinées au client, pas au CGP) — elles restent dans le PDF. */}
 
       {/* Avertissements */}
       <Card className="px-5 py-4 bg-paper-2">
