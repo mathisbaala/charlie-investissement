@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { optimizeContract, paramsFromQuery } from "@/lib/allocationService";
+import { trackVercel } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: out.error, detail: out.detail }, { status: out.status });
   }
 
+  trackVercel("portfolio_built", { profile: out.presentation.headline.profileLabel }, req);
   return NextResponse.json(out, { headers: { "Cache-Control": "private, no-store" } });
 }

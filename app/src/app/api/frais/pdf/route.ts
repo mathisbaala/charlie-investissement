@@ -4,6 +4,7 @@ import React from "react";
 import FraisPDF, { type FraisPdfHypotheses } from "@/lib/FraisPDF";
 import { loadLogo } from "@/lib/pdf/logo";
 import { botGuard, dataRateLimit } from "@/lib/rateLimit";
+import { trackVercel } from "@/lib/analytics";
 import {
   buildFraisReport, HORIZONS_DEFAUT,
   type SimulationInput, type FraisReportSupportInput,
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 
+  trackVercel("pdf_export", { kind: "frais", mode }, req);
   const date = new Date().toISOString().split("T")[0];
   const nom = mode === "cabinet" ? "frais-cabinet" : "frais-client";
   return new NextResponse(buffer as unknown as BodyInit, {

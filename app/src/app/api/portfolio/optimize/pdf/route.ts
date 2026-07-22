@@ -4,6 +4,7 @@ import React from "react";
 import AllocationReportPDF from "@/lib/AllocationReportPDF";
 import { optimizeContract, paramsFromQuery } from "@/lib/allocationService";
 import { loadLogo } from "@/lib/pdf/logo";
+import { trackVercel } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     React.createElement(AllocationReportPDF, { presentation: out.presentation, logo }) as never,
   );
 
+  trackVercel("pdf_export", { kind: "portfolio", profile: out.presentation.headline.profileLabel }, req);
   const filename = `allocation-${out.presentation.headline.profileLabel.toLowerCase()}.pdf`;
   return new NextResponse(buf as unknown as BodyInit, {
     headers: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reviewAllocation, type ReviewClientContext } from "@/lib/allocationReview";
 import type { AllocationResult, AssetClass } from "@/lib/optimizer";
+import { trackVercel } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body.engineTargets,
       body.mustInclude ?? [],
     );
+    trackVercel("portfolio_analyzed", { lines: body.allocation.lines.length }, req);
     return NextResponse.json({ review }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (e) {
     // Erreur API (clé invalide, rate-limit, réseau) : la génération de

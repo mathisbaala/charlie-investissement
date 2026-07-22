@@ -10,6 +10,7 @@ import {
   type ReleveApiPosition as RelevePosition, type ReleveContractMatch as ContractMatch,
 } from "@/lib/releve";
 import { retroFallbackFrac } from "@/lib/remuneration";
+import { trackVercel } from "@/lib/analytics";
 import { feeFracToPct } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -303,5 +304,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       "Déposez le relevé de situation (celui qui valorise chaque support), ou saisissez les montants à la main."
     : undefined;
 
+  trackVercel("releve_analyzed", { positions: positions.length, matched: knownCount }, req);
   return NextResponse.json({ positions, matches, knownCount, warning, documentTotal });
 }

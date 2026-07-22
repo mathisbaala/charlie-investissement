@@ -6,6 +6,7 @@ import RapportFondsPDF from "@/lib/RapportFondsPDF";
 import { annualizeForType, annualizeCumul } from "@/lib/format";
 import { fetchNavSeries, fetchCompositionByFund } from "@/lib/pdf/pdfData";
 import { loadLogo } from "@/lib/pdf/logo";
+import { trackVercel } from "@/lib/analytics";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(element as any);
 
+  trackVercel("pdf_export", { kind: "rapport", funds: ordered.length }, req);
   const date = new Date().toISOString().split("T")[0];
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
