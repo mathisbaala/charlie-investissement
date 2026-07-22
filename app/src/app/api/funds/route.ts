@@ -568,21 +568,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (minCompleteness > BASE_MIN_COMPLETENESS) steps.push({ key: null, label: null });
     for (const k of order) steps.push({ key: k, label: relaxLabel(k) });
 
-    const disabled = new Set<string>();
-    let floor = minCompleteness;
-    const applied: string[] = [];
-    for (const step of steps) {
-      if (step.key === null) floor = BASE_MIN_COMPLETENESS;
-      else disabled.add(step.key);
-      if (step.label) applied.push(step.label);
-      if ((await countWith(disabled, floor)) > 0) {
-        const r = await loadPage(disabled, floor);
-        if ("errorResp" in r) return r.errorResp;
-        deduped = r.data;
-        total = r.total;
-        relaxed = applied.slice();
-        break;
+    // Les étapes sont CUMULATIVES et le count est MONOTONE (relâcher davantage ne peut
+    // qu'augmenter le nombre de résultats) : on cherche la PREMIÈRE étape à count > 0.
+    // Plutôt que de sonder séquentiellement (jusqu'à ~17 allers-retours en série, sur le
+    // SEUL cas « 0 résultat »), on matérialise l'état cumulé de chaque étape puis on lance
+    // toutes les sondes count EN PARALLÈLE (elles tapent la vue légère, pas le join matview
+    // → bon marché), et on ne charge la page que pour la première étape gagnante. Résultat
+    // strictement identique (mêmes étapes, même premier hit), latence ~divisée par le nombre
+    // d'étapes.
+    const snapshots: Array<{ disabled: Set<string>; floor: number; applied: string[] }> = [];
+    {
+      const disabled = new Set<string>();
+      let floor = minCompleteness;
+      const applied: string[] = [];
+      for (const step of steps) {
+        if (step.key === null) floor = BASE_MIN_COMPLETENESS;
+        else disabled.add(step.key);
+        if (step.label) applied.push(step.label);
+        // Snapshot immuable de l'état cumulé à cette étape (copie du Set + des labels).
+        snapshots.push({ disabled: new Set(disabled), floor, applied: applied.slice() });
       }
+    }
+    const counts = await Promise.all(snapshots.map((s) => countWith(s.disabled, s.floor)));
+    const hit = counts.findIndex((c) => c > 0);
+    if (hit !== -1) {
+      const s = snapshots[hit];
+      const r = await loadPage(s.disabled, s.floor);
+      if ("errorResp" in r) return r.errorResp;
+      deduped = r.data;
+      total = r.total;
+      relaxed = s.applied;
     }
   }
 
