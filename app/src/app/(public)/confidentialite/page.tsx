@@ -76,10 +76,10 @@ export default function ConfidentialitePage() {
           <p>
             Pour toute question relative à vos données ou à cette politique :{" "}
             <a
-              href="mailto:mathis@charliefinance.fr"
+              href="mailto:contact@charliefinance.fr"
               className="text-accent-ink underline underline-offset-2"
             >
-              mathis@charliefinance.fr
+              contact@charliefinance.fr
             </a>
             .
           </p>
@@ -259,10 +259,10 @@ export default function ConfidentialitePage() {
           <p>
             Pour exercer ces droits, écrivez-nous à{" "}
             <a
-              href="mailto:mathis@charliefinance.fr"
+              href="mailto:contact@charliefinance.fr"
               className="text-accent-ink underline underline-offset-2"
             >
-              mathis@charliefinance.fr
+              contact@charliefinance.fr
             </a>
             . Vous pouvez également introduire une réclamation auprès de la{" "}
             <a
