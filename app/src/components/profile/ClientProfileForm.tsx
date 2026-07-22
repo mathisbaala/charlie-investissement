@@ -462,7 +462,7 @@ export function ClientProfileForm({
 
         {/* 1 — Le client (ouverte par défaut : l'essentiel) */}
         <SectionCard title="Le client" defaultOpen>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FieldGroup label="Âge">
               <input
                 type="number" min={18} max={100} value={profile.age ?? ""}
@@ -660,7 +660,7 @@ export function ClientProfileForm({
                     <X size={14} />
                   </button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <FieldGroup label="Montant cible (€)">
                     <input
                       type="number" min={0} value={g.target_eur ?? ""}

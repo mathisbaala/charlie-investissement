@@ -308,7 +308,7 @@ export function MarkowitzChart({
                 next[i] = Number(e.target.value);
                 setWeights(next);
               }}
-              className="w-44"
+              className="w-28 sm:w-44"
               style={{ accentColor: "var(--color-accent)" }}
             />
             <span className="text-meta text-ink w-20 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>

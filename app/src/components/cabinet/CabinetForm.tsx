@@ -463,9 +463,9 @@ export function CabinetForm() {
                               type de frais prévu par la convention (SCPI, structurés,
                               commissions ponctuelles…). */}
                           {sel.customFees.map((fee, fi) => (
-                            <div key={fi} className="flex items-center gap-2">
+                            <div key={fi} className="flex flex-wrap items-center gap-2">
                               <input
-                                className={`${inputCls} w-64`}
+                                className={`${inputCls} w-full sm:w-64`}
                                 value={fee.label}
                                 aria-label={`Intitulé rétrocession libre ${fi + 1} : ${label}`}
                                 onChange={(e) =>
@@ -501,9 +501,9 @@ export function CabinetForm() {
                           ))}
                           {/* Exceptions par fonds */}
                           {sel.fundOverrides.map((ov, oi) => (
-                            <div key={oi} className="flex items-center gap-2">
+                            <div key={oi} className="flex flex-wrap items-center gap-2">
                               <input
-                                className={`${inputCls} w-44`}
+                                className={`${inputCls} w-full sm:w-44`}
                                 value={ov.isin}
                                 aria-label={`ISIN exception ${oi + 1} : ${label}`}
                                 onChange={(e) =>

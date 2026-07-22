@@ -91,7 +91,7 @@ export function AllocationReport({
           {p.classBreakdown.map((c) => (
             <div key={c.assetClass} className="flex items-center gap-3">
               <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: CLASS_COLOR[c.label] ?? "#3B3A38" }} />
-              <span className="w-40 shrink-0 text-meta text-ink font-medium">{c.label}</span>
+              <span className="w-28 sm:w-40 shrink-0 text-meta text-ink font-medium">{c.label}</span>
               <span className="w-14 shrink-0 text-meta text-ink font-semibold text-right">{fmtPct(c.weight)}</span>
               <span className="flex-1 text-meta text-muted">{c.role}</span>
             </div>

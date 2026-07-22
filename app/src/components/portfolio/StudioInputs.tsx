@@ -148,7 +148,7 @@ export function StudioInputs() {
                   value={effectiveSri}
                   aria-label="Plafond SRI par fonds"
                   onChange={(e) => setSriOverride(Number(e.target.value))}
-                  className="w-56"
+                  className="w-full max-w-[224px]"
                   style={{ accentColor: "var(--color-accent)" }}
                 />
                 {sriOverride != null && (
