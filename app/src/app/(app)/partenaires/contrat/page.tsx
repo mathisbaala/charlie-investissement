@@ -33,7 +33,9 @@ type InsurerProfile = {
   notation_agence: string | null;
   notation_annee: number | null;
   ppb_pct: number | null;
+  ppb_annee: number | null;
   encours_vie_mds: number | null;
+  encours_annee: number | null;
   sfcr_annee: number | null;
   sfcr_url: string | null;
 };
@@ -300,7 +302,7 @@ export default async function ContractPage({
     supabase
       .from("investissement_av_insurer_profiles")
       .select(
-        "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, encours_vie_mds, sfcr_annee, sfcr_url",
+        "kind, groupe, positionnement, fonds_euros, forces, limites, lux, solvabilite_2_pct, notation, notation_agence, notation_annee, ppb_pct, ppb_annee, encours_vie_mds, encours_annee, sfcr_annee, sfcr_url",
       )
       .eq("company", o.company)
       .maybeSingle<InsurerProfile>(),
@@ -503,12 +505,12 @@ export default async function ContractPage({
                 <SolidityStat
                   label="PPB"
                   value={profile.ppb_pct != null ? `${Number(profile.ppb_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %` : null}
-                  sub="réserve de rendement"
+                  sub={profile.ppb_annee ? `réserve de rendement · fin ${profile.ppb_annee}` : "réserve de rendement"}
                 />
                 <SolidityStat
                   label="Encours vie"
                   value={profile.encours_vie_mds != null ? `${Number(profile.encours_vie_mds).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Md€` : null}
-                  sub="provisions techniques"
+                  sub={profile.encours_annee ? `provisions techniques · ${profile.encours_annee}` : "provisions techniques"}
                 />
               </div>
             </div>
