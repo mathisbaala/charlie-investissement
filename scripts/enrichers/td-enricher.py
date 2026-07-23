@@ -543,7 +543,8 @@ def refresh_indices(apply: bool) -> None:
 
 # ─── Étape 2 : calcul alpha / benchmark_perf par fonds ──────────────────────────
 
-def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
+def run(apply: bool, limit: int | None, isin_filter: str | None,
+        start_after_isin: str | None = None) -> None:
     print("=" * 60)
     print("  Benchmark enricher — alpha vs indice de référence")
     print("=" * 60)
@@ -567,9 +568,13 @@ def run(apply: bool, limit: int | None, isin_filter: str | None) -> None:
     else:
         offset, page = 0, 1000
         while True:
-            chunk = client.table("investissement_funds").select(sel) \
-                .eq("is_primary_share_class", True) \
-                .order("isin").range(offset, offset + page - 1).execute().data or []
+            q = client.table("investissement_funds").select(sel) \
+                .eq("is_primary_share_class", True)
+            # Reprise après crash réseau : ne réexamine pas les ISIN déjà traités
+            # (l'univers est ordonné par ISIN, le curseur = frontière atteinte).
+            if start_after_isin:
+                q = q.gt("isin", start_after_isin)
+            chunk = q.order("isin").range(offset, offset + page - 1).execute().data or []
             funds.extend(chunk)
             if len(chunk) < page:
                 break
@@ -746,10 +751,14 @@ if __name__ == "__main__":
     parser.add_argument("--apply", action="store_true", help="Écrire dans Supabase")
     parser.add_argument("--limit", type=int, help="Limiter à N fonds")
     parser.add_argument("--isin", type=str, help="Un seul ISIN (test)")
+    parser.add_argument("--start-after-isin", type=str,
+                        help="Reprise : ne traite que les ISIN > cette valeur "
+                             "(l'univers est ordonné par ISIN)")
     args = parser.parse_args()
 
     if args.refresh_indices:
         print("── Rafraîchissement des indices ──")
         refresh_indices(apply=args.apply)
         print()
-    run(apply=args.apply, limit=args.limit, isin_filter=args.isin)
+    run(apply=args.apply, limit=args.limit, isin_filter=args.isin,
+        start_after_isin=args.start_after_isin)

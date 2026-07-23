@@ -64,6 +64,15 @@ def classify_defisc(product_type: str, name: str) -> dict | None:
         return {"tax_scheme": "fcpr", "tax_reduction_rate": 0.0,
                 "tax_lock_up_years": LOCK_UP_YEARS}
 
+    if pt == "fpci":
+        # Fonds Professionnel de Capital Investissement : pas de réduction IR à
+        # l'entrée. Régime « FPCI fiscal » = exonération d'IR sur les plus-values
+        # (hors prélèvements sociaux) si détention ≥ 5 ans et quotas d'éligibilité
+        # respectés ; support classique de l'apport-cession (150-0 B ter). Taux 0,
+        # blocage 5 ans, indicatif — même logique statutaire que le FCPR.
+        return {"tax_scheme": "fpci", "tax_reduction_rate": 0.0,
+                "tax_lock_up_years": LOCK_UP_YEARS}
+
     return None
 
 
@@ -80,7 +89,7 @@ def run(apply: bool):
         r = (client.table("investissement_funds")
              .select("isin,name,product_type,inception_date,tax_scheme,"
                      "tax_reduction_rate,tax_lock_up_years,vintage_year")
-             .in_("product_type", ["fip", "fcpi", "fcpr"])
+             .in_("product_type", ["fip", "fcpi", "fcpr", "fpci"])
              .range(offset, offset + 999).execute())
         if not r.data:
             break
