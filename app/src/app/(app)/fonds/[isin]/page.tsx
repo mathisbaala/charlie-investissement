@@ -32,6 +32,7 @@ export default async function FondPage({
     { data: geosRaw },
     { data: insurersRaw },
     { data: scpiMetrics },
+    { data: contractTermsRaw },
   ] = await Promise.all([
     supabase
       .from("investissement_funds")
@@ -94,6 +95,8 @@ export default async function FondPage({
       .select("price_per_share, dvm, tof, period")
       .eq("isin", upper)
       .maybeSingle(),
+    // Frais d'enveloppe par contrat référencé (« combien ça coûte chez qui »).
+    supabase.rpc("get_fund_contract_economics", { p_isin: upper }),
   ]);
 
   if (!fund) notFound();
@@ -217,6 +220,7 @@ export default async function FondPage({
     sectors,
     geos,
     insurers: Array.isArray(insurersRaw) ? (insurersRaw as FundDetailHF["insurers"]) : [],
+    contract_terms: Array.isArray(contractTermsRaw) ? (contractTermsRaw as FundDetailHF["contract_terms"]) : [],
   };
 
   return <FundSheetClient fund={detail} />;

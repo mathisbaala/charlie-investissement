@@ -452,6 +452,7 @@ export type FundDetailHF = {
   sectors: FundBreakdownHF[];
   geos: FundBreakdownHF[];
   insurers?: FundInsurerRef[];  // référencement assurantiel (assureur + contrats)
+  contract_terms?: FundContractTerms[];  // frais d'enveloppe par contrat référencé
 };
 
 // Référencement d'un fonds chez un assureur (sortie get_fund_insurers)
@@ -460,6 +461,20 @@ export type FundInsurerRef = {
   // Peut être null : get_fund_insurers renvoie un assureur référencé sans
   // liste de contrats détaillée. Toujours garder avec `?? []` avant .filter/.map.
   contracts: string[] | null;
+};
+
+// Économie d'un contrat où le fonds est référencé (sortie get_fund_contract_economics).
+// ⚠ Frais exprimés en POURCENTAGE direct (0.65 = 0,65 %), contrairement aux frais
+// FONDS de FundDetailHF qui sont en fraction — ne pas ×100 à l'affichage.
+export type FundContractTerms = {
+  key: string;           // "Assureur::Contrat"
+  company: string;
+  contract: string;
+  frais_entree_pct: number | null;
+  frais_gestion_uc_pct: number | null;
+  frais_gestion_fonds_euros_pct: number | null;
+  frais_arbitrage_pct: number | null;
+  confidence: string | null;
 };
 
 export type FundHoldingHF = {

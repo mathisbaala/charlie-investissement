@@ -71,6 +71,11 @@ export function FeesCard({ fund }: { fund: FundDetailHF }) {
           )}
         </tbody>
       </table>
+      {fund.retrocession_cgp != null && (
+        <p className="text-caption text-muted-2 mt-3">
+          Rétrocession estimée (part des frais courants) — hors accord de distribution spécifique.
+        </p>
+      )}
     </Card>
   );
 }

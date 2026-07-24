@@ -37,6 +37,17 @@ const LABEL_DISPLAY: Record<string, string> = {
 
 interface Props { fund: FundDetailHF; }
 
+// En-tête de bloc : sépare visuellement « le fonds » (métriques propres au support)
+// de « chez le partenaire » (volet CGP : éligibilité, référencement, frais, fiscalité).
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mt-10 mb-1">
+      <h2 className="text-title text-ink font-medium">{title}</h2>
+      <p className="text-meta text-muted mt-0.5">{subtitle}</p>
+    </div>
+  );
+}
+
 export function FundSheetClient({ fund }: Props) {
   // Non coté (FCPR/FCPI/FIP/FPCI) : pas de VL quotidienne ni de perf annualisée
   // comparable → on neutralise les blocs « cotés » (KPI perf, graphe VL, perf nette,
@@ -153,6 +164,12 @@ export function FundSheetClient({ fund }: Props) {
           )}
         </Card>
 
+        {/* ══ Bloc 1 — LE FONDS : ce qui est propre au support (vue client) ══ */}
+        <SectionHeader
+          title="Le fonds"
+          subtitle="Caractéristiques, risque et performance propres au support"
+        />
+
         {/* Non coté : carte dédiée à la place des KPI/graphe de perf */}
         {isPE && <PrivateEquityCard fund={fund} />}
 
@@ -166,19 +183,28 @@ export function FundSheetClient({ fund }: Props) {
           </Card>
         )}
 
-        {/* Grille de cartes : 1 colonne sur mobile, 2 sur desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5">
+        {/* items-start : une carte courte ne s'étire plus pour épouser la hauteur
+            de sa voisine de rangée (fini la grande zone de vide sous « Sharpe 3A »). */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5 items-start">
           <CharacteristicsCard fund={fund} />
           {!isPE && <RisqueCard fund={fund} />}
+          {!isPE && <PerfNetteCard fund={fund} />}
+          {!isPE && <TrackingDifferenceCard fund={fund} />}
+          <DurabiliteCard fund={fund} />
+          <CompositionCard fund={fund} />
+          <SimilarFundsCard isin={fund.isin} />
+        </div>
+
+        {/* ══ Bloc 2 — CHEZ LE PARTENAIRE : le volet CGP / comptable ══ */}
+        <SectionHeader
+          title="Chez le partenaire"
+          subtitle="Éligibilité, référencement, frais et fiscalité — côté conseiller"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mt-5 items-start">
           <EnveloppesCard fund={fund} />
           <AvantageFiscalCard fund={fund} />
           <ReferencementCard fund={fund} />
           <FeesCard fund={fund} />
-          {!isPE && <TrackingDifferenceCard fund={fund} />}
-          {!isPE && <PerfNetteCard fund={fund} />}
-          <DurabiliteCard fund={fund} />
-          <CompositionCard fund={fund} />
-          <SimilarFundsCard isin={fund.isin} />
         </div>
 
       </div>
