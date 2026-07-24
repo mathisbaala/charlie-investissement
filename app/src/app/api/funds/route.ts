@@ -57,10 +57,25 @@ function arr(v: string | null) { return v ? v.split(",").filter(Boolean) : []; }
 function num(v: string | null) { const n = parseFloat(v ?? ""); return isNaN(n) ? undefined : n; }
 function int(v: string | null) { const n = parseInt(v ?? "", 10); return isNaN(n) ? undefined : n; }
 
-function dedup(funds: Fund[]): Fund[] {
+// Produits NON COTÉS (private equity) : fcpr/fcpi/fip/fpci. Contrairement aux
+// OPCVM/ETF (dont on ne montre qu'un représentant par groupe de share-classes),
+// chaque part d'un fonds de PE est un PRODUIT DISTINCT — minimum de souscription,
+// frais, enveloppe éligible et parfois brand (Idinvest/Eurazeo) diffèrent d'une
+// part à l'autre. Le CGP doit pouvoir les trouver nommément → on ne les collapse
+// pas et on ne les masque pas sous le plancher de complétude. (fps/structuré
+// restent hors de ce périmètre : produits volontairement écartés du catalogue
+// retail, cf. migration 20260619150000.)
+const NON_LISTED_TYPES = new Set(["fcpr", "fcpi", "fip", "fpci"]);
+const isNonListed = (pt: string | null | undefined): boolean => !!pt && NON_LISTED_TYPES.has(pt);
+// Prédicat PostgREST réutilisable (baseFilters + filet fuzzy).
+const NON_LISTED_IN = "product_type.in.(fcpr,fcpi,fip,fpci)";
+
+export function dedup(funds: Fund[]): Fund[] {
   const best = new Map<string, Fund>();
   for (const f of funds) {
-    const key = f.share_class_group_id ?? f.isin;
+    // Non coté : clé = ISIN (chaque part reste visible). Sinon : clé = groupe de
+    // share-classes (on ne garde que le représentant au plus gros encours).
+    const key = isNonListed(f.product_type) ? f.isin : (f.share_class_group_id ?? f.isin);
     const ex = best.get(key);
     if (!ex || (f.aum_eur ?? -1) > (ex.aum_eur ?? -1)) best.set(key, f);
   }
@@ -371,11 +386,28 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Invariant carte==total préservé : get_insurers_list / contract_groups_mv relâchés
   // du MÊME prédicat (migration 20260625210000).
   const relaxReferenced = insurers.length > 0 || contracts.length > 0;
-  const baseFilters = (q: any, disabled: Set<string> = EMPTY_DISABLED, floor: number = minCompleteness) => {
-    const primary = q.eq("is_primary_share_class", true);
+  // `admitPE` : sur une RECHERCHE TEXTE, on admet aussi les share-classes de PE non
+  // primaires ET sous le plancher de complétude (chaque part est un produit distinct
+  // à trouver nommément — cf. NON_LISTED_TYPES). La RPC inv_funds_search relâche le
+  // MÊME prédicat côté SQL. Le chemin navigation/référencement (admitPE=false) reste
+  // strict → l'invariant carte==total sous filtre assureur est intact (il ne vaut de
+  // toute façon pas sous une recherche texte, qui narrow déjà l'ensemble).
+  const baseFilters = (
+    q: any,
+    disabled: Set<string> = EMPTY_DISABLED,
+    floor: number = minCompleteness,
+    admitPE = false,
+  ) => {
+    const scoped = admitPE
+      ? q.or(`is_primary_share_class.eq.true,${NON_LISTED_IN}`)
+      : q.eq("is_primary_share_class", true);
     const gated = relaxReferenced
-      ? (primary as any).or(`data_completeness.gte.${floor},performance_1y.not.is.null`)
-      : primary.gte("data_completeness", floor);
+      ? (scoped as any).or(
+          `data_completeness.gte.${floor},performance_1y.not.is.null${admitPE ? `,${NON_LISTED_IN}` : ""}`,
+        )
+      : admitPE
+        ? (scoped as any).or(`data_completeness.gte.${floor},${NON_LISTED_IN}`)
+        : scoped.gte("data_completeness", floor);
     return applyFilters(gated, disabled);
   };
 
@@ -441,6 +473,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         : supabase.from(sortSource).select("isin", { count: "exact", head: true }),
       disabled,
       floor,
+      useRanked,
     );
     return c ?? 0;
   };
@@ -466,7 +499,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       // finale ; ce tri ne fait que garantir un vivier représentatif et déterministe.
       const { data: poolRows, error: poolErr, count: poolCount, status: poolStatus } =
         await baseFilters(
-          supabase.from(sortSource).select("isin", { count: "exact" }), disabled, floor,
+          supabase.from(sortSource).select("isin", { count: "exact" }), disabled, floor, useRanked,
         )
           .order("data_completeness", { ascending: false, nullsFirst: false })
           .order("aum_eur", { ascending: false, nullsFirst: false })
@@ -486,8 +519,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
 
     let pageQuery = useRanked
-      ? baseFilters(rankedSource({ count: "exact" }), disabled, floor)
-      : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }), disabled, floor);
+      ? baseFilters(rankedSource({ count: "exact" }), disabled, floor, true)
+      : baseFilters(supabase.from(sortSource).select(`isin,${safeSort}`, { count: "exact" }), disabled, floor, false);
     // Recherche texte : la PERTINENCE prime toujours, le tri choisi/intention n'est que
     // tie-break secondaire. Sinon, choisir un tri non-défaut (ex. TER) ferait remonter un
     // match faible (relevance=1) devant le nom exact (relevance=3) — perte de pertinence.
@@ -625,10 +658,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { data: fz } = await supabase.rpc("inv_search_funds_fuzzy", { q: search, lim: perPage });
     const isins = ((fz as { isin: string }[] | null) ?? []).map((r) => r.isin);
     if (isins.length) {
-      const fuzzyBase = supabase.from(VIEW).select(COLS).eq("is_primary_share_class", true);
+      // Filet fuzzy = chemin texte → même admission des share-classes de PE.
+      const fuzzyBase = (supabase.from(VIEW).select(COLS) as any)
+        .or(`is_primary_share_class.eq.true,${NON_LISTED_IN}`);
       const fuzzyGated = relaxReferenced
-        ? (fuzzyBase as any).or("data_completeness.gte.50,performance_1y.not.is.null")
-        : fuzzyBase.gte("data_completeness", 50);
+        ? (fuzzyBase as any).or(`data_completeness.gte.50,performance_1y.not.is.null,${NON_LISTED_IN}`)
+        : (fuzzyBase as any).or(`data_completeness.gte.50,${NON_LISTED_IN}`);
       const { data: frows } = await applyFilters(fuzzyGated).in("isin", isins);
       const rank = new Map(isins.map((id, i) => [id, i] as const));
       const rows = ((frows as unknown as Fund[]) ?? [])

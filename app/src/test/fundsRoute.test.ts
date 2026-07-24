@@ -93,7 +93,7 @@ vi.mock("@/lib/rateLimit", () => ({
   botGuard: () => null,
 }));
 
-import { GET } from "@/app/api/funds/route";
+import { GET, dedup } from "@/app/api/funds/route";
 import { NextRequest } from "next/server";
 
 function req(qs: string) {
@@ -301,6 +301,26 @@ describe("GET /api/funds — robustesse pagination", () => {
     const res = await GET(req("?page=50&per_page=50"));
     expect(res.status).toBe(200);
     expect(eqHead).toContainEqual(["is_primary_share_class", true]);
+  });
+
+  // Retour CGP (23/07) : une recherche TEXTE doit faire remonter les share-classes de
+  // PRIVATE EQUITY même non primaires (EPVE3 = Eurazeo PVE3). baseFilters admet alors
+  // « is_primary OU product_type non coté » au lieu du filtre dur is_primary.
+  it("recherche texte : admet les share-classes de PE (or is_primary/product_type)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?search=eurazeo"));
+    expect(orData).toContainEqual("is_primary_share_class.eq.true,product_type.in.(fcpr,fcpi,fip,fpci)");
+    // Chemin texte : plus de filtre DUR is_primary (remplacé par le or ci-dessus).
+    expect(eqData).not.toContainEqual(["is_primary_share_class", true]);
+  });
+
+  // Symétrique : la navigation NEUTRE (sans texte) garde le filtre dur is_primary —
+  // l'admission PE est cantonnée au chemin texte (invariant carte==total intact).
+  it("navigation neutre : garde le filtre dur is_primary (pas d'admission PE)", async () => {
+    dataResult = { data: [], error: null, count: 0 };
+    await GET(req("?page=1"));
+    expect(eqData).toContainEqual(["is_primary_share_class", true]);
+    expect(orData).not.toContainEqual("is_primary_share_class.eq.true,product_type.in.(fcpr,fcpi,fip,fpci)");
   });
 
   // Régression « la recherche par ISIN ne fonctionne jamais » : un ISIN exact doit
@@ -556,5 +576,48 @@ describe("GET /api/funds — robustesse pagination", () => {
     await GET(req("?contracts=AXA%20France::Contrat%20X"));
     expect(orData).toContain("data_completeness.gte.50,performance_1y.not.is.null");
     expect(gteData).not.toContainEqual(["data_completeness", 50]);
+  });
+});
+
+// dedup() est le filet applicatif de dédup des share-classes. Pour le NON COTÉ
+// (fcpr/fcpi/fip/fpci), chaque part est un produit distinct → jamais collapsée
+// (clé = ISIN). Sinon, un seul représentant par groupe (le plus gros encours).
+describe("dedup — non coté (PE) vs OPCVM/ETF", () => {
+  const f = (o: Record<string, unknown>) => o as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  it("collapse les share-classes OPCVM d'un même groupe → représentant au plus gros encours", () => {
+    const out = dedup([
+      f({ isin: "A", product_type: "opcvm", share_class_group_id: "G1", aum_eur: 100 }),
+      f({ isin: "B", product_type: "opcvm", share_class_group_id: "G1", aum_eur: 300 }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].isin).toBe("B");
+  });
+
+  it("garde CHAQUE part d'un fonds de PE (fcpr/fcpi/fip/fpci) d'un même groupe", () => {
+    for (const pt of ["fcpr", "fcpi", "fip", "fpci"]) {
+      const out = dedup([
+        f({ isin: "P1", product_type: pt, share_class_group_id: "G", aum_eur: 10 }),
+        f({ isin: "P2", product_type: pt, share_class_group_id: "G", aum_eur: 20 }),
+      ]);
+      expect(out.map((r) => r.isin).sort()).toEqual(["P1", "P2"]);
+    }
+  });
+
+  it("cas EPVE3 : la part non primaire et la part « A » (même groupe) coexistent", () => {
+    const out = dedup([
+      f({ isin: "FR0013301546", product_type: "fcpr", share_class_group_id: "FR0013301546", aum_eur: 500 }),
+      f({ isin: "FR00140107M9", product_type: "fcpr", share_class_group_id: "FR0013301546", aum_eur: 50 }),
+    ]);
+    expect(out.map((r) => r.isin).sort()).toEqual(["FR0013301546", "FR00140107M9"]);
+  });
+
+  it("fps/structuré ne sont PAS du non coté au sens dédup → restent collapsés", () => {
+    expect(
+      dedup([
+        f({ isin: "X", product_type: "fps", share_class_group_id: "G", aum_eur: 1 }),
+        f({ isin: "Y", product_type: "fps", share_class_group_id: "G", aum_eur: 2 }),
+      ]),
+    ).toHaveLength(1);
   });
 });
