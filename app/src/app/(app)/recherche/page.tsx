@@ -35,7 +35,20 @@ async function fetchFunds(
   // Tri par intention : on relève le plancher de complétude côté API pour ne pas exposer
   // un fonds quasi vide qui ne « gagne » que sur le critère trié (cf. /api/funds).
   if (prioritizeComplete) params.set("prioritize_complete", "true");
-  const res = await fetch(`/api/funds?${params.toString()}`);
+  const url = `/api/funds?${params.toString()}`;
+  // La requête screener par défaut (count exact sur ~13,8k lignes) peut dépasser le
+  // statement timeout sous throttle CPU Supabase → 500 transitoire ; la même requête
+  // repasse en 200 au coup suivant (plan réchauffé). On retente UNE fois sur échec
+  // 5xx/réseau pour absorber ce flake au chargement initial. On ne retente JAMAIS un
+  // 4xx (429 rate-limit, 403 bot guard, 416 pagination) : ce sont des refus intentionnels.
+  let res: Response;
+  try {
+    res = await fetch(url);
+    if (res.status >= 500) throw new Error("API error");
+  } catch {
+    await new Promise((r) => setTimeout(r, 600));
+    res = await fetch(url);
+  }
   if (!res.ok) throw new Error("API error");
   return res.json() as Promise<ScreenerResponse>;
 }
