@@ -86,6 +86,15 @@ describe('buildParams — filtre défiscalisation', () => {
     expect(describeScreenerFilters({ tax_schemes: ['fip', 'fip_corse', 'fcpr'] }))
       .toEqual(['FIP', 'FIP Corse', 'FCPR'])
   })
+
+  // FPCI (report/exonération de PV, 150-0 B ter) est une 2ᵉ famille du filtre défisc,
+  // distincte de la réduction d'IR. Il doit se sérialiser et se décrire comme les autres.
+  it('sérialise et décrit FPCI (famille report/exo de PV)', () => {
+    const sp = buildParams({ tax_schemes: ['fpci', 'fcpr'] }, 1, 'data_completeness', 'desc')
+    expect(sp.get('tax_scheme')).toBe('fpci,fcpr')
+    expect(filtersFromParams(sp).tax_schemes).toEqual(['fpci', 'fcpr'])
+    expect(describeScreenerFilters({ tax_schemes: ['fpci'] })).toEqual(['FPCI'])
+  })
 })
 
 describe('buildParams — filtre assureur (référencement)', () => {

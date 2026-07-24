@@ -241,7 +241,7 @@ const LABEL_FILTER_LABELS: Record<string, string> = {
 // entre l'UI (FilterPanel) et le bandeau de contexte du screener.
 export const TAX_SCHEME_LABELS: Record<string, string> = {
   fip: "FIP", fip_corse: "FIP Corse", fip_outremer: "FIP Outre-mer",
-  fcpi: "FCPI", fcpr: "FCPR",
+  fcpi: "FCPI", fcpr: "FCPR", fpci: "FPCI",
 };
 
 export function describeScreenerFilters(f: ParsedFilters): string[] {

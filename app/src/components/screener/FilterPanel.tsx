@@ -674,15 +674,32 @@ export function FilterPanel({
 
         <Divider />
 
-        {/* Défiscalisation (dispositif fiscal : FIP / FCPI / FCPR) */}
+        {/* Défiscalisation (colonne tax_scheme). Scindée par NATURE de l'avantage
+            fiscal : réduction d'IR à l'entrée (FIP/FCPI, régime ir_pme) vs report /
+            exonération de plus-value (FPCI/FCPR, 150-0 B ter). Les deux alimentent
+            le même filtre tax_schemes → tax_scheme. */}
         <Section title="Défiscalisation">
+          <p className="text-meta text-muted mb-1.5">Réduction d’impôt (IR-PME)</p>
           <div className="flex gap-2 flex-wrap">
             {[
               { val: "fip",          label: "FIP" },
               { val: "fip_corse",    label: "FIP Corse" },
               { val: "fip_outremer", label: "FIP Outre-mer" },
               { val: "fcpi",         label: "FCPI" },
-              { val: "fcpr",         label: "FCPR" },
+            ].map(({ val, label }) => (
+              <SfdrPill
+                key={val}
+                label={label}
+                active={(f.tax_schemes ?? []).includes(val)}
+                onToggle={() => set("tax_schemes", toggleArr(f.tax_schemes, val))}
+              />
+            ))}
+          </div>
+          <p className="text-meta text-muted mb-1.5 mt-3">Report / exonération de plus-value</p>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { val: "fpci", label: "FPCI" },
+              { val: "fcpr", label: "FCPR" },
             ].map(({ val, label }) => (
               <SfdrPill
                 key={val}

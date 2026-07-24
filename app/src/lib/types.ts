@@ -310,7 +310,7 @@ export type ParsedFilters = {
   retrocession_min?: number; // en % (ex: 0.5 = 0.5%)
   envelopes?: string[];
   universe?: string[];        // type de produit (opcvm, etf, scpi…)
-  tax_schemes?: string[];     // dispositifs de défiscalisation (fip/fip_corse/fip_outremer/fcpi/fcpr) → colonne tax_scheme
+  tax_schemes?: string[];     // dispositifs de défiscalisation (fip/fip_corse/fip_outremer/fcpi/fcpr/fpci) → colonne tax_scheme
   asset_class?: string[];     // classe d'actif large (action, obligation, diversifie…) → asset_class_broad
   allocation_profile?: string[]; // profil d'allocation des diversifiés (prudent/equilibre/dynamique/flexible)
   insurers?: string[];        // assureurs référençant le fonds (ex: "AXA France", "SwissLife France")
