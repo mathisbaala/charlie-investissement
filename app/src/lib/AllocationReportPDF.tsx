@@ -40,10 +40,11 @@ const s = StyleSheet.create({
   },
   coverBrand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   coverWordmark: { flexDirection: "row", alignItems: "center", gap: 9 },
-  coverDot: { width: 6, height: 6, borderRadius: 6, backgroundColor: C.clay },
-  // Badge clair portant le « C » noir : le logo reste lisible sur la couverture sombre.
-  coverLogoBadge: { width: 24, height: 24, borderRadius: 6, backgroundColor: C.cream, alignItems: "center", justifyContent: "center" },
-  coverLogoImg: { width: 16, height: 14, objectFit: "contain" },
+  coverDot: { width: 6, height: 6, borderRadius: 6 },
+  // Badge clair portant le logo : reste lisible sur la couverture sombre, même
+  // si le logo du cabinet est foncé. Un peu large pour accueillir un logotype.
+  coverLogoBadge: { width: 30, height: 24, borderRadius: 6, backgroundColor: C.cream, paddingHorizontal: 3, alignItems: "center", justifyContent: "center" },
+  coverLogoImg: { width: 24, height: 16, objectFit: "contain" },
   coverCharlie: { fontSize: 17, color: C.cream },
   // Filet de marque en pied de page intérieure
   footLogo: { width: 11, height: 10, objectFit: "contain", marginRight: 5 },
@@ -68,7 +69,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   bullet: { flexDirection: "row", marginBottom: 4 },
-  bulletDot: { width: 10, color: C.clay },
+  bulletDot: { width: 10 },
   bulletText: { flex: 1, color: C.ink2, lineHeight: 1.35 },
   note: { fontSize: 7.5, color: C.muted, lineHeight: 1.35, marginTop: 8 },
 
@@ -160,7 +161,7 @@ function Footer({ p, logo }: { p: AllocationPresentation; logo?: string }) {
 
 // ─── Pages ────────────────────────────────────────────────────────────────────
 
-function Cover({ p, logo }: { p: AllocationPresentation; logo?: string }) {
+function Cover({ p, logo, brandName }: { p: AllocationPresentation; logo?: string; brandName?: string }) {
   const tiles: [string, string][] = [
     [`~${p.headline.expectedReturnPct} %`, "Performance cible / an"],
     [`~${p.headline.volatilityPct} %`, "Volatilité attendue"],
@@ -176,13 +177,13 @@ function Cover({ p, logo }: { p: AllocationPresentation; logo?: string }) {
               <Image src={logo} style={s.coverLogoImg} />
             </View>
           ) : (
-            <View style={s.coverDot} />
+            <View style={[s.coverDot, { backgroundColor: C.clay }]} />
           )}
-          <Text style={s.coverCharlie}>Charlie</Text>
+          <Text style={s.coverCharlie}>{brandName || "Charlie"}</Text>
         </View>
         <Text style={s.coverConf}>Confidentiel</Text>
       </View>
-      <Text style={s.coverEyebrow}>Votre proposition d&apos;investissement</Text>
+      <Text style={[s.coverEyebrow, { color: C.clayOnDark }]}>Votre proposition d&apos;investissement</Text>
       <Text style={s.coverTitle}>{p.title}</Text>
       <Text style={s.coverSub}>
         {[p.subtitle, p.asOf].filter(Boolean).join("  ·  ")}
@@ -253,7 +254,7 @@ function SynthesisPage({ p, x, logo }: { p: AllocationPresentation; x?: Presenta
         <SectionIntro title="Points clés" />
         {p.objectives.map((o, i) => (
           <View style={s.bullet} key={i}>
-            <Text style={s.bulletDot}>·</Text>
+            <Text style={[s.bulletDot, { color: C.clay }]}>·</Text>
             <Text style={s.bulletText}>{o}</Text>
           </View>
         ))}
@@ -555,7 +556,17 @@ function ClosingPage({ p, logo }: { p: AllocationPresentation; logo?: string }) 
   );
 }
 
-export default function AllocationReportPDF({ presentation, logo }: { presentation: AllocationPresentation; logo?: string }) {
+export default function AllocationReportPDF({
+  presentation,
+  logo,
+  brandName,
+}: {
+  presentation: AllocationPresentation;
+  /** Logo à afficher (Charlie par défaut, ou logo PNG du cabinet si personnalisé). */
+  logo?: string;
+  /** Nom du cabinet, en tête de couverture à la place de « Charlie ». */
+  brandName?: string;
+}) {
   const p = presentation;
   const x = p.extras;
   const hasGoalsPage = !!x && (x.goals.length > 0 || x.projection != null);
@@ -564,7 +575,7 @@ export default function AllocationReportPDF({ presentation, logo }: { presentati
 
   return (
     <Document title={p.title}>
-      <Cover p={p} logo={logo} />
+      <Cover p={p} logo={logo} brandName={brandName} />
       <SynthesisPage p={p} x={x} logo={logo} />
       {hasGoalsPage && <GoalsPage p={p} x={x!} logo={logo} />}
       {hasExposure && <ExposurePage p={p} x={x!} logo={logo} />}

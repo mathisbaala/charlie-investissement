@@ -81,7 +81,8 @@ const s = StyleSheet.create({
     fontWeight: 500,
   },
   // Intro de section éditoriale
-  introEyebrow: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.6, textTransform: "uppercase", color: C.clay },
+  // Couleur posée à l'usage (accent lu au rendu → suit la marque du cabinet).
+  introEyebrow: { fontFamily: FONT.sans, fontWeight: 500, fontSize: 7.5, letterSpacing: 1.6, textTransform: "uppercase" },
   introTitle: { fontFamily: FONT.sans, fontSize: 16, color: C.ink, marginTop: 3, lineHeight: 1.05 },
   introDesc: { fontFamily: FONT.sans, fontSize: 8.5, color: C.muted, marginTop: 3, lineHeight: 1.4, maxWidth: 360 },
   // Lignes label / valeur
@@ -149,7 +150,7 @@ export function SectionIntro({
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
       <View>
-        {eyebrow ? <Text style={s.introEyebrow}>{eyebrow}</Text> : null}
+        {eyebrow ? <Text style={[s.introEyebrow, { color: C.clay }]}>{eyebrow}</Text> : null}
         <Text style={s.introTitle}>{title}</Text>
         {desc ? <Text style={s.introDesc}>{desc}</Text> : null}
       </View>

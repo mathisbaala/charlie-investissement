@@ -772,15 +772,27 @@ function useStudioState() {
     if (!(effectivePresentation ?? presentation)) return;
     setPdfBusy(true);
     try {
-      const [{ pdf }, { default: AllocationReportPDF }, { getLogoDataUri }, pres] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("@/lib/AllocationReportPDF"),
-        import("@/lib/pdf/logoClient"),
-        presentationForExport(),
-      ]);
+      const [{ pdf }, { default: AllocationReportPDF }, { getLogoDataUri }, { setBrandAccent }, brandingMod, pres] =
+        await Promise.all([
+          import("@react-pdf/renderer"),
+          import("@/lib/AllocationReportPDF"),
+          import("@/lib/pdf/logoClient"),
+          import("@/lib/pdf/theme"),
+          import("@/lib/branding"),
+          presentationForExport(),
+        ]);
       if (!pres) return;
-      const logo = await getLogoDataUri();
-      const blob = await pdf(<AllocationReportPDF presentation={pres} logo={logo} />).toBlob();
+      // Marque du cabinet importée : le PDF prend sa couleur, son logo et son nom.
+      const branding = brandingMod.loadStoredBranding();
+      const active = branding.enabled;
+      setBrandAccent(active ? branding.accent : null);
+      const cabinetLogo =
+        active && branding.logo ? await brandingMod.logoToPng(branding.logo) : null;
+      const logo = cabinetLogo ?? (await getLogoDataUri()); // logo cabinet, sinon Charlie
+      const brandName = active && branding.orgName ? branding.orgName : undefined;
+      const blob = await pdf(
+        <AllocationReportPDF presentation={pres} logo={logo} brandName={brandName} />,
+      ).toBlob();
       triggerDownload(blob, `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pdf`);
     } catch {
       window.print();

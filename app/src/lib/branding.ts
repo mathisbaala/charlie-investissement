@@ -66,6 +66,50 @@ export function clearStoredBranding(): void {
   window.dispatchEvent(new CustomEvent(BRANDING_EVENT));
 }
 
+// ─── Logo → PNG (pour les PDF) ────────────────────────────────────────────────
+
+/**
+ * Rastérise un logo (SVG ou bitmap) en PNG (data URL). @react-pdf n'affiche que
+ * du PNG/JPEG : un logo SVG doit être converti avant d'entrer dans un document.
+ * Rendu net (×2) et cadré dans une boîte maxW×maxH. Client uniquement.
+ */
+export function logoToPng(src: string, maxW = 512, maxH = 256): Promise<string | null> {
+  if (typeof document === "undefined" || !src) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      let iw = img.naturalWidth || img.width;
+      let ih = img.naturalHeight || img.height;
+      // SVG sans taille intrinsèque : ratio par défaut plausible pour un logo.
+      if (!iw || !ih) {
+        iw = maxW;
+        ih = Math.round(maxW * 0.4);
+      }
+      const scale = Math.min(maxW / iw, maxH / ih);
+      const w = Math.max(1, Math.round(iw * scale));
+      const h = Math.max(1, Math.round(ih * scale));
+      const dpr = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(null);
+      ctx.scale(dpr, dpr);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      try {
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        resolve(null); // canvas taché (cross-origin) : on renonce au logo
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
 // ─── Couleur : normalisation, luminance, contraste ────────────────────────────
 
 /**
