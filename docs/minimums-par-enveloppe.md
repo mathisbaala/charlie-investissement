@@ -41,6 +41,21 @@ pour rendre la donnée visible en prod.
    **liens d'éligibilité** pour les seuls titres résolus SANS ambiguïté, puis
    rafraîchit `investissement_fund_insurers_mv`.
 
+## SCPI / OPCI — minimum fund-level (prix d'une part)
+
+Modèle DIFFÉRENT du PE : pour une SCPI/OPCI, le minimum à investir = le prix d'UNE
+part (on ne peut pas souscrire moins). Ce prix est déjà en base
+(`investissement_scpi_metrics.price_per_share`, ~265 fonds) → la migration
+`20260723140000_scpi_min_subscription_from_part_price.sql` le recopie dans le champ
+fund-level `investissement_funds.min_subscription_eur` (fill-only), qui s'affiche en
+« Minimum d'investissement » sur la fiche fonds. Le scraper `scpi-full-scraper.py`
+entretient ce champ pour les nouveaux fonds. Appliquer la migration = 265 SCPI/OPCI
+obtiennent un minimum affiché (ex. Remake Live 204 €, Paref Evo 250 €).
+
+⚠ **SCI/SC** (`product_type='opcvm'` + `asset_class_broad='immobilier'`, ~640 fonds) :
+AUCUN prix de part n'est disponible en base → non couverts. Chantier séparé : il
+faut une source de VL/prix de part (DIC du support ou site de la SGP).
+
 ## Limites connues (couverture partielle, itératif)
 
 - **Résolution titre→ISIN** : Linxea nomme le fonds sans préciser la part ; un titre

@@ -393,6 +393,20 @@ def run(apply: bool, source: str | None):
                 except Exception:
                     pass
 
+            # Minimum à investir d'une SCPI/OPCI = prix d'UNE part (on ne peut pas
+            # souscrire moins). On alimente le champ fund-level min_subscription_eur
+            # (fiche fonds « Minimum d'investissement »), fill-only pour ne pas
+            # écraser une valeur curée éventuelle. Cf. migration 20260723140000.
+            if d.get("price_per_share"):
+                try:
+                    client.table("investissement_funds") \
+                        .update({"min_subscription_eur": d["price_per_share"]}) \
+                        .eq("isin", isin) \
+                        .is_("min_subscription_eur", "null") \
+                        .execute()
+                except Exception:
+                    pass
+
         log_run("scpi-full-scraper", "success", ok, fail, started_at=started)
     else:
         print("\n  Aperçu (5 premiers) :")
