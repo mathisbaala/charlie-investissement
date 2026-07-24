@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { CalculateursClient } from "@/components/calculateurs/CalculateursClient";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Calculateurs — Charlie",
-  description:
-    "Calculateurs patrimoniaux : transmission, succession, donation, assurance-vie, IFI — en langage naturel.",
-};
-
+// Onglet « Calculateurs » (Thomas) mis de côté temporairement : masqué du rail
+// ET inaccessible par URL directe côté client. Pour réactiver, restaurer le
+// rendu de <CalculateursClient /> ci-dessous (voir historique git) et
+// décommenter l'entrée dans Rail.tsx.
 export default function CalculateursPage() {
-  return <CalculateursClient />;
+  redirect("/accueil");
 }

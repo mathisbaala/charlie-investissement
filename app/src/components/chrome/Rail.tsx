@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Logo, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator, Sigma } from "@/components/ui/icons";
+import { Logo, LayoutGrid, Shield, TrendingUp, UserCircle, Calculator } from "@/components/ui/icons";
 import { loadStoredCabinet } from "@/lib/cabinet";
 import { useBrand } from "@/components/BrandProvider";
 
@@ -20,7 +20,9 @@ const NAV = [
   { href: "/partenaires",    icon: Shield,     label: "Partenaires" },
   { href: "/portefeuille", icon: TrendingUp, label: "Portefeuille" },
   { href: "/frais",   icon: Calculator, label: "Frais" },
-  { href: "/calculateurs", icon: Sigma, label: "Calculateurs" },
+  // Onglet « Calculateurs » (Thomas) mis de côté temporairement : masqué du rail
+  // pour ne pas être visible côté client. Réactiver en décommentant.
+  // { href: "/calculateurs", icon: Sigma, label: "Calculateurs" },
 ];
 
 // Mon cabinet vit en pied de rail, comme un réglage (paramétrage du cabinet :
