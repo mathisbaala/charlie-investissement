@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, groupeName } from "@/lib/format";
+import { capitalize, decodeHtml, groupeName } from "@/lib/format";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { ArrowLeft, ChevronRight, Shield } from "@/components/ui/icons";
@@ -52,8 +52,8 @@ function FondsEurosTrend({ nom, rates }: { nom: string; rates: FeRate[] }) {
   const latest = rates.at(-1);
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-meta text-ink-2 font-medium truncate">{nom}</span>
+      <div className="flex items-baseline justify-between gap-3 mb-2.5">
+        <span className="text-meta text-ink font-medium truncate">{capitalize(nom)}</span>
         {latest && (
           <span className="text-body text-ink font-semibold tabular-nums shrink-0">
             {Number(latest.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %
@@ -61,22 +61,26 @@ function FondsEurosTrend({ nom, rates }: { nom: string; rates: FeRate[] }) {
           </span>
         )}
       </div>
-      <ul className="flex items-end gap-2 mt-2">
-        {rates.map((r) => (
-          <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <span className="text-caption text-muted tabular-nums">
-              {Number(r.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
-            </span>
-            <span className="w-full h-12 flex items-end rounded-sm bg-paper-2 overflow-hidden">
-              <span
-                className="block w-full rounded-sm"
-                style={{ height: `${Math.max(8, (Number(r.taux_pct) / max) * 100)}%`,
-                         background: "color-mix(in oklch, var(--color-accent) 50%, transparent)" }}
-              />
-            </span>
-            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
-          </li>
-        ))}
+      <ul className="flex items-end gap-1.5">
+        {rates.map((r) => {
+          const isLatest = r.annee === latest?.annee;
+          return (
+            <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+              <span className={`text-caption tabular-nums ${isLatest ? "text-ink font-semibold" : "text-muted"}`}>
+                {Number(r.taux_pct).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+              </span>
+              <span className="w-full h-11 flex items-end">
+                <span
+                  className={`block w-full rounded-t-sm ${isLatest ? "bg-accent" : "bg-accent/30"}`}
+                  style={{ height: `${Math.max(6, (Number(r.taux_pct) / max) * 100)}%` }}
+                />
+              </span>
+              <span className={`text-caption tabular-nums pt-1 border-t border-line-soft w-full text-center ${isLatest ? "text-ink-2 font-medium" : "text-muted-2"}`}>
+                {String(r.annee).slice(2)}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -258,9 +262,6 @@ export default async function InsurerPage({
               <FondsEurosTrend key={nom} nom={nom} rates={rates} />
             ))}
           </div>
-          <p className="text-caption text-muted-2 mt-3">
-            Taux servis nets de frais de gestion, hors prélèvements sociaux et fiscaux.
-          </p>
         </Card>
       )}
 

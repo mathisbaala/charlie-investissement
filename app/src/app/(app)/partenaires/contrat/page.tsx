@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
+import { capitalize, decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
 import type { ContractType } from "@/lib/insurer-envelope";
 import { retraiteSchemeLabel, sortieModeLabel, deblocageCaseLabel } from "@/lib/insurer-envelope";
@@ -184,8 +184,8 @@ function FondsEurosTrend({ nom, rates }: { nom: string; rates: FondsEurosRate[] 
   const latest = rates.at(-1);
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-meta text-ink-2 font-medium truncate">{nom}</span>
+      <div className="flex items-baseline justify-between gap-3 mb-2.5">
+        <span className="text-meta text-ink font-medium truncate">{capitalize(nom)}</span>
         {latest && (
           <span className="text-body text-ink font-semibold tabular-nums shrink-0">
             {fmtPct(latest.taux_pct)}
@@ -193,19 +193,26 @@ function FondsEurosTrend({ nom, rates }: { nom: string; rates: FondsEurosRate[] 
           </span>
         )}
       </div>
-      <ul className="flex items-end gap-2 mt-2">
-        {rates.map((r) => (
-          <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <span className="text-caption text-muted tabular-nums">{fmtPct(r.taux_pct)}</span>
-            <span className="w-full h-12 flex items-end rounded-sm bg-paper-2 overflow-hidden">
-              <span
-                className="block w-full rounded-sm bg-accent/50"
-                style={{ height: `${Math.max(8, (Number(r.taux_pct) / max) * 100)}%` }}
-              />
-            </span>
-            <span className="text-caption text-muted-2 tabular-nums">{String(r.annee).slice(2)}</span>
-          </li>
-        ))}
+      <ul className="flex items-end gap-1.5">
+        {rates.map((r) => {
+          const isLatest = r.annee === latest?.annee;
+          return (
+            <li key={r.annee} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+              <span className={`text-caption tabular-nums ${isLatest ? "text-ink font-semibold" : "text-muted"}`}>
+                {fmtPct(r.taux_pct)}
+              </span>
+              <span className="w-full h-11 flex items-end">
+                <span
+                  className={`block w-full rounded-t-sm ${isLatest ? "bg-accent" : "bg-accent/30"}`}
+                  style={{ height: `${Math.max(6, (Number(r.taux_pct) / max) * 100)}%` }}
+                />
+              </span>
+              <span className={`text-caption tabular-nums pt-1 border-t border-line-soft w-full text-center ${isLatest ? "text-ink-2 font-medium" : "text-muted-2"}`}>
+                {String(r.annee).slice(2)}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -662,7 +669,6 @@ export default async function ContractPage({
                   <FondsEurosTrend key={nom} nom={nom} rates={rates} />
                 ))}
               </div>
-              <p className="text-caption text-muted-2 mt-3">Taux servis nets de frais de gestion, hors prélèvements sociaux et fiscaux.</p>
             </div>
           )}
 
@@ -673,7 +679,7 @@ export default async function ContractPage({
                   <p className="text-caption uppercase tracking-widest text-ok font-semibold mb-1.5">Forces</p>
                   <ul className="flex flex-col gap-1">
                     {profile.forces.map((f) => (
-                      <li key={f} className="text-meta text-ink-2 flex gap-2"><span className="text-ok shrink-0">+</span>{f}</li>
+                      <li key={f} className="text-meta text-ink-2 flex gap-2"><span className="text-ok shrink-0">+</span>{capitalize(f)}</li>
                     ))}
                   </ul>
                 </div>
@@ -683,7 +689,7 @@ export default async function ContractPage({
                   <p className="text-caption uppercase tracking-widest text-muted font-semibold mb-1.5">Points d&apos;attention</p>
                   <ul className="flex flex-col gap-1">
                     {profile.limites.map((l) => (
-                      <li key={l} className="text-meta text-ink-2 flex gap-2"><span className="text-muted-2 shrink-0">–</span>{l}</li>
+                      <li key={l} className="text-meta text-ink-2 flex gap-2"><span className="text-muted-2 shrink-0">–</span>{capitalize(l)}</li>
                     ))}
                   </ul>
                 </div>
