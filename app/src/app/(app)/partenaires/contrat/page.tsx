@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { decodeHtml, feeFracToPct, groupeName } from "@/lib/format";
 import { contractTotalCost } from "@/lib/av-cost";
 import type { ContractType } from "@/lib/insurer-envelope";
+import { retraiteSchemeLabel, sortieModeLabel, deblocageCaseLabel } from "@/lib/insurer-envelope";
 import { supportsSub } from "@/lib/partenaires";
 import { PageShell } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
@@ -69,6 +70,13 @@ type ContractTerms = {
   as_of: string | null;
   confidence: "scraped" | "curated" | "indicative";
   notes: string | null;
+  // Attributs PER / retraite (loi PACTE), remplis par règle statutaire.
+  envelope_type: string | null;
+  retraite_scheme: string | null;
+  sortie_modes: string[] | null;
+  deblocage_anticipe_cases: string[] | null;
+  versements_deductibles: boolean | null;
+  transferable: boolean | null;
 };
 type ContractOverview = {
   key: string;
@@ -315,6 +323,93 @@ function TermsCard({ terms }: { terms: ContractTerms }) {
           </a>
         )}
       </div>
+    </Card>
+  );
+}
+
+// Petit indicateur booléen « Oui / Non » (versements déductibles, transférabilité).
+function YesNo({ label, value }: { label: string; value: boolean | null }) {
+  if (value == null) return null;
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-label shrink-0 ${
+          value ? "bg-ok text-paper" : "bg-paper-3 text-muted"
+        }`}
+      >
+        {value ? "✓" : "×"}
+      </span>
+      <span className="text-meta text-ink-2">{label}</span>
+    </div>
+  );
+}
+
+// Bloc « Plan d'épargne retraite » : attributs statutaires du PER (loi PACTE) —
+// sous-type, modalités de sortie, cas de déblocage anticipé, fiscalité des
+// versements, transférabilité. Ne s'affiche que pour un contrat retraite dont les
+// attributs sont déterminés (sortie/déblocage renseignés) ; les contrats
+// « Retraite » ambigus, laissés sans attribut, ne l'affichent pas.
+function RetraiteCard({ terms }: { terms: ContractTerms }) {
+  const scheme = retraiteSchemeLabel(terms.retraite_scheme);
+  const sorties = terms.sortie_modes ?? [];
+  const deblocages = terms.deblocage_anticipe_cases ?? [];
+
+  return (
+    <Card className="px-5 py-5">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+        <h2 className="text-body-lg text-ink font-semibold">Plan d&apos;épargne retraite</h2>
+        {scheme && (
+          <span className="text-caption uppercase tracking-widest font-semibold text-accent-ink bg-accent-soft border border-accent/20 rounded-full px-2.5 py-0.5">
+            {scheme}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        {/* Sortie & fiscalité */}
+        <div className="flex flex-col gap-4">
+          {sorties.length > 0 && (
+            <div>
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Modalités de sortie</p>
+              <div className="flex flex-wrap gap-1.5">
+                {sorties.map((s) => (
+                  <span key={s} className="text-caption text-ink-2 bg-paper-2 border border-line rounded-full px-2.5 py-1">
+                    {sortieModeLabel(s)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {(terms.versements_deductibles != null || terms.transferable != null) && (
+            <div>
+              <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-2">Fiscalité & portabilité</p>
+              <div className="flex flex-col gap-2">
+                <YesNo label="Versements déductibles du revenu imposable" value={terms.versements_deductibles} />
+                <YesNo label="Transférable (loi PACTE)" value={terms.transferable} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Déblocage anticipé */}
+        {deblocages.length > 0 && (
+          <div>
+            <p className="text-caption uppercase tracking-widest text-muted-2 font-semibold mb-1.5">Cas de déblocage anticipé</p>
+            <ul className="flex flex-col gap-1">
+              {deblocages.map((d) => (
+                <li key={d} className="text-meta text-ink-2 flex gap-2">
+                  <span className="text-accent/60 shrink-0">•</span>
+                  {deblocageCaseLabel(d)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <p className="text-caption text-muted-2 mt-4 pt-3 border-t border-line-soft">
+        Cadre légal indicatif (loi PACTE) ; la fiscalité de sortie dépend de la nature des versements.
+      </p>
     </Card>
   );
 }
@@ -611,6 +706,13 @@ export default async function ContractPage({
           )}
         </Card>
       )}
+
+      {/* Plan d'épargne retraite : attributs statutaires du PER, quand déterminés. */}
+      {o.terms?.envelope_type === "per" &&
+        ((o.terms.sortie_modes?.length ?? 0) > 0 ||
+          (o.terms.deblocage_anticipe_cases?.length ?? 0) > 0) && (
+          <RetraiteCard terms={o.terms} />
+        )}
 
       {/* Conditions du contrat : T&C réelles si sourcées, sinon « à venir » (honnête) */}
       {o.terms ? (

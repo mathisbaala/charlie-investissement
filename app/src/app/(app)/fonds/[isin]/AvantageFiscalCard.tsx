@@ -1,15 +1,7 @@
 import type { FundDetailHF } from "@/lib/types";
 import { Card } from "@/components/ui/Card";
 import { nf } from "@/lib/format";
-
-// Libellés des dispositifs de défiscalisation (colonne tax_scheme).
-const SCHEME_LABELS: Record<string, string> = {
-  fip:          "FIP",
-  fip_corse:    "FIP Corse",
-  fip_outremer: "FIP Outre-mer",
-  fcpi:         "FCPI",
-  fcpr:         "FCPR",
-};
+import { taxSchemeLabel, taxRegimeLabel, hasIrReduction } from "@/lib/defisc";
 
 function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
@@ -21,18 +13,21 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-// Avantage fiscal des fonds de défiscalisation (FIP/FCPI/FCPR). Ne s'affiche que
-// pour un fonds fiscal (tax_scheme renseigné). FCPR : pas de réduction d'IR à la
-// souscription — l'avantage porte sur l'exonération des plus-values sous conditions.
+// Avantage fiscal des fonds de défiscalisation (FIP/FCPI/FCPR/FPCI). Ne s'affiche
+// que pour un fonds fiscal (tax_scheme renseigné). Le régime (tax_regime_detail)
+// distingue la réduction d'IR (FIP/FCPI) de l'exonération de plus-values
+// (FCPR / FPCI apport-cession). Le quota d'investissement statutaire est rappelé
+// en pied de carte.
 export function AvantageFiscalCard({ fund }: { fund: FundDetailHF }) {
   const scheme = fund.tax_scheme;
   if (!scheme) return null;
 
-  const dispositif = SCHEME_LABELS[scheme.toLowerCase()] ?? scheme.toUpperCase();
-  const isFcpr = scheme.toLowerCase() === "fcpr";
+  const dispositif = taxSchemeLabel(scheme);
+  const regime = fund.tax_regime_detail;
+  const irReduction = hasIrReduction(regime);
 
   const reduction =
-    !isFcpr && fund.tax_reduction_rate != null && fund.tax_reduction_rate > 0
+    irReduction && fund.tax_reduction_rate != null && fund.tax_reduction_rate > 0
       ? `${nf.format(fund.tax_reduction_rate * 100)} %`
       : null;
 
@@ -49,18 +44,26 @@ export function AvantageFiscalCard({ fund }: { fund: FundDetailHF }) {
       <table className="w-full">
         <tbody>
           <Row label="Dispositif" value={dispositif} />
+          <Row label="Régime fiscal" value={taxRegimeLabel(regime)} />
           <Row label="Réduction d'IR à la souscription" value={reduction} />
           <Row label="Durée de blocage" value={blocage} />
           <Row label="Millésime" value={millesime} />
         </tbody>
       </table>
-      {isFcpr && (
+      {!irReduction && regime && (
         <p className="text-caption text-muted mt-3">
-          Pas de réduction d'IR à l'entrée ; exonération d'impôt sur les plus-values sous conditions de conservation.
+          Pas de réduction d'IR à l'entrée ; l'avantage porte sur l'exonération
+          d'impôt sur les plus-values sous conditions de conservation.
+        </p>
+      )}
+      {fund.investment_quota_note && (
+        <p className="text-caption text-muted-2 mt-3">
+          <span className="font-medium text-muted">Quota d'investissement&nbsp;:</span>{" "}
+          {fund.investment_quota_note}
         </p>
       )}
       <p className="text-caption text-muted-2 mt-3">
-        Taux indicatif, sous réserve de la loi de finances.
+        Taux et quotas indicatifs, sous réserve de la loi de finances et du règlement du fonds.
       </p>
     </Card>
   );

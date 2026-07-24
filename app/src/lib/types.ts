@@ -430,10 +430,12 @@ export type FundDetailHF = {
   // Défiscalisation (FIP/FCPI/FCPR) : renseignée pour les fonds fiscaux, null sinon.
   // tax_reduction_rate = fraction de réduction d'IR à la souscription (0.18/0.30 ;
   // 0.0 pour un FCPR, dont l'avantage porte sur l'exonération des plus-values).
-  tax_scheme: string | null;          // 'fip' | 'fip_corse' | 'fip_outremer' | 'fcpi' | 'fcpr'
+  tax_scheme: string | null;          // 'fip' | 'fip_corse' | 'fip_outremer' | 'fcpi' | 'fcpr' | 'fpci'
   tax_reduction_rate: number | null;  // fraction (ex. 0.18) — jamais convertie en base
   tax_lock_up_years: number | null;   // durée de blocage minimale (ans)
   vintage_year: number | null;        // millésime (année de collecte)
+  tax_regime_detail: string | null;   // 'ir_pme' | 'exoneration_pv' | 'apport_cession_150_0_b_ter'
+  investment_quota_note: string | null; // quota d'investissement statutaire (texte indicatif)
   // Frais détaillés (migration 20260529000004)
   entry_fee_max: number | null;
   exit_fee_max: number | null;

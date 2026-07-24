@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   typesOf, inEnvelope, realContracts, visibleContracts,
   isInsurerVisible, otherEnvelopes, parseContractKey, type ContractLike,
+  retraiteSchemeLabel, sortieModeLabel, deblocageCaseLabel,
 } from "@/lib/insurer-envelope";
 
 const c = (over: Partial<ContractLike>): ContractLike => ({
@@ -109,5 +110,41 @@ describe("parseContractKey", () => {
   it("fallback sans « :: » : assureur null, clé = nom de contrat", () => {
     expect(parseContractKey("Linxea Spirit 2"))
       .toEqual({ company: null, contract: "Linxea Spirit 2" });
+  });
+});
+
+describe("retraiteSchemeLabel", () => {
+  it("mappe les schémas connus", () => {
+    expect(retraiteSchemeLabel("perin")).toBe("PER individuel");
+    expect(retraiteSchemeLabel("pereco")).toBe("PER collectif (PERECO)");
+    expect(retraiteSchemeLabel("madelin")).toBe("Contrat Madelin");
+    expect(retraiteSchemeLabel("ancien")).toBe("Contrat retraite");
+  });
+  it("null si schéma absent ou inconnu (pas d'invention)", () => {
+    expect(retraiteSchemeLabel(null)).toBeNull();
+    expect(retraiteSchemeLabel(undefined)).toBeNull();
+    expect(retraiteSchemeLabel("zzz")).toBeNull();
+  });
+});
+
+describe("sortieModeLabel", () => {
+  it("mappe les modes connus", () => {
+    expect(sortieModeLabel("capital")).toBe("Capital");
+    expect(sortieModeLabel("rente_viagere")).toBe("Rente viagère");
+    expect(sortieModeLabel("capital_fractionne")).toBe("Sortie fractionnée");
+  });
+  it("repli = code brut si inconnu (jamais masqué)", () => {
+    expect(sortieModeLabel("autre")).toBe("autre");
+  });
+});
+
+describe("deblocageCaseLabel", () => {
+  it("mappe les cas connus", () => {
+    expect(deblocageCaseLabel("acquisition_residence_principale"))
+      .toBe("Acquisition de la résidence principale");
+    expect(deblocageCaseLabel("invalidite")).toBe("Invalidité (2ᵉ ou 3ᵉ catégorie)");
+  });
+  it("repli = code brut si inconnu", () => {
+    expect(deblocageCaseLabel("xyz")).toBe("xyz");
   });
 });

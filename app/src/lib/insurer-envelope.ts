@@ -61,3 +61,49 @@ export function parseContractKey(key: string): { company: string | null; contrac
   if (i === -1) return { company: null, contract: key };
   return { company: key.slice(0, i), contract: key.slice(i + 2) };
 }
+
+// ─── Attributs PER / retraite (colonnes av_contract_terms) ───────────────────
+// Libellés des attributs statutaires des contrats retraite (retraite_scheme /
+// sortie_modes / deblocage_anticipe_cases), remplis par règle (loi PACTE pour les
+// PER ; régimes Madelin/PERP/Art.8x pour l'ancien). Fonctions pures : la fiche-
+// contrat ne fait que mapper ces libellés.
+
+const RETRAITE_SCHEME_LABEL: Record<string, string> = {
+  perin:   "PER individuel",
+  pereco:  "PER collectif (PERECO)",
+  pero:    "PER obligatoire (PERO)",
+  madelin: "Contrat Madelin",
+  perp:    "PERP",
+  art82:   "Article 82",
+  art83:   "Article 83",
+  ancien:  "Contrat retraite",
+};
+// Libellé du sous-type de contrat retraite ; null si schéma inconnu/absent
+// (on n'affiche alors pas de sous-type plutôt que d'inventer).
+export function retraiteSchemeLabel(scheme: string | null | undefined): string | null {
+  if (!scheme) return null;
+  return RETRAITE_SCHEME_LABEL[scheme] ?? null;
+}
+
+const SORTIE_MODE_LABEL: Record<string, string> = {
+  capital:            "Capital",
+  rente_viagere:      "Rente viagère",
+  capital_fractionne: "Sortie fractionnée",
+};
+// Libellé d'un mode de sortie ; repli = code brut (jamais masqué silencieusement).
+export function sortieModeLabel(mode: string): string {
+  return SORTIE_MODE_LABEL[mode] ?? mode;
+}
+
+const DEBLOCAGE_CASE_LABEL: Record<string, string> = {
+  deces_conjoint_partenaire:                    "Décès du conjoint ou partenaire de Pacs",
+  invalidite:                                   "Invalidité (2ᵉ ou 3ᵉ catégorie)",
+  surendettement:                               "Surendettement",
+  expiration_droits_chomage:                    "Expiration des droits au chômage",
+  cessation_non_salarie_liquidation_judiciaire: "Liquidation judiciaire (non-salarié)",
+  acquisition_residence_principale:             "Acquisition de la résidence principale",
+};
+// Libellé d'un cas de déblocage anticipé ; repli = code brut.
+export function deblocageCaseLabel(c: string): string {
+  return DEBLOCAGE_CASE_LABEL[c] ?? c;
+}
