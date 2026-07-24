@@ -24,9 +24,18 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
             const contracts = all.filter(
               (c) => c && !(all.length === 1 && c === r.company),
             );
+            // Minimum de souscription du support par contrat (si connu).
+            const mins = r.minimums ?? {};
+            const fmtEur = (n: number) =>
+              `${n.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
+            // On remonte en tête les contrats dont le minimum est renseigné (info
+            // porteuse pour le CGP), sans changer l'ensemble affiché.
+            const ordered = [...contracts].sort(
+              (a, b) => (mins[b] != null ? 1 : 0) - (mins[a] != null ? 1 : 0),
+            );
             const MAX = 6;
-            const shown = contracts.slice(0, MAX);
-            const extra = contracts.length - shown.length;
+            const shown = ordered.slice(0, MAX);
+            const extra = ordered.length - shown.length;
             return (
               <div key={r.company}>
                 <div className="flex items-baseline justify-between gap-2">
@@ -39,14 +48,20 @@ export function ReferencementCard({ fund }: { fund: FundDetailHF }) {
                 </div>
                 {shown.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5">
-                    {shown.map((c) => (
-                      <span
-                        key={c}
-                        className="text-caption px-1.5 py-0.5 rounded bg-paper-2 border border-line-soft text-muted"
-                      >
-                        {c}
-                      </span>
-                    ))}
+                    {shown.map((c) => {
+                      const min = mins[c];
+                      return (
+                        <span
+                          key={c}
+                          className="text-caption px-1.5 py-0.5 rounded bg-paper-2 border border-line-soft text-muted"
+                        >
+                          {c}
+                          {min != null && (
+                            <span className="ml-1 text-ink-2 font-medium">· dès {fmtEur(min)}</span>
+                          )}
+                        </span>
+                      );
+                    })}
                     {extra > 0 && (
                       <span className="text-caption px-1.5 py-0.5 text-muted-2">+{extra} autres</span>
                     )}

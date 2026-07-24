@@ -29,4 +29,24 @@ describe("ReferencementCard", () => {
     render(<ReferencementCard fund={fundWith([])} />);
     expect(screen.getByText("Aucun référencement renseigné")).toBeTruthy();
   });
+
+  it("affiche le minimum de souscription du support par contrat quand connu", () => {
+    const fund = fundWith([
+      {
+        company: "Linxea",
+        contracts: ["Linxea Spirit 2", "Linxea Avenir 2"],
+        minimums: { "Linxea Spirit 2": 1000, "Linxea Avenir 2": 100 },
+      },
+    ]);
+    render(<ReferencementCard fund={fund} />);
+    expect(screen.getByText(/dès 1\s?000\s?€/)).toBeTruthy();
+    expect(screen.getByText(/dès 100\s?€/)).toBeTruthy();
+  });
+
+  it("n'affiche pas de minimum quand aucun n'est renseigné (dégradation)", () => {
+    const fund = fundWith([{ company: "Suravenir", contracts: ["Fortuneo Vie"] }]);
+    render(<ReferencementCard fund={fund} />);
+    expect(screen.getByText("Fortuneo Vie")).toBeTruthy();
+    expect(screen.queryByText(/dès/)).toBeNull();
+  });
 });

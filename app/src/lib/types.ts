@@ -460,6 +460,10 @@ export type FundInsurerRef = {
   // Peut être null : get_fund_insurers renvoie un assureur référencé sans
   // liste de contrats détaillée. Toujours garder avec `?? []` avant .filter/.map.
   contracts: string[] | null;
+  // Minimum de souscription du support PAR CONTRAT, en euros ({ "Nom contrat": 1000 }).
+  // Présent uniquement pour les contrats où le minimum de CE support est connu
+  // (table investissement_av_fund_envelope_terms). Peut être null/absent.
+  minimums?: Record<string, number> | null;
 };
 
 export type FundHoldingHF = {
