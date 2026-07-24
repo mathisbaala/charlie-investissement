@@ -805,14 +805,21 @@ function useStudioState() {
     if (!(effectivePresentation ?? presentation)) return;
     setPptBusy(true);
     try {
-      const [{ buildAllocationDeck }, { getLogoDataUri }, pres] = await Promise.all([
+      const [{ buildAllocationDeck }, { getLogoDataUri }, brandingMod, pres] = await Promise.all([
         import("@/lib/allocationPptx"),
         import("@/lib/pdf/logoClient"),
+        import("@/lib/branding"),
         presentationForExport(),
       ]);
       if (!pres) return;
-      const logo = await getLogoDataUri();
-      await buildAllocationDeck(pres, logo).writeFile({
+      // Marque du cabinet : le deck prend sa couleur et son logo (sinon Charlie).
+      const branding = brandingMod.loadStoredBranding();
+      const active = branding.enabled;
+      const cabinetLogo =
+        active && branding.logo ? await brandingMod.logoToPng(branding.logo) : null;
+      const logo = cabinetLogo ?? (await getLogoDataUri());
+      const accent = active && branding.accent ? branding.accent : undefined;
+      await buildAllocationDeck(pres, logo, accent).writeFile({
         fileName: `portefeuille-${pres.headline.profileLabel.toLowerCase()}.pptx`,
       });
     } catch {

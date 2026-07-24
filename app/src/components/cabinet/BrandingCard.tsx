@@ -183,7 +183,7 @@ export function BrandingCard() {
   return (
     <Card className="p-5 space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
+        <p className="text-label uppercase tracking-[0.08em] text-accent font-semibold">
           Ma marque
         </p>
         {applied && (
@@ -194,10 +194,7 @@ export function BrandingCard() {
       </div>
 
       <p className="text-meta text-muted">
-        Collez l&apos;adresse de votre site : le screener reprend aussitôt votre
-        logo et votre couleur pour que vos clients aient l&apos;impression d&apos;être
-        chez vous. Les tableaux et le reste de l&apos;interface gardent leur
-        lisibilité.
+        Le screener reprend le logo et la couleur de votre site.
       </p>
 
       {/* Saisie de l'URL + analyse */}
@@ -262,12 +259,9 @@ export function BrandingCard() {
       {/* Aperçu */}
       {hasPreview && (
         <div className="space-y-4 rounded-lg border border-line bg-paper-2 p-4">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-ok" />
-            <p className="text-label uppercase tracking-[0.06em] text-muted font-semibold">
-              Votre cabinet, en direct
-            </p>
-          </div>
+          <p className="text-label uppercase tracking-[0.08em] text-muted font-semibold">
+            Aperçu
+          </p>
 
           {/* Carte de marque : logo + nom posés sur la couleur du cabinet */}
           <div
@@ -344,8 +338,8 @@ export function BrandingCard() {
             {siteColors.length > 0 && (
               <p className="text-caption text-muted">
                 {siteColors.length === 1
-                  ? "Couleur détectée sur votre site (déjà appliquée)."
-                  : `${siteColors.length} couleurs de votre site — la principale est déjà appliquée. Cliquez pour en choisir une autre.`}
+                  ? "Détectée sur votre site."
+                  : "Détectées sur votre site — la principale est appliquée."}
               </p>
             )}
             <div className="flex flex-wrap items-center gap-2">
@@ -400,7 +394,7 @@ export function BrandingCard() {
       {(applied || hasPreview) && (
         <div className="flex items-center gap-2">
           <span className="text-meta text-muted">
-            Vos choix sont appliqués automatiquement au screener.
+            Appliqué automatiquement au screener.
           </span>
           <button
             onClick={reset}

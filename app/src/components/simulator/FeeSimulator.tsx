@@ -22,6 +22,7 @@ import {
 } from "@/lib/feeSimulator";
 import { SupportSources, type DepositedHolding, type ImportedLine } from "./SupportSources";
 import { loadStoredCabinet, cabinetContract, resolveFundRetrocession, EMPTY_CABINET } from "@/lib/cabinet";
+import { loadStoredBranding, logoToPng } from "@/lib/branding";
 import { retroFallbackFrac } from "@/lib/remuneration";
 import type { ReleveContractMatch } from "@/lib/releve";
 
@@ -777,6 +778,9 @@ export function FeeSimulator() {
     setExporting(mode);
     setExportError(null);
     try {
+      // Marque du cabinet : couleur + logo (converti en PNG pour @react-pdf).
+      const brand = loadStoredBranding();
+      const brandLogo = brand.enabled && brand.logo ? await logoToPng(brand.logo) : null;
       const res = await fetch("/api/frais/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -784,6 +788,7 @@ export function FeeSimulator() {
           mode,
           clientRef: null,
           input,
+          branding: { accent: brand.enabled ? brand.accent : null, logo: brandLogo },
           // On envoie la rétro RÉSOLUE (cascade barème + repli ETF-aware : 0 sur
           // l'indiciel), pas la valeur brute — pour que le PDF ne réinvente pas
           // une rétro sur un ETF et reste aligné sur l'écran.
