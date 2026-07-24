@@ -52,13 +52,6 @@ describe("AllocationReport", () => {
     expect(screen.getByText("AXA WF Euro Credit TR")).toBeTruthy();
   });
 
-  it("affiche le bouton PDF uniquement si pdfHref est fourni", () => {
-    const { rerender } = render(<AllocationReport presentation={presentation} />);
-    expect(screen.queryByText(/Télécharger la présentation/)).toBeNull();
-    rerender(<AllocationReport presentation={presentation} pdfHref="/api/portfolio/optimize/pdf?contract=X" />);
-    expect(screen.getByText(/Télécharger la présentation/)).toBeTruthy();
-  });
-
   it("ne crashe pas quand des champs optionnels sont nuls", () => {
     const bare = buildPresentation(
       { ...RESULT, weightedSri: null, lines: RESULT.lines.map((l) => ({ ...l, sri: null, ter: null, category: null })) },

@@ -2,7 +2,7 @@
 // (colonnes investissement_funds : tax_scheme / tax_regime_detail). Fonctions
 // pures et testées — les cartes (fiche fonds) ne font que mapper ces libellés.
 
-export const TAX_SCHEME_LABEL: Record<string, string> = {
+const TAX_SCHEME_LABEL: Record<string, string> = {
   fip:          "FIP",
   fip_corse:    "FIP Corse",
   fip_outremer: "FIP Outre-mer",

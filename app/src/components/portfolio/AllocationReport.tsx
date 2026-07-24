@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { Btn } from "@/components/ui/Btn";
 import { MorningstarBadge } from "@/components/ui/Badge";
 import { X } from "@/components/ui/icons";
 import type { AllocationPresentation } from "@/lib/allocationRationale";
@@ -38,11 +37,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 export function AllocationReport({
   presentation,
-  pdfHref,
   onRemoveLine,
 }: {
   presentation: AllocationPresentation;
-  pdfHref?: string;
   /** Si fourni : bouton « retirer ce fonds » sur chaque ligne du tableau. */
   onRemoveLine?: (isin: string) => void;
 }) {
@@ -57,11 +54,6 @@ export function AllocationReport({
           <h2 className="text-heading text-ink font-semibold">{p.title}</h2>
           <p className="text-meta text-muted">{p.subtitle}</p>
         </div>
-        {pdfHref && (
-          <a href={pdfHref} target="_blank" rel="noopener">
-            <Btn variant="outline" size="sm">Télécharger la présentation (PDF)</Btn>
-          </a>
-        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
