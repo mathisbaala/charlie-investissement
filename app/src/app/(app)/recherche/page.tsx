@@ -13,7 +13,7 @@ import { Btn } from "@/components/ui/Btn";
 import { SlidersHorizontal, ArrowUpDown, ArrowLeft, ChevronRight, ChevronDown, Search } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { Fund, ParsedFilters, ScreenerResponse } from "@/lib/types";
-import { buildParams, filtersFromParams, sortFromIntent, DEFAULT_SORT, pickReferencing, searchUrlWithReferencing } from "@/lib/screenerParams";
+import { buildParams, filtersFromParams, sortFromIntent, DEFAULT_SORT, pickReferencing, searchUrlWithReferencing, computeInitialSearchState } from "@/lib/screenerParams";
 import { handledRateLimit } from "@/lib/rateLimitClient";
 import { asExactIsin } from "@/lib/search";
 import { parseContractKey } from "@/lib/insurer-envelope";
@@ -108,15 +108,26 @@ function RechercheInner() {
   const searchParams = useSearchParams();
   const initialQ    = searchParams.get("q") ?? "";
 
+  // Filtres décidés en amont, transmis par l'URL (lien partagé, enveloppe/
+  // assureur/contrat depuis l'onglet Assurances vie). La recherche est « pure » :
+  // aucun profil client n'intervient ici (le profil vit dans le Portefeuille).
+  const initialUrlFilters = filtersFromParams(searchParams);
+  const hasUrlFilters     = Object.keys(initialUrlFilters).length > 0;
+  const hasInitialFilter  = !!(initialQ || hasUrlFilters);
+  // Amorçage synchrone (calculé une seule fois) : filtres + parse initiaux dérivés
+  // de l'URL, pour qu'aucun fetch ne parte avec des filtres vides. Voir
+  // computeInitialSearchState.
+  const [initial] = useState(() => computeInitialSearchState(initialQ, initialUrlFilters, hasUrlFilters));
+
   const [query,          setQuery]          = useState(initialQ);
-  const [filters,        setFilters]        = useState<ParsedFilters>({});
+  const [filters,        setFilters]        = useState<ParsedFilters>(initial.filters);
   const [nlpFailed,      setNlpFailed]      = useState(false);
   const [fuzzy,          setFuzzy]          = useState(false);  // résultats approchants (tolérance fautes)
   const [relaxed,        setRelaxed]        = useState<string[]>([]);  // critères assouplis (relâchement gracieux)
   // Tri issu d'une intention NLP (« le moins cher »…) → on privilégie les fonds complets
   // (plancher de complétude relevé). Désactivé dès que l'utilisateur trie manuellement.
   const [prioritizeComplete, setPrioritizeComplete] = useState(false);
-  const [parsing,        setParsing]        = useState(false);  // analyse NLP en cours
+  const [parsing,        setParsing]        = useState(initial.parsing);  // analyse NLP en cours
   // Après une restauration depuis le cache, on saute le fetch automatique
   // (les résultats sont déjà là — éviter un rechargement et un nouveau flash).
   const skipNextFetch = useRef(false);
@@ -125,12 +136,6 @@ function RechercheInner() {
   const [activeFund,     setActiveFund]     = useState<string | null>(null);
 
   const initialSortBy    = searchParams.get("sort_by");
-  // Filtres décidés en amont, transmis par l'URL (lien partagé, enveloppe/
-  // assureur/contrat depuis l'onglet Assurances vie). La recherche est « pure » :
-  // aucun profil client n'intervient ici (le profil vit dans le Portefeuille).
-  const initialUrlFilters = filtersFromParams(searchParams);
-  const hasUrlFilters     = Object.keys(initialUrlFilters).length > 0;
-  const hasInitialFilter  = !!(initialQ || hasUrlFilters);
   const [hasSearched, setHasSearched] = useState(hasInitialFilter);
 
   // Results
@@ -175,50 +180,26 @@ function RechercheInner() {
       setPrioritizeComplete(cache.prioritizeComplete ?? false);
       setHasSearched(true);
       setLoading(false);
+      // L'amorçage a pu geler le fetch (`parsing` seedé vrai quand `q` === cache) :
+      // la restauration reprend la main, on relâche.
+      setParsing(false);
       return;
     }
 
-    // Arrivée avec des filtres déjà décidés (enveloppe/assureur/contrat depuis
-    // l'onglet Assurances vie, lien partagé) : on amorce directement, sans NLP.
-    if (hasUrlFilters) {
-      // L'URL combine parfois une requête texte `q=` et des filtres décidés en
-      // amont : référencement assureur/contrat depuis l'onglet Assurances vie
-      // (rechargement / lien), OU filtres manuels réglés sur l'accueil avant
-      // « Lancer la recherche ». On parse alors le texte ET on superpose les
-      // filtres d'URL, qui priment sur ce que le NLP a pu produire — pour que le
-      // périmètre et les badges survivent au reload comme en session.
-      if (initialQ) {
-        setQuery(initialQ);
-        if (asExactIsin(initialQ)) {
-          setFilters({ free_text: initialQ, ...initialUrlFilters });
-          setNlpFailed(false);
-        } else {
-          setParsing(true);
-          parseQuery(initialQ).then((parsed) => {
-            const hasFilters = Object.keys(parsed).length > 0;
-            setFilters(hasFilters ? { ...parsed, ...initialUrlFilters } : { free_text: initialQ, ...initialUrlFilters });
-            setNlpFailed(!hasFilters);
-            setParsing(false);
-          });
-        }
-      } else {
-        setFilters(initialUrlFilters);
-      }
-    } else if (initialQ) {
-      setQuery(initialQ);
-      // ISIN exact (lien partagé, rechargement) : recherche ciblée sans NLP.
-      if (asExactIsin(initialQ)) {
-        setFilters({ free_text: initialQ });
-        setNlpFailed(false);
-      } else {
-        setParsing(true);
-        parseQuery(initialQ).then((parsed) => {
-          const hasFilters = Object.keys(parsed).length > 0;
-          setFilters(hasFilters ? parsed : { free_text: initialQ });
-          setNlpFailed(!hasFilters);
-          setParsing(false);
-        });
-      }
+    // Les filtres et l'état `parsing` initiaux sont déjà amorcés depuis l'URL
+    // (computeInitialSearchState) : ISIN exact et filtres d'enveloppe/assureur
+    // sont donc déjà à l'écran et le fetch part avec la bonne portée, sans requête
+    // par défaut redondante. Reste à lancer l'analyse NLP quand une requête texte
+    // non-ISIN doit être comprise : les filtres compris (superposés aux filtres
+    // d'URL, qui priment) débloquent alors le fetch.
+    if (initialQ && !asExactIsin(initialQ)) {
+      parseQuery(initialQ).then((parsed) => {
+        const hasFilters = Object.keys(parsed).length > 0;
+        const base = hasFilters ? parsed : { free_text: initialQ };
+        setFilters(hasUrlFilters ? { ...base, ...initialUrlFilters } : base);
+        setNlpFailed(!hasFilters);
+        setParsing(false);
+      });
     }
     // Lecture unique au montage (garde `initialized`) — les filtres d'URL sont
     // figés à l'arrivée ; pas besoin de réagir à leurs changements d'identité.

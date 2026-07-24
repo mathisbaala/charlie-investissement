@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildParams } from '../app/(app)/recherche/page'
-import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER, pickReferencing, searchUrlWithReferencing, countActiveFilters } from '../lib/screenerParams'
+import { filtersFromParams, describeScreenerFilters, sortFromIntent, relaxationOrder, relaxLabel, RELAXABLE_ORDER, pickReferencing, searchUrlWithReferencing, countActiveFilters, computeInitialSearchState } from '../lib/screenerParams'
 import type { ParsedFilters } from '../lib/types'
 
 // Régression : la recherche par classe d'actif. Avant le correctif, le parser NLP
@@ -408,5 +408,55 @@ describe('countActiveFilters — badge accueil', () => {
 
   it('ne compte pas un booléen à false', () => {
     expect(countActiveFilters({ has_kid: false })).toBe(0)
+  })
+})
+
+// Régression : ISSUE-001 — requête screener par défaut redondante au montage.
+// Trouvé par /qa le 2026-07-24 (rapport .gstack/qa-reports/).
+// Avant le correctif, /recherche amorçait `filters={}` + `parsing=false`, si bien
+// que le tout premier fetch partait à filtres vides → une requête /api/funds par
+// défaut (univers complet ~13,8k, tri complétude) qui dépasse le statement timeout
+// Supabase (500 transitoire, ~9,7 s), aussitôt supplantée par la requête filtrée.
+// computeInitialSearchState amorce désormais l'état de façon synchrone : une requête
+// texte non-ISIN gèle le fetch (`parsing=true`) le temps du parse NLP ; ISIN exact
+// et filtres d'URL partent directement avec la bonne portée.
+describe('computeInitialSearchState — amorçage sans fetch à filtres vides', () => {
+  it('gèle le fetch (parsing=true) pour une requête texte NLP', () => {
+    const s = computeInitialSearchState('ETF actions monde peu risqué', {}, false)
+    expect(s.parsing).toBe(true)
+    expect(s.filters).toEqual({})
+  })
+
+  it('ISIN exact : recherche ciblée immédiate, sans NLP', () => {
+    const s = computeInitialSearchState('FR0010315770', {}, false)
+    expect(s.parsing).toBe(false)
+    expect(s.filters).toEqual({ free_text: 'FR0010315770' })
+  })
+
+  it('filtres d\'URL seuls : part avec la portée exacte, pas de fetch par défaut', () => {
+    const url: ParsedFilters = { insurers: ['Suravenir'], universe: ['etf'] }
+    const s = computeInitialSearchState('', url, true)
+    expect(s.parsing).toBe(false)
+    expect(s.filters).toEqual(url)
+  })
+
+  it('texte NLP + filtres d\'URL : amorce sur l\'URL, le parse complètera', () => {
+    const url: ParsedFilters = { insurers: ['Generali'] }
+    const s = computeInitialSearchState('fonds obligataire', url, true)
+    expect(s.parsing).toBe(true)
+    expect(s.filters).toEqual(url)
+  })
+
+  it('ISIN exact + filtres d\'URL : ciblé, superposé aux filtres d\'URL', () => {
+    const url: ParsedFilters = { insurers: ['Spirica'] }
+    const s = computeInitialSearchState('LU0115773425', url, true)
+    expect(s.parsing).toBe(false)
+    expect(s.filters).toEqual({ free_text: 'LU0115773425', insurers: ['Spirica'] })
+  })
+
+  it('ni requête ni filtre : état vierge, aucun fetch (hasSearched=false en amont)', () => {
+    const s = computeInitialSearchState('', {}, false)
+    expect(s.parsing).toBe(false)
+    expect(s.filters).toEqual({})
   })
 })

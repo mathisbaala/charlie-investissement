@@ -5,6 +5,7 @@
 // l'accueil). Les deux partagent les MÊMES noms de clés → round-trip garanti.
 
 import type { ParsedFilters } from "./types";
+import { asExactIsin } from "./search";
 
 // Colonnes triables exposées par /api/funds (miroir de VALID_SORT côté route).
 // Source unique partagée : le parsing NLP (sort_intent) ne peut viser qu'une de ces
@@ -270,4 +271,32 @@ export function describeScreenerFilters(f: ParsedFilters): string[] {
   // les affiche déjà via son bandeau de référencement dédié (« Supports référencés
   // chez… »), avec son propre retrait. Les dupliquer alourdirait l'en-tête.
   return out;
+}
+
+// Amorçage synchrone de l'écran de recherche au montage : décide les `filters` et
+// l'état `parsing` initiaux à partir de la seule URL (jamais du cache de session,
+// restauré côté client pour ne pas casser l'hydratation). Objectif : que le tout
+// premier fetch parte déjà avec la bonne portée. Sans cet amorçage, le premier
+// rendu partait avec des filtres vides → une requête screener par défaut (univers
+// complet, tri complétude) redondante, la plus lourde et celle qui dépasse le
+// statement timeout Supabase (500 transitoire), aussitôt supplantée par la requête
+// filtrée. `parsing: true` gèle le fetch le temps que l'analyse NLP livre les
+// filtres compris (cas d'une requête texte non-ISIN).
+export function computeInitialSearchState(
+  initialQ: string,
+  initialUrlFilters: ParsedFilters,
+  hasUrlFilters: boolean,
+): { filters: ParsedFilters; parsing: boolean } {
+  // Filtres décidés en amont (enveloppe/assureur, lien partagé), avec ou sans texte.
+  if (hasUrlFilters) {
+    if (initialQ && !asExactIsin(initialQ)) return { filters: initialUrlFilters, parsing: true };
+    if (initialQ) return { filters: { free_text: initialQ, ...initialUrlFilters }, parsing: false };
+    return { filters: initialUrlFilters, parsing: false };
+  }
+  if (initialQ) {
+    // ISIN exact : recherche ciblée sans NLP. Sinon : parse NLP en cours.
+    if (asExactIsin(initialQ)) return { filters: { free_text: initialQ }, parsing: false };
+    return { filters: {}, parsing: true };
+  }
+  return { filters: {}, parsing: false };
 }
