@@ -33,6 +33,32 @@ const C = {
   darkText: "F7F5F2",
   darkMuted: "9C9891",
 };
+// Accent clay par défaut : restauré quand le cabinet n'a pas de marque.
+const CLAY_DEFAULTS = { clay: C.clay, clayBright: C.clayBright, claySoft: C.claySoft };
+
+function mixHex(a: string, b: string, t: number): string {
+  const p = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
+  const c = (x: number, y: number) => Math.round(x + (y - x) * t);
+  return [c(p(a, 0), p(b, 0)), c(p(a, 2), p(b, 2)), c(p(a, 4), p(b, 4))]
+    .map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** Teinte le deck à la couleur de marque du cabinet (accent + nuances dérivées),
+    ou rétablit l'accent clay Charlie. À appeler AVANT de bâtir les slides. */
+function applyBrandAccent(hex?: string): void {
+  const clean = hex ? hex.replace("#", "").toLowerCase() : "";
+  if (!/^[0-9a-f]{6}$/.test(clean)) {
+    C.clay = CLAY_DEFAULTS.clay;
+    C.clayBright = CLAY_DEFAULTS.clayBright;
+    C.claySoft = CLAY_DEFAULTS.claySoft;
+    return;
+  }
+  C.clay = clean;
+  C.clayBright = mixHex(clean, "ffffff", 0.45); // lisible sur fond sombre
+  C.claySoft = mixHex(clean, "ffffff", 0.78);
+}
+
 // Séries des camemberts : tons terre validés (contraste + daltonisme), gris
 // neutre réservé au reliquat « Autres ».
 const SLICES = ["9F4325", "2E6E9E", "A2791F", "1E7A4F", "6B4E8C", "8A867C"];
@@ -88,7 +114,8 @@ function header(slide: pptxgen.Slide, eyebrow: string, title: string, sub?: stri
 /** Construit le deck PowerPoint (16:9) prêt à écrire. `logo` = data URI du « C »
     Charlie (facultatif) : posé sur un badge clair pour rester lisible sur la
     couverture sombre. */
-export function buildAllocationDeck(p: AllocationPresentation, logo?: string): pptxgen {
+export function buildAllocationDeck(p: AllocationPresentation, logo?: string, accentHex?: string): pptxgen {
+  applyBrandAccent(accentHex);
   const x: PresentationExtras | undefined = p.extras;
   const hasGoals = !!x && (x.goals.length > 0 || x.projection != null);
   const hasExposure = !!x?.exposure && (x.exposure.geo.length > 0 || x.exposure.sectors.length > 0);

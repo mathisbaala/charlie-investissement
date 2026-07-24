@@ -5,14 +5,21 @@ import React from "react";
 import RapportFondsPDF from "@/lib/RapportFondsPDF";
 import { annualizeForType, annualizeCumul } from "@/lib/format";
 import { fetchNavSeries, fetchCompositionByFund } from "@/lib/pdf/pdfData";
-import { loadLogo } from "@/lib/pdf/logo";
+import { applyBranding, parseClientBranding, type ClientBranding } from "@/lib/pdf/brandFromRequest";
 import { trackVercel } from "@/lib/analytics";
 
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const isinsParam = url.searchParams.get("isins") ?? "";
-  const isins = isinsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+// Rapport de fonds (fiche unique ou comparatif). Deux entrées :
+//   • GET  — lien direct (?isins=), sans marque : documents aux couleurs Charlie.
+//   • POST — { isins, branding } : le client transmet la marque de son cabinet
+//     (couleur + logo PNG) pour teindre le document. Le logo étant trop volumineux
+//     pour une query string, la personnalisation passe forcément par POST.
 
+async function buildRapport(
+  isinsRaw: string[],
+  branding: ClientBranding,
+  req: NextRequest,
+): Promise<NextResponse> {
+  const isins = isinsRaw.map((s) => String(s).trim()).filter(Boolean).slice(0, 20);
   if (isins.length < 1) {
     return NextResponse.json({ error: "Au moins 1 ISIN requis" }, { status: 400 });
   }
@@ -49,7 +56,8 @@ export async function GET(req: NextRequest) {
     fetchCompositionByFund(orderedIsins),
   ]);
 
-  const logo = await loadLogo();
+  // Marque du cabinet (couleur + logo) ou Charlie par défaut.
+  const logo = await applyBranding(branding);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(RapportFondsPDF as any, { funds: ordered, series, composition, logo });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,4 +71,22 @@ export async function GET(req: NextRequest) {
       "Content-Disposition": `attachment; filename="rapport-fonds-${date}.pdf"`,
     },
   });
+}
+
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const isins = (url.searchParams.get("isins") ?? "").split(",");
+  return buildRapport(isins, { accent: null, logo: null }, req);
+}
+
+export async function POST(req: NextRequest) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "JSON attendu" }, { status: 400 });
+  }
+  const raw = body.isins;
+  const isins = Array.isArray(raw) ? raw.map(String) : String(raw ?? "").split(",");
+  return buildRapport(isins, parseClientBranding(body.branding), req);
 }

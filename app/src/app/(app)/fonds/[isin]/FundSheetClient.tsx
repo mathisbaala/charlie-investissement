@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { addViewedFund } from "@/lib/viewedFunds";
+import { openRapportPdf } from "@/lib/rapportDownload";
 import { ArrowLeft, Download } from "@/components/ui/icons";
 import { NavChart } from "@/components/fund/NavChart";
 import { SfdrBadge, SriBadge, MorningstarBadge } from "@/components/ui/Badge";
@@ -130,7 +131,7 @@ export function FundSheetClient({ fund }: Props) {
               <Btn
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(`/api/rapport/pdf?isins=${fund.isin}`, "_blank")}
+                onClick={() => openRapportPdf([fund.isin])}
               >
                 <Download size={13} />
                 Rapport PDF

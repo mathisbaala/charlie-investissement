@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSelection, SelectedFund, COMPARE_MAX } from "@/components/SelectionProvider";
 import { Btn } from "@/components/ui/Btn";
 import { X, Download } from "@/components/ui/icons";
+import { openRapportPdf } from "@/lib/rapportDownload";
 
 interface SelectionBarProps {
   onCompare: () => void;
@@ -72,7 +73,6 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
 
   if (selected.length === 0) return null;
 
-  const pdfHref = `/api/rapport/pdf?isins=${selected.map((f) => f.isin).join(",")}`;
 
   return (
     <div className="c-slide-up fixed bottom-4 left-[60px] right-0 mx-auto z-30 flex flex-wrap items-center gap-2 sm:gap-3 bg-paper border border-line rounded-xl px-3 sm:px-4 py-2.5 shadow-[0_4px_16px_oklch(0.22_0.012_60_/_0.12)] max-w-[860px] w-[calc(100%-60px-1.5rem)]">
@@ -97,12 +97,15 @@ export function SelectionBar({ onCompare }: SelectionBarProps) {
         CSV
       </Btn>
       {/* PDF dès 1 fonds : fiche de fonds (1) ou rapport comparatif (≥2). */}
-      <a href={pdfHref} target="_blank" rel="noopener" className="shrink-0">
-        <Btn variant="outline" size="sm">
-          <span className="hidden sm:inline-flex"><Download size={13} /></span>
-          PDF
-        </Btn>
-      </a>
+      <Btn
+        variant="outline"
+        size="sm"
+        className="shrink-0"
+        onClick={() => openRapportPdf(selected.map((f) => f.isin))}
+      >
+        <span className="hidden sm:inline-flex"><Download size={13} /></span>
+        PDF
+      </Btn>
       {selected.length >= 2 && (
         <Link
           href={`/portefeuille/construire?isins=${selected.map((f) => f.isin).join(",")}`}

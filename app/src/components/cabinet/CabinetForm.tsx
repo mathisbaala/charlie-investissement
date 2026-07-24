@@ -269,10 +269,10 @@ export function CabinetForm() {
     : [];
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
       {/* Identité */}
       <Card className="p-5 space-y-3">
-        <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">Nom du cabinet</p>
+        <p className="text-label uppercase tracking-[0.08em] text-accent font-semibold">Nom du cabinet</p>
         <input
           className={inputCls}
           value={cabinet.cabinetName}
@@ -287,7 +287,7 @@ export function CabinetForm() {
 
       {/* Partenariats */}
       <Card className="p-5 space-y-4">
-        <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
+        <p className="text-label uppercase tracking-[0.08em] text-accent font-semibold">
           Vos partenaires
         </p>
         <div className="relative">
@@ -582,12 +582,11 @@ export function CabinetForm() {
           dans la rémunération par portefeuille. Politique par défaut du cabinet. */}
       <Card className="p-5 space-y-4">
         <div>
-          <p className="text-caption uppercase tracking-[0.08em] text-muted font-semibold">
+          <p className="text-label uppercase tracking-[0.08em] text-accent font-semibold">
             Honoraires de conseil
           </p>
-          <p className="text-caption text-muted-2 mt-1 leading-snug">
-            Facturés directement au client, en sus des frais du contrat. Consolidés
-            avec vos rétrocessions dans la rémunération par portefeuille.
+          <p className="text-meta text-muted mt-1">
+            Facturés au client, en sus des frais du contrat.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">

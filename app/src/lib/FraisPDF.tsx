@@ -132,7 +132,7 @@ function Footer({ mode }: { mode: "client" | "cabinet" }) {
 function SectionHead({ title, meta }: { title: string; meta?: string }) {
   return (
     <View style={S.secHead}>
-      <View style={S.secTick} />
+      <View style={[S.secTick, { backgroundColor: C.clay }]} />
       <Text style={S.secTitle}>{title}</Text>
       {meta ? <Text style={S.secMeta}>{meta}</Text> : null}
     </View>
@@ -229,7 +229,7 @@ function Nature({ report }: { report: FraisReport }) {
         ))}
         <View style={S.natTotal}>
           <Text style={S.natTotalName}>Coût total</Text>
-          <Text style={S.natTotalVal}>{nfEur(nature.total)}</Text>
+          <Text style={[S.natTotalVal, { color: C.clay }]}>{nfEur(nature.total)}</Text>
         </View>
       </View>
     </View>
@@ -390,7 +390,7 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, logo }: 
 
         <View style={S.hero}>
           <View style={S.heroLeft}>
-            <Text style={S.eyebrow}>{eyebrowDoc}</Text>
+            <Text style={[S.eyebrow, { color: C.clay }]}>{eyebrowDoc}</Text>
             <Text style={S.title}>{titleDoc}</Text>
             <Text style={S.meta}>{metaLine}</Text>
             <Text style={S.metaSub}>{baseLine}</Text>
@@ -431,9 +431,9 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, logo }: 
         <Transparence report={report} />
 
         {isCabinet && (
-          <View style={S.callout}>
+          <View style={[S.callout, { backgroundColor: C.claySoft }]}>
             <View>
-              <Text style={S.calloutLabel}>
+              <Text style={[S.calloutLabel, { color: C.clayInk }]}>
                 {honoraireCumule > 0 ? "Revenu cabinet total" : "Votre rémunération"} sur {final.annees} ans
               </Text>
               <Text style={S.calloutSub}>
@@ -445,7 +445,7 @@ export default function FraisPDF({ mode, clientRef, hypotheses, report, logo }: 
                 À l'entrée {nfEur(final.revenuCabinetUpfront)} · récurrent {nfEur(report.revenuCabinetRecurrentAn1)}/an (1re année)
               </Text>
             </View>
-            <Text style={S.calloutValue}>{nfEur(revenuTotal)}</Text>
+            <Text style={[S.calloutValue, { color: C.clay }]}>{nfEur(revenuTotal)}</Text>
           </View>
         )}
 

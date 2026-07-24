@@ -169,8 +169,8 @@ function CoverPage({ funds, series, logo }: { funds: Fund[]; series: Record<stri
       {/* Hero card */}
       <View style={S.heroCard}>
         <View style={S.heroLeft}>
-          <View style={S.accentRule} />
-          <Text style={S.coverEyebrow}>{single ? "Fiche de fonds" : "Analyse comparative"}</Text>
+          <View style={[S.accentRule, { backgroundColor: C.clay }]} />
+          <Text style={[S.coverEyebrow, { color: C.clay }]}>{single ? "Fiche de fonds" : "Analyse comparative"}</Text>
           <Text style={S.coverTitle}>{single ? "Rapport de fonds" : "Rapport de comparaison"}</Text>
           <Text style={S.coverSub}>
             {funds.length} fonds {single ? "analysé" : "analysés"} · sélection du {dateFr()}
@@ -292,7 +292,7 @@ function FundPage({
       <Eyebrow style={{ color: C.clay }}>{fund.product_type ?? "Fonds"}</Eyebrow>
       <Text style={S.fundTitle}>{fund.name}</Text>
       <Text style={S.fundMeta}>
-        <Text style={S.fundMetaIsin}>{fund.isin}</Text>
+        <Text style={[S.fundMetaIsin, { color: C.clay }]}>{fund.isin}</Text>
         {`   ·   ${gestionnaire}`}
       </Text>
 
@@ -443,12 +443,12 @@ function FundPage({
       )}
 
       {hasRetro && (
-        <View style={[S.callout, S.callout2]}>
+        <View style={[S.callout, S.callout2, { backgroundColor: C.claySoft, borderTopColor: C.clay }]}>
           <View>
-            <Text style={S.calloutLabel}>Rétrocession CGP : {fmt(retroPct)} par an</Text>
+            <Text style={[S.calloutLabel, { color: C.clayInk }]}>Rétrocession CGP : {fmt(retroPct)} par an</Text>
             <Text style={S.calloutSub}>Revenu estimé pour un encours de 100 000 € confié</Text>
           </View>
-          <Text style={S.calloutValue}>{nfEur(100_000 * fund.retrocession_cgp)}/an</Text>
+          <Text style={[S.calloutValue, { color: C.clay }]}>{nfEur(100_000 * fund.retrocession_cgp)}/an</Text>
         </View>
       )}
 

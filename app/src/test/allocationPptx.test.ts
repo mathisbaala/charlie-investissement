@@ -157,3 +157,31 @@ describe("buildAllocationDeck avec extras (sections de l'atelier)", () => {
     }
   }, 30_000);
 });
+
+// ─── Marque du cabinet : le deck prend la couleur passée ──────────────────────
+
+async function slidesXml(buf: Buffer): Promise<string> {
+  const zip = await JSZip.loadAsync(buf);
+  const names = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f));
+  const parts = await Promise.all(names.map((n) => zip.files[n].async("string")));
+  return parts.join("\n");
+}
+
+describe("buildAllocationDeck — couleur de marque", () => {
+  const pres = () => buildPresentation(RESULT, { contractName: "X", advisorName: "Cabinet" });
+
+  it("teinte le deck à la couleur du cabinet quand un accent est fourni", async () => {
+    const buf = (await buildAllocationDeck(pres(), undefined, "#2a5067").write({ outputType: "nodebuffer" })) as Buffer;
+    expect((await slidesXml(buf)).toLowerCase()).toContain("2a5067");
+  }, 30_000);
+
+  it("garde l'accent clay Charlie par défaut (sans marque)", async () => {
+    const buf = (await buildAllocationDeck(pres()).write({ outputType: "nodebuffer" })) as Buffer;
+    expect((await slidesXml(buf)).toLowerCase()).toContain("8f4a31");
+  }, 30_000);
+
+  it("ignore un accent invalide et retombe sur le défaut", async () => {
+    const buf = (await buildAllocationDeck(pres(), undefined, "pas-une-couleur").write({ outputType: "nodebuffer" })) as Buffer;
+    expect((await slidesXml(buf)).toLowerCase()).toContain("8f4a31");
+  }, 30_000);
+});

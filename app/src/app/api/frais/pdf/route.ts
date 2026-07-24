@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import FraisPDF, { type FraisPdfHypotheses } from "@/lib/FraisPDF";
-import { loadLogo } from "@/lib/pdf/logo";
+import { applyBranding, parseClientBranding } from "@/lib/pdf/brandFromRequest";
 import { botGuard, dataRateLimit } from "@/lib/rateLimit";
 import { trackVercel } from "@/lib/analytics";
 import {
@@ -114,7 +114,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     commissionCabinet: input.commissionCabinet ?? 0,
   };
 
-  const logo = await loadLogo();
+  // Marque du cabinet (couleur + logo) reçue du client : teinte le document.
+  const logo = await applyBranding(parseClientBranding(body.branding));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const element = React.createElement(FraisPDF as any, { mode, clientRef, hypotheses, report, logo });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
